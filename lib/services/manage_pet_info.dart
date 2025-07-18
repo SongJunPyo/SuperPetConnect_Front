@@ -1,0 +1,83 @@
+// lib/services/manage_pet_info.dart
+
+import 'package:http/http.dart' as http;
+import 'dart:convert';
+import 'package:shared_preferences/shared_preferences.dart';
+import '../models/pet_model.dart';
+import '../utils/config.dart';
+
+// class PetService {
+//   static final String baseUrl = '${Config.serverUrl}/api/v1';
+
+//   // 반려동물 정보 조회
+//   static Future<List<Pet>> fetchPets() async {
+//     try {
+//       final response = await http.get(Uri.parse('$baseUrl/pets'));
+
+//       if (response.statusCode == 200) {
+//         final List<dynamic> data = jsonDecode(response.body);
+
+//         List<Pet> pets = data.map((item) => Pet.fromJson(item)).toList();
+//         List<Pet> petList = pets.toList();
+//         return petList;
+//       } else {
+//         throw Exception('반려동물 정보 조회 실패: ${response.body}');
+//       }
+//     } catch (e) {
+//       throw Exception('반려동물 정보 조회 중 오류 발생: $e');
+//     }
+//   }
+// }
+
+class PetService {
+  static final String baseUrl = '${Config.serverUrl}/api/v1';
+
+  // 반려동물 정보 조회
+  static Future<List<Pet>> fetchPets() async {
+    try {
+      // --- 수정: 인증 토큰 가져오기 ---
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString('auth_token');
+
+      final response = await http.get(
+        Uri.parse('$baseUrl/pets'),
+        // --- 수정: 인증 헤더 추가 ---
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+      );
+
+      if (response.statusCode == 200) {
+        final List<dynamic> data = json.decode(utf8.decode(response.bodyBytes));
+        return data.map((item) => Pet.fromJson(item)).toList();
+      } else {
+        throw Exception('반려동물 정보 조회 실패: ${response.body}');
+      }
+    } catch (e) {
+      throw Exception('반려동물 정보 조회 중 오류 발생: $e');
+    }
+  }
+
+  static Future<void> deletePet(int petId) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString('auth_token');
+
+      final response = await http.delete(
+        Uri.parse('$baseUrl/pets/$petId'), // 예: /api/v1/pets/12
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+      );
+
+      // 성공적인 삭제는 보통 204 No Content를 반환합니다.
+      if (response.statusCode != 204) {
+        throw Exception('반려동물 정보 삭제 실패: ${response.body}');
+      }
+    } catch (e) {
+      throw Exception('반려동물 정보 삭제 중 오류 발생: $e');
+    }
+  }
+}

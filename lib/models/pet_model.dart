@@ -1,7 +1,5 @@
 // models/pet_model.dart
 
-// import 'package:flutter/foundation.dart';
-
 class Pet {
   final int? petId; // 등록 전에는 null일 수 있음
   final int guardianIdx; // 보호자 ID
@@ -36,6 +34,20 @@ class Pet {
     return age <= 0 ? '1살 미만' : '$age살';
   }
 
+  factory Pet.fromJson(Map<String, dynamic> json) {
+    return Pet(
+      petId: json['pet_id'],
+      guardianIdx: json['guardian_idx'],
+      name: json['name'],
+      species: json['species'],
+      breed: json['breed'],
+      birthDate: DateTime.parse(json['birth_date']),
+      bloodType: json['blood_type'],
+      weightKg: (json['weight_kg'] as num).toDouble(),
+      pregnant: json['pregnant'] == null ? null : (json['pregnant'] == 1),
+    );
+  }
+
   // API 통신을 위한 Map 변환 (나중에 사용)
   Map<String, dynamic> toMap() {
     return {
@@ -44,7 +56,8 @@ class Pet {
       'name': name,
       'species': species,
       'breed': breed,
-      'birth_date': birthDate.toIso8601String().split('T')[0], // 'YYYY-MM-DD' 형식으로 전송
+      'birth_date':
+          birthDate.toIso8601String().split('T')[0], // 'YYYY-MM-DD' 형식으로 전송
       'blood_type': bloodType,
       'weight_kg': weightKg,
       'pregnant': pregnant == null ? null : (pregnant! ? 1 : 0),
