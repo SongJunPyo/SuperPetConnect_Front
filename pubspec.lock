@@ -208,6 +208,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "4.1.2"
+  interval_time_picker:
+    dependency: "direct main"
+    description:
+      name: interval_time_picker
+      sha256: aa2f6917f95880da74dcc51dff9144f0620db27bd6a0cd75efb9eb3befc6efea
+      url: "https://pub.dev"
+    source: hosted
+    version: "3.0.3+9"
   intl:
     dependency: "direct main"
     description:

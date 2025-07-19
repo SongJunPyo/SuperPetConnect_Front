@@ -13,7 +13,6 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       title: 'Super Pet Connect',
       theme: ThemeData(
-        // 토스 앱처럼 깔끔하고 세련된 느낌을 위해 색상 테마를 조정합니다.
         // Material 3의 동적 색상 기능을 활용하여 기본 색상을 설정합니다.
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.blueAccent),
         useMaterial3: true,
