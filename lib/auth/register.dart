@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:kpostal/kpostal.dart';
+import 'package:flutter/services.dart'; // 전화번호 포맷터 사용을 위해 추가
+import 'package:kpostal/kpostal.dart'; // 한국 주소 검색용
 import 'dart:convert';
 import 'package:http/http.dart' as http;
+import 'package:firebase_messaging/firebase_messaging.dart'; // FCM 기능 추가
 import '../utils/config.dart';
 
 class RegisterScreen extends StatefulWidget {
@@ -12,126 +14,155 @@ class RegisterScreen extends StatefulWidget {
 }
 
 class _RegisterScreenState extends State<RegisterScreen> {
-  // Form 위젯의 상태를 관리하기 위한 키 (유효성 검사에 사용)
   final _formKey = GlobalKey<FormState>();
-  // 입력 필드의 컨트롤러
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
-  final _nameController = TextEditingController(); // 이름
-  final _phoneController = TextEditingController(); // 전화번호
-  final _addressController = TextEditingController(); // 주소
-  // 비밀번호 가림/보임 상태를 위한 변수
+  final _nameController = TextEditingController();
+  final _phoneController = TextEditingController();
+  final _addressController = TextEditingController();
+
   bool _isObscurePassword = true;
   bool _isObscureConfirmPassword = true;
+  String? _fcmToken; // FCM 토큰 저장 변수 추가
 
   @override
   void dispose() {
-    // 리소스 해제
     _emailController.dispose();
     _passwordController.dispose();
     _confirmPasswordController.dispose();
     _nameController.dispose();
     _phoneController.dispose();
     _addressController.dispose();
-    super.dispose(); // 부모 클래스의 dispose() 메서드 호출
+    super.dispose();
   }
 
-  // 회원가입 버튼 클릭 시 호출될 함수
-  void _register() async {
-    // 폼의 현재 상태를 검증합니다.
+  @override
+  void initState() {
+    super.initState();
+    _getFcmToken(); // FCM 토큰 초기화
+  }
+
+  void _showSnackBar(String message, {bool isSuccess = false}) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor:
+            isSuccess ? Colors.green : Theme.of(context).colorScheme.error,
+      ),
+    );
+  }
+
+  // FCM 토큰 가져오기
+  Future<void> _getFcmToken() async {
+    try {
+      _fcmToken = await FirebaseMessaging.instance.getToken();
+      print("FCM Token: $_fcmToken");
+    } catch (e) {
+      print("FCM Token Error: $e");
+    }
+  }
+
+  void _submitForm() async {
     if (_formKey.currentState!.validate()) {
-      final String email = _emailController.text;
-      final String password = _passwordController.text;
-      final String name = _nameController.text;
-      final String phoneNumber = _phoneController.text;
-      final String address = _addressController.text;
-
-      print('회원가입 시도: 이름 - $name, 이메일 - $email');
-      print('서버 URL: ${Config.serverUrl}/api/v1/register');
-
       try {
+        showDialog(
+          context: context,
+          barrierDismissible: false,
+          builder:
+              (context) => const Center(child: CircularProgressIndicator()),
+        );
+
+        // 전화번호에서 하이픈을 제거하고 서버로 전송
+        final String formattedPhoneNumber = _phoneController.text.replaceAll(
+          '-',
+          '',
+        );
+        final fcmToken = _fcmToken ?? ""; // FCM 토큰이 없으면 빈 문자열로 설정
+
         final response = await http.post(
           Uri.parse('${Config.serverUrl}/api/v1/register'),
-          headers: <String, String>{
-            'Content-Type': 'application/json; charset=UTF-8',
-          },
-          body: jsonEncode(<String, String>{
-            'email': email,
-            'password': password,
-            'name': name,
-            'phone_number': phoneNumber,
-            'address': address,
+          headers: {'Content-Type': 'application/json'},
+          body: json.encode({
+            'email': _emailController.text,
+            'password': _passwordController.text,
+            'name': _nameController.text,
+            'phone_number': formattedPhoneNumber, // 하이픈 제거된 전화번호 전송
+            'address': _addressController.text,
+            'fcm_token': fcmToken, // FCM 토큰 추가
           }),
         );
 
-        print('서버 응답 코드: ${response.statusCode}');
-        print('서버 응답 본문: ${response.body}');
+        if (mounted) {
+          Navigator.pop(context);
+        }
+
+        String message;
 
         if (response.statusCode == 201) {
-          print('회원가입 성공');
-          ScaffoldMessenger.of(
-            context,
-          ).showSnackBar(const SnackBar(content: Text('회원가입 성공! 로그인 해주세요.')));
-          Navigator.pop(context);
+          message = '회원가입이 완료되었습니다. 관리자 승인까지 기다려주세요.';
+          _showSnackBar(message, isSuccess: true);
+          if (mounted) {
+            Navigator.pop(context);
+          }
+        } else if (response.statusCode == 409) {
+          message = '이미 가입된 이메일 또는 전화번호입니다.';
+          _showSnackBar(message);
         } else {
-          print('회원가입 실패: ${response.body}');
-          ScaffoldMessenger.of(
-            context,
-          ).showSnackBar(SnackBar(content: Text('회원가입 실패: ${response.body}')));
+          message =
+              '회원가입에 실패했습니다. 다시 시도해주세요.\n${utf8.decode(response.bodyBytes)}';
+          _showSnackBar(message);
         }
       } catch (e) {
-        print('서버 연결 오류: $e');
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('서버에 연결할 수 없습니다: $e')));
+        if (mounted) {
+          Navigator.pop(context);
+        }
+        _showSnackBar('네트워크 오류가 발생했습니다: $e');
+        print('Register Error: $e');
       }
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    final TextTheme textTheme = Theme.of(context).textTheme;
+    final ColorScheme colorScheme = Theme.of(context).colorScheme;
+
     return Scaffold(
       appBar: AppBar(
         backgroundColor: Colors.white,
         elevation: 0,
-        // 뒤로가기 버튼
         leading: IconButton(
           icon: const Icon(Icons.arrow_back_ios, color: Colors.black87),
           onPressed: () {
-            Navigator.pop(context); // 이전 화면으로 돌아가기
+            Navigator.pop(context);
           },
         ),
-        // 회원가입 페이지에서는 제목을 표시합니다.
-        title: const Text(
+        title: Text(
           '회원가입',
-          style: TextStyle(
-            fontSize: 20,
+          style: textTheme.titleLarge?.copyWith(
             fontWeight: FontWeight.bold,
             color: Colors.black87,
           ),
         ),
-        centerTitle: true, // 제목을 중앙에 정렬
+        centerTitle: true,
       ),
-      // 키보드 오버플로우 방지를 위해 SingleChildScrollView로 감쌉니다.
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(24.0),
         child: Form(
-          key: _formKey, // Form 위젯에 _formKey 할당
+          key: _formKey,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const SizedBox(height: 20), // 상단 여백
-              const Text(
+              const SizedBox(height: 20),
+              Text(
                 '새 계정 만들기',
-                style: TextStyle(
-                  fontSize: 28,
+                style: textTheme.headlineLarge?.copyWith(
                   fontWeight: FontWeight.bold,
                   color: Colors.black87,
                 ),
               ),
               const SizedBox(height: 30),
-              // 이메일 입력 필드
               TextFormField(
                 controller: _emailController,
                 keyboardType: TextInputType.emailAddress,
@@ -140,6 +171,17 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   filled: true,
                   fillColor: Colors.grey[100],
                   border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide.none,
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide(
+                      color: colorScheme.primary,
+                      width: 2,
+                    ),
+                  ),
+                  enabledBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
                     borderSide: BorderSide.none,
                   ),
@@ -153,7 +195,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   if (value == null || value.isEmpty) {
                     return '이메일을 입력해주세요.';
                   }
-                  // 간단한 이메일 형식 검사
                   if (!RegExp(r'^[^@]+@[^@]+\.[^@]+').hasMatch(value)) {
                     return '유효한 이메일 주소를 입력해주세요.';
                   }
@@ -161,15 +202,26 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 },
               ),
               const SizedBox(height: 16),
-              // 비밀번호 입력 필드
+
               TextFormField(
                 controller: _passwordController,
-                obscureText: _isObscurePassword, // 비밀번호 가림/보임 상태
+                obscureText: _isObscurePassword,
                 decoration: InputDecoration(
                   hintText: '비밀번호',
                   filled: true,
                   fillColor: Colors.grey[100],
                   border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide.none,
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide(
+                      color: colorScheme.primary,
+                      width: 2,
+                    ),
+                  ),
+                  enabledBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
                     borderSide: BorderSide.none,
                   ),
@@ -180,9 +232,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   suffixIcon: IconButton(
                     icon: Icon(
                       _isObscurePassword
-                          ? Icons.visibility
-                          : Icons.visibility_off,
-                      color: Colors.grey,
+                          ? Icons.visibility_off_outlined
+                          : Icons.visibility_outlined,
+                      color: Colors.grey[600],
                     ),
                     onPressed: () {
                       setState(() {
@@ -203,15 +255,26 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 },
               ),
               const SizedBox(height: 16),
-              // 비밀번호 확인 입력 필드
+
               TextFormField(
                 controller: _confirmPasswordController,
-                obscureText: _isObscureConfirmPassword, // 비밀번호 확인 가림/보임 상태
+                obscureText: _isObscureConfirmPassword,
                 decoration: InputDecoration(
                   hintText: '비밀번호 확인',
                   filled: true,
                   fillColor: Colors.grey[100],
                   border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide.none,
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide(
+                      color: colorScheme.primary,
+                      width: 2,
+                    ),
+                  ),
+                  enabledBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
                     borderSide: BorderSide.none,
                   ),
@@ -222,9 +285,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   suffixIcon: IconButton(
                     icon: Icon(
                       _isObscureConfirmPassword
-                          ? Icons.visibility
-                          : Icons.visibility_off,
-                      color: Colors.grey,
+                          ? Icons.visibility_off_outlined
+                          : Icons.visibility_outlined,
+                      color: Colors.grey[600],
                     ),
                     onPressed: () {
                       setState(() {
@@ -245,15 +308,25 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 },
               ),
               const SizedBox(height: 16),
-              // 비밀번호 확인 입력 필드
+
               TextFormField(
                 controller: _nameController,
                 decoration: InputDecoration(
-                  labelText: '이름',
-                  hintText: '홍길동',
+                  hintText: '이름',
                   filled: true,
                   fillColor: Colors.grey[100],
                   border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide.none,
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide(
+                      color: colorScheme.primary,
+                      width: 2,
+                    ),
+                  ),
+                  enabledBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
                     borderSide: BorderSide.none,
                   ),
@@ -271,16 +344,30 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 },
               ),
               const SizedBox(height: 16),
-              // 비밀번호 확인 입력 필드
+
               TextFormField(
                 controller: _phoneController,
-                keyboardType: TextInputType.number,
+                keyboardType: TextInputType.phone,
+                inputFormatters: [
+                  FilteringTextInputFormatter.digitsOnly, // 숫자만 입력 가능
+                  _PhoneNumberFormatter(), // 전화번호 포맷터 추가
+                ],
                 decoration: InputDecoration(
-                  labelText: '전화번호',
-                  hintText: '010-0000-0000',
+                  hintText: '전화번호 (예: 010-1234-5678)', // 힌트 변경
                   filled: true,
                   fillColor: Colors.grey[100],
                   border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide.none,
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide(
+                      color: colorScheme.primary,
+                      width: 2,
+                    ),
+                  ),
+                  enabledBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
                     borderSide: BorderSide.none,
                   ),
@@ -294,23 +381,35 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   if (value == null || value.isEmpty) {
                     return '전화번호를 입력해주세요.';
                   }
+                  // 하이픈 포함된 전화번호 형식 검사
                   if (!RegExp(r'^\d{3}-\d{3,4}-\d{4}$').hasMatch(value)) {
-                    return '유효한 전화번호 형식을 입력해주세요.';
+                    return '유효한 전화번호 형식을 입력해주세요. (예: 010-1234-5678)';
                   }
                   return null;
                 },
               ),
               const SizedBox(height: 16),
-              // 비밀번호 확인 입력 필드
+
+              // 주소 입력 필드 (kpostal 연동)
               TextFormField(
                 controller: _addressController,
-                // readOnly: true, // 주소 입력 필드는 읽기 전용으로 설정
+                readOnly: true, // 주소 입력 필드는 읽기 전용으로 설정
                 decoration: InputDecoration(
-                  labelText: '주소',
-                  hintText: '서울시 강남구 역삼동 123-45',
+                  hintText: '주소 검색',
                   filled: true,
                   fillColor: Colors.grey[100],
                   border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide.none,
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide(
+                      color: colorScheme.primary,
+                      width: 2,
+                    ),
+                  ),
+                  enabledBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
                     borderSide: BorderSide.none,
                   ),
@@ -318,25 +417,28 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     horizontal: 20,
                     vertical: 16,
                   ),
-                  suffixIcon: Icon(Icons.search),
+                  suffixIcon: Icon(
+                    Icons.search_outlined,
+                    color: Colors.grey[600],
+                  ), // 아웃라인 아이콘
                 ),
-                // onTap: () async {
-                //   await Navigator.push(
-                //     context,
-                //     MaterialPageRoute(
-                //       builder:
-                //           (_) => KpostalView(
-                //             callback: (Kpostal result) {
-                //               setState(() {
-                //                 // 주소 검색 결과를 화면에 표시
-                //                 _addressController.text = result.address;
-                //               });
-                //             },
-                //           ),
-                //     ),
-                //   );
-                // },
                 style: const TextStyle(fontSize: 16),
+                onTap: () async {
+                  if (!mounted) return; // 위젯 마운트 상태 확인
+                  await Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder:
+                          (_) => KpostalView(
+                            callback: (Kpostal result) {
+                              setState(() {
+                                _addressController.text = result.address;
+                              });
+                            },
+                          ),
+                    ),
+                  );
+                },
                 validator: (value) {
                   if (value == null || value.isEmpty) {
                     return '주소를 입력해주세요.';
@@ -345,11 +447,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 },
               ),
               const SizedBox(height: 30),
+
               // 회원가입 버튼
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton(
-                  onPressed: _register,
+                  onPressed: _submitForm,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.blueAccent,
                     foregroundColor: Colors.white,
@@ -359,17 +462,56 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     ),
                     elevation: 0,
                   ),
-                  child: const Text(
-                    '회원가입',
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  child: Text(
+                    '회원가입 완료',
+                    style: textTheme.titleMedium?.copyWith(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                    ),
                   ),
                 ),
               ),
-              const SizedBox(height: 20), // 하단 여백
+              const SizedBox(height: 20),
             ],
           ),
         ),
       ),
+    );
+  }
+}
+
+// TextInputFormatter를 상속받아 입력값이 바뀔 때마다 자동으로 포맷을 바꿔주는 클래스 (전화번호 포맷터)
+class _PhoneNumberFormatter extends TextInputFormatter {
+  @override
+  TextEditingValue formatEditUpdate(
+    TextEditingValue oldValue,
+    TextEditingValue newValue,
+  ) {
+    var text = newValue.text;
+    if (newValue.selection.baseOffset == 0) {
+      return newValue;
+    }
+
+    // 숫자만 남기기
+    text = text.replaceAll(RegExp(r'\D'), '');
+
+    var buffer = StringBuffer();
+    for (int i = 0; i < text.length; i++) {
+      buffer.write(text[i]);
+      if (i == 2 || i == 6) {
+        // 010-xxxx-xxxx 또는 010-xxx-xxxx
+        if (i < text.length - 1) {
+          // 마지막 숫자 뒤에는 하이픈 붙이지 않음
+          buffer.write('-');
+        }
+      }
+    }
+
+    var string = buffer.toString();
+    return newValue.copyWith(
+      text: string,
+      selection: TextSelection.collapsed(offset: string.length),
     );
   }
 }

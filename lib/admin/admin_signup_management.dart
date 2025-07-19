@@ -8,13 +8,13 @@ import 'dart:math' as math; // min 함수 사용을 위해 추가
 
 // 회원 가입 신청자 데이터 모델
 class SignupUser {
-  final int id;
+  final int id; // Flutter 모델에서는 'id'로 사용
   final String email;
   final String name;
   final String phoneNumber;
   final String address;
-  int userType; // 1: 관리자, 2: 병원, 3: 일반 사용자
-  final String createdTime;
+  final int userType; // Flutter 모델에서는 'userType'으로 사용
+  final DateTime createdTime; // String -> DateTime으로 변경
   String status; // 승인 상태: '대기', '승인', '거절'
 
   SignupUser({
@@ -29,26 +29,44 @@ class SignupUser {
   });
 
   factory SignupUser.fromJson(Map<String, dynamic> json) {
+    final int parsedId =
+        json['account_idx'] is int
+            ? json['account_idx']
+            : 0; // 'account_idx' 키를 사용
+    final String parsedEmail = json['email'] is String ? json['email'] : '';
+    final String parsedName = json['name'] is String ? json['name'] : '';
+    final String parsedPhoneNumber =
+        json['phone_number'] is String ? json['phone_number'] : '';
+    final String parsedAddress =
+        json['address'] is String ? json['address'] : '';
+    final int parsedUserType =
+        json['account_type'] is int
+            ? json['account_type']
+            : 3; // 'account_type' 키를 사용
+
+    final String createdTimeStr =
+        json['created_time'] is String ? json['created_time'] : '';
+    final DateTime parsedCreatedTime =
+        DateTime.tryParse(createdTimeStr) ?? DateTime.now();
+
+    final bool approvedBool =
+        json['approved'] is bool ? json['approved'] : false;
+
     return SignupUser(
-      id: json['id'],
-      email: json['email'],
-      name: json['name'],
-      phoneNumber: json['phone_number'],
-      address: json['address'],
-      userType: json['user_type'],
-      createdTime: json['created_time'],
-      status:
-          json['approved'] == 1
-              ? '승인'
-              : (json['approved'] == 0
-                  ? '거절'
-                  : '대기'), // 'approved'가 0이면 거절, 1이면 승인, 그 외 대기
+      id: parsedId,
+      email: parsedEmail,
+      name: parsedName,
+      phoneNumber: parsedPhoneNumber,
+      address: parsedAddress,
+      userType: parsedUserType,
+      createdTime: parsedCreatedTime,
+      status: approvedBool ? '승인' : '대기',
     );
   }
 }
 
 class AdminSignupManagement extends StatefulWidget {
-  const AdminSignupManagement({super.key}); // Key? key -> super.key로 변경
+  const AdminSignupManagement({super.key});
 
   @override
   _AdminSignupManagementState createState() => _AdminSignupManagementState();
@@ -58,35 +76,31 @@ class _AdminSignupManagementState extends State<AdminSignupManagement> {
   List<SignupUser> pendingUsers = [];
   bool isLoading = true;
   String errorMessage = '';
-  String? token; // JWT 토큰을 저장할 변수
+  String? token;
 
   @override
   void initState() {
     super.initState();
-    _loadToken().then((_) => fetchPendingUsers()); // 토큰 로드 후 사용자 목록 가져오기
+    _loadToken().then((_) => fetchPendingUsers());
   }
 
-  // SharedPreferences에서 토큰 로드
   Future<void> _loadToken() async {
     final prefs = await SharedPreferences.getInstance();
     final storedToken = prefs.getString('auth_token');
     print(
       "불러온 토큰: ${storedToken?.substring(0, math.min(10, storedToken.length)) ?? '없음'}...",
-    ); // 디버그 출력 간결화
+    );
     setState(() {
       token = storedToken;
     });
   }
 
-  // API에서 승인 대기 중인 사용자 목록 가져오기
   Future<void> fetchPendingUsers() async {
     if (token == null || token!.isEmpty) {
       setState(() {
         errorMessage = '로그인이 필요합니다. (토큰 없음)';
         isLoading = false;
       });
-      // TODO: 로그인 페이지로 강제 이동 로직 추가 (필요 시)
-      // Navigator.of(context).pushReplacementNamed('/login');
       return;
     }
 
@@ -103,19 +117,27 @@ class _AdminSignupManagementState extends State<AdminSignupManagement> {
       final response = await http.get(
         url,
         headers: {
-          'Authorization': 'Bearer $token', // JWT 토큰 포함
+          'Authorization': 'Bearer $token',
           'Content-Type': 'application/json; charset=UTF-8',
         },
       );
 
       if (response.statusCode == 200) {
         final List<dynamic> data = json.decode(utf8.decode(response.bodyBytes));
+        print('Received raw data from server: $data');
         setState(() {
-          // '대기' 상태인 사용자만 필터링하여 보여줌 (서버 응답 'approved' 필드에 따라)
           pendingUsers =
               data
-                  .map((user) => SignupUser.fromJson(user))
-                  .where((user) => user.status == '대기')
+                  .map((userJson) {
+                    try {
+                      return SignupUser.fromJson(userJson);
+                    } catch (e) {
+                      print('SignupUser.fromJson 파싱 오류: $e, 데이터: $userJson');
+                      return null;
+                    }
+                  })
+                  .where((user) => user != null && user!.status == '대기')
+                  .cast<SignupUser>()
                   .toList();
           isLoading = false;
         });
@@ -131,11 +153,10 @@ class _AdminSignupManagementState extends State<AdminSignupManagement> {
         errorMessage = '오류가 발생했습니다: $e';
         isLoading = false;
       });
-      print('fetchPendingUsers Error: $e'); // 자세한 오류 로깅
+      print('fetchPendingUsers Error: $e');
     }
   }
 
-  // 사용자 승인 처리
   Future<void> approveUser(SignupUser user, int selectedUserType) async {
     if (token == null || token!.isEmpty) {
       ScaffoldMessenger.of(
@@ -153,13 +174,12 @@ class _AdminSignupManagementState extends State<AdminSignupManagement> {
         url,
         headers: <String, String>{
           'Content-Type': 'application/json; charset=UTF-8',
-          'Authorization': 'Bearer $token', // JWT 토큰 포함
+          'Authorization': 'Bearer $token',
         },
         body: jsonEncode({'user_type': selectedUserType}),
       );
 
       if (response.statusCode == 200) {
-        // 승인 성공: 목록에서 해당 사용자 제거
         setState(() {
           pendingUsers.removeWhere((u) => u.id == user.id);
         });
@@ -183,7 +203,6 @@ class _AdminSignupManagementState extends State<AdminSignupManagement> {
     }
   }
 
-  // 사용자 거절 처리
   Future<void> rejectUser(SignupUser user) async {
     if (token == null || token!.isEmpty) {
       ScaffoldMessenger.of(
@@ -200,12 +219,11 @@ class _AdminSignupManagementState extends State<AdminSignupManagement> {
         ),
         headers: <String, String>{
           'Content-Type': 'application/json; charset=UTF-8',
-          'Authorization': 'Bearer $token', // JWT 토큰 포함
+          'Authorization': 'Bearer $token',
         },
       );
 
       if (response.statusCode == 200) {
-        // 거절 성공: 목록에서 해당 사용자 제거
         setState(() {
           pendingUsers.removeWhere((u) => u.id == user.id);
         });
@@ -229,7 +247,6 @@ class _AdminSignupManagementState extends State<AdminSignupManagement> {
     }
   }
 
-  // 사용자 유형에 따른 텍스트 반환
   String getUserTypeText(int userType) {
     switch (userType) {
       case 1:
@@ -243,7 +260,6 @@ class _AdminSignupManagementState extends State<AdminSignupManagement> {
     }
   }
 
-  // 상태에 따른 색상 반환
   Color getStatusColor(String status) {
     switch (status) {
       case '승인':
@@ -257,9 +273,8 @@ class _AdminSignupManagementState extends State<AdminSignupManagement> {
     }
   }
 
-  // 승인 다이얼로그 표시
   void showApprovalDialog(SignupUser user) {
-    int selectedUserType = user.userType; // 기본값은 현재 유저 타입 (대부분 3)
+    int selectedUserType = user.userType;
     final TextTheme textTheme = Theme.of(context).textTheme;
     final ColorScheme colorScheme = Theme.of(context).colorScheme;
 
@@ -267,15 +282,13 @@ class _AdminSignupManagementState extends State<AdminSignupManagement> {
       context: context,
       barrierDismissible: false,
       builder: (BuildContext dialogContext) {
-        // BuildContext 이름을 dialogContext로 변경하여 충돌 방지
         return StatefulBuilder(
           builder: (context, setState) {
-            // StatefulBuilder의 setState는 다이얼로그 내부만 업데이트
             return AlertDialog(
               title: Text('회원 유형 선택', style: textTheme.titleLarge),
               content: Column(
                 mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start, // 텍스트 왼쪽 정렬
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
                     '${user.name}님의 회원 유형을 선택해주세요.',
@@ -286,7 +299,6 @@ class _AdminSignupManagementState extends State<AdminSignupManagement> {
                     value: selectedUserType,
                     isExpanded: true,
                     items: const [
-                      // const 추가
                       DropdownMenuItem(value: 1, child: Text('관리자')),
                       DropdownMenuItem(value: 2, child: Text('병원')),
                       DropdownMenuItem(value: 3, child: Text('일반 사용자')),
@@ -294,13 +306,11 @@ class _AdminSignupManagementState extends State<AdminSignupManagement> {
                     onChanged: (value) {
                       if (value != null) {
                         setState(() {
-                          // StatefulBuilder의 setState 사용
                           selectedUserType = value;
                         });
                       }
                     },
                     decoration: InputDecoration(
-                      // 드롭다운 필드 디자인 통일
                       contentPadding: const EdgeInsets.symmetric(
                         horizontal: 12,
                         vertical: 8,
@@ -323,7 +333,7 @@ class _AdminSignupManagementState extends State<AdminSignupManagement> {
               actions: [
                 TextButton(
                   onPressed: () {
-                    Navigator.of(dialogContext).pop(); // 다이얼로그 닫기
+                    Navigator.of(dialogContext).pop();
                   },
                   style: TextButton.styleFrom(
                     foregroundColor: Colors.grey[600],
@@ -332,11 +342,11 @@ class _AdminSignupManagementState extends State<AdminSignupManagement> {
                 ),
                 ElevatedButton(
                   onPressed: () {
-                    Navigator.of(dialogContext).pop(); // 다이얼로그 닫기
-                    approveUser(user, selectedUserType); // 승인 처리 함수 호출
+                    Navigator.of(dialogContext).pop();
+                    approveUser(user, selectedUserType);
                   },
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: colorScheme.primary, // 테마 주 색상
+                    backgroundColor: colorScheme.primary,
                     foregroundColor: colorScheme.onPrimary,
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(8),
@@ -394,7 +404,6 @@ class _AdminSignupManagementState extends State<AdminSignupManagement> {
 
     return Scaffold(
       appBar: AppBar(
-        // main.dart의 AppBarTheme을 따름
         title: Text(
           "회원 가입 관리",
           style: textTheme.titleLarge?.copyWith(
@@ -402,13 +411,10 @@ class _AdminSignupManagementState extends State<AdminSignupManagement> {
             color: Colors.black87,
           ),
         ),
-        centerTitle: false, // 왼쪽 정렬
+        centerTitle: false,
         actions: [
           IconButton(
-            icon: Icon(
-              Icons.refresh_outlined,
-              color: Colors.black87,
-            ), // 아웃라인 아이콘
+            icon: Icon(Icons.refresh_outlined, color: Colors.black87),
             tooltip: '새로고침',
             onPressed: fetchPendingUsers,
           ),
@@ -461,7 +467,7 @@ class _AdminSignupManagementState extends State<AdminSignupManagement> {
                       Icons.person_add_disabled_outlined,
                       size: 80,
                       color: Colors.grey[300],
-                    ), // 대기 회원 없음 아이콘
+                    ),
                     const SizedBox(height: 16),
                     Text(
                       '승인 대기 중인 회원이 없습니다.',
@@ -476,33 +482,29 @@ class _AdminSignupManagementState extends State<AdminSignupManagement> {
                 padding: const EdgeInsets.symmetric(
                   horizontal: 20.0,
                   vertical: 16.0,
-                ), // 여백 통일
+                ),
                 itemCount: pendingUsers.length,
                 itemBuilder: (context, index) {
                   final user = pendingUsers[index];
                   return Card(
-                    margin: const EdgeInsets.only(bottom: 12.0), // 카드 간격
-                    elevation: 1, // 더 가벼운 그림자
+                    margin: const EdgeInsets.only(bottom: 12.0),
+                    elevation: 1,
                     shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12), // 둥근 모서리
-                      side: BorderSide(
-                        color: Colors.grey.shade200,
-                        width: 1,
-                      ), // 테두리 추가
+                      borderRadius: BorderRadius.circular(12),
+                      side: BorderSide(color: Colors.grey.shade200, width: 1),
                     ),
                     child: Padding(
-                      padding: const EdgeInsets.all(16.0), // 내부 패딩
+                      padding: const EdgeInsets.all(16.0),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          // 사용자 이름 및 상태 태그
                           Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Expanded(
                                 child: Text(
-                                  user.name,
+                                  '${index + 1}. ${user.name}', // 번호 매기기 추가
                                   style: textTheme.titleMedium?.copyWith(
                                     fontWeight: FontWeight.bold,
                                     color: Colors.black87,
@@ -512,29 +514,29 @@ class _AdminSignupManagementState extends State<AdminSignupManagement> {
                                 ),
                               ),
                               const SizedBox(width: 10),
-                              Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 8.0,
-                                  vertical: 4.0,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: getStatusColor(
-                                    user.status,
-                                  ).withAlpha(38), // withOpacity(0.15) 대체
-                                  borderRadius: BorderRadius.circular(8.0),
-                                ),
-                                child: Text(
-                                  user.status,
-                                  style: textTheme.bodySmall?.copyWith(
-                                    fontWeight: FontWeight.bold,
-                                    color: getStatusColor(user.status),
-                                  ),
-                                ),
-                              ),
+                              // ⚠️ 이 부분이 "대기" 라벨입니다. (주석 처리됨)
+                              // Container(
+                              //   padding: const EdgeInsets.symmetric(
+                              //     horizontal: 8.0,
+                              //     vertical: 4.0,
+                              //   ),
+                              //   decoration: BoxDecoration(
+                              //     color: getStatusColor(
+                              //       user.status,
+                              //     ).withAlpha(38),
+                              //     borderRadius: BorderRadius.circular(8.0),
+                              //   ),
+                              //   child: Text(
+                              //     user.status,
+                              //     style: textTheme.bodySmall?.copyWith(
+                              //       fontWeight: FontWeight.bold,
+                              //       color: getStatusColor(user.status),
+                              //     ),
+                              //   ),
+                              // ),
                             ],
                           ),
                           const SizedBox(height: 8),
-                          // 사용자 상세 정보
                           _buildDetailRow(
                             context,
                             Icons.email_outlined,
@@ -563,18 +565,15 @@ class _AdminSignupManagementState extends State<AdminSignupManagement> {
                             context,
                             Icons.calendar_today_outlined,
                             '신청일',
-                            user.createdTime,
+                            user.createdTime.toIso8601String().split('T')[0],
                           ),
 
-                          const SizedBox(height: 16), // 정보와 버튼 사이 간격
-                          // 승인/거절 버튼
+                          const SizedBox(height: 16),
                           Row(
-                            mainAxisAlignment:
-                                MainAxisAlignment.spaceAround, // 버튼 간격 균등 분배
+                            mainAxisAlignment: MainAxisAlignment.spaceAround,
                             children: [
                               Expanded(
                                 child: SizedBox(
-                                  // 버튼 높이 고정
                                   height: 40,
                                   child: ElevatedButton(
                                     onPressed:
@@ -582,8 +581,7 @@ class _AdminSignupManagementState extends State<AdminSignupManagement> {
                                             ? () => showApprovalDialog(user)
                                             : null,
                                     style: ElevatedButton.styleFrom(
-                                      backgroundColor:
-                                          colorScheme.primary, // 테마 주 색상
+                                      backgroundColor: colorScheme.primary,
                                       foregroundColor: colorScheme.onPrimary,
                                       shape: RoundedRectangleBorder(
                                         borderRadius: BorderRadius.circular(10),
@@ -599,10 +597,9 @@ class _AdminSignupManagementState extends State<AdminSignupManagement> {
                                   ),
                                 ),
                               ),
-                              const SizedBox(width: 12), // 버튼 사이 간격
+                              const SizedBox(width: 12),
                               Expanded(
                                 child: SizedBox(
-                                  // 버튼 높이 고정
                                   height: 40,
                                   child: ElevatedButton(
                                     onPressed:
@@ -610,8 +607,7 @@ class _AdminSignupManagementState extends State<AdminSignupManagement> {
                                             ? () => rejectUser(user)
                                             : null,
                                     style: ElevatedButton.styleFrom(
-                                      backgroundColor:
-                                          colorScheme.error, // 테마 에러 색상
+                                      backgroundColor: colorScheme.error,
                                       foregroundColor: colorScheme.onError,
                                       shape: RoundedRectangleBorder(
                                         borderRadius: BorderRadius.circular(10),
