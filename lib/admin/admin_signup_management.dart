@@ -3,8 +3,6 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:math' as math; // min 함수 사용을 위해 추가
-// TODO: Config 파일 임포트 추가 (서버 URL 사용)
-// import '../utils/config.dart';
 
 // 회원 가입 신청자 데이터 모델
 class SignupUser {

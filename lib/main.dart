@@ -5,52 +5,130 @@ import 'package:firebase_core/firebase_core.dart'; // Firebase Core 임포트
 import 'package:connect/firebase_options.dart'; // Firebase 설정 파일 임포트 (필요 시)
 import 'package:firebase_messaging/firebase_messaging.dart'; // FCM 메시징 임포트
 
-// 백그라운드 메시지 핸들러 (앱이 백그라운드에 있거나 종료되었을 때 호출)
-// 이 함수는 앱의 메인 isolate 외부에서 실행되므로, UI나 context에 직접 접근할 수 없음
-// 반드시 최상위 함수(top-level function)여야함
-@pragma('vm:entry-point') // Flutter 3.3+에서 백그라운드 메시지 처리를 위해 필요
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:timezone/data/latest_all.dart' as tz;
+import 'package:timezone/timezone.dart' as tz;
+import 'dart:convert';
+import 'dart:io'; // Platform 확인을 위해 추가
+
+// 로컬 알림 플러그인 인스턴스
+final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
+    FlutterLocalNotificationsPlugin();
+
+// 백그라운드 메시지 핸들러 (최상위 함수)
+@pragma('vm:entry-point')
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
-  // Firebase 초기화 (백그라운드에서만 호출됨)
+  // 백그라운드에서도 Firebase 초기화는 필수
+  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
   print("백그라운드 메시지 수신: ${message.messageId}");
-  print("백그라운드 알림 제목: ${message.notification?.title}");
-  print("백그라운드 알림 내용: ${message.notification?.body}");
-  print("백그라운드 데이터: ${message.data}");
+  if (message.notification != null) {
+    _showLocalNotification(message);
+  }
+}
+
+// 로컬 알림 표시 헬퍼 함수
+Future<void> _showLocalNotification(RemoteMessage message) async {
+  const AndroidNotificationDetails androidPlatformChannelSpecifics =
+      AndroidNotificationDetails(
+        'high_importance_channel', // AndroidManifest.xml의 channel ID와 일치
+        'High Importance Notifications',
+        channelDescription: 'This channel is used for important notifications.',
+        importance: Importance.max,
+        priority: Priority.high,
+        ticker: 'ticker',
+        icon: '@mipmap/ic_launcher', // 앱 아이콘 사용
+      );
+  const NotificationDetails platformChannelSpecifics = NotificationDetails(
+    android: androidPlatformChannelSpecifics,
+  );
+
+  await flutterLocalNotificationsPlugin.show(
+    message.hashCode, // 고유한 알림 ID
+    message.notification?.title,
+    message.notification?.body,
+    platformChannelSpecifics,
+    payload: jsonEncode(message.data),
+  );
+  print("로컬 알림 표시 시도 완료: ${message.notification?.title}");
 }
 
 void main() async {
-  WidgetsFlutterBinding.ensureInitialized(); // Flutter 엔진 초기화 보장
+  WidgetsFlutterBinding.ensureInitialized();
 
-  // 백그라운드 메시지 핸들러 등록 (앱 시작 시 한 번만 호출)
   FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
+
+  tz.initializeTimeZones();
+  try {
+    if (Platform.isAndroid || Platform.isIOS) {
+      tz.setLocalLocation(tz.getLocation('Asia/Seoul'));
+    } else {
+      tz.setLocalLocation(tz.UTC);
+    }
+    print('타임존 설정 완료: Asia/Seoul');
+  } catch (e) {
+    print('타임존 설정 실패, UTC로 fallback: $e');
+    tz.setLocalLocation(tz.UTC);
+  }
+
+  const AndroidInitializationSettings initializationSettingsAndroid =
+      AndroidInitializationSettings('@mipmap/ic_launcher');
+  const DarwinInitializationSettings initializationSettingsDarwin =
+      DarwinInitializationSettings(
+        requestAlertPermission: true,
+        requestBadgePermission: true,
+        requestSoundPermission: true,
+      );
+  const InitializationSettings initializationSettings = InitializationSettings(
+    android: initializationSettingsAndroid,
+    iOS: initializationSettingsDarwin,
+  );
+
+  await flutterLocalNotificationsPlugin.initialize(
+    initializationSettings,
+    onDidReceiveNotificationResponse: (
+      NotificationResponse notificationResponse,
+    ) async {
+      print('알림 탭! Payload: ${notificationResponse.payload}');
+      // TODO: payload를 파싱하여 해당 화면으로 이동하는 로직 추가
+    },
+  );
+
+  // 알림 권한 요청
+  try {
+    NotificationSettings settings = await FirebaseMessaging.instance
+        .requestPermission(
+          alert: true,
+          announcement: false,
+          badge: true,
+          carPlay: false,
+          criticalAlert: false,
+          provisional: false,
+          sound: true,
+        );
+
+    if (settings.authorizationStatus == AuthorizationStatus.authorized) {
+      print('사용자에게 알림 권한이 허용되었습니다.');
+    } else if (settings.authorizationStatus ==
+        AuthorizationStatus.provisional) {
+      print('사용자에게 임시 알림 권한이 허용되었습니다.');
+    } else {
+      print('사용자에게 알림 권한이 거부되었습니다.');
+      // TODO: 사용자에게 알림 권한 설정 페이지로 이동하도록 안내하는 UI 표시
+    }
+  } catch (e) {
+    print('FCM 알림 권한 요청 중 오류 발생: $e');
+  }
 
   try {
     await Firebase.initializeApp(
-      options: DefaultFirebaseOptions.currentPlatform, // Firebase 프로젝트 설정 사용
+      options: DefaultFirebaseOptions.currentPlatform,
     );
     print('Firebase 초기화 성공!');
 
-    // 포그라운드 메시지 수신 리스너 등록 (앱이 실행 중일 때)
     FirebaseMessaging.onMessage.listen((RemoteMessage message) {
       print("포그라운드 메시지 수신: ${message.messageId}");
-      print("포그라운드 알림 제목: ${message.notification?.title}");
-      print("포그라운드 알림 내용: ${message.notification?.body}");
-      print("포그라운드 데이터: ${message.data}");
-
-      // 포그라운드에서 알림을 받았을 때 사용자에게 표시 (예: SnackBar, Dialog, Local Notification)
-      // 여기서는 간단히 SnackBar로 표시합니다.
       if (message.notification != null) {
-        // ScaffoldMessenger가 사용 가능한지 확인 후 SnackBar 표시
-        if (navigatorKey.currentState != null &&
-            navigatorKey.currentState!.overlay != null) {
-          ScaffoldMessenger.of(navigatorKey.currentState!.context).showSnackBar(
-            SnackBar(
-              content: Text(
-                '${message.notification!.title ?? '알림'}: ${message.notification!.body ?? ''}',
-              ),
-              duration: const Duration(seconds: 5),
-            ),
-          );
-        }
+        _showLocalNotification(message);
       }
     });
 
