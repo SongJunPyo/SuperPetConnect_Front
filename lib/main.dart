@@ -15,35 +15,34 @@ import 'dart:io'; // Platform 확인을 위해 추가
 final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
     FlutterLocalNotificationsPlugin();
 
-// 백그라운드 메시지 핸들러 (최상위 함수)
 @pragma('vm:entry-point')
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
-  // 백그라운드에서도 Firebase 초기화는 필수
+  // 백그라운드 핸들러 내에서도 Firebase 초기화는 필수
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+
   print("백그라운드 메시지 수신: ${message.messageId}");
   if (message.notification != null) {
     _showLocalNotification(message);
   }
 }
 
-// 로컬 알림 표시 헬퍼 함수
 Future<void> _showLocalNotification(RemoteMessage message) async {
   const AndroidNotificationDetails androidPlatformChannelSpecifics =
       AndroidNotificationDetails(
-        'high_importance_channel', // AndroidManifest.xml의 channel ID와 일치
+        'high_importance_channel',
         'High Importance Notifications',
         channelDescription: 'This channel is used for important notifications.',
         importance: Importance.max,
         priority: Priority.high,
         ticker: 'ticker',
-        icon: '@mipmap/ic_launcher', // 앱 아이콘 사용
+        icon: '@mipmap/ic_launcher',
       );
   const NotificationDetails platformChannelSpecifics = NotificationDetails(
     android: androidPlatformChannelSpecifics,
   );
 
   await flutterLocalNotificationsPlugin.show(
-    message.hashCode, // 고유한 알림 ID
+    message.hashCode,
     message.notification?.title,
     message.notification?.body,
     platformChannelSpecifics,
@@ -55,8 +54,23 @@ Future<void> _showLocalNotification(RemoteMessage message) async {
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
+  // 1. Firebase 초기화 (가장 먼저)
+  try {
+    await Firebase.initializeApp(
+      options: DefaultFirebaseOptions.currentPlatform,
+    );
+    print('Firebase 초기화 성공!');
+  } catch (e) {
+    print('Firebase 초기화 실패: $e');
+    // 초기화 실패 시 앱을 계속 실행할지, 오류 화면을 보여줄지 결정
+    // 여기서는 오류 발생 시 앱 종료를 고려할 수도 있습니다.
+    // return; // 앱 종료
+  }
+
+  // 2. 백그라운드 메시지 핸들러 등록 (Firebase 초기화 후)
   FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
 
+  // 3. 타임존 설정
   tz.initializeTimeZones();
   try {
     if (Platform.isAndroid || Platform.isIOS) {
@@ -70,6 +84,7 @@ void main() async {
     tz.setLocalLocation(tz.UTC);
   }
 
+  // 4. 로컬 알림 플러그인 초기화
   const AndroidInitializationSettings initializationSettingsAndroid =
       AndroidInitializationSettings('@mipmap/ic_launcher');
   const DarwinInitializationSettings initializationSettingsDarwin =
@@ -93,7 +108,7 @@ void main() async {
     },
   );
 
-  // 알림 권한 요청
+  // 5. 알림 권한 요청 (Firebase 초기화 및 로컬 알림 초기화 후)
   try {
     NotificationSettings settings = await FirebaseMessaging.instance
         .requestPermission(
@@ -119,38 +134,25 @@ void main() async {
     print('FCM 알림 권한 요청 중 오류 발생: $e');
   }
 
-  try {
-    await Firebase.initializeApp(
-      options: DefaultFirebaseOptions.currentPlatform,
-    );
-    print('Firebase 초기화 성공!');
+  // 6. FCM 메시지 리스너 등록 (Firebase 초기화 후)
+  FirebaseMessaging.onMessage.listen((RemoteMessage message) {
+    print("포그라운드 메시지 수신: ${message.messageId}");
+    if (message.notification != null) {
+      _showLocalNotification(message);
+    }
+  });
 
-    FirebaseMessaging.onMessage.listen((RemoteMessage message) {
-      print("포그라운드 메시지 수신: ${message.messageId}");
-      if (message.notification != null) {
-        _showLocalNotification(message);
-      }
-    });
+  FirebaseMessaging.instance.getInitialMessage().then((RemoteMessage? message) {
+    if (message != null) {
+      print("종료 상태에서 앱 시작 메시지: ${message.messageId}");
+      // TODO: 알림을 통해 앱이 열렸을 때 특정 화면으로 이동하는 로직 추가
+    }
+  });
 
-    // 앱이 종료된 상태에서 알림을 탭하여 앱이 열렸을 때 메시지 가져오기
-    FirebaseMessaging.instance.getInitialMessage().then((
-      RemoteMessage? message,
-    ) {
-      if (message != null) {
-        print("종료 상태에서 앱 시작 메시지: ${message.messageId}");
-        // TODO: 알림을 통해 앱이 열렸을 때 특정 화면으로 이동하는 로직 추가
-      }
-    });
-
-    // 앱이 백그라운드 상태에서 알림을 탭하여 앱이 포그라운드로 전환될 때 메시지 가져오기
-    FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) {
-      print("백그라운드에서 앱 열림 메시지: ${message.messageId}");
-      // TODO: 알림을 탭했을 때 특정 화면으로 이동하는 로직 추가
-    });
-  } catch (e) {
-    print('Firebase 초기화 실패: $e');
-    // 초기화 실패 시 앱을 계속 실행할지, 오류 화면을 보여줄지 결정
-  }
+  FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) {
+    print("백그라운드에서 앱 열림 메시지: ${message.messageId}");
+    // TODO: 알림을 탭했을 때 특정 화면으로 이동하는 로직 추가
+  });
 
   runApp(const MyApp());
 }
