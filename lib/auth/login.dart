@@ -59,8 +59,19 @@ class _LoginScreenState extends State<LoginScreen> {
           // 사용자 정보 저장
           await prefs.setString('user_email', data['email'] ?? '');
           await prefs.setString('user_name', data['name'] ?? '');
-          // TODO: 기타 필요한 사용자 정보 저장 (예: phone_number, address, user_id 등)
 
+          await prefs.setInt(
+            'guardian_idx',
+            data['account_idx'] ?? 0,
+          ); // guardian_idx 저장 확인
+
+          // 🚨 저장 후 바로 확인하는 디버그 로그 추가
+          print(
+            'DEBUG: SharedPreferences에 저장된 guardian_idx: ${prefs.getInt('guardian_idx')}',
+          );
+          print(
+            'DEBUG: SharedPreferences에 저장된 auth_token: ${prefs.getString('auth_token')}',
+          );
           // 승인 여부 확인
           if (data['approved'] == false) {
             _showAlertDialog(
