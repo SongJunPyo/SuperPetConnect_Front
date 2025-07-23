@@ -78,16 +78,9 @@ class _HospitalPostState extends State<HospitalPost> {
             "${selectedDate.year}-${selectedDate.month.toString().padLeft(2, '0')}-${selectedDate.day.toString().padLeft(2, '0')}",
         "timeRanges": timeRanges,
         "location": selectedRegion,
-        "type": selectedType,
+        "type": selectedType == "긴급" ? 1 : 2,
         "bloodType": selectedBlood,
         "description": additionalDescription,
-        "userInfo": {
-          "email": userInfo['email'],
-          "name": userInfo['name'],
-          "phone_number": userInfo['phone_number'],
-          "address": userInfo['address'],
-          "user_id": userInfo['user_id'],
-        },
       };
 
       print('Sending post data: ${json.encode(postData)}');
