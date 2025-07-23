@@ -1,5 +1,3 @@
-// lib/user/pet_management.dart
-
 import 'package:flutter/material.dart';
 import 'package:connect/user/pet_register.dart';
 import 'package:connect/models/pet_model.dart'; // Pet 모델 import

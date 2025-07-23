@@ -70,7 +70,11 @@ class _UserDashboardState extends State<UserDashboard>
             icon: const CircleAvatar(
               radius: 18,
               backgroundColor: Colors.grey, // 임시 프로필 색상
-              child: Icon(Icons.person, color: Colors.white, size: 20),
+              child: Icon(
+                Icons.person_outline,
+                color: Colors.black87,
+                size: 20,
+              ),
             ),
             onPressed: () {
               // TODO: 마이페이지로 이동하는 로직 추가
@@ -81,7 +85,10 @@ class _UserDashboardState extends State<UserDashboard>
           ),
           // 알림 버튼
           IconButton(
-            icon: const Icon(Icons.notifications, color: Colors.black87),
+            icon: const Icon(
+              Icons.notifications_outlined,
+              color: Colors.black87,
+            ),
             onPressed: () {
               // TODO: 알림 페이지로 이동하는 로직 추가
               ScaffoldMessenger.of(context).showSnackBar(
