@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:connect/hospital/notification_settings_screen.dart';
 
 class HospitalAlarm extends StatefulWidget {
   const HospitalAlarm({super.key});
@@ -83,12 +84,15 @@ class _HospitalAlarmState extends State<HospitalAlarm> {
             icon: Icon(Icons.settings_outlined, color: Colors.grey[600]),
             tooltip: '알림 설정',
             onPressed: () {
-              // 알림 설정 페이지로 이동하는 로직
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('알림 설정 페이지로 이동 (미구현)')),
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const NotificationSettingsScreen(regionCode: "gyeonggi"), // TODO: 병원 실제 지역 코드로 대체
+                ),
               );
             },
           ),
+
           const SizedBox(width: 8), // 오른쪽 여백
         ],
       ),
