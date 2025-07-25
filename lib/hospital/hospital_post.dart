@@ -66,22 +66,26 @@ class _HospitalPostState extends State<HospitalPost> {
         return;
       }
 
-      final userInfo = await _getUserInfo();
+      final String postTitle = "긴급 헌혈 구합니다!"; // 지금은 임시이고 나중에 제목 작성하는 부분도 추가할 예정
+      // [???병원] 긴급 헌혈 모집!! or [???병원] 정기 헌혈 모집!! 형태로 제목 작성 예정
 
-      List<Map<String, dynamic>> timeRanges =
-          timeEntries.map((entry) {
-            return {"time": entry["timeRange"], "team": entry["teamNumber"]};
-          }).toList();
-
-      final postData = {
+      // 서버로 보낼 데이터를 Map 형태로 만듭니다.
+      final Map<String, dynamic> postData = {
         "date":
             "${selectedDate.year}-${selectedDate.month.toString().padLeft(2, '0')}-${selectedDate.day.toString().padLeft(2, '0')}",
-        "timeRanges": timeRanges,
-        "location": selectedRegion,
-        "type": selectedType == "긴급" ? 1 : 2,
-        "bloodType": selectedBlood,
+        "timeRanges":
+            timeEntries.map((entry) {
+              return {"time": entry["timeRange"], "team": entry["teamNumber"]};
+            }).toList(),
+        "types": selectedType == "긴급" ? 1 : 2,
+        "title": postTitle, // 예: titleFromController
         "description": additionalDescription,
       };
+
+      // '긴급' 타입일 때만 'bloodType' 필드를 추가합니다.
+      if (selectedType == "긴급") {
+        postData['bloodType'] = selectedBlood;
+      }
 
       print('Sending post data: ${json.encode(postData)}');
       print('Using token: ${token.substring(0, min(10, token.length))}...');
