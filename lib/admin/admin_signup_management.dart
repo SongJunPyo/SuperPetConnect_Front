@@ -155,7 +155,11 @@ class _AdminSignupManagementState extends State<AdminSignupManagement> {
     }
   }
 
-  Future<void> approveUser(SignupUser user, int selectedUserType) async {
+  Future<void> approveUser(
+    SignupUser user,
+    int selectedUserType,
+    String? hospitalId,
+  ) async {
     if (token == null || token!.isEmpty) {
       ScaffoldMessenger.of(
         context,
@@ -168,13 +172,22 @@ class _AdminSignupManagementState extends State<AdminSignupManagement> {
       final url = Uri.parse(
         'http://10.100.54.176:8002/api/signup_management/approve-user/${user.id}',
       );
+
+      final Map<String, dynamic> requestBody = {'user_type': selectedUserType};
+
+      if (selectedUserType == 2 &&
+          hospitalId != null &&
+          hospitalId.isNotEmpty) {
+        requestBody['hospital_id'] = hospitalId;
+      }
+
       final response = await http.post(
         url,
         headers: <String, String>{
           'Content-Type': 'application/json; charset=UTF-8',
           'Authorization': 'Bearer $token',
         },
-        body: jsonEncode({'user_type': selectedUserType}),
+        body: jsonEncode(requestBody),
       );
 
       if (response.statusCode == 200) {
@@ -275,6 +288,7 @@ class _AdminSignupManagementState extends State<AdminSignupManagement> {
     int selectedUserType = user.userType;
     final TextTheme textTheme = Theme.of(context).textTheme;
     final ColorScheme colorScheme = Theme.of(context).colorScheme;
+    final _hospitalIdController = TextEditingController();
 
     showDialog(
       context: context,
@@ -326,6 +340,20 @@ class _AdminSignupManagementState extends State<AdminSignupManagement> {
                       ),
                     ),
                   ),
+                  if (selectedUserType == 2)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 16.0),
+                      child: TextField(
+                        controller: _hospitalIdController,
+                        decoration: InputDecoration(
+                          labelText: '요양기관기호',
+                          hintText: '병원 고유 ID를 입력하세요.',
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                        ),
+                      ),
+                    ),
                 ],
               ),
               actions: [
@@ -341,7 +369,11 @@ class _AdminSignupManagementState extends State<AdminSignupManagement> {
                 ElevatedButton(
                   onPressed: () {
                     Navigator.of(dialogContext).pop();
-                    approveUser(user, selectedUserType);
+                    approveUser(
+                      user,
+                      selectedUserType,
+                      _hospitalIdController.text,
+                    );
                   },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: colorScheme.primary,
