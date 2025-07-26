@@ -15,6 +15,7 @@ class HospitalPost extends StatefulWidget {
 }
 
 class _HospitalPostState extends State<HospitalPost> {
+  late final TextEditingController _titleController;
   List<Map<String, dynamic>> timeEntries = [];
   DateTime selectedDate = DateTime.now();
   String selectedRegion = "울산"; // 초기값을 울산으로 변경
@@ -56,6 +57,11 @@ class _HospitalPostState extends State<HospitalPost> {
       return;
     }
 
+    if (_titleController.text.isEmpty) {
+      _showAlertDialog('알림', '게시글 제목을 입력해주세요.');
+      return;
+    }
+
     try {
       final token = await _getAuthToken();
       if (token.isEmpty) {
@@ -66,9 +72,6 @@ class _HospitalPostState extends State<HospitalPost> {
         return;
       }
 
-      final String postTitle = "긴급 헌혈 구합니다!"; // 지금은 임시이고 나중에 제목 작성하는 부분도 추가할 예정
-      // [???병원] 긴급 헌혈 모집!! or [???병원] 정기 헌혈 모집!! 형태로 제목 작성 예정
-
       // 서버로 보낼 데이터를 Map 형태로 만듭니다.
       final Map<String, dynamic> postData = {
         "date":
@@ -78,7 +81,7 @@ class _HospitalPostState extends State<HospitalPost> {
               return {"time": entry["timeRange"], "team": entry["teamNumber"]};
             }).toList(),
         "types": selectedType == "긴급" ? 1 : 2,
-        "title": postTitle, // 예: titleFromController
+        "title": _titleController.text,
         "description": additionalDescription,
       };
 
@@ -142,6 +145,24 @@ class _HospitalPostState extends State<HospitalPost> {
         );
       },
     );
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _titleController = TextEditingController();
+    _updateTitleText(); // 초기 기본 제목을 설정하는 함수 호출
+  }
+
+  @override
+  void dispose() {
+    _titleController.dispose(); // 컨트롤러 메모리 해제
+    super.dispose();
+  }
+
+  void _updateTitleText() {
+    const hospitalName = "동물 병원"; // 나중에 DB에서 가져올 이름
+    _titleController.text = '[$hospitalName] $selectedType 헌혈';
   }
 
   @override
@@ -388,6 +409,16 @@ class _HospitalPostState extends State<HospitalPost> {
                   padding: const EdgeInsets.all(16.0),
                   child: Column(
                     children: [
+                      TextField(
+                        controller: _titleController,
+                        decoration: _buildInputDecoration(
+                          context,
+                          "게시글 제목",
+                          Icons.title,
+                        ),
+                      ),
+                      const SizedBox(height: 20),
+
                       // 지역 선택
                       DropdownButtonFormField<String>(
                         value: selectedRegion,
@@ -439,6 +470,7 @@ class _HospitalPostState extends State<HospitalPost> {
                         onChanged: (value) {
                           setState(() {
                             selectedType = value ?? "정기";
+                            _updateTitleText(); //타입 변경 시 제목 업데이트 함수 호출
                           });
                         },
                         decoration: _buildInputDecoration(
@@ -844,7 +876,6 @@ class _EditEntryDialogState extends State<_EditEntryDialog> {
   @override
   void initState() {
     super.initState();
-
     // 날짜 처리 (기존 로직 그대로 유지)
     if (widget.entry['date'] != null) {
       try {
