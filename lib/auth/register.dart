@@ -84,10 +84,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
           Uri.parse('${Config.serverUrl}/api/v1/register'),
           headers: {'Content-Type': 'application/json'},
           body: json.encode({
-            'email': _emailController.text,
-            'password': _passwordController.text,
-            'name': _nameController.text,
-            'phone_number': formattedPhoneNumber, // 하이픈 제거된 전화번호 전송
+            'email': _emailController.text.trim(),
+            'password': _passwordController.text.trim(),
+            'name': _nameController.text.trim(),
+            'phone_number': formattedPhoneNumber.trim(), // 하이픈 제거된 전화번호 전송
             'address': _addressController.text,
             'fcm_token': fcmToken, // FCM 토큰 추가
           }),
