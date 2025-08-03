@@ -6,175 +6,196 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ### Development
 - `flutter pub get` - Install dependencies
-- `flutter run` - Run the application in debug mode
-- `flutter build apk` - Build Android APK
-- `flutter build ios` - Build iOS app
-- `flutter test` - Run unit tests
-- `flutter analyze` - Run static analysis
-- `flutter clean` - Clean build artifacts
+- `flutter run` - Run the application in debug mode (launches on connected device/emulator)
+- `flutter run -d chrome` - Run as web app in Chrome browser
+- `flutter build apk` - Build Android APK for release
+- `flutter build ios` - Build iOS app (requires macOS with Xcode)
+- `flutter clean` - Clean build artifacts and cached files
 
-### Code Quality
-- `flutter analyze` - Check code for issues and warnings
-- `flutter format .` - Format all Dart files
+### Code Quality & Testing
+- `flutter analyze` - Run static analysis to check for code issues
+- `flutter format .` - Format all Dart files according to Flutter style guide
+- `flutter test` - Run unit tests (when tests are implemented)
+- `flutter test test/specific_test.dart` - Run a specific test file
+
+### Debugging
+- `flutter doctor` - Check Flutter installation and development environment
+- `flutter logs` - View device logs while app is running
+- `flutter inspector` - Launch widget inspector for UI debugging
 
 ## Project Architecture
 
-### Application Structure
-This is a Flutter mobile application for "Super Pet Connect" - a blood donation system for pets connecting hospitals, users, and administrators.
+### Application Overview
+**Super Pet Connect** - A Flutter mobile application that facilitates blood donation for pets by connecting hospitals, pet owners, and administrators. The app serves as a platform for coordinating emergency and routine blood donation requests.
 
 ### Core Architecture Patterns
-- **Role-based UI**: Three distinct user interfaces (Admin, Hospital, User) with separate dashboard flows
-- **Model-based data handling**: Centralized data models in `lib/models/` for API communication
-- **Service layer**: Backend communication through HTTP services
-- **Firebase integration**: FCM for push notifications with local notification handling
+
+**Role-Based Architecture**
+- Three distinct user interfaces: Admin, Hospital, and User (Pet Owner)
+- Authentication-based routing with role validation
+- Separate dashboards and feature sets per role
+
+**Model-View-Service Pattern**
+- **Models** (`lib/models/`): Data structures for API communication
+  - Post: Blood donation requests with time slots and urgency flags
+  - Hospital: Hospital entities with contact and verification info
+  - Pet: Pet profiles with blood type and medical information
+  - TimeRange: Appointment scheduling slots
+- **Views**: Role-specific screens organized by user type
+- **Services** (`lib/services/`): Business logic and backend API integration
+
+**State Management**
+- StatefulWidget-based local state management
+- SharedPreferences for persistent data (user tokens, preferences)
+- No global state management solution (consider adding Provider/Riverpod for complex state)
 
 ### Key Directories
 
-- `lib/admin/` - Administrative interface screens and functionality
-- `lib/auth/` - Authentication screens (login, register, welcome, FCM token)
-- `lib/hospital/` - Hospital-specific screens for posting blood donation requests
-- `lib/user/` - User screens for pet management and donation responses
-- `lib/models/` - Data models (Post, Hospital, Pet models)
-- `lib/services/` - Business logic and API communication services
-- `lib/utils/` - Configuration and utility functions
+- `lib/admin/` - Administrative interface
+  - User approval workflows
+  - Hospital verification management
+  - System-wide content moderation
+- `lib/auth/` - Authentication flow
+  - Welcome screen with donation board preview
+  - Login/registration with role selection
+  - FCM token management for notifications
+- `lib/hospital/` - Hospital functionality
+  - Blood donation post creation/management
+  - Applicant review and approval
+  - Time slot scheduling interface
+- `lib/user/` - Pet owner features
+  - Pet registration and profile management
+  - Browse/apply for donation opportunities
+  - Educational content (columns)
+- `lib/models/` - Core data models
+- `lib/services/` - API communication layer
+- `lib/utils/` - Configuration and utilities
+  - `config.dart`: Backend server URL configuration
+  - `app_theme.dart`: Centralized theming (Toss-inspired design)
+- `lib/widgets/` - Reusable UI components
 
 ### Key Configuration
-- **Server Configuration**: Backend API URL is configured in `lib/utils/config.dart`
-- **Firebase**: Integrated for push notifications with proper initialization in main.dart
-- **Navigation**: Role-based navigation after login directs to appropriate dashboard
 
-### Authentication Flow
-1. Welcome screen → Login/Register
-2. Login validates credentials against backend API
-3. Based on user role, redirects to appropriate dashboard:
-   - Admin → AdminDashboard
-   - Hospital → HospitalDashboard  
-   - User → UserDashboard
+**Backend Integration**
+- Server URL configured in `lib/utils/config.dart`
+- HTTP-based REST API communication
+- JWT token authentication
+- Error handling and response parsing
 
-### Data Models
-- **Post**: Blood donation requests with time ranges, hospital info, urgency flags
-- **Hospital**: Hospital entity with contact information and address
-- **Pet**: Pet information for users managing their pets
-- **TimeRange**: Time slots for blood donation appointments
+**Firebase Setup**
+- Firebase Core initialization in `main.dart`
+- FCM for push notifications with background message handling
+- Local notifications with Android notification channels
+- Requires `google-services.json` (Android) and `GoogleService-Info.plist` (iOS)
 
-### Firebase Integration
-- FCM token management for push notifications
-- Background and foreground message handling
-- Local notification display with proper Android notification channels
-- Timezone handling for Korean locale (Asia/Seoul)
+**Localization**
+- Korean market focus with Asia/Seoul timezone
+- KPostal integration for Korean address lookup
+- Date/time formatting for Korean locale
+
+### Authentication & Navigation Flow
+
+1. **App Launch** → Welcome screen showing blood donation posts
+2. **Authentication** → Login/Register with role selection
+3. **Admin Approval** → New users require admin verification
+4. **Role-Based Routing**:
+   - Admin → `AdminDashboard`
+   - Hospital → `HospitalDashboard`
+   - User → `UserDashboard`
+5. **Token Management** → JWT stored in SharedPreferences
+
+### Critical Features
+
+**Blood Donation Post System**
+- Time slot scheduling with `interval_time_picker`
+- Urgency flags for emergency requests
+- Regional filtering for location-based matching
+- Real-time status updates
+
+**Notification System**
+- FCM push notifications for urgent requests
+- Local notifications for app engagement
+- Background message processing
+- Notification channel configuration for Android
+
+**Pet Management**
+- Pet profile creation with medical details
+- Blood type tracking
+- Donation history
+- Health status monitoring
 
 ### Dependencies
-Key packages include:
-- `http` for API communication
-- `shared_preferences` for local storage
-- `firebase_messaging` and `firebase_core` for push notifications
-- `flutter_local_notifications` for local notification display
-- `interval_time_picker` for time selection in hospital posts
-- `kpostal` for Korean postal code lookup
 
+**Core Packages**
+- `http: ^1.4.0` - REST API communication
+- `shared_preferences: ^2.2.2` - Local data persistence
+- `intl: ^0.19.0` - Internationalization and date formatting
 
-# CLAUDE.md
-- 이 파일은 Claude Code(claude.ai/code)가 이 저장소의 코드로 작업할 때 참고하는 가이드입니다.
+**Firebase Integration**
+- `firebase_core: ^2.27.0` - Firebase initialization
+- `firebase_messaging: ^14.7.10` - Push notifications
+- `flutter_local_notifications: ^17.0.0` - System notifications
+- `timezone: ^0.9.2` - Timezone configuration
 
-## 자주 사용하는 명령어
+**UI/UX Enhancements**
+- `interval_time_picker: ^3.0.3+9` - Time slot selection
+- `kpostal: 1.1.0` - Korean postal code lookup
+- `cupertino_icons: ^1.0.8` - iOS-style icons
 
-### 개발
-- flutter pub get - 의존성 설치
+**Development Tools**
+- `flutter_lints: ^5.0.0` - Code quality enforcement
 
-- flutter run - 디버그 모드로 애플리케이션 실행
+### Design System
 
-- flutter build apk - 안드로이드 APK 빌드
+**Theme Configuration** (`lib/utils/app_theme.dart`)
+- Toss-inspired minimalist design
+- Consistent color palette with semantic naming
+- Typography scale for hierarchy
+- Spacing system for consistent layouts
+- Custom widget styling (buttons, cards, inputs)
 
-- flutter build ios - iOS 앱 빌드
+**UI Components** (`lib/widgets/`)
+- CustomAppBar with role-based styling
+- Reusable form inputs with validation
+- Card components for content display
+- Loading states and error handling
 
-- flutter test - 유닛 테스트 실행
+### API Integration Patterns
 
-- flutter analyze - 정적 분석 실행
+**Request Structure**
+```dart
+// Typical API call pattern
+final response = await http.post(
+  Uri.parse('${AppConfig.baseUrl}/endpoint'),
+  headers: {
+    'Content-Type': 'application/json',
+    'Authorization': 'Bearer $token',
+  },
+  body: jsonEncode(data),
+);
+```
 
-- flutter clean - 빌드 결과물 삭제
+**Error Handling**
+- Network error detection
+- HTTP status code validation
+- User-friendly error messages
+- Retry mechanisms for failed requests
 
-### 코드 품질
-- flutter analyze - 코드 이슈 및 경고 확인
+### Development Considerations
 
-- flutter format . - 모든 Dart 파일 포맷팅
+**Platform-Specific Setup**
+- Android: Minimum SDK 21, Target SDK 33+
+- iOS: Minimum deployment target iOS 11.0
+- Firebase configuration files required for both platforms
 
-# 프로젝트 아키텍처
-## 애플리케이션 구조
-- 이 애플리케이션은 "Super Pet Connect"를 위한 Flutter 모바일 앱입니다. 병원, 사용자, 관리자를 연결하는 반려동물 헌혈 시스템입니다.
+**Performance Optimization**
+- Lazy loading for list views
+- Image caching strategies
+- Efficient state updates
+- Proper disposal of resources
 
-### 핵심 아키텍처 패턴
-- 역할 기반 UI: 관리자, 병원, 사용자 세 가지의 독립적인 사용자 인터페이스와 각기 다른 대시보드 흐름을 가집니다.
-
-- 모델 기반 데이터 처리: API 통신을 위해 lib/models/ 디렉터리에 데이터 모델을 중앙화하여 관리합니다.
-
-- 서비스 레이어: HTTP 서비스를 통해 백엔드와 통신합니다.
-
-- Firebase 연동: 푸시 알림을 위해 FCM을 사용하며, 로컬 알림 처리 기능이 포함됩니다.
-
-### 주요 디렉터리
-- lib/admin/ - 관리자 인터페이스 화면 및 기능
-
-- lib/auth/ - 인증 화면 (로그인, 회원가입, 환영, FCM 토큰)
-
-- lib/hospital/ - 병원 전용 화면 (헌혈 요청 게시)
-
-- lib/user/ - 사용자 화면 (반려동물 관리 및 헌혈 신청)
-
-- lib/models/ - 데이터 모델 (게시글, 병원, 반려동물 모델)
-
-- lib/services/ - 비즈니스 로직 및 API 통신 서비스
-
-- lib/utils/ - 설정 및 유틸리티 함수
-
-### 주요 설정
-- 서버 설정: 백엔드 API URL은 lib/utils/config.dart 파일에서 설정합니다.
-
-- Firebase: 푸시 알림을 위해 연동되어 있으며, main.dart에서 초기화됩니다.
-
-- 내비게이션: 로그인 후 역할에 따라 적절한 대시보드로 이동하는 역할 기반 내비게이션을 사용합니다.
-
-### 인증 흐름
-- 환영 화면 → 로그인/회원가입
-
-- 로그인 시 백엔드 API를 통해 자격 증명 검증
-
-- 사용자 역할에 따라 적절한 대시보드로 리디렉션:
-
-- 관리자 → AdminDashboard
-
-- 병원 → HospitalDashboard
-
-- 사용자 → UserDashboard
-
-### 데이터 모델
-- Post: 시간대, 병원 정보, 긴급 여부 플래그를 포함하는 헌혈 요청
-
-- Hospital: 연락처 정보와 주소를 포함하는 병원 엔티티
-
-- Pet: 사용자가 관리하는 반려동물 정보
-
-- TimeRange: 헌혈 예약을 위한 시간대 슬롯
-
-### Firebase 연동
-- 푸시 알림을 위한 FCM 토큰 관리
-
-- 포그라운드 및 백그라운드 메시지 처리
-
-- 안드로이드 알림 채널을 이용한 로컬 알림 표시
-
-- 한국 시간대(Asia/Seoul) 처리
-
-### 의존성
-- 주요 패키지는 다음과 같습니다:
-
-- http: API 통신
-
-- shared_preferences: 로컬 저장소
-
-- firebase_messaging, firebase_core: 푸시 알림
-
-- flutter_local_notifications: 로컬 알림 표시
-
-- interval_time_picker: 병원 게시글의 시간 선택
-
-- kpostal: 한국 우편번호 검색
+**Security Considerations**
+- JWT token expiration handling
+- Secure storage of sensitive data
+- API endpoint protection
+- Input validation and sanitization

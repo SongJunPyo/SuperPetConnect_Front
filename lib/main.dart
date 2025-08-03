@@ -8,6 +8,7 @@ import 'package:firebase_messaging/firebase_messaging.dart'; // FCM 메시징 �
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:timezone/data/latest_all.dart' as tz;
 import 'package:timezone/timezone.dart' as tz;
+import 'package:intl/date_symbol_data_local.dart'; // 로케일 데이터 초기화용
 import 'dart:convert';
 import 'dart:io'; // Platform 확인을 위해 추가
 
@@ -83,6 +84,10 @@ void main() async {
     print('타임존 설정 실패, UTC로 fallback: $e');
     tz.setLocalLocation(tz.UTC);
   }
+
+  // 3-1. 한국어 로케일 데이터 초기화
+  await initializeDateFormatting('ko_KR', null);
+  print('한국어 로케일 초기화 완료');
 
   // 4. 로컬 알림 플러그인 초기화
   const AndroidInitializationSettings initializationSettingsAndroid =

@@ -3,6 +3,8 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:math' as math; // min 함수 사용을 위해 추가
+import '../utils/app_theme.dart';
+import '../widgets/app_card.dart';
 
 // 회원 가입 신청자 데이터 모델
 class SignupUser {
@@ -362,9 +364,17 @@ class _AdminSignupManagementState extends State<AdminSignupManagement> {
                     Navigator.of(dialogContext).pop();
                   },
                   style: TextButton.styleFrom(
-                    foregroundColor: Colors.grey[600],
+                    foregroundColor: AppTheme.textSecondary,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(AppTheme.radius8),
+                    ),
                   ),
-                  child: const Text('취소'),
+                  child: Text(
+                    '취소',
+                    style: AppTheme.bodyMediumStyle.copyWith(
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
                 ),
                 ElevatedButton(
                   onPressed: () {
@@ -376,13 +386,20 @@ class _AdminSignupManagementState extends State<AdminSignupManagement> {
                     );
                   },
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: colorScheme.primary,
-                    foregroundColor: colorScheme.onPrimary,
+                    backgroundColor: AppTheme.primaryBlue,
+                    foregroundColor: Colors.white,
                     shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8),
+                      borderRadius: BorderRadius.circular(AppTheme.radius8),
+                    ),
+                    elevation: 0,
+                  ),
+                  child: Text(
+                    '확인',
+                    style: AppTheme.bodyMediumStyle.copyWith(
+                      fontWeight: FontWeight.w600,
+                      color: Colors.white,
                     ),
                   ),
-                  child: const Text('확인'),
                 ),
               ],
             );
@@ -392,32 +409,32 @@ class _AdminSignupManagementState extends State<AdminSignupManagement> {
     );
   }
 
-  // 상세 정보 Row를 깔끔하게 보여주는 헬퍼 위젯 (다른 관리자 화면에서 재활용)
   Widget _buildDetailRow(
     BuildContext context,
     IconData icon,
     String label,
     String value,
   ) {
-    final TextTheme textTheme = Theme.of(context).textTheme;
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4.0),
+      padding: const EdgeInsets.symmetric(vertical: AppTheme.spacing4),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(icon, size: 18, color: Colors.grey[600]),
-          const SizedBox(width: 8),
+          Icon(icon, size: 18, color: AppTheme.textSecondary),
+          const SizedBox(width: AppTheme.spacing8),
           Text(
             '$label: ',
-            style: textTheme.bodyMedium?.copyWith(
+            style: AppTheme.bodyMediumStyle.copyWith(
               fontWeight: FontWeight.w500,
-              color: Colors.grey[700],
+              color: AppTheme.textSecondary,
             ),
           ),
           Expanded(
             child: Text(
               value,
-              style: textTheme.bodyMedium?.copyWith(color: Colors.black87),
+              style: AppTheme.bodyMediumStyle.copyWith(
+                color: AppTheme.textPrimary,
+              ),
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
             ),
@@ -436,19 +453,22 @@ class _AdminSignupManagementState extends State<AdminSignupManagement> {
       appBar: AppBar(
         title: Text(
           "회원 가입 관리",
-          style: textTheme.titleLarge?.copyWith(
+          style: AppTheme.h3Style.copyWith(
             fontWeight: FontWeight.bold,
-            color: Colors.black87,
+            color: AppTheme.textPrimary,
           ),
         ),
         centerTitle: false,
+        backgroundColor: Colors.white,
+        elevation: 0,
+        iconTheme: IconThemeData(color: AppTheme.textPrimary),
         actions: [
           IconButton(
-            icon: Icon(Icons.refresh_outlined, color: Colors.black87),
+            icon: Icon(Icons.refresh_outlined, color: AppTheme.textPrimary),
             tooltip: '새로고침',
             onPressed: fetchPendingUsers,
           ),
-          const SizedBox(width: 8),
+          const SizedBox(width: AppTheme.spacing8),
         ],
       ),
       body:
@@ -509,153 +529,126 @@ class _AdminSignupManagementState extends State<AdminSignupManagement> {
                 ),
               )
               : ListView.builder(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 20.0,
-                  vertical: 16.0,
-                ),
+                padding: AppTheme.pagePadding,
                 itemCount: pendingUsers.length,
                 itemBuilder: (context, index) {
                   final user = pendingUsers[index];
-                  return Card(
-                    margin: const EdgeInsets.only(bottom: 12.0),
-                    elevation: 1,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      side: BorderSide(color: Colors.grey.shade200, width: 1),
-                    ),
-                    child: Padding(
-                      padding: const EdgeInsets.all(16.0),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Expanded(
-                                child: Text(
-                                  '${index + 1}. ${user.name}', // 번호 매기기 추가
-                                  style: textTheme.titleMedium?.copyWith(
-                                    fontWeight: FontWeight.bold,
-                                    color: Colors.black87,
-                                  ),
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
+                  return Container(
+                    margin: const EdgeInsets.only(bottom: AppTheme.spacing12),
+                    child: Material(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(AppTheme.radius12),
+                      elevation: 2,
+                      shadowColor: Colors.black.withOpacity(0.1),
+                      child: Container(
+                        padding: const EdgeInsets.all(AppTheme.spacing16),
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(AppTheme.radius12),
+                          border: Border.all(
+                            color: AppTheme.lightGray.withOpacity(0.8),
+                            width: 1,
+                          ),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              '${index + 1}. ${user.name}',
+                              style: AppTheme.h4Style.copyWith(
+                                height: 1.3,
                               ),
-                              const SizedBox(width: 10),
-                              // ⚠️ 이 부분이 "대기" 라벨입니다. (주석 처리됨)
-                              // Container(
-                              //   padding: const EdgeInsets.symmetric(
-                              //     horizontal: 8.0,
-                              //     vertical: 4.0,
-                              //   ),
-                              //   decoration: BoxDecoration(
-                              //     color: getStatusColor(
-                              //       user.status,
-                              //     ).withAlpha(38),
-                              //     borderRadius: BorderRadius.circular(8.0),
-                              //   ),
-                              //   child: Text(
-                              //     user.status,
-                              //     style: textTheme.bodySmall?.copyWith(
-                              //       fontWeight: FontWeight.bold,
-                              //       color: getStatusColor(user.status),
-                              //     ),
-                              //   ),
-                              // ),
-                            ],
-                          ),
-                          const SizedBox(height: 8),
-                          _buildDetailRow(
-                            context,
-                            Icons.email_outlined,
-                            '이메일',
-                            user.email,
-                          ),
-                          _buildDetailRow(
-                            context,
-                            Icons.phone_outlined,
-                            '연락처',
-                            user.phoneNumber,
-                          ),
-                          _buildDetailRow(
-                            context,
-                            Icons.location_on_outlined,
-                            '주소',
-                            user.address,
-                          ),
-                          _buildDetailRow(
-                            context,
-                            Icons.badge_outlined,
-                            '신청 유형',
-                            getUserTypeText(user.userType),
-                          ),
-                          _buildDetailRow(
-                            context,
-                            Icons.calendar_today_outlined,
-                            '신청일',
-                            user.createdTime.toIso8601String().split('T')[0],
-                          ),
-
-                          const SizedBox(height: 16),
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceAround,
-                            children: [
-                              Expanded(
-                                child: SizedBox(
-                                  height: 40,
-                                  child: ElevatedButton(
-                                    onPressed:
-                                        user.status == '대기'
-                                            ? () => showApprovalDialog(user)
-                                            : null,
-                                    style: ElevatedButton.styleFrom(
-                                      backgroundColor: colorScheme.primary,
-                                      foregroundColor: colorScheme.onPrimary,
-                                      shape: RoundedRectangleBorder(
-                                        borderRadius: BorderRadius.circular(10),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            const SizedBox(height: AppTheme.spacing12),
+                            _buildDetailRow(
+                              context,
+                              Icons.email_outlined,
+                              '이메일',
+                              user.email,
+                            ),
+                            _buildDetailRow(
+                              context,
+                              Icons.phone_outlined,
+                              '연락처',
+                              user.phoneNumber,
+                            ),
+                            _buildDetailRow(
+                              context,
+                              Icons.location_on_outlined,
+                              '주소',
+                              user.address,
+                            ),
+                            _buildDetailRow(
+                              context,
+                              Icons.badge_outlined,
+                              '신청 유형',
+                              getUserTypeText(user.userType),
+                            ),
+                            _buildDetailRow(
+                              context,
+                              Icons.calendar_today_outlined,
+                              '신청일',
+                              user.createdTime.toIso8601String().split('T')[0],
+                            ),
+                            const SizedBox(height: AppTheme.spacing16),
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: Container(
+                                    height: 44,
+                                    child: ElevatedButton(
+                                      onPressed: user.status == '대기'
+                                          ? () => showApprovalDialog(user)
+                                          : null,
+                                      style: ElevatedButton.styleFrom(
+                                        backgroundColor: AppTheme.success,
+                                        foregroundColor: Colors.white,
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius: BorderRadius.circular(AppTheme.radius12),
+                                        ),
+                                        elevation: 0,
                                       ),
-                                      elevation: 2,
-                                    ),
-                                    child: Text(
-                                      "승인",
-                                      style: textTheme.titleSmall?.copyWith(
-                                        fontWeight: FontWeight.bold,
+                                      child: Text(
+                                        "승인",
+                                        style: AppTheme.bodyMediumStyle.copyWith(
+                                          fontWeight: FontWeight.w600,
+                                          color: Colors.white,
+                                        ),
                                       ),
                                     ),
                                   ),
                                 ),
-                              ),
-                              const SizedBox(width: 12),
-                              Expanded(
-                                child: SizedBox(
-                                  height: 40,
-                                  child: ElevatedButton(
-                                    onPressed:
-                                        user.status == '대기'
-                                            ? () => rejectUser(user)
-                                            : null,
-                                    style: ElevatedButton.styleFrom(
-                                      backgroundColor: colorScheme.error,
-                                      foregroundColor: colorScheme.onError,
-                                      shape: RoundedRectangleBorder(
-                                        borderRadius: BorderRadius.circular(10),
+                                const SizedBox(width: AppTheme.spacing12),
+                                Expanded(
+                                  child: Container(
+                                    height: 44,
+                                    child: ElevatedButton(
+                                      onPressed: user.status == '대기'
+                                          ? () => rejectUser(user)
+                                          : null,
+                                      style: ElevatedButton.styleFrom(
+                                        backgroundColor: AppTheme.error,
+                                        foregroundColor: Colors.white,
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius: BorderRadius.circular(AppTheme.radius12),
+                                        ),
+                                        elevation: 0,
                                       ),
-                                      elevation: 2,
-                                    ),
-                                    child: Text(
-                                      "거절",
-                                      style: textTheme.titleSmall?.copyWith(
-                                        fontWeight: FontWeight.bold,
+                                      child: Text(
+                                        "거절",
+                                        style: AppTheme.bodyMediumStyle.copyWith(
+                                          fontWeight: FontWeight.w600,
+                                          color: Colors.white,
+                                        ),
                                       ),
                                     ),
                                   ),
                                 ),
-                              ),
-                            ],
-                          ),
-                        ],
+                              ],
+                            ),
+                          ],
+                        ),
                       ),
                     ),
                   );

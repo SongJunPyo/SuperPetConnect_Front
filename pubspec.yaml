@@ -43,7 +43,8 @@ dependencies:
   firebase_core: ^2.27.0  #모든 Firebase 서비스를 사용하기 위한 기본 패키지
   flutter_local_notifications: ^17.0.0 # 앱이 포그라운드/백그라운드일 때 시스템 트레이에 알림을 표시하기 위한 패키지
   timezone: ^0.9.2 # flutter_local_notifications와 함께 타임존 설정을 위해 필요
-
+  font_awesome_flutter: ^10.7.0
+  
 dev_dependencies:
   flutter_test:
     sdk: flutter

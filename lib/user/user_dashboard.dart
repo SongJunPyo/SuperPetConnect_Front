@@ -3,6 +3,10 @@ import 'pet_management.dart';
 import '../utils/app_theme.dart';
 import '../widgets/app_card.dart';
 import '../widgets/app_app_bar.dart';
+import '../auth/profile_management.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
 
 class UserDashboard extends StatefulWidget {
   const UserDashboard({super.key});
@@ -15,6 +19,7 @@ class _UserDashboardState extends State<UserDashboard>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
   double _tabWidth = 0.0; // 탭 하나의 너비를 저장할 변수
+  String userName = "사용자"; // 실제 사용자 이름
 
   // 지역 필터링을 위한 선택된 값들을 저장할 Set (여러 개 선택 가능)
   Set<String> _selectedRegions = {'전체'}; // 초기 선택값 '전체'
@@ -46,6 +51,48 @@ class _UserDashboardState extends State<UserDashboard>
     _tabController.addListener(() {
       setState(() {}); // 탭이 변경될 때 UI를 다시 그리도록 강제
     });
+    _loadUserName();
+  }
+
+  Future<void> _loadUserName() async {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('auth_token');
+    
+    // 먼저 로컬에 저장된 이름 확인
+    final savedName = prefs.getString('user_name');
+    if (savedName != null && savedName.isNotEmpty) {
+      setState(() {
+        userName = savedName;
+      });
+    }
+    
+    // 서버에서 최신 이름 가져오기
+    if (token != null) {
+      try {
+        final response = await http.get(
+          Uri.parse('http://10.100.54.176:8002/api/auth/profile'),
+          headers: {
+            'Authorization': 'Bearer $token',
+            'Content-Type': 'application/json; charset=UTF-8',
+          },
+        );
+
+        if (response.statusCode == 200) {
+          final data = json.decode(utf8.decode(response.bodyBytes));
+          final userRealName = data['name'] ?? '사용자';
+          
+          setState(() {
+            userName = userRealName;
+          });
+          
+          // 로컬 저장소에도 업데이트
+          await prefs.setString('user_name', userRealName);
+        }
+      } catch (e) {
+        // 오류 발생 시 기본값 유지
+        print('사용자 이름 로드 실패: $e');
+      }
+    }
   }
 
   @override
@@ -60,8 +107,11 @@ class _UserDashboardState extends State<UserDashboard>
       appBar: AppDashboardAppBar(
         onBackPressed: () => Navigator.pop(context),
         onProfilePressed: () {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('마이페이지로 이동 (준비 중)')),
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => const ProfileManagement(),
+            ),
           );
         },
         onNotificationPressed: () {
@@ -97,7 +147,7 @@ class _UserDashboardState extends State<UserDashboard>
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  '안녕하세요, 사용자님!',
+                  '안녕하세요, $userName님!',
                   style: AppTheme.h2Style,
                 ),
                 const SizedBox(height: AppTheme.spacing8),
