@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 import 'pet_management.dart';
+import '../utils/app_theme.dart';
+import '../widgets/app_card.dart';
+import '../widgets/app_app_bar.dart';
 
 class UserDashboard extends StatefulWidget {
   const UserDashboard({super.key});
@@ -54,62 +57,29 @@ class _UserDashboardState extends State<UserDashboard>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        backgroundColor: Colors.white,
-        elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios, color: Colors.black87),
+      appBar: AppDashboardAppBar(
+        onBackPressed: () => Navigator.pop(context),
+        onProfilePressed: () {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('마이페이지로 이동 (준비 중)')),
+          );
+        },
+        onNotificationPressed: () {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('알림 페이지로 이동 (준비 중)')),
+          );
+        },
+        additionalAction: IconButton(
+          icon: const Icon(Icons.pets, color: AppTheme.textPrimary),
           onPressed: () {
-            Navigator.pop(context); // 이전 화면으로 돌아가기 (로그인 페이지)
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => const PetManagementScreen(),
+              ),
+            );
           },
         ),
-        title: const SizedBox.shrink(), // 제목 없음
-        actions: [
-          // 마이페이지 (내 정보) 버튼
-          IconButton(
-            icon: const CircleAvatar(
-              radius: 18,
-              backgroundColor: Colors.grey, // 임시 프로필 색상
-              child: Icon(
-                Icons.person_outline,
-                color: Colors.black87,
-                size: 20,
-              ),
-            ),
-            onPressed: () {
-              // TODO: 마이페이지로 이동하는 로직 추가
-              ScaffoldMessenger.of(
-                context,
-              ).showSnackBar(const SnackBar(content: Text('마이페이지로 이동 (준비 중)')));
-            },
-          ),
-          // 알림 버튼
-          IconButton(
-            icon: const Icon(
-              Icons.notifications_outlined,
-              color: Colors.black87,
-            ),
-            onPressed: () {
-              // TODO: 알림 페이지로 이동하는 로직 추가
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('알림 페이지로 이동 (준비 중)')),
-              );
-            },
-          ),
-          // 펫 페이지 이미지 버튼
-          IconButton(
-            icon: const Icon(Icons.pets, color: Colors.black87), // 펫 아이콘
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => const PetManagementScreen(),
-                ),
-              );
-            },
-          ),
-          const SizedBox(width: 8), // 아이콘과 AppBar 끝 사이 간격
-        ],
       ),
       body: _buildDashboardContent(), // 항상 대시보드 메인 내용 표시
     );
@@ -121,69 +91,39 @@ class _UserDashboardState extends State<UserDashboard>
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // 환영 메시지 및 프로필 요약 섹션
           Padding(
-            padding: const EdgeInsets.symmetric(
-              horizontal: 24.0,
-              vertical: 20.0,
-            ),
+            padding: AppTheme.pagePadding,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
-                  '안녕하세요, 사용자님!', // TODO: 실제 사용자 이름으로 변경
-                  style: TextStyle(
-                    fontSize: 24,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.black87,
-                  ),
+                Text(
+                  '안녕하세요, 사용자님!',
+                  style: AppTheme.h2Style,
                 ),
-                const SizedBox(height: 8),
+                const SizedBox(height: AppTheme.spacing8),
                 Text(
                   '오늘도 소중한 생명을 살리는 일에 동참해주세요.',
-                  style: TextStyle(fontSize: 16, color: Colors.grey[600]),
+                  style: AppTheme.bodyLargeStyle.copyWith(
+                    color: AppTheme.textSecondary,
+                  ),
                 ),
-                const SizedBox(height: 20),
-                // 주요 알림/공지 (예시)
-                Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: Colors.blue[50],
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(
-                      color: Colors.blueAccent.withOpacity(0.3),
-                    ),
-                  ),
-                  child: Row(
-                    children: [
-                      Icon(Icons.info_outline, color: Colors.blueAccent),
-                      SizedBox(width: 10),
-                      Expanded(
-                        child: Text(
-                          '새로운 헌혈 요청 5건이 도착했습니다!',
-                          style: TextStyle(
-                            color: Colors.blueAccent,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                      ),
-                      Icon(
-                        Icons.arrow_forward_ios,
-                        size: 16,
-                        color: Colors.blueAccent,
-                      ),
-                    ],
-                  ),
+                const SizedBox(height: AppTheme.spacing20),
+                AppInfoCard(
+                  icon: Icons.info_outline,
+                  title: '새로운 헌혈 요청 5건이 도착했습니다!',
+                  description: '자세히 보기',
+                  onTap: () {
+                    // TODO: 헌혈 요청 목록으로 이동
+                  },
                 ),
               ],
             ),
           ),
-          // 탭 바 (헌혈 모집 게시판, 칼럼 게시판)
           Container(
-            margin: const EdgeInsets.symmetric(horizontal: 16.0),
+            margin: const EdgeInsets.symmetric(horizontal: AppTheme.spacing16),
             decoration: BoxDecoration(
-              color: Colors.grey[200], // 탭 바 전체 배경색
-              borderRadius: BorderRadius.circular(10), // 둥근 모서리
+              color: AppTheme.veryLightGray,
+              borderRadius: BorderRadius.circular(AppTheme.radius12),
             ),
             child: LayoutBuilder(
               builder: (BuildContext context, BoxConstraints constraints) {
@@ -193,20 +133,16 @@ class _UserDashboardState extends State<UserDashboard>
                   children: [
                     // 슬라이딩하는 파란색 인디케이터
                     AnimatedPositioned(
-                      duration: const Duration(
-                        milliseconds: 300,
-                      ), // 애니메이션 지속 시간
-                      curve: Curves.easeInOut, // 애니메이션 곡선
-                      left: _tabController.index * _tabWidth, // 현재 선택된 탭의 위치 계산
+                      duration: const Duration(milliseconds: 300),
+                      curve: Curves.easeInOut,
+                      left: _tabController.index * _tabWidth,
                       top: 0,
                       bottom: 0,
                       width: _tabWidth,
                       child: Container(
                         decoration: BoxDecoration(
-                          color: Colors.blueAccent, // 인디케이터 색상
-                          borderRadius: BorderRadius.circular(
-                            10,
-                          ), // 항상 둥근 모서리 유지
+                          color: AppTheme.primaryBlue,
+                          borderRadius: BorderRadius.circular(AppTheme.radius12),
                         ),
                       ),
                     ),
@@ -227,12 +163,11 @@ class _UserDashboardState extends State<UserDashboard>
                               alignment: Alignment.center,
                               child: Text(
                                 '헌혈 모집 게시판',
-                                style: TextStyle(
-                                  color:
-                                      _tabController.index == 0
-                                          ? Colors.white
-                                          : Colors.black87,
-                                  fontWeight: FontWeight.bold,
+                                style: AppTheme.bodyMediumStyle.copyWith(
+                                  color: _tabController.index == 0
+                                      ? Colors.white
+                                      : AppTheme.textPrimary,
+                                  fontWeight: FontWeight.w600,
                                 ),
                               ),
                             ),
@@ -252,12 +187,11 @@ class _UserDashboardState extends State<UserDashboard>
                               alignment: Alignment.center,
                               child: Text(
                                 '칼럼 게시판',
-                                style: TextStyle(
-                                  color:
-                                      _tabController.index == 1
-                                          ? Colors.white
-                                          : Colors.black87,
-                                  fontWeight: FontWeight.bold,
+                                style: AppTheme.bodyMediumStyle.copyWith(
+                                  color: _tabController.index == 1
+                                      ? Colors.white
+                                      : AppTheme.textPrimary,
+                                  fontWeight: FontWeight.w600,
                                 ),
                               ),
                             ),
@@ -354,9 +288,11 @@ class _UserDashboardState extends State<UserDashboard>
 
     return Column(
       children: [
-        // 지역 선택 버튼 목록 (슬라이딩 가능)
         Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppTheme.spacing16,
+            vertical: AppTheme.spacing8,
+          ),
           child: SingleChildScrollView(
             scrollDirection: Axis.horizontal, // 가로 스크롤 가능
             child: Row(
@@ -391,30 +327,29 @@ class _UserDashboardState extends State<UserDashboard>
                             }
                           });
                         },
-                        selectedColor: Colors.blueAccent, // 선택 시 색상
+                        selectedColor: AppTheme.primaryBlue,
                         labelStyle: TextStyle(
-                          color:
-                              isSelected
-                                  ? Colors.white
-                                  : Colors.black87, // 선택 시 글자색
-                          fontWeight:
-                              isSelected ? FontWeight.bold : FontWeight.normal,
+                          color: isSelected
+                              ? Colors.white
+                              : AppTheme.textPrimary,
+                          fontWeight: isSelected 
+                              ? FontWeight.w600 
+                              : FontWeight.w400,
                         ),
-                        backgroundColor: Colors.grey[100], // 기본 배경색
+                        backgroundColor: AppTheme.veryLightGray,
                         shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(20), // 둥근 모서리
+                          borderRadius: BorderRadius.circular(AppTheme.radius20),
                           side: BorderSide(
-                            color:
-                                isSelected
-                                    ? Colors.blueAccent
-                                    : Colors.grey[300]!,
+                            color: isSelected
+                                ? AppTheme.primaryBlue
+                                : AppTheme.lightGray,
                             width: 1.5,
                           ),
                         ),
-                        elevation: 1, // 약간의 그림자
+                        elevation: 0,
                         padding: const EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 8,
+                          horizontal: AppTheme.spacing12,
+                          vertical: AppTheme.spacing8,
                         ),
                       ),
                     );
@@ -429,57 +364,20 @@ class _UserDashboardState extends State<UserDashboard>
                   ? Center(
                     child: Text(
                       '선택된 지역에 헌혈 모집 게시글이 없습니다.',
-                      style: TextStyle(fontSize: 16, color: Colors.grey[600]),
+                      style: AppTheme.bodyLargeStyle.copyWith(
+                        color: AppTheme.textSecondary,
+                      ),
                     ),
                   )
                   : ListView.builder(
-                    padding: const EdgeInsets.all(16.0),
+                    padding: const EdgeInsets.all(AppTheme.spacing16),
                     itemCount: filteredPosts.length,
                     itemBuilder: (context, index) {
                       final post = filteredPosts[index];
-                      return Card(
-                        margin: const EdgeInsets.only(bottom: 12.0),
-                        elevation: 2, // 카드 그림자
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12), // 둥근 모서리
-                        ),
-                        child: Padding(
-                          padding: const EdgeInsets.all(16.0),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                post['title']!,
-                                style: const TextStyle(
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.w600,
-                                  color: Colors.black87,
-                                ),
-                              ),
-                              const SizedBox(height: 8),
-                              Row(
-                                mainAxisAlignment:
-                                    MainAxisAlignment.spaceBetween,
-                                children: [
-                                  Text(
-                                    '${post['hospital']!} (${post['region']!})', // 병원명 옆에 지역 표시
-                                    style: TextStyle(
-                                      fontSize: 14,
-                                      color: Colors.grey[700],
-                                    ),
-                                  ),
-                                  Text(
-                                    post['date']!,
-                                    style: TextStyle(
-                                      fontSize: 14,
-                                      color: Colors.grey[500],
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ],
-                          ),
-                        ),
+                      return AppPostCard(
+                        title: post['title']!,
+                        subtitle: '${post['hospital']!} (${post['region']!})',
+                        date: post['date']!,
                       );
                     },
                   ),
@@ -524,46 +422,14 @@ class _UserDashboardState extends State<UserDashboard>
     return ListView.builder(
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
-      padding: const EdgeInsets.all(16.0),
+      padding: const EdgeInsets.all(AppTheme.spacing16),
       itemCount: columnPosts.length,
       itemBuilder: (context, index) {
         final post = columnPosts[index];
-        return Card(
-          margin: const EdgeInsets.only(bottom: 12.0),
-          elevation: 2,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  post['title']!,
-                  style: const TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.black87,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      post['author']!,
-                      style: TextStyle(fontSize: 14, color: Colors.grey[700]),
-                    ),
-                    Text(
-                      post['date']!,
-                      style: TextStyle(fontSize: 14, color: Colors.grey[500]),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
+        return AppPostCard(
+          title: post['title']!,
+          subtitle: post['author']!,
+          date: post['date']!,
         );
       },
     );

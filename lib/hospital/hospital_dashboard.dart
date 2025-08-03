@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
-import 'package:connect/hospital/hospital_profile.dart'; // 병원 프로필 페이지로 이동
-import 'package:connect/hospital/hospital_post.dart'; // 게시글 작성 페이지로 이동
-import 'package:connect/hospital/hospital_alarm.dart'; // 알림 페이지로 이동
-import 'package:connect/hospital/hospital_post_check.dart'; // 게시글 상태 확인 페이지로 이동
+import 'package:connect/hospital/hospital_profile.dart';
+import 'package:connect/hospital/hospital_post.dart';
+import 'package:connect/hospital/hospital_alarm.dart';
+import 'package:connect/hospital/hospital_post_check.dart';
+import '../utils/app_theme.dart';
+import '../widgets/app_card.dart';
+import '../widgets/app_app_bar.dart';
 
 class HospitalDashboard extends StatefulWidget {
   const HospitalDashboard({super.key});
@@ -17,160 +20,83 @@ class _HospitalDashboardState extends State<HospitalDashboard> {
 
   @override
   Widget build(BuildContext context) {
-    final ColorScheme colorScheme = Theme.of(context).colorScheme;
-    final TextTheme textTheme = Theme.of(context).textTheme;
-
     return Scaffold(
-      appBar: AppBar(
-        backgroundColor: Colors.white,
-        elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios, color: Colors.black87),
-          onPressed: () {
-            Navigator.pop(context); // 이전 화면으로 돌아가기 (예: 로그인 페이지)
-          },
-        ),
-        title: const SizedBox.shrink(), // 제목 없음 (사용자 대시보드와 통일)
-        actions: [
-          // 알림 아이콘 버튼
-          IconButton(
-            icon: const Icon(
-              Icons.notifications_outlined,
-              color: Colors.black87,
+      appBar: AppDashboardAppBar(
+        onBackPressed: () => Navigator.pop(context),
+        onProfilePressed: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => const HospitalProfile(),
             ),
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (context) => const HospitalAlarm()),
-              );
-            },
-          ),
-          // 병원 프로필 아이콘 버튼 (사용자 메인 화면과 동일한 디자인으로 변경)
-          Padding(
-            padding: const EdgeInsets.only(right: 8.0),
-            child: IconButton(
-              icon: CircleAvatar(
-                radius: 18,
-                backgroundColor:
-                    Colors.blueAccent, // 사용자 메인화면과 동일하게 Colors.blueAccent
-                child: Icon(
-                  Icons.person,
-                  color: Colors.white,
-                  size: 20,
-                ), // 사용자 아이콘과 동일하게 Icons.person
-              ),
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => const HospitalProfile(),
-                  ),
-                );
-              },
-            ),
-          ),
-        ],
+          );
+        },
+        onNotificationPressed: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (context) => const HospitalAlarm()),
+          );
+        },
       ),
       body: SingleChildScrollView(
         // 전체 화면을 스크롤 가능하게
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // 환영 메시지 섹션 (사용자 대시보드와 유사)
             Padding(
-              padding: const EdgeInsets.symmetric(
-                horizontal: 24.0,
-                vertical: 20.0,
-              ),
+              padding: AppTheme.pagePadding,
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    '안녕하세요, $hospitalName 입니다!', // 실제 병원 이름 동적 표시
-                    style: textTheme.headlineSmall?.copyWith(
-                      fontWeight: FontWeight.bold,
-                      color: Colors.black87,
-                    ),
+                    '안녕하세요, $hospitalName 입니다!',
+                    style: AppTheme.h2Style,
                   ),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: AppTheme.spacing8),
                   Text(
                     '소중한 반려동물 생명 살리기에 함께해주세요.',
-                    style: textTheme.bodyLarge?.copyWith(
-                      color: Colors.grey[600],
+                    style: AppTheme.bodyLargeStyle.copyWith(
+                      color: AppTheme.textSecondary,
                     ),
                   ),
-                  const SizedBox(height: 20),
-                  // 주요 알림/공지 카드 (예시)
-                  Container(
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: Colors.blueAccent.withAlpha(
-                        (255 * 0.1).round(),
-                      ), // Colors.blueAccent 사용
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(
-                        color: Colors.blueAccent.withAlpha(
-                          (255 * 0.1).round(),
-                        ), // Colors.blueAccent 사용
-                      ),
-                    ),
-                    child: Row(
-                      children: [
-                        const Icon(
-                          Icons.info_outline,
-                          color: Colors.blueAccent,
-                        ), // Colors.blueAccent 사용
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: Text(
-                            '새로운 헌혈 신청 2건이 도착했습니다!', // TODO: 실제 알림 내용으로 변경
-                            style: textTheme.bodyMedium?.copyWith(
-                              color: Colors.blueAccent, // Colors.blueAccent 사용
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
+                  const SizedBox(height: AppTheme.spacing20),
+                  AppInfoCard(
+                    icon: Icons.info_outline,
+                    title: '새로운 헌혈 신청 2건이 도착했습니다!',
+                    description: '신청 현황 보기',
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const HospitalPostCheck(),
                         ),
-                        const Icon(
-                          Icons.arrow_forward_ios,
-                          size: 16,
-                          color: Colors.blueAccent, // Colors.blueAccent 사용
-                        ),
-                      ],
-                    ),
+                      );
+                    },
                   ),
                 ],
               ),
             ),
-            // ---
-            // 기능 버튼 그리드 (기존 버튼 복원 및 색상 통일)
             Padding(
-              padding: const EdgeInsets.symmetric(
-                horizontal: 20.0,
-                vertical: 16.0,
-              ),
+              padding: AppTheme.pageHorizontalPadding,
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
                     "주요 기능",
-                    style: textTheme.titleLarge?.copyWith(
-                      fontWeight: FontWeight.bold,
-                    ),
+                    style: AppTheme.h3Style,
                   ),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: AppTheme.spacing16),
                   GridView.count(
-                    shrinkWrap: true, // GridView가 Column 내에서 공간을 차지하도록
-                    physics:
-                        const NeverScrollableScrollPhysics(), // GridView 자체 스크롤 방지
-                    crossAxisCount: 2, // 한 줄에 2개의 버튼
-                    crossAxisSpacing: 16, // 가로 간격
-                    mainAxisSpacing: 16, // 세로 간격
-                    childAspectRatio: 1.5, // 버튼의 가로/세로 비율 (조정 가능)
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
+                    crossAxisCount: 2,
+                    crossAxisSpacing: AppTheme.spacing16,
+                    mainAxisSpacing: AppTheme.spacing16,
+                    childAspectRatio: 1.5,
                     children: [
-                      _buildFeatureCard(
-                        context,
-                        icon: Icons.edit_note_outlined, // 게시글 작성 아이콘
-                        label: "헌혈 게시판 작성",
+                      AppFeatureCard(
+                        icon: Icons.edit_note_outlined,
+                        title: "헌혈 게시판 작성",
                         onTap: () {
                           Navigator.push(
                             context,
@@ -179,13 +105,10 @@ class _HospitalDashboardState extends State<HospitalDashboard> {
                             ),
                           );
                         },
-                        color: Colors.blueAccent.withAlpha((255 * 0.1).round()),
-                        iconColor: Colors.blueAccent,
                       ),
-                      _buildFeatureCard(
-                        context,
-                        icon: Icons.check_circle_outline, // 상태 확인 아이콘
-                        label: "헌혈 신청 현황",
+                      AppFeatureCard(
+                        icon: Icons.check_circle_outline,
+                        title: "헌혈 신청 현황",
                         onTap: () {
                           Navigator.push(
                             context,
@@ -194,8 +117,6 @@ class _HospitalDashboardState extends State<HospitalDashboard> {
                             ),
                           );
                         },
-                        color: Colors.blueAccent.withAlpha((255 * 0.1).round()),
-                        iconColor: Colors.blueAccent,
                       ),
                     ],
                   ),
@@ -203,12 +124,8 @@ class _HospitalDashboardState extends State<HospitalDashboard> {
               ),
             ),
 
-            // 헌혈 신청 현황 섹션 (새로 분리된 구역)
             Padding(
-              padding: const EdgeInsets.symmetric(
-                horizontal: 24.0,
-                vertical: 20.0,
-              ),
+              padding: AppTheme.pagePadding,
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -216,32 +133,30 @@ class _HospitalDashboardState extends State<HospitalDashboard> {
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       Text(
-                        "최근 헌혈 신청 현황", // 섹션 제목
-                        style: textTheme.titleLarge?.copyWith(
-                          fontWeight: FontWeight.bold,
-                        ),
+                        "최근 헌혈 신청 현황",
+                        style: AppTheme.h3Style,
                       ),
                       TextButton(
                         onPressed: () {
-                          // TODO: 헌혈 신청 현황 전체 보기 페이지로 이동
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text('헌혈 신청 현황 전체 보기 페이지로 이동 (준비 중)'),
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => const HospitalPostCheck(),
                             ),
                           );
                         },
                         child: Text(
                           '더보기',
-                          style: textTheme.bodyLarge?.copyWith(
-                            color: Colors.blueAccent,
-                            fontWeight: FontWeight.bold,
-                          ), // Colors.blueAccent 사용
+                          style: AppTheme.bodyLargeStyle.copyWith(
+                            color: AppTheme.primaryBlue,
+                            fontWeight: FontWeight.w600,
+                          ),
                         ),
                       ),
                     ],
                   ),
-                  const SizedBox(height: 16),
-                  _buildRecentApplicantList(), // 신청자 목록 위젯 호출
+                  const SizedBox(height: AppTheme.spacing16),
+                  _buildRecentApplicantList(),
                 ],
               ),
             ),
@@ -251,46 +166,6 @@ class _HospitalDashboardState extends State<HospitalDashboard> {
     );
   }
 
-  // 재사용 가능한 기능 카드 위젯 (색상 테마 적용)
-  Widget _buildFeatureCard(
-    BuildContext context, {
-    required IconData icon,
-    required String label,
-    required VoidCallback onTap,
-    required Color color,
-    required Color iconColor,
-  }) {
-    final TextTheme textTheme = Theme.of(context).textTheme;
-
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(16),
-      child: Card(
-        elevation: 2, // 카드 그림자
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        color: color, // 배경색
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              icon,
-              size: 40, // 아이콘 크기
-              color: iconColor,
-            ),
-            const SizedBox(height: 8),
-            Text(
-              label,
-              textAlign: TextAlign.center,
-              style: textTheme.titleMedium?.copyWith(
-                fontWeight: FontWeight.w600,
-                color: Colors.black87,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
 
   // 최근 헌혈 신청 현황 목록을 구성하는 위젯
   Widget _buildRecentApplicantList() {
@@ -433,19 +308,18 @@ class _HospitalDashboardState extends State<HospitalDashboard> {
     );
   }
 
-  // 신청자 상태에 따른 색상 반환 (재활용)
   Color _getApplicantStatusColor(String status) {
     switch (status) {
       case '승인':
-        return Colors.green;
+        return AppTheme.success;
       case '대기':
-        return Colors.orange;
+        return AppTheme.warning;
       case '거절':
-        return Colors.red;
+        return AppTheme.error;
       case '취소':
-        return Colors.grey;
+        return AppTheme.mediumGray;
       default:
-        return Colors.black;
+        return AppTheme.textPrimary;
     }
   }
 }

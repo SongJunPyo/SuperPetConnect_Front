@@ -5,50 +5,70 @@ class Pet {
   final int guardianIdx; // 보호자 ID
   final String name;
   final String species;
-  final String breed;
-  final DateTime birthDate;
-  final String bloodType;
+  final String? breed;
+  final int ageNumber; // DB의 age_number 필드
+  final String? bloodType;
   final double weightKg;
-  final bool? pregnant;
+  final bool pregnant;
+  final bool? vaccinated; // 백신 접종 여부 (DB에서 NULL 허용)
+  final bool? hasDisease; // 질병 이력 여부 (DB에서 NULL 허용)
+  final bool? hasBirthExperience; // 출산 경험 여부 (DB에서 NULL 허용)
 
   Pet({
     this.petId,
     required this.guardianIdx,
     required this.name,
     required this.species,
-    required this.breed,
-    required this.birthDate,
-    required this.bloodType,
+    this.breed,
+    required this.ageNumber,
+    this.bloodType,
     required this.weightKg,
-    this.pregnant,
+    required this.pregnant,
+    this.vaccinated,
+    this.hasDisease,
+    this.hasBirthExperience,
   });
 
-  // 생년월일로부터 나이를 계산하는 getter
+  // 나이를 문자열로 반환하는 getter
   String get age {
-    final now = DateTime.now();
-    int age = now.year - birthDate.year;
-    if (now.month < birthDate.month ||
-        (now.month == birthDate.month && now.day < birthDate.day)) {
-      age--;
-    }
-    return age <= 0 ? '1살 미만' : '$age살';
+    return ageNumber <= 0 ? '1살 미만' : '$ageNumber살';
   }
 
   factory Pet.fromJson(Map<String, dynamic> json) {
+    // weight_kg 안전하게 파싱
+    double parseWeight(dynamic value) {
+      if (value == null) return 0.0;
+      if (value is num) return value.toDouble();
+      if (value is String) return double.tryParse(value) ?? 0.0;
+      return 0.0;
+    }
+    
+    // age_number 안전하게 파싱
+    int parseAge(dynamic value) {
+      if (value == null) return 0;
+      if (value is int) return value;
+      if (value is String) return int.tryParse(value) ?? 0;
+      if (value is double) return value.toInt();
+      return 0;
+    }
+    
     return Pet(
       petId: json['pet_id'],
-      guardianIdx: json['guardian_idx'],
-      name: json['name'],
-      species: json['species'],
+      guardianIdx: json['guardian_idx'] ?? 0,
+      name: json['name'] ?? '',
+      species: json['species'] ?? '',
       breed: json['breed'],
-      birthDate: DateTime.parse(json['birth_date']),
+      ageNumber: parseAge(json['age_number']),
       bloodType: json['blood_type'],
-      weightKg: (json['weight_kg'] as num).toDouble(),
-      pregnant: json['pregnant'] == null ? null : (json['pregnant'] == 1),
+      weightKg: parseWeight(json['weight_kg']),
+      pregnant: json['pregnant'] == null ? false : (json['pregnant'] == 1),
+      vaccinated: json['vaccinated'] == null ? null : (json['vaccinated'] == 1),
+      hasDisease: json['has_disease'] == null ? null : (json['has_disease'] == 1),
+      hasBirthExperience: json['has_birth_experience'] == null ? null : (json['has_birth_experience'] == 1),
     );
   }
 
-  // API 통신을 위한 Map 변환 (나중에 사용)
+  // API 통신을 위한 Map 변환
   Map<String, dynamic> toMap() {
     return {
       'pet_id': petId,
@@ -56,11 +76,13 @@ class Pet {
       'name': name,
       'species': species,
       'breed': breed,
-      'birth_date':
-          birthDate.toIso8601String().split('T')[0], // 'YYYY-MM-DD' 형식으로 전송
+      'age_number': ageNumber,
       'blood_type': bloodType,
       'weight_kg': weightKg,
-      'pregnant': pregnant == null ? null : (pregnant! ? 1 : 0),
+      'pregnant': pregnant ? 1 : 0,
+      'vaccinated': vaccinated == null ? null : (vaccinated! ? 1 : 0),
+      'has_disease': hasDisease == null ? null : (hasDisease! ? 1 : 0),
+      'has_birth_experience': hasBirthExperience == null ? null : (hasBirthExperience! ? 1 : 0),
     };
   }
 }

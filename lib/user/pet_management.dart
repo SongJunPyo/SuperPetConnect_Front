@@ -1,7 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:connect/user/pet_register.dart';
-import 'package:connect/models/pet_model.dart'; // Pet 모델 import
+import 'package:connect/models/pet_model.dart';
 import 'package:connect/services/manage_pet_info.dart';
+import '../utils/app_theme.dart';
+import '../widgets/app_app_bar.dart';
+import '../widgets/app_card.dart';
 
 class PetManagementScreen extends StatefulWidget {
   const PetManagementScreen({super.key});
@@ -118,25 +122,64 @@ class _PetManagementScreenState extends State<PetManagementScreen> {
         backgroundColor: Colors.white,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios, color: Colors.black87),
-          onPressed: () => Navigator.pop(context),
+          icon: const Icon(Icons.arrow_back, color: AppTheme.textPrimary),
+          onPressed: () => Navigator.of(context).pop(),
         ),
-        title: const Text(
-          '반려동물 관리',
-          style: TextStyle(color: Colors.black87, fontWeight: FontWeight.bold),
-        ),
-        centerTitle: true,
       ),
       body: FutureBuilder<List<Pet>>(
         future: _petsFuture, // 이 Future의 상태에 따라 UI가 결정됨
         builder: (context, snapshot) {
           // 1. 로딩 중일 때
           if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
+            return Center(
+              child: CircularProgressIndicator(color: AppTheme.primaryBlue),
+            );
           }
           // 2. 에러가 발생했을 때
           if (snapshot.hasError) {
-            return Center(child: Text('오류가 발생했습니다: ${snapshot.error}'));
+            return Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(
+                    Icons.error_outline,
+                    size: 48,
+                    color: Colors.red.shade300,
+                  ),
+                  const SizedBox(height: AppTheme.spacing16),
+                  Text(
+                    '오류가 발생했습니다',
+                    style: AppTheme.h3Style.copyWith(
+                      color: AppTheme.textPrimary,
+                    ),
+                  ),
+                  const SizedBox(height: AppTheme.spacing8),
+                  Text(
+                    '${snapshot.error}',
+                    style: AppTheme.bodyMediumStyle.copyWith(
+                      color: AppTheme.textSecondary,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: AppTheme.spacing24),
+                  ElevatedButton(
+                    onPressed: _refreshPets,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppTheme.primaryBlue,
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(AppTheme.radius8),
+                      ),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: AppTheme.spacing24,
+                        vertical: AppTheme.spacing12,
+                      ),
+                    ),
+                    child: const Text('다시 시도'),
+                  ),
+                ],
+              ),
+            );
           }
           // 3. 데이터가 없거나 비어있을 때
           if (!snapshot.hasData || snapshot.data!.isEmpty) {
@@ -146,14 +189,36 @@ class _PetManagementScreenState extends State<PetManagementScreen> {
           // 4. 데이터 로딩 성공 시
           final pets = snapshot.data!;
           return SingleChildScrollView(
-            padding: const EdgeInsets.all(16.0),
-            child: _buildPetList(pets), // 가져온 데이터로 리스트를 그림
+            padding: const EdgeInsets.all(AppTheme.spacing16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // 헤더 섹션
+                Padding(
+                  padding: const EdgeInsets.only(bottom: AppTheme.spacing20),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('반려동물 관리', style: AppTheme.h2Style),
+                      const SizedBox(height: AppTheme.spacing8),
+                      Text(
+                        '총 ${pets.length}마리의 반려동물이 등록되어 있습니다',
+                        style: AppTheme.bodyLargeStyle.copyWith(
+                          color: AppTheme.textSecondary,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                _buildPetList(pets), // 가져온 데이터로 리스트를 그림
+              ],
+            ),
           );
         },
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: _navigateAndRegisterPet,
-        backgroundColor: Colors.blueAccent,
+        backgroundColor: AppTheme.primaryBlue,
         foregroundColor: Colors.white,
         child: const Icon(Icons.add),
       ),
@@ -167,16 +232,26 @@ class _PetManagementScreenState extends State<PetManagementScreen> {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(Icons.pets, size: 80, color: Colors.grey[300]),
-          const SizedBox(height: 20),
-          Text(
-            '등록된 반려동물이 없습니다.',
-            style: TextStyle(fontSize: 18, color: Colors.grey[600]),
+          Container(
+            padding: const EdgeInsets.all(AppTheme.spacing20),
+            decoration: BoxDecoration(
+              color: AppTheme.lightBlue,
+              shape: BoxShape.circle,
+            ),
+            child: Icon(Icons.pets, size: 60, color: AppTheme.primaryBlue),
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: AppTheme.spacing24),
           Text(
-            '아래 + 버튼을 눌러 소중한 가족을 등록해주세요!',
-            style: TextStyle(fontSize: 16, color: Colors.grey[500]),
+            '등록된 반려동물이 없습니다',
+            style: AppTheme.h3Style.copyWith(color: AppTheme.textPrimary),
+          ),
+          const SizedBox(height: AppTheme.spacing12),
+          Text(
+            '아래 + 버튼을 눌러\n소중한 가족을 등록해주세요',
+            style: AppTheme.bodyLargeStyle.copyWith(
+              color: AppTheme.textSecondary,
+              height: 1.5,
+            ),
             textAlign: TextAlign.center,
           ),
         ],
@@ -199,77 +274,504 @@ class _PetManagementScreenState extends State<PetManagementScreen> {
 
   // 각 펫의 정보를 보여주는 카드 위젯
   Widget _buildPetCard(Pet pet) {
-    return Card(
-      margin: const EdgeInsets.only(bottom: 12.0),
-      elevation: 2,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Row(
-          children: [
-            CircleAvatar(
-              radius: 30,
-              backgroundColor: Colors.blueAccent.withOpacity(0.1),
-              child: Icon(
-                pet.species == '개'
-                    ? Icons.pets
-                    : Icons.cruelty_free, // 종에 따라 아이콘 변경
-                color: Colors.blueAccent,
-                size: 30,
+    // 헌혈 가능 여부 체크
+    final canDonate = _checkDonationEligibility(pet);
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: AppTheme.spacing16),
+      child: Material(
+        color: canDonate ? Colors.lightGreen.shade50 : Colors.pink.shade50,
+        borderRadius: BorderRadius.circular(AppTheme.radius12),
+        elevation: 2,
+        shadowColor: Colors.black.withOpacity(0.1),
+        child: InkWell(
+          onTap: () => _showPetDetailDialog(pet),
+          borderRadius: BorderRadius.circular(AppTheme.radius12),
+          child: Container(
+            padding: const EdgeInsets.all(AppTheme.spacing16),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(AppTheme.radius12),
+              border: Border.all(
+                color:
+                    canDonate
+                        ? Colors.lightGreen.shade200
+                        : Colors.pink.shade200,
+                width: 1,
               ),
             ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // 왼쪽: 아이콘과 기본 정보
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
+                      // 이름과 아이콘
+                      Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(AppTheme.spacing8),
+                            decoration: BoxDecoration(
+                              color:
+                                  canDonate
+                                      ? Colors.lightGreen.shade100
+                                      : Colors.pink.shade100,
+                              shape: BoxShape.circle,
+                            ),
+                            child: Icon(
+                              pet.species == '강아지' || pet.species == '개'
+                                  ? FontAwesomeIcons.dog
+                                  : FontAwesomeIcons.cat,
+                              color:
+                                  canDonate
+                                      ? Colors.green.shade600
+                                      : Colors.pink.shade400,
+                              size: 20,
+                            ),
+                          ),
+                          const SizedBox(width: AppTheme.spacing12),
+                          Text(
+                            pet.name,
+                            style: AppTheme.h4Style.copyWith(height: 1.3),
+                          ),
+                          if (pet.pregnant) ...[
+                            const SizedBox(width: AppTheme.spacing8),
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: AppTheme.spacing8,
+                                vertical: AppTheme.spacing2,
+                              ),
+                              decoration: BoxDecoration(
+                                color: Colors.pinkAccent,
+                                borderRadius: BorderRadius.circular(
+                                  AppTheme.radius8,
+                                ),
+                              ),
+                              child: Text(
+                                '임신중',
+                                style: AppTheme.bodySmallStyle.copyWith(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                      const SizedBox(height: AppTheme.spacing12),
+                      // 정보들을 한 줄씩 표시
                       Text(
-                        pet.name,
-                        style: const TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
+                        '종류: ${pet.species}',
+                        style: AppTheme.bodyMediumStyle.copyWith(
+                          color: AppTheme.textSecondary,
                         ),
                       ),
-                      const SizedBox(width: 8),
-                      // 임신 중일 경우 뱃지 표시
-                      if (pet.pregnant == true)
-                        Chip(
-                          label: const Text(
-                            '임신중',
-                            style: TextStyle(fontSize: 10, color: Colors.white),
-                          ),
-                          backgroundColor: Colors.pinkAccent,
-                          padding: EdgeInsets.zero,
-                          materialTapTargetSize:
-                              MaterialTapTargetSize.shrinkWrap,
-                          visualDensity: VisualDensity.compact,
+                      const SizedBox(height: AppTheme.spacing4),
+                      Text(
+                        '품종: ${pet.breed ?? '정보 없음'}',
+                        style: AppTheme.bodyMediumStyle.copyWith(
+                          color: AppTheme.textSecondary,
                         ),
+                      ),
+                      const SizedBox(height: AppTheme.spacing4),
+                      Text(
+                        '나이: ${pet.age}',
+                        style: AppTheme.bodyMediumStyle.copyWith(
+                          color: AppTheme.textSecondary,
+                        ),
+                      ),
+                      const SizedBox(height: AppTheme.spacing4),
+                      Text(
+                        '몸무게: ${pet.weightKg}kg',
+                        style: AppTheme.bodyMediumStyle.copyWith(
+                          color: AppTheme.textSecondary,
+                        ),
+                      ),
+                      const SizedBox(height: AppTheme.spacing4),
+                      Text(
+                        '혈액형: ${pet.bloodType ?? '정보 없음'}',
+                        style: AppTheme.bodyMediumStyle.copyWith(
+                          color: AppTheme.textSecondary,
+                        ),
+                      ),
+                      const SizedBox(height: AppTheme.spacing8),
+                      // 헌혈 가능 여부 표시
+                      Row(
+                        children: [
+                          Icon(
+                            canDonate ? Icons.check_circle : Icons.cancel,
+                            size: 16,
+                            color:
+                                canDonate ? Colors.green : Colors.red.shade400,
+                          ),
+                          const SizedBox(width: AppTheme.spacing4),
+                          Text(
+                            canDonate ? '헌혈 가능' : '헌혈 불가',
+                            style: AppTheme.bodySmallStyle.copyWith(
+                              color:
+                                  canDonate
+                                      ? Colors.green
+                                      : Colors.red.shade400,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
+                      ),
                     ],
                   ),
-                  const SizedBox(height: 4),
-                  Text(
-                    '${pet.species} / ${pet.breed ?? '정보 없음'} / ${pet.age}',
-                    style: TextStyle(fontSize: 14, color: Colors.grey[700]),
-                  ),
-                  Text(
-                    '몸무게: ${pet.weightKg}kg / 혈액형: ${pet.bloodType ?? '정보 없음'}',
-                    style: TextStyle(fontSize: 14, color: Colors.grey[700]),
-                  ),
-                ],
+                ),
+                // 오른쪽: 수정/삭제 버튼 세로 배치
+                Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // 수정 버튼
+                    SizedBox(
+                      width: 36,
+                      height: 36,
+                      child: IconButton(
+                        icon: const Icon(Icons.edit, size: 20),
+                        color: AppTheme.textSecondary,
+                        onPressed: () => _editPet(pet),
+                        padding: EdgeInsets.zero,
+                        constraints: const BoxConstraints(),
+                        splashRadius: 18,
+                      ),
+                    ),
+                    const SizedBox(height: AppTheme.spacing8),
+                    // 삭제 버튼
+                    SizedBox(
+                      width: 36,
+                      height: 36,
+                      child: IconButton(
+                        icon: const Icon(Icons.delete, size: 20),
+                        color: Colors.red.shade400,
+                        onPressed: () => _deletePet(pet),
+                        padding: EdgeInsets.zero,
+                        constraints: const BoxConstraints(),
+                        splashRadius: 18,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  // 헌혈 가능 여부 체크 함수
+  bool _checkDonationEligibility(Pet pet) {
+    // 강아지가 아닌 경우 헌혈 불가
+    if (pet.species != '개' && pet.species != '강아지') return false;
+
+    // 나이 체크 (2살~8살)
+    if (pet.ageNumber < 2 || pet.ageNumber > 8) return false;
+
+    // 몸무게 체크 (20kg 이상)
+    if (pet.weightKg < 20) return false;
+
+    // 임신 중인 경우 헌혈 불가
+    if (pet.pregnant) return false;
+
+    // 백신 접종하지 않은 경우 헌혈 불가
+    if (pet.vaccinated != true) return false;
+
+    // 질병 이력이 있는 경우 헌혈 불가
+    if (pet.hasDisease == true) return false;
+
+    // 출산 경험이 있는 경우 헌혈 불가 (1년 이내)
+    if (pet.hasBirthExperience == true) return false;
+
+    return true;
+  }
+
+  // 펫 상세 정보를 보여주는 다이얼로그
+  void _showPetDetailDialog(Pet pet) {
+    final canDonate = _checkDonationEligibility(pet);
+    final donationReasons = _getDonationIneligibilityReasons(pet);
+
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(AppTheme.radius16),
+          ),
+          title: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(AppTheme.spacing8),
+                decoration: BoxDecoration(
+                  color:
+                      canDonate
+                          ? Colors.lightGreen.shade100
+                          : Colors.pink.shade100,
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(
+                  pet.species == '강아지' || pet.species == '개'
+                      ? Icons.pets
+                      : Icons.cruelty_free,
+                  color:
+                      canDonate ? Colors.green.shade600 : Colors.pink.shade400,
+                  size: 20,
+                ),
               ),
+              const SizedBox(width: AppTheme.spacing12),
+              Text(pet.name, style: AppTheme.h3Style),
+            ],
+          ),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _buildDetailRow('종류', pet.species),
+                _buildDetailRow('품종', pet.breed ?? '정보 없음'),
+                _buildDetailRow('나이', pet.age),
+                _buildDetailRow('몸무게', '${pet.weightKg}kg'),
+                _buildDetailRow('혈액형', pet.bloodType ?? '정보 없음'),
+                _buildDetailRow('백신 접종', pet.vaccinated == true ? '완료' : '미완료'),
+                _buildDetailRow('질병 이력', pet.hasDisease == true ? '있음' : '없음'),
+                _buildDetailRow(
+                  '출산 경험',
+                  pet.hasBirthExperience == true ? '있음' : '없음',
+                ),
+                if (pet.pregnant)
+                  Container(
+                    margin: const EdgeInsets.only(top: AppTheme.spacing12),
+                    padding: const EdgeInsets.all(AppTheme.spacing8),
+                    decoration: BoxDecoration(
+                      color: Colors.pinkAccent.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(AppTheme.radius8),
+                      border: Border.all(color: Colors.pinkAccent, width: 0.5),
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(
+                          Icons.info_outline,
+                          color: Colors.pinkAccent,
+                          size: 16,
+                        ),
+                        const SizedBox(width: AppTheme.spacing8),
+                        Text(
+                          '현재 임신 중입니다',
+                          style: AppTheme.bodyMediumStyle.copyWith(
+                            color: Colors.pinkAccent,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                const SizedBox(height: AppTheme.spacing16),
+                // 헌혈 가능 여부 섹션
+                Container(
+                  padding: const EdgeInsets.all(AppTheme.spacing12),
+                  decoration: BoxDecoration(
+                    color:
+                        canDonate ? Colors.green.shade50 : Colors.red.shade50,
+                    borderRadius: BorderRadius.circular(AppTheme.radius8),
+                    border: Border.all(
+                      color:
+                          canDonate
+                              ? Colors.green.shade200
+                              : Colors.red.shade200,
+                      width: 1,
+                    ),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Icon(
+                            canDonate ? Icons.check_circle : Icons.cancel,
+                            color: canDonate ? Colors.green : Colors.red,
+                            size: 20,
+                          ),
+                          const SizedBox(width: AppTheme.spacing8),
+                          Text(
+                            canDonate ? '헌혈 가능' : '헌혈 불가',
+                            style: AppTheme.bodyLargeStyle.copyWith(
+                              color: canDonate ? Colors.green : Colors.red,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
+                      ),
+                      if (!canDonate && donationReasons.isNotEmpty) ...[
+                        const SizedBox(height: AppTheme.spacing8),
+                        ...donationReasons.map(
+                          (reason) => Padding(
+                            padding: const EdgeInsets.only(
+                              top: AppTheme.spacing4,
+                            ),
+                            child: Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Text(
+                                  '• ',
+                                  style: TextStyle(color: Colors.red),
+                                ),
+                                Expanded(
+                                  child: Text(
+                                    reason,
+                                    style: AppTheme.bodySmallStyle.copyWith(
+                                      color: Colors.red.shade700,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+                const SizedBox(height: AppTheme.spacing12),
+                // 헌혈견 조건 안내
+                ExpansionTile(
+                  title: Text(
+                    '헌혈견 조건 안내',
+                    style: AppTheme.bodyMediumStyle.copyWith(
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  tilePadding: EdgeInsets.zero,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(AppTheme.spacing12),
+                      decoration: BoxDecoration(
+                        color: AppTheme.veryLightGray,
+                        borderRadius: BorderRadius.circular(AppTheme.radius8),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: const [
+                          Text(
+                            '✓ 2살(18개월)~8살 / 20kg 이상',
+                            style: TextStyle(fontSize: 12),
+                          ),
+                          SizedBox(height: 4),
+                          Text(
+                            '✓ 매월 심장사상충과 내외부구충 예방',
+                            style: TextStyle(fontSize: 12),
+                          ),
+                          SizedBox(height: 4),
+                          Text(
+                            '✓ 정기적인 종합백신 접종',
+                            style: TextStyle(fontSize: 12),
+                          ),
+                          SizedBox(height: 4),
+                          Text(
+                            '✓ 질병 이력이 없는 건강한 반려견',
+                            style: TextStyle(fontSize: 12),
+                          ),
+                          SizedBox(height: 4),
+                          Text(
+                            '✓ 임신 경험이 있다면 1년 경과 필요',
+                            style: TextStyle(fontSize: 12),
+                          ),
+                          SizedBox(height: 4),
+                          Text(
+                            '✓ 헌혈 2주 전부터 치료약 복용 금지',
+                            style: TextStyle(fontSize: 12),
+                          ),
+                          SizedBox(height: 4),
+                          Text(
+                            '✓ 헌혈 당일 8시간 전 금식 (물은 가능)',
+                            style: TextStyle(fontSize: 12),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ],
             ),
-            IconButton(
-              icon: const Icon(Icons.edit, color: Colors.blueGrey),
-              onPressed: () => _editPet(pet),
+          ),
+          actions: <Widget>[
+            TextButton(
+              child: Text(
+                '닫기',
+                style: TextStyle(color: AppTheme.textSecondary),
+              ),
+              onPressed: () => Navigator.of(context).pop(),
             ),
-            IconButton(
-              icon: const Icon(Icons.delete, color: Colors.redAccent),
-              onPressed: () => _deletePet(pet),
+            TextButton(
+              child: Text('수정', style: TextStyle(color: AppTheme.primaryBlue)),
+              onPressed: () {
+                Navigator.of(context).pop();
+                _editPet(pet);
+              },
             ),
           ],
-        ),
+        );
+      },
+    );
+  }
+
+  // 헌혈 불가 사유를 반환하는 함수
+  List<String> _getDonationIneligibilityReasons(Pet pet) {
+    List<String> reasons = [];
+
+    if (pet.species != '개' && pet.species != '강아지') {
+      reasons.add('강아지만 헌혈이 가능합니다');
+    }
+
+    if (pet.ageNumber < 2) {
+      reasons.add('2살 미만입니다 (현재: ${pet.age})');
+    } else if (pet.ageNumber > 8) {
+      reasons.add('8살을 초과했습니다 (현재: ${pet.age})');
+    }
+
+    if (pet.weightKg < 20) {
+      reasons.add('체중이 20kg 미만입니다 (현재: ${pet.weightKg}kg)');
+    }
+
+    if (pet.pregnant) {
+      reasons.add('현재 임신 중입니다');
+    }
+
+    if (pet.vaccinated != true) {
+      reasons.add('정기 백신 접종을 하지 않았습니다');
+    }
+
+    if (pet.hasDisease == true) {
+      reasons.add('질병 이력이 있습니다');
+    }
+
+    if (pet.hasBirthExperience == true) {
+      reasons.add('출산 경험이 있습니다 (1년 이내 출산 시 헌혈 불가)');
+    }
+
+    return reasons;
+  }
+
+  // 상세 정보 행 위젯
+  Widget _buildDetailRow(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: AppTheme.spacing4),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: 80,
+            child: Text(
+              label,
+              style: AppTheme.bodyMediumStyle.copyWith(
+                color: AppTheme.textSecondary,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+          Expanded(child: Text(value, style: AppTheme.bodyMediumStyle)),
+        ],
       ),
     );
   }

@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:connect/auth/login.dart';
+import '../utils/app_theme.dart';
+import '../widgets/app_card.dart';
+import '../widgets/app_app_bar.dart';
 
 class WelcomeScreen extends StatefulWidget {
   const WelcomeScreen({super.key});
@@ -33,68 +36,55 @@ class _WelcomeScreenState extends State<WelcomeScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        backgroundColor: Colors.white,
-        elevation: 0,
-        title: Row(
-          mainAxisAlignment: MainAxisAlignment.end,
-          children: [
-            IconButton(
-              icon: const CircleAvatar(
-                radius: 18,
-                backgroundColor: Colors.blueAccent,
-                child: Icon(Icons.person, color: Colors.white, size: 20),
-              ),
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => LoginScreen()),
-                );
-              },
+      appBar: AppAppBar(
+        showBackButton: false,
+        actions: [
+          IconButton(
+            icon: const CircleAvatar(
+              radius: 18,
+              backgroundColor: AppTheme.primaryBlue,
+              child: Icon(Icons.person, color: Colors.white, size: 20),
             ),
-          ],
-        ),
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => LoginScreen()),
+              );
+            },
+          ),
+        ],
       ),
       body: Column(
         children: [
           Padding(
-            padding: const EdgeInsets.symmetric(
-              horizontal: 24.0,
-              vertical: 20.0,
-            ),
+            padding: AppTheme.pagePadding,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
-              children: const [
+              children: [
                 Text(
                   '생명을 살리는 소중한 헌혈에',
-                  style: TextStyle(
-                    fontSize: 24,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.black87,
-                  ),
+                  style: AppTheme.h2Style,
                 ),
                 Text(
                   '동참해주세요.',
-                  style: TextStyle(
-                    fontSize: 24,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.black87,
-                  ),
+                  style: AppTheme.h2Style,
                 ),
-                SizedBox(height: 10),
+                const SizedBox(height: AppTheme.spacing12),
                 Text(
                   '반려동물의 건강을 함께 지켜나가요!',
-                  style: TextStyle(fontSize: 16, color: Colors.grey),
+                  style: AppTheme.bodyLargeStyle.copyWith(
+                    color: AppTheme.textSecondary,
+                  ),
                 ),
               ],
             ),
           ),
           // 커스텀 탭 바 구현
           Container(
-            margin: const EdgeInsets.symmetric(horizontal: 16.0),
+            margin: const EdgeInsets.symmetric(horizontal: AppTheme.spacing16),
             decoration: BoxDecoration(
-              color: Colors.grey[200], // 탭 바 전체 배경색
-              borderRadius: BorderRadius.circular(10), // 둥근 모서리
+              color: AppTheme.veryLightGray,
+              borderRadius: BorderRadius.circular(AppTheme.radius12),
             ),
             // LayoutBuilder를 사용하여 부모 위젯의 너비를 얻습니다.
             child: LayoutBuilder(
@@ -106,20 +96,16 @@ class _WelcomeScreenState extends State<WelcomeScreen>
                   children: [
                     // 슬라이딩하는 파란색 인디케이터
                     AnimatedPositioned(
-                      duration: const Duration(
-                        milliseconds: 300,
-                      ), // 애니메이션 지속 시간
-                      curve: Curves.easeInOut, // 애니메이션 곡선
-                      left: _tabController.index * _tabWidth, // 현재 선택된 탭의 위치 계산
+                      duration: const Duration(milliseconds: 300),
+                      curve: Curves.easeInOut,
+                      left: _tabController.index * _tabWidth,
                       top: 0,
                       bottom: 0,
                       width: _tabWidth,
                       child: Container(
                         decoration: BoxDecoration(
-                          color: Colors.blueAccent, // 인디케이터 색상
-                          borderRadius: BorderRadius.circular(
-                            10,
-                          ), // 항상 둥근 모서리 유지
+                          color: AppTheme.primaryBlue,
+                          borderRadius: BorderRadius.circular(AppTheme.radius12),
                         ),
                       ),
                     ),
@@ -137,18 +123,16 @@ class _WelcomeScreenState extends State<WelcomeScreen>
                                     .opaque, // 이 부분을 추가하여 전체 영역 클릭 가능하게 함
                             child: Container(
                               padding: const EdgeInsets.symmetric(
-                                vertical: 12.0,
+                                vertical: AppTheme.spacing12,
                               ),
                               alignment: Alignment.center,
                               child: Text(
                                 '헌혈 모집 게시판',
-                                style: TextStyle(
-                                  // 선택 여부에 따른 글자색 변경
-                                  color:
-                                      _tabController.index == 0
-                                          ? Colors.white
-                                          : Colors.black87,
-                                  fontWeight: FontWeight.bold,
+                                style: AppTheme.bodyMediumStyle.copyWith(
+                                  color: _tabController.index == 0
+                                      ? Colors.white
+                                      : AppTheme.textPrimary,
+                                  fontWeight: FontWeight.w600,
                                 ),
                               ),
                             ),
@@ -165,18 +149,16 @@ class _WelcomeScreenState extends State<WelcomeScreen>
                                     .opaque, // 이 부분을 추가하여 전체 영역 클릭 가능하게 함
                             child: Container(
                               padding: const EdgeInsets.symmetric(
-                                vertical: 12.0,
+                                vertical: AppTheme.spacing12,
                               ),
                               alignment: Alignment.center,
                               child: Text(
                                 '칼럼 게시판',
-                                style: TextStyle(
-                                  // 선택 여부에 따른 글자색 변경
-                                  color:
-                                      _tabController.index == 1
-                                          ? Colors.white
-                                          : Colors.black87,
-                                  fontWeight: FontWeight.bold,
+                                style: AppTheme.bodyMediumStyle.copyWith(
+                                  color: _tabController.index == 1
+                                      ? Colors.white
+                                      : AppTheme.textPrimary,
+                                  fontWeight: FontWeight.w600,
                                 ),
                               ),
                             ),
@@ -230,46 +212,14 @@ class _WelcomeScreenState extends State<WelcomeScreen>
     ];
 
     return ListView.builder(
-      padding: const EdgeInsets.all(16.0),
+      padding: const EdgeInsets.all(AppTheme.spacing16),
       itemCount: donationPosts.length,
       itemBuilder: (context, index) {
         final post = donationPosts[index];
-        return Card(
-          margin: const EdgeInsets.only(bottom: 12.0),
-          elevation: 2, // 카드 그림자
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12), // 둥근 모서리
-          ),
-          child: Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  post['title']!,
-                  style: const TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.black87,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      post['hospital']!,
-                      style: TextStyle(fontSize: 14, color: Colors.grey[700]),
-                    ),
-                    Text(
-                      post['date']!,
-                      style: TextStyle(fontSize: 14, color: Colors.grey[500]),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
+        return AppPostCard(
+          title: post['title']!,
+          subtitle: post['hospital']!,
+          date: post['date']!,
         );
       },
     );
@@ -299,46 +249,14 @@ class _WelcomeScreenState extends State<WelcomeScreen>
     ];
 
     return ListView.builder(
-      padding: const EdgeInsets.all(16.0),
+      padding: const EdgeInsets.all(AppTheme.spacing16),
       itemCount: columnPosts.length,
       itemBuilder: (context, index) {
         final post = columnPosts[index];
-        return Card(
-          margin: const EdgeInsets.only(bottom: 12.0),
-          elevation: 2,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  post['title']!,
-                  style: const TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.black87,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      post['author']!,
-                      style: TextStyle(fontSize: 14, color: Colors.grey[700]),
-                    ),
-                    Text(
-                      post['date']!,
-                      style: TextStyle(fontSize: 14, color: Colors.grey[500]),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
+        return AppPostCard(
+          title: post['title']!,
+          subtitle: post['author']!,
+          date: post['date']!,
         );
       },
     );

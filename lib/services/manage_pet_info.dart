@@ -35,13 +35,11 @@ class PetService {
   // 반려동물 정보 조회
   static Future<List<Pet>> fetchPets() async {
     try {
-      // --- 수정: 인증 토큰 가져오기 ---
       final prefs = await SharedPreferences.getInstance();
       final token = prefs.getString('auth_token');
 
       final response = await http.get(
         Uri.parse('$baseUrl/pets'),
-        // --- 수정: 인증 헤더 추가 ---
         headers: {
           'Content-Type': 'application/json',
           'Authorization': 'Bearer $token',
@@ -65,15 +63,14 @@ class PetService {
       final token = prefs.getString('auth_token');
 
       final response = await http.delete(
-        Uri.parse('$baseUrl/pets/$petId'), // 예: /api/v1/pets/12
+        Uri.parse('$baseUrl/pets/$petId'),
         headers: {
           'Content-Type': 'application/json',
           'Authorization': 'Bearer $token',
         },
       );
 
-      // 성공적인 삭제는 보통 204 No Content를 반환합니다.
-      if (response.statusCode != 204) {
+      if (response.statusCode != 204 && response.statusCode != 200) {
         throw Exception('반려동물 정보 삭제 실패: ${response.body}');
       }
     } catch (e) {

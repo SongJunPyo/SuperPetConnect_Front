@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:connect/auth/register.dart'; // register.dart로 파일명 변경
+import 'package:connect/auth/register.dart';
 import 'package:connect/hospital/hospital_dashboard.dart';
 import 'package:connect/user/user_dashboard.dart';
 import 'package:connect/admin/admin_dashboard.dart';
@@ -7,7 +7,11 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import '../utils/config.dart';
-import 'package:connect/auth/fcm_token_screen.dart'; // FcmTokenScreen 임포트
+import '../utils/app_theme.dart';
+import '../widgets/app_button.dart';
+import '../widgets/app_input_field.dart';
+import '../widgets/app_app_bar.dart';
+import 'package:connect/auth/fcm_token_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -197,212 +201,104 @@ class _LoginScreenState extends State<LoginScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final TextTheme textTheme = Theme.of(context).textTheme;
-    final ColorScheme colorScheme = Theme.of(context).colorScheme;
-
     return Scaffold(
-      appBar: AppBar(
-        backgroundColor: Colors.white,
-        elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios, color: Colors.black87),
-          onPressed: () {
-            Navigator.pop(context); // 이전 화면으로 돌아가기
-          },
-        ),
-        title: const SizedBox.shrink(), // 로그인 아이콘 대신 빈 위젯으로 대체
+      appBar: const AppAppBar(
+        showBackButton: true,
       ),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.all(24.0),
+        padding: AppTheme.pagePadding,
         child: Form(
           key: _formKey,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const SizedBox(height: 40), // 상단 여백
+              const SizedBox(height: AppTheme.spacing40),
               Text(
                 '로그인',
-                style: textTheme.headlineLarge?.copyWith(
-                  // 더 큰 제목 스타일
-                  fontWeight: FontWeight.bold,
-                  color: Colors.black87,
-                ),
+                style: AppTheme.h1Style,
               ),
-              const SizedBox(height: 30),
-              // 이메일 입력 필드
-              TextFormField(
+              const SizedBox(height: AppTheme.spacing32),
+              AppEmailField(
                 controller: _emailController,
-                keyboardType: TextInputType.emailAddress,
-                decoration: InputDecoration(
-                  hintText: '이메일 주소',
-                  filled: true,
-                  fillColor: Colors.grey[100], // 배경색
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12), // 둥근 모서리
-                    borderSide: BorderSide.none, // 테두리 없음
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    // 포커스 시 테두리
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide(
-                      color: colorScheme.primary,
-                      width: 2,
-                    ),
-                  ),
-                  enabledBorder: OutlineInputBorder(
-                    // 기본 테두리
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide.none,
-                  ),
-                  contentPadding: const EdgeInsets.symmetric(
-                    horizontal: 20,
-                    vertical: 16,
-                  ),
-                ),
-                style: const TextStyle(fontSize: 16),
-                validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return '이메일을 입력해주세요.';
-                  }
-                  // TODO: 이메일 형식 유효성 검사 추가 (정규식 등)
-                  return null;
-                },
+                required: true,
               ),
-              const SizedBox(height: 16),
-              // 비밀번호 입력 필드
-              TextFormField(
+              const SizedBox(height: AppTheme.spacing16),
+              AppPasswordField(
                 controller: _passwordController,
-                obscureText: _isObscure, // _isObscure 값에 따라 비밀번호 가림/보임
-                decoration: InputDecoration(
-                  hintText: '비밀번호',
-                  filled: true,
-                  fillColor: Colors.grey[100],
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide.none,
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide(
-                      color: colorScheme.primary,
-                      width: 2,
-                    ),
-                  ),
-                  enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide.none,
-                  ),
-                  contentPadding: const EdgeInsets.symmetric(
-                    horizontal: 20,
-                    vertical: 16,
-                  ),
-                  suffixIcon: IconButton(
-                    // 눈 모양 아이콘 추가
-                    icon: Icon(
-                      _isObscure
-                          ? Icons.visibility_off_outlined
-                          : Icons.visibility_outlined, // 아이콘 변경
-                      color: Colors.grey[600], // 아이콘 색상
-                    ),
-                    onPressed: () {
-                      setState(() {
-                        _isObscure = !_isObscure; // 상태 토글
-                      });
-                    },
-                  ),
-                ),
-                style: const TextStyle(fontSize: 16),
+                required: true,
                 validator: (value) {
                   if (value == null || value.isEmpty) {
-                    return '비밀번호를 입력해주세요.';
+                    return '비밀번호를 입력해주세요';
                   }
-                  // TODO: 비밀번호 강도/길이 유효성 검사 추가
                   return null;
                 },
               ),
-              const SizedBox(height: 30),
-              // 로그인 버튼
-              SizedBox(
-                width: double.infinity, // 너비를 최대로
-                child: ElevatedButton(
-                  onPressed: _login,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.blueAccent, // 버튼 배경색
-                    foregroundColor: Colors.white, // 버튼 글자색
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12), // 둥근 모서리
-                    ),
-                    elevation: 0, // 그림자 없음
-                  ),
-                  child: Text(
-                    '로그인',
-                    style: textTheme.titleMedium?.copyWith(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
-                    ),
-                  ),
-                ),
+              const SizedBox(height: AppTheme.spacing32),
+              AppPrimaryButton(
+                text: '로그인',
+                onPressed: _login,
+                size: AppButtonSize.large,
               ),
-              const SizedBox(height: 20),
-              // 회원가입 및 비밀번호 찾기 버튼
+              const SizedBox(height: AppTheme.spacing20),
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   TextButton(
                     onPressed: _signUp,
                     style: TextButton.styleFrom(
-                      foregroundColor: Colors.blueAccent, // 글자색
+                      foregroundColor: AppTheme.primaryBlue,
                       padding: const EdgeInsets.symmetric(
-                        horizontal: 10,
-                        vertical: 5,
+                        horizontal: AppTheme.spacing12,
+                        vertical: AppTheme.spacing8,
                       ),
                     ),
                     child: Text(
                       '회원가입',
-                      style: textTheme.bodyLarge?.copyWith(
-                        fontWeight: FontWeight.bold,
+                      style: AppTheme.bodyLargeStyle.copyWith(
+                        fontWeight: FontWeight.w600,
+                        color: AppTheme.primaryBlue,
                       ),
                     ),
                   ),
                   Text(
                     ' | ',
-                    style: textTheme.bodyLarge?.copyWith(color: Colors.grey),
+                    style: AppTheme.bodyLargeStyle.copyWith(
+                      color: AppTheme.textTertiary,
+                    ),
                   ),
                   TextButton(
                     onPressed: _forgotPassword,
                     style: TextButton.styleFrom(
-                      foregroundColor: Colors.grey[600], // 글자색
+                      foregroundColor: AppTheme.textSecondary,
                       padding: const EdgeInsets.symmetric(
-                        horizontal: 10,
-                        vertical: 5,
+                        horizontal: AppTheme.spacing12,
+                        vertical: AppTheme.spacing8,
                       ),
                     ),
                     child: Text(
                       '비밀번호 찾기',
-                      style: textTheme.bodyLarge?.copyWith(
-                        fontWeight: FontWeight.bold,
+                      style: AppTheme.bodyLargeStyle.copyWith(
+                        fontWeight: FontWeight.w600,
+                        color: AppTheme.textSecondary,
                       ),
                     ),
                   ),
                 ],
               ),
 
-              // 개발용 임시 이동 버튼 섹션 (새로 추가된 부분)
-              const SizedBox(height: 40), // 추가 여백
+              const SizedBox(height: AppTheme.spacing40),
               Text(
-                '개발용 임시 이동 버튼', // 임시 버튼임을 명시
-                style: textTheme.titleLarge?.copyWith(
-                  fontWeight: FontWeight.bold,
-                  color: Colors.redAccent, // 눈에 띄는 색상
+                '개발용 임시 이동 버튼',
+                style: AppTheme.h3Style.copyWith(
+                  color: AppTheme.error,
                 ),
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: AppTheme.spacing16),
               Row(
                 children: [
                   Expanded(
-                    child: ElevatedButton(
+                    child: AppButton(
+                      text: '관리자 토큰',
                       onPressed: () {
                         Navigator.push(
                           context,
@@ -411,20 +307,14 @@ class _LoginScreenState extends State<LoginScreen> {
                           ),
                         );
                       },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.green, // 임시 버튼 색상
-                        foregroundColor: Colors.white,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                      ),
-                      child: const Text('관리자 토큰'),
+                      customColor: AppTheme.success,
+                      size: AppButtonSize.small,
                     ),
                   ),
-                  const SizedBox(width: 10),
-
+                  const SizedBox(width: AppTheme.spacing8),
                   Expanded(
-                    child: ElevatedButton(
+                    child: AppButton(
+                      text: '사용자',
                       onPressed: () {
                         Navigator.push(
                           context,
@@ -433,19 +323,14 @@ class _LoginScreenState extends State<LoginScreen> {
                           ),
                         );
                       },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.orange, // 임시 버튼 색상
-                        foregroundColor: Colors.white,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                      ),
-                      child: const Text('사용자'),
+                      customColor: AppTheme.warning,
+                      size: AppButtonSize.small,
                     ),
                   ),
-                  const SizedBox(width: 10),
+                  const SizedBox(width: AppTheme.spacing8),
                   Expanded(
-                    child: ElevatedButton(
+                    child: AppButton(
+                      text: '병원',
                       onPressed: () {
                         Navigator.push(
                           context,
@@ -454,19 +339,14 @@ class _LoginScreenState extends State<LoginScreen> {
                           ),
                         );
                       },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.orange,
-                        foregroundColor: Colors.white,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                      ),
-                      child: const Text('병원'),
+                      customColor: AppTheme.warning,
+                      size: AppButtonSize.small,
                     ),
                   ),
-                  const SizedBox(width: 10),
+                  const SizedBox(width: AppTheme.spacing8),
                   Expanded(
-                    child: ElevatedButton(
+                    child: AppButton(
+                      text: '관리자',
                       onPressed: () {
                         Navigator.push(
                           context,
@@ -475,19 +355,13 @@ class _LoginScreenState extends State<LoginScreen> {
                           ),
                         );
                       },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.orange,
-                        foregroundColor: Colors.white,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                      ),
-                      child: const Text('관리자'),
+                      customColor: AppTheme.warning,
+                      size: AppButtonSize.small,
                     ),
                   ),
                 ],
               ),
-              const SizedBox(height: 20), // 마지막 여백
+              const SizedBox(height: AppTheme.spacing20),
             ],
           ),
         ),
