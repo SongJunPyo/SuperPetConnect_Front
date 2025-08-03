@@ -6,6 +6,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:math';
 import '../utils/config.dart';
 import '../utils/app_theme.dart';
+import 'hospital_dashboard.dart';
 
 class HospitalPost extends StatefulWidget {
   // PostCreationPage -> HospitalPost로 클래스명 변경
@@ -111,7 +112,9 @@ class _HospitalPostState extends State<HospitalPost> {
       if (response.statusCode == 201) {
         _showAlertDialog('성공', '게시글이 성공적으로 등록되었습니다.', () {
           Navigator.of(context).pop(); // 다이얼로그 닫기
-          Navigator.of(context).pop(); // 게시글 작성 페이지 닫기
+          Navigator.of(context).pushReplacement(
+            MaterialPageRoute(builder: (context) => const HospitalDashboard()),
+          );
         });
       } else {
         _showAlertDialog('등록 실패', '게시글 등록에 실패했습니다: ${response.body}');
