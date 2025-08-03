@@ -28,7 +28,8 @@ class _HospitalPostCheckState extends State<HospitalPostCheck> {
         errorMessage = null;
       });
 
-      final loadedPosts = await HospitalPostService.getHospitalPosts();
+      // 병원 사용자의 경우 본인 병원 게시글만 조회
+      final loadedPosts = await HospitalPostService.getHospitalPostsForCurrentUser();
       setState(() {
         posts = loadedPosts;
         isLoading = false;

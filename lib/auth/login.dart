@@ -88,6 +88,12 @@ class _LoginScreenState extends State<LoginScreen> {
             data['account_idx'] ?? 0,
           ); // guardian_idx 저장 확인
 
+          // 병원 사용자인 경우 hospital_code 저장
+          if (data['account_type'] == 2 && data['hospital_code'] != null) {
+            await prefs.setString('hospital_code', data['hospital_code']);
+            print('DEBUG: 병원 코드 저장됨: ${data['hospital_code']}');
+          }
+
           // 🚨 저장 후 바로 확인하는 디버그 로그 추가
           print(
             'DEBUG: SharedPreferences에 저장된 guardian_idx: ${prefs.getInt('guardian_idx')}',

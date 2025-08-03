@@ -13,16 +13,27 @@ class HospitalPostService {
     return prefs.getString('auth_token') ?? '';
   }
 
+  // 병원 코드 가져오기 (병원 사용자용)
+  static Future<String?> _getHospitalCode() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString('hospital_code');
+  }
+
   // 병원의 헌혈 게시글 목록 조회
-  static Future<List<HospitalPost>> getHospitalPosts() async {
+  static Future<List<HospitalPost>> getHospitalPosts({String? hospitalCode}) async {
     try {
       final token = await _getAuthToken();
       if (token.isEmpty) {
         throw Exception('인증 토큰이 없습니다.');
       }
 
+      String url = '$baseUrl/api/v1/posts';
+      if (hospitalCode != null && hospitalCode.isNotEmpty) {
+        url += '?hospital_code=$hospitalCode';
+      }
+
       final response = await http.get(
-        Uri.parse('$baseUrl/api/v1/hospital/posts'),
+        Uri.parse(url),
         headers: {
           'Authorization': 'Bearer $token',
           'Content-Type': 'application/json; charset=UTF-8',
@@ -63,6 +74,21 @@ class HospitalPostService {
       }
     } catch (e) {
       print('Error fetching hospital posts: $e');
+      throw e;
+    }
+  }
+
+  // 현재 병원 사용자의 게시글만 조회
+  static Future<List<HospitalPost>> getHospitalPostsForCurrentUser() async {
+    try {
+      final hospitalCode = await _getHospitalCode();
+      if (hospitalCode == null || hospitalCode.isEmpty) {
+        throw Exception('병원 코드가 없습니다. 병원 계정이 아니거나 승인되지 않았습니다.');
+      }
+      
+      return await getHospitalPosts(hospitalCode: hospitalCode);
+    } catch (e) {
+      print('Error fetching current user hospital posts: $e');
       throw e;
     }
   }
