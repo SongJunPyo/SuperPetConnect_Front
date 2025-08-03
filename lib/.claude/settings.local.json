@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(pip install:*)",
+      "Bash(python:*)",
+      "Bash(del *.py)",
+      "Bash(rm:*)"
+    ],
+    "deny": []
+  }
+}

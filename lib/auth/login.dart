@@ -6,6 +6,7 @@ import 'package:connect/admin/admin_dashboard.dart';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 import '../utils/config.dart';
 import '../utils/app_theme.dart';
 import '../widgets/app_button.dart';
@@ -38,14 +39,32 @@ class _LoginScreenState extends State<LoginScreen> {
               (context) => const Center(child: CircularProgressIndicator()),
         );
 
+        // FCM 토큰 가져오기
+        String? fcmToken;
+        try {
+          fcmToken = await FirebaseMessaging.instance.getToken();
+          print('FCM 토큰 획득: $fcmToken');
+        } catch (e) {
+          print('FCM 토큰 획득 실패: $e');
+          // FCM 토큰이 없어도 로그인은 계속 진행
+        }
+
+        // API 요청 body 구성
+        final requestBody = {
+          'username': _emailController.text,
+          'password': _passwordController.text,
+        };
+        
+        // FCM 토큰이 있으면 추가
+        if (fcmToken != null && fcmToken.isNotEmpty) {
+          requestBody['fcm_token'] = fcmToken;
+        }
+
         // API 요청
         final response = await http.post(
           Uri.parse('${Config.serverUrl}/api/v1/login'),
           headers: {'Content-Type': 'application/x-www-form-urlencoded'},
-          body: {
-            'username': _emailController.text,
-            'password': _passwordController.text,
-          },
+          body: requestBody,
         );
 
         // 로딩 닫기

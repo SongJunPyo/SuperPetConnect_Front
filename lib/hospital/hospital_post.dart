@@ -5,6 +5,7 @@ import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:math';
 import '../utils/config.dart';
+import '../utils/app_theme.dart';
 
 class HospitalPost extends StatefulWidget {
   // PostCreationPage -> HospitalPost로 클래스명 변경
@@ -173,14 +174,16 @@ class _HospitalPostState extends State<HospitalPost> {
     return Scaffold(
       appBar: AppBar(
         title: Text(
-          "새로운 모집글 작성", // 제목 변경
-          style: textTheme.titleLarge?.copyWith(
-            fontWeight: FontWeight.bold,
-            color: Colors.black87,
-          ),
+          "헌혈 게시글 작성",
+          style: AppTheme.h3Style.copyWith(fontWeight: FontWeight.w700),
         ),
-        centerTitle: false, // 토스처럼 왼쪽 정렬 유지
-        // iconTheme은 main.dart의 AppBarTheme을 따름
+        centerTitle: false,
+        backgroundColor: Colors.white,
+        elevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_ios, size: 20),
+          onPressed: () => Navigator.pop(context),
+        ),
       ),
       body: SingleChildScrollView(
         child: Padding(
@@ -192,20 +195,19 @@ class _HospitalPostState extends State<HospitalPost> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               // 날짜 및 시간대 선택 섹션
-              Text(
-                "헌혈 일시 선택",
-                style: textTheme.titleLarge?.copyWith(
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
+              Text("헌혈 일시 선택", style: AppTheme.h3Style),
               const SizedBox(height: 16),
-              Card(
-                elevation: 2,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
+              Container(
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(AppTheme.radius16),
+                  border: Border.all(
+                    color: AppTheme.lightGray.withOpacity(0.5),
+                    width: 1,
+                  ),
                 ),
                 child: Padding(
-                  padding: const EdgeInsets.all(16.0),
+                  padding: const EdgeInsets.all(AppTheme.spacing20),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -214,9 +216,8 @@ class _HospitalPostState extends State<HospitalPost> {
                         children: [
                           Text(
                             "날짜: ${selectedDate.year}년 ${selectedDate.month}월 ${selectedDate.day}일",
-                            style: textTheme.titleMedium?.copyWith(
+                            style: AppTheme.bodyLargeStyle.copyWith(
                               fontWeight: FontWeight.w600,
-                              color: Colors.black87,
                             ),
                           ),
                           OutlinedButton.icon(
@@ -273,43 +274,56 @@ class _HospitalPostState extends State<HospitalPost> {
                         ],
                       ),
                       const SizedBox(height: 16),
-                      ElevatedButton.icon(
-                        // ElevatedButton.icon으로 변경
-                        onPressed: () {
-                          showDialog(
-                            context: context,
-                            builder:
-                                (context) => _TimeEntryDialog(
-                                  onSave: (timeRange, teamNumber) {
-                                    setState(() {
-                                      timeEntries.add({
-                                        "timeRange": timeRange,
-                                        "teamNumber": teamNumber,
+                      Material(
+                        color: AppTheme.primaryBlue,
+                        borderRadius: BorderRadius.circular(AppTheme.radius12),
+                        child: InkWell(
+                          onTap: () {
+                            showDialog(
+                              context: context,
+                              builder:
+                                  (context) => _TimeEntryDialog(
+                                    onSave: (timeRange, teamNumber) {
+                                      setState(() {
+                                        timeEntries.add({
+                                          "timeRange": timeRange,
+                                          "teamNumber": teamNumber,
+                                        });
                                       });
-                                    });
-                                  },
-                                ),
-                          );
-                        },
-                        icon: const Icon(Icons.add_circle_outline, size: 20),
-                        label: const Text("시간대 추가"),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: colorScheme.primary, // 테마 색상 사용
-                          foregroundColor: colorScheme.onPrimary,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(10),
+                                    },
+                                  ),
+                            );
+                          },
+                          borderRadius: BorderRadius.circular(
+                            AppTheme.radius12,
                           ),
-                          minimumSize: const Size(double.infinity, 48), // 버튼 크기
+                          child: Container(
+                            height: AppTheme.buttonHeightMedium,
+                            alignment: Alignment.center,
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                const Icon(
+                                  Icons.add_circle_outline,
+                                  size: 20,
+                                  color: Colors.white,
+                                ),
+                                const SizedBox(width: AppTheme.spacing8),
+                                Text(
+                                  "시간대 추가",
+                                  style: AppTheme.bodyLargeStyle.copyWith(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
                         ),
                       ),
                       const SizedBox(height: 16),
                       if (timeEntries.isNotEmpty)
-                        Text(
-                          "추가된 시간대",
-                          style: textTheme.titleMedium?.copyWith(
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
+                        Text("추가된 시간대", style: AppTheme.h4Style),
                       const SizedBox(height: 8),
                       ListView.builder(
                         shrinkWrap: true,
@@ -392,21 +406,20 @@ class _HospitalPostState extends State<HospitalPost> {
               ),
 
               const SizedBox(height: 32), // 섹션 간 간격
-              // 기타 정보 섹션
-              Text(
-                "기타 정보 입력",
-                style: textTheme.titleLarge?.copyWith(
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
+              // 정보 작성 파트
+              Text("작성 정보", style: AppTheme.h3Style),
               const SizedBox(height: 16),
-              Card(
-                elevation: 2,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
+              Container(
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(AppTheme.radius16),
+                  border: Border.all(
+                    color: AppTheme.lightGray.withOpacity(0.5),
+                    width: 1,
+                  ),
                 ),
                 child: Padding(
-                  padding: const EdgeInsets.all(16.0),
+                  padding: const EdgeInsets.all(AppTheme.spacing20),
                   child: Column(
                     children: [
                       TextField(
@@ -537,23 +550,21 @@ class _HospitalPostState extends State<HospitalPost> {
               const SizedBox(height: 32),
 
               // 등록 버튼
-              SizedBox(
-                width: double.infinity,
-                height: 56, // 버튼 높이 고정
-                child: ElevatedButton(
-                  onPressed: _submitPost,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: colorScheme.primary,
-                    foregroundColor: colorScheme.onPrimary,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    elevation: 3, // 버튼 그림자
-                  ),
-                  child: Text(
-                    "모집글 등록하기",
-                    style: textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.bold,
+              Material(
+                color: AppTheme.primaryBlue,
+                borderRadius: BorderRadius.circular(AppTheme.radius12),
+                child: InkWell(
+                  onTap: _submitPost,
+                  borderRadius: BorderRadius.circular(AppTheme.radius12),
+                  child: Container(
+                    height: AppTheme.buttonHeightLarge,
+                    alignment: Alignment.center,
+                    child: Text(
+                      "헌혈 게시글 등록",
+                      style: AppTheme.h4Style.copyWith(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w700,
+                      ),
                     ),
                   ),
                 ),

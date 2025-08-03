@@ -9,6 +9,8 @@ import '../auth/profile_management.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
+import 'package:intl/intl.dart';
+import 'dart:async';
 
 class HospitalDashboard extends StatefulWidget {
   const HospitalDashboard({super.key});
@@ -19,11 +21,35 @@ class HospitalDashboard extends StatefulWidget {
 
 class _HospitalDashboardState extends State<HospitalDashboard> {
   String hospitalName = "S동물메디컬센터";
+  String currentDateTime = "";
+  Timer? _timer;
 
   @override
   void initState() {
     super.initState();
     _loadHospitalName();
+    _updateDateTime();
+    _startTimer();
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    super.dispose();
+  }
+
+  void _updateDateTime() {
+    final now = DateTime.now();
+    final formatter = DateFormat('yyyy년 M월 d일 (EEEE) HH:mm', 'ko_KR');
+    setState(() {
+      currentDateTime = formatter.format(now);
+    });
+  }
+
+  void _startTimer() {
+    _timer = Timer.periodic(const Duration(minutes: 1), (timer) {
+      _updateDateTime();
+    });
   }
 
   Future<void> _loadHospitalName() async {
@@ -103,13 +129,15 @@ class _HospitalDashboardState extends State<HospitalDashboard> {
                   ),
                   const SizedBox(height: AppTheme.spacing8),
                   Text(
-                    '소중한 반려동물 생명 살리기에 함께해주세요.',
+                    currentDateTime,
                     style: AppTheme.bodyLargeStyle.copyWith(
                       color: AppTheme.textSecondary,
                     ),
                   ),
                   const SizedBox(height: AppTheme.spacing20),
-                  AppInfoCard(
+                  SizedBox(
+                    width: double.infinity,
+                    child: AppInfoCard(
                     icon: Icons.info_outline,
                     title: '새로운 헌혈 신청 2건이 도착했습니다!',
                     description: '신청 현황 보기',
@@ -122,6 +150,7 @@ class _HospitalDashboardState extends State<HospitalDashboard> {
                       );
                     },
                   ),
+                  ),
                 ],
               ),
             ),
@@ -131,7 +160,7 @@ class _HospitalDashboardState extends State<HospitalDashboard> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    "주요 기능",
+                    "게시글 관리",
                     style: AppTheme.h3Style,
                   ),
                   const SizedBox(height: AppTheme.spacing16),
@@ -165,6 +194,19 @@ class _HospitalDashboardState extends State<HospitalDashboard> {
                             MaterialPageRoute(
                               builder: (context) => const HospitalPostCheck(),
                             ),
+                          );
+                        },
+                      ),
+                      const SizedBox(height: AppTheme.spacing16),
+                      _buildPremiumFeatureCard(
+                        icon: Icons.article_outlined,
+                        title: "칼럼 게시글 작성",
+                        subtitle: "반려동물 헌혈 관련 정보 공유",
+                        iconColor: AppTheme.warning,
+                        backgroundColor: AppTheme.warning.withOpacity(0.1),
+                        onTap: () {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text('칼럼 작성 기능 (미구현)')),
                           );
                         },
                       ),
@@ -207,6 +249,41 @@ class _HospitalDashboardState extends State<HospitalDashboard> {
                   ),
                   const SizedBox(height: AppTheme.spacing16),
                   _buildRecentApplicantList(),
+                ],
+              ),
+            ),
+            
+            // 최근 칼럼 섹션 추가
+            Padding(
+              padding: AppTheme.pagePadding,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        "최근 칼럼",
+                        style: AppTheme.h3Style,
+                      ),
+                      TextButton(
+                        onPressed: () {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text('칼럼 더보기 (미구현)')),
+                          );
+                        },
+                        child: Text(
+                          '더보기',
+                          style: AppTheme.bodyLargeStyle.copyWith(
+                            color: AppTheme.primaryBlue,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: AppTheme.spacing16),
+                  _buildRecentColumnList(),
                 ],
               ),
             ),
@@ -313,79 +390,228 @@ class _HospitalDashboardState extends State<HospitalDashboard> {
     required Color backgroundColor,
     required VoidCallback onTap,
   }) {
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 4),
-      child: Material(
-        color: Colors.white,
+    return Material(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(AppTheme.radius16),
+      child: InkWell(
+        onTap: onTap,
         borderRadius: BorderRadius.circular(AppTheme.radius16),
-        child: InkWell(
-          onTap: onTap,
-          borderRadius: BorderRadius.circular(AppTheme.radius16),
-          child: Container(
-            padding: const EdgeInsets.all(AppTheme.spacing20),
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(AppTheme.radius16),
-              border: Border.all(
-                color: iconColor.withOpacity(0.2),
-                width: 1.5,
+        child: Container(
+          padding: const EdgeInsets.all(AppTheme.spacing20),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(AppTheme.radius16),
+            border: Border.all(
+              color: iconColor.withOpacity(0.2),
+              width: 1.5,
+            ),
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 56,
+                height: 56,
+                decoration: BoxDecoration(
+                  color: backgroundColor,
+                  borderRadius: BorderRadius.circular(AppTheme.radius12),
+                ),
+                child: Icon(
+                  icon,
+                  size: 28,
+                  color: iconColor,
+                ),
               ),
-            ),
-            child: Row(
-              children: [
-                Container(
-                  width: 56,
-                  height: 56,
-                  decoration: BoxDecoration(
-                    color: backgroundColor,
-                    borderRadius: BorderRadius.circular(AppTheme.radius12),
-                  ),
-                  child: Icon(
-                    icon,
-                    size: 28,
-                    color: iconColor,
-                  ),
-                ),
-                const SizedBox(width: AppTheme.spacing16),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        title,
-                        style: AppTheme.h4Style.copyWith(
-                          fontWeight: FontWeight.w700,
-                          color: AppTheme.textPrimary,
-                        ),
+              const SizedBox(width: AppTheme.spacing16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: AppTheme.h4Style.copyWith(
+                        fontWeight: FontWeight.w700,
+                        color: AppTheme.textPrimary,
                       ),
-                      const SizedBox(height: AppTheme.spacing4),
-                      Text(
-                        subtitle,
-                        style: AppTheme.bodyMediumStyle.copyWith(
-                          color: AppTheme.textSecondary,
-                          height: 1.3,
-                        ),
+                    ),
+                    const SizedBox(height: AppTheme.spacing4),
+                    Text(
+                      subtitle,
+                      style: AppTheme.bodyMediumStyle.copyWith(
+                        color: AppTheme.textSecondary,
+                        height: 1.3,
                       ),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
-                Container(
-                  width: 36,
-                  height: 36,
-                  decoration: BoxDecoration(
-                    color: iconColor.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(AppTheme.radius8),
-                  ),
-                  child: Icon(
-                    Icons.arrow_forward_ios,
-                    size: 16,
-                    color: iconColor,
-                  ),
+              ),
+              Container(
+                width: 36,
+                height: 36,
+                decoration: BoxDecoration(
+                  color: iconColor.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(AppTheme.radius8),
                 ),
-              ],
-            ),
+                child: Icon(
+                  Icons.arrow_forward_ios,
+                  size: 16,
+                  color: iconColor,
+                ),
+              ),
+            ],
           ),
         ),
       ),
+    );
+  }
+  
+  // 최근 칼럼 목록을 구성하는 위젯
+  Widget _buildRecentColumnList() {
+    // 가데이터 칼럼 목록
+    final List<Map<String, dynamic>> recentColumns = [
+      {
+        'title': '칼럼 테스트 1',
+        'content': '테스트 내용입니다. 반려동물 헌혈의 중요성에 대한 내용이 들어갈 예정입니다.',
+        'author': '김수의사',
+        'date': '2025-08-01',
+        'views': 156,
+      },
+      {
+        'title': '칼럼 테스트 2',
+        'content': '테스트 내용입니다. 헌혈 전 준비사항에 대한 안내가 들어갈 예정입니다.',
+        'author': '박수의사',
+        'date': '2025-07-30',
+        'views': 203,
+      },
+      {
+        'title': '칼럼 테스트 3',
+        'content': '테스트 내용입니다. 헌혈 후 관리방법에 대한 정보가 들어갈 예정입니다.',
+        'author': '이수의사',
+        'date': '2025-07-28',
+        'views': 89,
+      },
+    ];
+
+    if (recentColumns.isEmpty) {
+      return Container(
+        decoration: BoxDecoration(
+          color: AppTheme.veryLightGray,
+          borderRadius: BorderRadius.circular(AppTheme.radius12),
+        ),
+        padding: const EdgeInsets.all(32.0),
+        child: Center(
+          child: Column(
+            children: [
+              Icon(Icons.article_outlined, size: 48, color: AppTheme.mediumGray),
+              const SizedBox(height: 16),
+              Text(
+                '작성된 칼럼이 없습니다.',
+                style: AppTheme.bodyLargeStyle.copyWith(
+                  color: AppTheme.textSecondary,
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    return Column(
+      children: recentColumns.map((column) {
+        return Container(
+          margin: const EdgeInsets.only(bottom: AppTheme.spacing12),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(AppTheme.radius12),
+            border: Border.all(
+              color: AppTheme.lightGray.withOpacity(0.5),
+              width: 1,
+            ),
+          ),
+          child: Material(
+            color: Colors.transparent,
+            child: InkWell(
+              onTap: () {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text('${column['title']} 상세보기 (미구현)')),
+                );
+              },
+              borderRadius: BorderRadius.circular(AppTheme.radius12),
+              child: Padding(
+                padding: const EdgeInsets.all(AppTheme.spacing16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Expanded(
+                          child: Text(
+                            column['title'],
+                            style: AppTheme.h4Style.copyWith(
+                              fontWeight: FontWeight.w600,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: AppTheme.spacing8,
+                            vertical: AppTheme.spacing4,
+                          ),
+                          decoration: BoxDecoration(
+                            color: AppTheme.lightBlue,
+                            borderRadius: BorderRadius.circular(AppTheme.radius8),
+                          ),
+                          child: Text(
+                            '조회 ${column['views']}',
+                            style: AppTheme.captionStyle.copyWith(
+                              color: AppTheme.primaryBlue,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: AppTheme.spacing8),
+                    Text(
+                      column['content'],
+                      style: AppTheme.bodyMediumStyle,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: AppTheme.spacing12),
+                    Row(
+                      children: [
+                        Icon(
+                          Icons.person_outline,
+                          size: 16,
+                          color: AppTheme.textTertiary,
+                        ),
+                        const SizedBox(width: AppTheme.spacing4),
+                        Text(
+                          column['author'],
+                          style: AppTheme.bodySmallStyle,
+                        ),
+                        const SizedBox(width: AppTheme.spacing16),
+                        Icon(
+                          Icons.calendar_today_outlined,
+                          size: 16,
+                          color: AppTheme.textTertiary,
+                        ),
+                        const SizedBox(width: AppTheme.spacing4),
+                        Text(
+                          column['date'],
+                          style: AppTheme.bodySmallStyle,
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        );
+      }).toList(),
     );
   }
 }

@@ -320,18 +320,21 @@ class _AdminDashboardState extends State<AdminDashboard> {
     
     if (pendingSignupsCount > 0) {
       notifications.add(
-        AppInfoCard(
-          icon: Icons.person_add_outlined,
-          title: '새로운 회원가입 승인 요청 ${pendingSignupsCount}건이 있습니다!',
-          description: '승인 관리로 이동',
-          onTap: () {
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) => const AdminSignupManagement(),
-              ),
-            );
-          },
+        SizedBox(
+          width: double.infinity,
+          child: AppInfoCard(
+            icon: Icons.person_add_outlined,
+            title: '새로운 회원가입 승인 요청 ${pendingSignupsCount}건이 있습니다!',
+            description: '승인 관리로 이동',
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const AdminSignupManagement(),
+                ),
+              );
+            },
+          ),
         ),
       );
       notifications.add(const SizedBox(height: AppTheme.spacing12));
@@ -339,20 +342,23 @@ class _AdminDashboardState extends State<AdminDashboard> {
     
     if (pendingPostsCount > 0) {
       notifications.add(
-        AppInfoCard(
-          icon: Icons.post_add_outlined,
-          title: '새로운 게시글 승인 요청 ${pendingPostsCount}건이 있습니다!',
-          description: '게시글 관리로 이동',
-          iconColor: AppTheme.warning,
-          backgroundColor: AppTheme.warning.withOpacity(0.1),
-          onTap: () {
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) => const AdminPostCheck(),
-              ),
-            );
-          },
+        SizedBox(
+          width: double.infinity,
+          child: AppInfoCard(
+            icon: Icons.post_add_outlined,
+            title: '새로운 게시글 승인 요청 ${pendingPostsCount}건이 있습니다!',
+            description: '게시글 관리로 이동',
+            iconColor: AppTheme.warning,
+            backgroundColor: AppTheme.warning.withOpacity(0.1),
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const AdminPostCheck(),
+                ),
+              );
+            },
+          ),
         ),
       );
       notifications.add(const SizedBox(height: AppTheme.spacing12));
@@ -370,76 +376,73 @@ class _AdminDashboardState extends State<AdminDashboard> {
     required Color backgroundColor,
     required VoidCallback onTap,
   }) {
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 4),
-      child: Material(
-        color: Colors.white,
+    return Material(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(AppTheme.radius16),
+      child: InkWell(
+        onTap: onTap,
         borderRadius: BorderRadius.circular(AppTheme.radius16),
-        child: InkWell(
-          onTap: onTap,
-          borderRadius: BorderRadius.circular(AppTheme.radius16),
-          child: Container(
-            padding: const EdgeInsets.all(AppTheme.spacing20),
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(AppTheme.radius16),
-              border: Border.all(
-                color: iconColor.withOpacity(0.2),
-                width: 1.5,
+        child: Container(
+          padding: const EdgeInsets.all(AppTheme.spacing20),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(AppTheme.radius16),
+            border: Border.all(
+              color: iconColor.withOpacity(0.2),
+              width: 1.5,
+            ),
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 56,
+                height: 56,
+                decoration: BoxDecoration(
+                  color: backgroundColor,
+                  borderRadius: BorderRadius.circular(AppTheme.radius12),
+                ),
+                child: Icon(
+                  icon,
+                  size: 28,
+                  color: iconColor,
+                ),
               ),
-            ),
-            child: Row(
-              children: [
-                Container(
-                  width: 56,
-                  height: 56,
-                  decoration: BoxDecoration(
-                    color: backgroundColor,
-                    borderRadius: BorderRadius.circular(AppTheme.radius12),
-                  ),
-                  child: Icon(
-                    icon,
-                    size: 28,
-                    color: iconColor,
-                  ),
-                ),
-                const SizedBox(width: AppTheme.spacing16),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        title,
-                        style: AppTheme.h4Style.copyWith(
-                          fontWeight: FontWeight.w700,
-                          color: AppTheme.textPrimary,
-                        ),
+              const SizedBox(width: AppTheme.spacing16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: AppTheme.h4Style.copyWith(
+                        fontWeight: FontWeight.w700,
+                        color: AppTheme.textPrimary,
                       ),
-                      const SizedBox(height: AppTheme.spacing4),
-                      Text(
-                        subtitle,
-                        style: AppTheme.bodyMediumStyle.copyWith(
-                          color: AppTheme.textSecondary,
-                          height: 1.3,
-                        ),
+                    ),
+                    const SizedBox(height: AppTheme.spacing4),
+                    Text(
+                      subtitle,
+                      style: AppTheme.bodyMediumStyle.copyWith(
+                        color: AppTheme.textSecondary,
+                        height: 1.3,
                       ),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
-                Container(
-                  width: 36,
-                  height: 36,
-                  decoration: BoxDecoration(
-                    color: iconColor.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(AppTheme.radius8),
-                  ),
-                  child: Icon(
-                    Icons.arrow_forward_ios,
-                    size: 16,
-                    color: iconColor,
-                  ),
+              ),
+              Container(
+                width: 36,
+                height: 36,
+                decoration: BoxDecoration(
+                  color: iconColor.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(AppTheme.radius8),
                 ),
-              ],
-            ),
+                child: Icon(
+                  Icons.arrow_forward_ios,
+                  size: 16,
+                  color: iconColor,
+                ),
+              ),
+            ],
           ),
         ),
       ),

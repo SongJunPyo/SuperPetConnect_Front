@@ -7,6 +7,8 @@ import '../auth/profile_management.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
+import 'package:intl/intl.dart';
+import 'dart:async';
 
 class UserDashboard extends StatefulWidget {
   const UserDashboard({super.key});
@@ -20,6 +22,8 @@ class _UserDashboardState extends State<UserDashboard>
   late TabController _tabController;
   double _tabWidth = 0.0; // 탭 하나의 너비를 저장할 변수
   String userName = "사용자"; // 실제 사용자 이름
+  String currentDateTime = "";
+  Timer? _timer;
 
   // 지역 필터링을 위한 선택된 값들을 저장할 Set (여러 개 선택 가능)
   Set<String> _selectedRegions = {'전체'}; // 초기 선택값 '전체'
@@ -52,6 +56,22 @@ class _UserDashboardState extends State<UserDashboard>
       setState(() {}); // 탭이 변경될 때 UI를 다시 그리도록 강제
     });
     _loadUserName();
+    _updateDateTime();
+    _startTimer();
+  }
+
+  void _updateDateTime() {
+    final now = DateTime.now();
+    final formatter = DateFormat('yyyy년 M월 d일 (EEEE) HH:mm', 'ko_KR');
+    setState(() {
+      currentDateTime = formatter.format(now);
+    });
+  }
+
+  void _startTimer() {
+    _timer = Timer.periodic(const Duration(minutes: 1), (timer) {
+      _updateDateTime();
+    });
   }
 
   Future<void> _loadUserName() async {
@@ -98,6 +118,7 @@ class _UserDashboardState extends State<UserDashboard>
   @override
   void dispose() {
     _tabController.dispose(); // TabController 리소스 해제
+    _timer?.cancel();
     super.dispose();
   }
 
@@ -152,19 +173,22 @@ class _UserDashboardState extends State<UserDashboard>
                 ),
                 const SizedBox(height: AppTheme.spacing8),
                 Text(
-                  '오늘도 소중한 생명을 살리는 일에 동참해주세요.',
+                  currentDateTime,
                   style: AppTheme.bodyLargeStyle.copyWith(
                     color: AppTheme.textSecondary,
                   ),
                 ),
                 const SizedBox(height: AppTheme.spacing20),
-                AppInfoCard(
+                SizedBox(
+                  width: double.infinity,
+                  child: AppInfoCard(
                   icon: Icons.info_outline,
                   title: '새로운 헌혈 요청 5건이 도착했습니다!',
                   description: '자세히 보기',
                   onTap: () {
                     // TODO: 헌혈 요청 목록으로 이동
                   },
+                ),
                 ),
               ],
             ),
