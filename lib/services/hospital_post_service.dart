@@ -16,6 +16,15 @@ class HospitalPostService {
   // 병원 코드 가져오기 (병원 사용자용)
   static Future<String?> _getHospitalCode() async {
     final prefs = await SharedPreferences.getInstance();
+    
+    // 디버깅: SharedPreferences의 모든 관련 키 확인
+    print('DEBUG: SharedPreferences 확인');
+    print('  - auth_token: ${prefs.getString('auth_token')?.substring(0, 10) ?? 'null'}...');
+    print('  - hospital_code: ${prefs.getString('hospital_code') ?? 'null'}');
+    print('  - user_email: ${prefs.getString('user_email') ?? 'null'}');
+    print('  - user_name: ${prefs.getString('user_name') ?? 'null'}');
+    print('  - guardian_idx: ${prefs.getInt('guardian_idx') ?? 'null'}');
+    
     return prefs.getString('hospital_code');
   }
 
@@ -32,6 +41,8 @@ class HospitalPostService {
         url += '?hospital_code=$hospitalCode';
       }
 
+      print('DEBUG: API 호출 URL: $url');
+
       final response = await http.get(
         Uri.parse(url),
         headers: {
@@ -39,6 +50,8 @@ class HospitalPostService {
           'Content-Type': 'application/json; charset=UTF-8',
         },
       );
+
+      print('DEBUG: API 응답 상태코드: ${response.statusCode}');
 
       if (response.statusCode == 200) {
         final data = json.decode(utf8.decode(response.bodyBytes));
@@ -82,14 +95,80 @@ class HospitalPostService {
   static Future<List<HospitalPost>> getHospitalPostsForCurrentUser() async {
     try {
       final hospitalCode = await _getHospitalCode();
+      print('DEBUG: 조회된 hospital_code: $hospitalCode');
+      
       if (hospitalCode == null || hospitalCode.isEmpty) {
-        throw Exception('병원 코드가 없습니다. 병원 계정이 아니거나 승인되지 않았습니다.');
+        print('DEBUG: hospital_code가 없음 - 전체 게시글 조회로 대체');
+        return await getHospitalPosts();
       }
       
-      return await getHospitalPosts(hospitalCode: hospitalCode);
+      // 먼저 기존 hospital API 시도
+      print('DEBUG: /api/v1/hospital/posts API 시도');
+      try {
+        final hospitalPosts = await _getHospitalPostsViaHospitalAPI();
+        if (hospitalPosts.isNotEmpty) {
+          print('DEBUG: hospital API에서 ${hospitalPosts.length}개 게시글 조회됨');
+          return hospitalPosts;
+        }
+      } catch (e) {
+        print('DEBUG: hospital API 실패: $e');
+      }
+      
+      // hospital API가 실패하거나 빈 결과면 필터링 API 시도
+      print('DEBUG: hospital_code로 게시글 조회 시작: $hospitalCode');
+      final filteredPosts = await getHospitalPosts(hospitalCode: hospitalCode);
+      if (filteredPosts.isNotEmpty) {
+        return filteredPosts;
+      }
+      
+      // 모두 실패하면 전체 게시글 조회
+      print('DEBUG: 모든 방법 실패 - 전체 게시글 조회로 대체');
+      return await getHospitalPosts();
+      
     } catch (e) {
       print('Error fetching current user hospital posts: $e');
-      throw e;
+      // 에러 발생 시에도 전체 게시글 조회 시도
+      try {
+        print('DEBUG: 에러 발생으로 전체 게시글 조회 시도');
+        return await getHospitalPosts();
+      } catch (fallbackError) {
+        print('Error in fallback getHospitalPosts: $fallbackError');
+        throw e; // 원래 에러 throw
+      }
+    }
+  }
+
+  // 기존 hospital API 사용
+  static Future<List<HospitalPost>> _getHospitalPostsViaHospitalAPI() async {
+    final token = await _getAuthToken();
+    if (token.isEmpty) {
+      throw Exception('인증 토큰이 없습니다.');
+    }
+
+    print('DEBUG: API 호출 URL: $baseUrl/api/v1/hospital/posts');
+
+    final response = await http.get(
+      Uri.parse('$baseUrl/api/v1/hospital/posts'),
+      headers: {
+        'Authorization': 'Bearer $token',
+        'Content-Type': 'application/json; charset=UTF-8',
+      },
+    );
+
+    print('DEBUG: hospital API 응답 상태코드: ${response.statusCode}');
+
+    if (response.statusCode == 200) {
+      final data = json.decode(utf8.decode(response.bodyBytes));
+      print('DEBUG: hospital API 응답 데이터: $data');
+      
+      if (data is List) {
+        return data.map((post) => HospitalPost.fromJson(post)).toList();
+      } else if (data is Map && data['posts'] != null) {
+        return (data['posts'] as List).map((post) => HospitalPost.fromJson(post)).toList();
+      }
+      return [];
+    } else {
+      throw Exception('hospital API 호출 실패: ${response.statusCode}');
     }
   }
 

@@ -74,6 +74,15 @@ class _HospitalPostState extends State<HospitalPost> {
         return;
       }
 
+      // 병원 코드 가져오기
+      final prefs = await SharedPreferences.getInstance();
+      final hospitalCode = prefs.getString('hospital_code');
+      
+      if (hospitalCode == null || hospitalCode.isEmpty) {
+        _showAlertDialog('오류', '병원 코드가 없습니다. 병원 계정이 아니거나 승인되지 않았습니다.');
+        return;
+      }
+
       // 서버로 보낼 데이터를 Map 형태로 만듭니다.
       final Map<String, dynamic> postData = {
         "date":
@@ -85,6 +94,7 @@ class _HospitalPostState extends State<HospitalPost> {
         "types": selectedType == "긴급" ? 1 : 2,
         "title": _titleController.text,
         "description": additionalDescription,
+        "hospital_id": hospitalCode, // 요양기관기호 추가
       };
 
       // '긴급' 타입일 때만 'bloodType' 필드를 추가합니다.
