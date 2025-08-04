@@ -5,6 +5,7 @@ import 'package:connect/admin/admin_user_check.dart';
 import 'package:connect/admin/admin_hospital_check.dart';
 import 'package:connect/admin/admin_signup_management.dart';
 import 'package:connect/admin/admin_approved_posts.dart';
+import 'package:connect/admin/admin_notice_create.dart';
 import '../utils/app_theme.dart';
 import '../widgets/app_card.dart';
 import '../widgets/app_app_bar.dart';
@@ -244,6 +245,22 @@ class _AdminDashboardState extends State<AdminDashboard> {
                       context,
                       MaterialPageRoute(
                         builder: (context) => const AdminApprovedPostsScreen(),
+                      ),
+                    );
+                  },
+                ),
+                const SizedBox(height: AppTheme.spacing16),
+                _buildPremiumFeatureCard(
+                  icon: Icons.campaign_outlined,
+                  title: "공지글 작성",
+                  subtitle: "시스템 공지사항 작성 및 관리",
+                  iconColor: AppTheme.primaryBlue,
+                  backgroundColor: AppTheme.lightBlue,
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const AdminNoticeCreateScreen(),
                       ),
                     );
                   },
