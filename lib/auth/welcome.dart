@@ -58,22 +58,37 @@ class _WelcomeScreenState extends State<WelcomeScreen>
         children: [
           Padding(
             padding: AppTheme.pagePadding,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
               children: [
-                Text(
-                  '생명을 살리는 소중한 헌혈에',
-                  style: AppTheme.h2Style,
+                Image.asset(
+                  'lib/images/한국헌혈견협회 로고.png',
+                  width: 60,
+                  height: 60,
                 ),
-                Text(
-                  '동참해주세요.',
-                  style: AppTheme.h2Style,
-                ),
-                const SizedBox(height: AppTheme.spacing12),
-                Text(
-                  '반려동물의 건강을 함께 지켜나가요!',
-                  style: AppTheme.bodyLargeStyle.copyWith(
-                    color: AppTheme.textSecondary,
+                const SizedBox(width: AppTheme.spacing16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      RichText(
+                        textAlign: TextAlign.left,
+                        text: TextSpan(
+                          children: [
+                            TextSpan(
+                              text: '한국헌혈견협회\n',
+                              style: AppTheme.h1Style,
+                            ),
+                            TextSpan(
+                              text: 'KCBDA-반려견 헌혈캠페인',
+                              style: AppTheme.bodyLargeStyle.copyWith(
+                                color: AppTheme.textSecondary,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ],
@@ -105,7 +120,9 @@ class _WelcomeScreenState extends State<WelcomeScreen>
                       child: Container(
                         decoration: BoxDecoration(
                           color: AppTheme.primaryBlue,
-                          borderRadius: BorderRadius.circular(AppTheme.radius12),
+                          borderRadius: BorderRadius.circular(
+                            AppTheme.radius12,
+                          ),
                         ),
                       ),
                     ),
@@ -129,9 +146,10 @@ class _WelcomeScreenState extends State<WelcomeScreen>
                               child: Text(
                                 '헌혈 모집 게시판',
                                 style: AppTheme.bodyMediumStyle.copyWith(
-                                  color: _tabController.index == 0
-                                      ? Colors.white
-                                      : AppTheme.textPrimary,
+                                  color:
+                                      _tabController.index == 0
+                                          ? Colors.white
+                                          : AppTheme.textPrimary,
                                   fontWeight: FontWeight.w600,
                                 ),
                               ),
@@ -155,9 +173,10 @@ class _WelcomeScreenState extends State<WelcomeScreen>
                               child: Text(
                                 '칼럼 게시판',
                                 style: AppTheme.bodyMediumStyle.copyWith(
-                                  color: _tabController.index == 1
-                                      ? Colors.white
-                                      : AppTheme.textPrimary,
+                                  color:
+                                      _tabController.index == 1
+                                          ? Colors.white
+                                          : AppTheme.textPrimary,
                                   fontWeight: FontWeight.w600,
                                 ),
                               ),
