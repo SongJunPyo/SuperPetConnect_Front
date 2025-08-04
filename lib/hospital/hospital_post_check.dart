@@ -23,22 +23,29 @@ class _HospitalPostCheckState extends State<HospitalPostCheck> {
 
   Future<void> _loadPosts() async {
     try {
-      setState(() {
-        isLoading = true;
-        errorMessage = null;
-      });
+      if (mounted) {
+        setState(() {
+          isLoading = true;
+          errorMessage = null;
+        });
+      }
 
       // 병원 사용자의 경우 본인 병원 게시글만 조회
       final loadedPosts = await HospitalPostService.getHospitalPostsForCurrentUser();
-      setState(() {
-        posts = loadedPosts;
-        isLoading = false;
-      });
+      
+      if (mounted) {
+        setState(() {
+          posts = loadedPosts;
+          isLoading = false;
+        });
+      }
     } catch (e) {
-      setState(() {
-        errorMessage = e.toString();
-        isLoading = false;
-      });
+      if (mounted) {
+        setState(() {
+          errorMessage = e.toString();
+          isLoading = false;
+        });
+      }
     }
   }
 

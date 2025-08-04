@@ -141,7 +141,7 @@ class _PetRegisterScreenState extends State<PetRegisterScreen> {
       if (_isEditMode) {
         // 수정 모드: PUT 요청
         apiUrl =
-            '${Config.serverUrl}/api/v1/pets/${widget.petToEdit!.petId}'; // 펫 ID 포함
+            '${Config.serverUrl}/api/pets/${widget.petToEdit!.petId}'; // 펫 ID 포함
         response = await http.put(
           // PUT 요청
           Uri.parse(apiUrl),
@@ -153,7 +153,7 @@ class _PetRegisterScreenState extends State<PetRegisterScreen> {
         );
       } else {
         // 등록 모드: POST 요청
-        apiUrl = '${Config.serverUrl}/api/v1/pets';
+        apiUrl = '${Config.serverUrl}/api/pets';
         response = await http.post(
           // POST 요청
           Uri.parse(apiUrl),

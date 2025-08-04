@@ -3,8 +3,7 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:math' as math; // min 함수 사용을 위해 추가
-// TODO: Config 파일 임포트 추가 (서버 URL 사용)
-// import '../utils/config.dart';
+import '../utils/config.dart';
 
 // 신청자 데이터 모델
 class Applicant {
@@ -93,9 +92,8 @@ class _ApplicantListScreenState extends State<ApplicantListScreen> {
     });
 
     try {
-      // TODO: Config.serverUrl 사용으로 변경
       final url = Uri.parse(
-        'http://10.100.54.176:8002/api/v1/admin/time-range/${widget.timeRangeId}/applicants',
+        '${Config.serverUrl}/api/admin/time-range/${widget.timeRangeId}/applicants',
       );
       final response = await http.get(
         url,
@@ -140,9 +138,8 @@ class _ApplicantListScreenState extends State<ApplicantListScreen> {
     }
 
     try {
-      // TODO: Config.serverUrl 사용으로 변경
       final url = Uri.parse(
-        'http://10.100.54.176:8002/api/v1/admin/applicant/$applicantId/status',
+        '${Config.serverUrl}/api/admin/applicant/$applicantId/status',
       );
       final response = await http.post(
         url,

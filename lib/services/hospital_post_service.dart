@@ -36,7 +36,7 @@ class HospitalPostService {
         throw Exception('인증 토큰이 없습니다.');
       }
 
-      String url = '$baseUrl/api/v1/posts';
+      String url = '$baseUrl/api/posts';
       if (hospitalCode != null && hospitalCode.isNotEmpty) {
         url += '?hospital_code=$hospitalCode';
       }
@@ -103,7 +103,7 @@ class HospitalPostService {
       }
       
       // 먼저 기존 hospital API 시도
-      print('DEBUG: /api/v1/hospital/posts API 시도');
+      print('DEBUG: /api/hospital/posts API 시도');
       try {
         final hospitalPosts = await _getHospitalPostsViaHospitalAPI();
         if (hospitalPosts.isNotEmpty) {
@@ -145,10 +145,10 @@ class HospitalPostService {
       throw Exception('인증 토큰이 없습니다.');
     }
 
-    print('DEBUG: API 호출 URL: $baseUrl/api/v1/hospital/posts');
+    print('DEBUG: API 호출 URL: $baseUrl/api/hospital/posts');
 
     final response = await http.get(
-      Uri.parse('$baseUrl/api/v1/hospital/posts'),
+      Uri.parse('$baseUrl/api/hospital/posts'),
       headers: {
         'Authorization': 'Bearer $token',
         'Content-Type': 'application/json; charset=UTF-8',
@@ -181,7 +181,7 @@ class HospitalPostService {
       }
 
       final response = await http.get(
-        Uri.parse('$baseUrl/api/v1/hospital/posts/$postId/applicants'),
+        Uri.parse('$baseUrl/api/hospital/posts/$postId/applicants'),
         headers: {
           'Authorization': 'Bearer $token',
           'Content-Type': 'application/json; charset=UTF-8',
@@ -218,7 +218,7 @@ class HospitalPostService {
       }
 
       final response = await http.put(
-        Uri.parse('$baseUrl/api/v1/hospital/posts/$postId/applicants/$applicantId'),
+        Uri.parse('$baseUrl/api/hospital/posts/$postId/applicants/$applicantId'),
         headers: {
           'Authorization': 'Bearer $token',
           'Content-Type': 'application/json; charset=UTF-8',
@@ -249,7 +249,7 @@ class HospitalPostService {
       }
 
       final response = await http.put(
-        Uri.parse('$baseUrl/api/v1/hospital/posts/$postId/status'),
+        Uri.parse('$baseUrl/api/hospital/posts/$postId/status'),
         headers: {
           'Authorization': 'Bearer $token',
           'Content-Type': 'application/json; charset=UTF-8',

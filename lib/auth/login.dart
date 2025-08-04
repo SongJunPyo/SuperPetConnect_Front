@@ -62,7 +62,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
         // API 요청
         final response = await http.post(
-          Uri.parse('${Config.serverUrl}/api/v1/login'),
+          Uri.parse('${Config.serverUrl}/api/login'),
           headers: {'Content-Type': 'application/x-www-form-urlencoded'},
           body: requestBody,
         );

@@ -81,7 +81,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
         final fcmToken = _fcmToken ?? ""; // FCM 토큰이 없으면 빈 문자열로 설정
 
         final response = await http.post(
-          Uri.parse('${Config.serverUrl}/api/v1/register'),
+          Uri.parse('${Config.serverUrl}/api/register'),
           headers: {'Content-Type': 'application/json'},
           body: json.encode({
             'email': _emailController.text.trim(),

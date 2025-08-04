@@ -161,7 +161,7 @@ class _HospitalPostState extends State<HospitalPost> {
       print('Sending post data: ${json.encode(postData)}');
       print('Using token: ${token.substring(0, min(10, token.length))}...');
 
-      final url = Uri.parse('${Config.serverUrl}/api/v1/hospital/post');
+      final url = Uri.parse('${Config.serverUrl}/api/hospital/post');
 
       final response = await http.post(
         url,
