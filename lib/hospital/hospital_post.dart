@@ -4,6 +4,7 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:math';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import '../utils/config.dart';
 import '../utils/app_theme.dart';
 import 'hospital_dashboard.dart';
@@ -17,13 +18,15 @@ class HospitalPost extends StatefulWidget {
 }
 
 class _HospitalPostState extends State<HospitalPost> {
-  late final TextEditingController _titleController;
+  final TextEditingController _titleController = TextEditingController();
+  final TextEditingController _locationController = TextEditingController(); // 지역을 위한 컨트롤러 추가
   List<Map<String, dynamic>> timeEntries = [];
   DateTime selectedDate = DateTime.now();
-  String selectedRegion = "울산"; // 초기값을 울산으로 변경
   String selectedType = "정기"; // 초기값을 정기로 변경
-  String selectedBlood = "A형";
+  String selectedAnimalType = "dog"; // 동물 종류 (dog/cat)
+  String selectedBlood = "전체"; // 기본값을 전체로 변경
   String additionalDescription = ""; // nullable 제거, 빈 문자열로 초기화
+  String hospitalName = "병원"; // 병원 이름을 저장할 변수
 
   // 토큰 가져오는 함수 수정 - 디버깅 정보 추가
   Future<String> _getAuthToken() async {
@@ -52,6 +55,52 @@ class _HospitalPostState extends State<HospitalPost> {
     };
   }
 
+  // 사용자 주소를 API에서 가져오기
+  Future<String> _getUserAddress() async {
+    try {
+      final token = await _getAuthToken();
+      if (token.isEmpty) {
+        print('토큰이 비어있음');
+        return '';
+      }
+
+      // 올바른 API 엔드포인트 사용
+      final response = await http.get(
+        Uri.parse('${Config.serverUrl}/api/auth/profile'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+      );
+
+      print('프로필 API 응답 상태: ${response.statusCode}');
+      print('프로필 API 응답 내용: ${response.body}');
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        final address = data['address'] ?? '';
+        final name = data['name'] ?? '';
+        print('프로필에서 주소 가져오기 성공: $address');
+        print('프로필에서 병원 이름 가져오기 성공: $name');
+        
+        // 병원 이름도 함께 저장
+        if (name.isNotEmpty) {
+          setState(() {
+            hospitalName = name;
+          });
+          _updateTitleText(); // 병원 이름이 업데이트되면 제목도 업데이트
+        }
+        
+        return address;
+      } else {
+        print('프로필 API 호출 실패 - HTTP ${response.statusCode}: ${response.body}');
+      }
+    } catch (e) {
+      print('주소 가져오기 실패: $e');
+    }
+    return '';
+  }
+
   Future<void> _submitPost() async {
     if (timeEntries.isEmpty) {
       // 시간대가 없으면 경고 메시지 표시
@@ -61,6 +110,11 @@ class _HospitalPostState extends State<HospitalPost> {
 
     if (_titleController.text.isEmpty) {
       _showAlertDialog('알림', '게시글 제목을 입력해주세요.');
+      return;
+    }
+
+    if (_locationController.text.trim().isEmpty) {
+      _showAlertDialog('알림', '병원 위치를 입력해주세요.');
       return;
     }
 
@@ -94,12 +148,14 @@ class _HospitalPostState extends State<HospitalPost> {
         "types": selectedType == "긴급" ? 1 : 2,
         "title": _titleController.text,
         "description": additionalDescription,
+        "location": _locationController.text, // 지역 정보를 텍스트 필드에서 가져오기
+        "animalType": selectedAnimalType, // 동물 종류 추가
         "hospital_id": hospitalCode, // 요양기관기호 추가
       };
 
       // '긴급' 타입일 때만 'bloodType' 필드를 추가합니다.
       if (selectedType == "긴급") {
-        postData['bloodType'] = selectedBlood;
+        postData['bloodType'] = selectedBlood == "전체" ? null : selectedBlood;
       }
 
       print('Sending post data: ${json.encode(postData)}');
@@ -164,19 +220,72 @@ class _HospitalPostState extends State<HospitalPost> {
   @override
   void initState() {
     super.initState();
-    _titleController = TextEditingController();
     _updateTitleText(); // 초기 기본 제목을 설정하는 함수 호출
+    _loadUserAddress(); // 사용자 주소 로드
+  }
+
+  // 사용자 주소를 로드하여 텍스트 필드에 설정
+  Future<void> _loadUserAddress() async {
+    final address = await _getUserAddress();
+    if (address.isNotEmpty) {
+      setState(() {
+        _locationController.text = address;
+      });
+    } else {
+      // API에서 주소를 가져올 수 없으면 빈 값으로 설정 (사용자가 직접 입력하도록)
+      setState(() {
+        _locationController.text = "";
+      });
+      
+      // 주소를 가져올 수 없다는 메시지 표시
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _showAlertDialog('알림', '병원 주소를 불러올 수 없습니다.\n직접 입력해주세요.');
+      });
+    }
   }
 
   @override
   void dispose() {
     _titleController.dispose(); // 컨트롤러 메모리 해제
+    _locationController.dispose(); // 지역 컨트롤러 메모리 해제
     super.dispose();
   }
 
   void _updateTitleText() {
-    const hospitalName = "동물 병원"; // 나중에 DB에서 가져올 이름
-    _titleController.text = '[$hospitalName] $selectedType 헌혈';
+    // 동물 종류 변환
+    String animalTypeKorean = selectedAnimalType == "dog" ? "강아지" : "고양이";
+    
+    // 기본 제목 구성
+    String title = '[$hospitalName] $animalTypeKorean $selectedType 헌혈';
+    
+    // 긴급 타입이고 혈액형이 "전체"가 아닌 경우 혈액형 정보 추가
+    if (selectedType == "긴급" && selectedBlood != "전체") {
+      title += ' ($selectedBlood)';
+    }
+    
+    _titleController.text = title;
+  }
+
+  // 동물 종류에 따른 혈액형 목록 반환
+  List<String> _getBloodTypeOptions() {
+    if (selectedAnimalType == "dog") {
+      return [
+        '전체', 'DEA 1.1+', 'DEA 1.1-', 'DEA 1.2+', 'DEA 1.2-', 
+        'DEA 3', 'DEA 4', 'DEA 5', 'DEA 6', 'DEA 7', '기타'
+      ];
+    } else if (selectedAnimalType == "cat") {
+      return ['전체', 'A형', 'B형', 'AB형', '기타'];
+    } else {
+      return ['전체', '기타'];
+    }
+  }
+
+  // 동물 종류 변경시 혈액형 유효성 검사
+  void _validateBloodTypeOnAnimalChange() {
+    final validBloodTypes = _getBloodTypeOptions();
+    if (!validBloodTypes.contains(selectedBlood)) {
+      selectedBlood = "전체"; // 유효하지 않으면 전체로 초기화
+    }
   }
 
   @override
@@ -445,38 +554,43 @@ class _HospitalPostState extends State<HospitalPost> {
                       ),
                       const SizedBox(height: 20),
 
-                      // 지역 선택
+                      // 지역 입력 (수정 가능한 텍스트 필드)
+                      TextField(
+                        controller: _locationController,
+                        decoration: _buildInputDecoration(
+                          context,
+                          "병원 위치 (필수) *",
+                          Icons.location_on_outlined,
+                        ),
+                      ),
+                      const SizedBox(height: 20),
+
+                      // 동물 종류 선택
                       DropdownButtonFormField<String>(
-                        value: selectedRegion,
-                        items:
-                            [
-                                  "서울",
-                                  "부산",
-                                  "대구",
-                                  "인천",
-                                  "광주",
-                                  "대전",
-                                  "울산",
-                                  "세종",
-                                  "제주",
-                                  "경남",
-                                ]
-                                .map(
-                                  (region) => DropdownMenuItem(
-                                    value: region,
-                                    child: Text(region),
-                                  ),
-                                )
-                                .toList(),
+                        value: selectedAnimalType,
+                        items: const [
+                          DropdownMenuItem(
+                            value: "dog",
+                            child: Text("강아지"),
+                          ),
+                          DropdownMenuItem(
+                            value: "cat", 
+                            child: Text("고양이"),
+                          ),
+                        ],
                         onChanged: (value) {
                           setState(() {
-                            selectedRegion = value ?? "울산";
+                            selectedAnimalType = value ?? "dog";
+                            _validateBloodTypeOnAnimalChange();
+                            _updateTitleText(); // 동물 종류 변경시 제목 업데이트
                           });
                         },
                         decoration: _buildInputDecoration(
                           context,
-                          "지역 선택",
-                          Icons.location_on_outlined,
+                          "동물 종류",
+                          selectedAnimalType == "dog" 
+                              ? FontAwesomeIcons.dog
+                              : FontAwesomeIcons.cat,
                         ),
                       ),
                       const SizedBox(height: 20),
@@ -496,7 +610,7 @@ class _HospitalPostState extends State<HospitalPost> {
                         onChanged: (value) {
                           setState(() {
                             selectedType = value ?? "정기";
-                            _updateTitleText(); //타입 변경 시 제목 업데이트 함수 호출
+                            _updateTitleText(); // 타입 변경 시 제목 업데이트 함수 호출
                           });
                         },
                         decoration: _buildInputDecoration(
@@ -507,18 +621,10 @@ class _HospitalPostState extends State<HospitalPost> {
                       ),
                       const SizedBox(height: 20),
 
-                      // 혈액형 선택
+                      // 혈액형 선택 (동물 종류에 따라 동적 변경)
                       DropdownButtonFormField<String>(
                         value: selectedBlood,
-                        items:
-                            [
-                                  "A형",
-                                  "B형",
-                                  "C형",
-                                  "AB형",
-                                  "DEA 1.1 Negative",
-                                  "기타",
-                                ] // 혈액형 옵션 추가
+                        items: _getBloodTypeOptions()
                                 .map(
                                   (type) => DropdownMenuItem(
                                     value: type,
@@ -528,12 +634,13 @@ class _HospitalPostState extends State<HospitalPost> {
                                 .toList(),
                         onChanged: (value) {
                           setState(() {
-                            selectedBlood = value ?? "A형";
+                            selectedBlood = value ?? "전체";
+                            _updateTitleText(); // 혈액형 변경시 제목 업데이트
                           });
                         },
                         decoration: _buildInputDecoration(
                           context,
-                          "필요 혈액형",
+                          "혈액형",
                           Icons.bloodtype_outlined,
                         ),
                       ),
