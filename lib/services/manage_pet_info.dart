@@ -30,7 +30,7 @@ import '../utils/config.dart';
 // }
 
 class PetService {
-  static final String baseUrl = '${Config.serverUrl}/api';
+  static String get baseUrl => '${Config.serverUrl}/api';
 
   // 반려동물 정보 조회
   static Future<List<Pet>> fetchPets() async {

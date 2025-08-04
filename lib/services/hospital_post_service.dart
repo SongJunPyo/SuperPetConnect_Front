@@ -5,7 +5,7 @@ import '../models/hospital_post_model.dart';
 import '../utils/config.dart';
 
 class HospitalPostService {
-  static const String baseUrl = Config.serverUrl;
+  static String get baseUrl => Config.serverUrl;
 
   // 토큰 가져오기
   static Future<String> _getAuthToken() async {

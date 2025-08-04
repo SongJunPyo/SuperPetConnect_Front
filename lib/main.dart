@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:connect/auth/welcome.dart'; // 파일명 변경: welcome_screen.dart -> welcome.dart
+import 'package:flutter_dotenv/flutter_dotenv.dart'; // 환경변수 관리
 
 import 'package:firebase_core/firebase_core.dart'; // Firebase Core 임포트
 import 'package:connect/firebase_options.dart'; // Firebase 설정 파일 임포트 (필요 시)
@@ -54,6 +55,15 @@ Future<void> _showLocalNotification(RemoteMessage message) async {
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // 0. 환경변수 로드 (가장 먼저)
+  try {
+    await dotenv.load(fileName: ".env");
+    print('환경변수 로드 성공!');
+  } catch (e) {
+    print('환경변수 로드 실패: $e');
+    // .env 파일이 없어도 앱이 동작하도록 기본값 사용
+  }
 
   // 1. Firebase 초기화 (가장 먼저)
   try {
