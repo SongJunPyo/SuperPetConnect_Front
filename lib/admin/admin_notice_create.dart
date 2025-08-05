@@ -7,13 +7,11 @@ import '../services/notice_service.dart';
 class AdminNoticeCreateScreen extends StatefulWidget {
   final Notice? editNotice; // 수정 모드일 경우 전달받는 공지글
 
-  const AdminNoticeCreateScreen({
-    super.key,
-    this.editNotice,
-  });
+  const AdminNoticeCreateScreen({super.key, this.editNotice});
 
   @override
-  State<AdminNoticeCreateScreen> createState() => _AdminNoticeCreateScreenState();
+  State<AdminNoticeCreateScreen> createState() =>
+      _AdminNoticeCreateScreenState();
 }
 
 class _AdminNoticeCreateScreenState extends State<AdminNoticeCreateScreen> {
@@ -23,6 +21,7 @@ class _AdminNoticeCreateScreenState extends State<AdminNoticeCreateScreen> {
   bool _isImportant = false;
   bool _isActive = true;
   bool _isLoading = false;
+  int _targetAudience = 0; // 0: all, 1: hospital, 2: user
 
   bool get isEditMode => widget.editNotice != null;
 
@@ -34,6 +33,7 @@ class _AdminNoticeCreateScreenState extends State<AdminNoticeCreateScreen> {
       _contentController.text = widget.editNotice!.content;
       _isImportant = widget.editNotice!.isImportant;
       _isActive = widget.editNotice!.isActive;
+      _targetAudience = widget.editNotice!.targetAudience;
     }
   }
 
@@ -61,10 +61,14 @@ class _AdminNoticeCreateScreenState extends State<AdminNoticeCreateScreen> {
           content: _contentController.text.trim(),
           isImportant: _isImportant,
           isActive: _isActive,
+          targetAudience: _targetAudience,
         );
 
-        await NoticeService.updateNotice(widget.editNotice!.noticeIdx, updateRequest);
-        
+        await NoticeService.updateNotice(
+          widget.editNotice!.noticeIdx,
+          updateRequest,
+        );
+
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
@@ -80,10 +84,11 @@ class _AdminNoticeCreateScreenState extends State<AdminNoticeCreateScreen> {
           title: _titleController.text.trim(),
           content: _contentController.text.trim(),
           isImportant: _isImportant,
+          targetAudience: _targetAudience,
         );
 
         await NoticeService.createNotice(createRequest);
-        
+
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
@@ -197,6 +202,68 @@ class _AdminNoticeCreateScreenState extends State<AdminNoticeCreateScreen> {
               ),
               const SizedBox(height: AppTheme.spacing24),
 
+              // 공지 대상 선택
+              Text(
+                '공지 대상',
+                style: AppTheme.bodyLargeStyle.copyWith(
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const SizedBox(height: AppTheme.spacing8),
+              Container(
+                padding: const EdgeInsets.all(AppTheme.spacing16),
+                decoration: BoxDecoration(
+                  color: AppTheme.veryLightGray,
+                  borderRadius: BorderRadius.circular(AppTheme.radius8),
+                  border: Border.all(color: AppTheme.lightGray),
+                ),
+                child: Column(
+                  children: [
+                    RadioListTile<int>(
+                      title: const Text('전체'),
+                      subtitle: const Text('모든 사용자에게 표시'),
+                      value: 0,
+                      groupValue: _targetAudience,
+                      onChanged: (value) {
+                        setState(() {
+                          _targetAudience = value!;
+                        });
+                      },
+                      activeColor: AppTheme.primaryBlue,
+                      contentPadding: EdgeInsets.zero,
+                    ),
+                    RadioListTile<int>(
+                      title: const Text('병원'),
+                      subtitle: const Text('병원 사용자에게만 표시'),
+                      value: 1,
+                      groupValue: _targetAudience,
+                      onChanged: (value) {
+                        setState(() {
+                          _targetAudience = value!;
+                        });
+                      },
+                      activeColor: AppTheme.primaryBlue,
+                      contentPadding: EdgeInsets.zero,
+                    ),
+                    RadioListTile<int>(
+                      title: const Text('반려동물 소유자'),
+                      subtitle: const Text('일반 사용자에게만 표시'),
+                      value: 2,
+                      groupValue: _targetAudience,
+                      onChanged: (value) {
+                        setState(() {
+                          _targetAudience = value!;
+                        });
+                      },
+                      activeColor: AppTheme.primaryBlue,
+                      contentPadding: EdgeInsets.zero,
+                    ),
+                  ],
+                ),
+              ),
+
+              const SizedBox(height: AppTheme.spacing24),
+
               // 중요 공지 체크박스
               Container(
                 padding: const EdgeInsets.all(AppTheme.spacing16),
@@ -292,27 +359,30 @@ class _AdminNoticeCreateScreenState extends State<AdminNoticeCreateScreen> {
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppTheme.primaryBlue,
                   foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(vertical: AppTheme.spacing16),
+                  padding: const EdgeInsets.symmetric(
+                    vertical: AppTheme.spacing16,
+                  ),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(AppTheme.radius8),
                   ),
                 ),
-                child: _isLoading
-                    ? const SizedBox(
-                        height: 20,
-                        width: 20,
-                        child: CircularProgressIndicator(
-                          color: Colors.white,
-                          strokeWidth: 2,
+                child:
+                    _isLoading
+                        ? const SizedBox(
+                          height: 20,
+                          width: 20,
+                          child: CircularProgressIndicator(
+                            color: Colors.white,
+                            strokeWidth: 2,
+                          ),
+                        )
+                        : Text(
+                          isEditMode ? '공지글 수정' : '공지글 작성',
+                          style: AppTheme.bodyLargeStyle.copyWith(
+                            color: Colors.white,
+                            fontWeight: FontWeight.w600,
+                          ),
                         ),
-                      )
-                    : Text(
-                        isEditMode ? '공지글 수정' : '공지글 작성',
-                        style: AppTheme.bodyLargeStyle.copyWith(
-                          color: Colors.white,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
               ),
             ],
           ),

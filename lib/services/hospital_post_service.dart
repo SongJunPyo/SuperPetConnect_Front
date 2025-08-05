@@ -183,7 +183,7 @@ class HospitalPostService {
 
       final postIdInt = int.tryParse(postId) ?? 0;
       final response = await http.get(
-        Uri.parse('$baseUrl/api/hospital/posts/$postIdInt/applications'),
+        Uri.parse('$baseUrl/api/hospital/posts/$postIdInt/applicants'),
         headers: {
           'Authorization': 'Bearer $token',
           'Content-Type': 'application/json; charset=UTF-8',
@@ -193,8 +193,12 @@ class HospitalPostService {
       if (response.statusCode == 200) {
         final data = json.decode(utf8.decode(response.bodyBytes));
         
-        // 새로운 API 응답 구조에 맞게 파싱
-        if (data['applications'] != null) {
+        // 서버가 직접 배열을 반환하는 경우
+        if (data is List) {
+          return data.map((app) => DonationApplication.fromJson(app)).toList();
+        }
+        // 기존 구조로 반환하는 경우
+        else if (data is Map && data['applications'] != null) {
           final applications = (data['applications'] as List)
               .map((app) => DonationApplication.fromJson(app))
               .toList();
@@ -245,7 +249,7 @@ class HospitalPostService {
       }
 
       final response = await http.put(
-        Uri.parse('$baseUrl/api/hospital/posts/$postIdInt/applications/$applicantIdInt'),
+        Uri.parse('$baseUrl/api/hospital/posts/$postIdInt/applicants/$applicantIdInt'),
         headers: {
           'Authorization': 'Bearer $token',
           'Content-Type': 'application/json; charset=UTF-8',

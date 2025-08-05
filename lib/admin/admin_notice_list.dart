@@ -17,7 +17,7 @@ class _AdminNoticeListScreenState extends State<AdminNoticeListScreen> {
   List<Notice> notices = [];
   bool isLoading = true;
   String? errorMessage;
-  bool showActiveOnly = true;
+  bool showActiveOnly = true; // true: 보임(활성), false: 숨김(비활성)
 
   @override
   void initState() {
@@ -32,12 +32,45 @@ class _AdminNoticeListScreenState extends State<AdminNoticeListScreen> {
         errorMessage = null;
       });
 
-      final loadedNotices = await NoticeService.getNotices(
-        activeOnly: showActiveOnly,
+      final allNotices = await NoticeService.getAdminNotices(
+        activeOnly: false, // 관리자용 API - 모든 공지글 포함
       );
 
-      // 최신순으로 정렬
-      loadedNotices.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+      // 클라이언트에서 활성/비활성 필터링
+      // showActiveOnly가 true면 활성화된 공지만, false면 비활성화된 공지만
+      print('DEBUG: 전체 공지글 수: ${allNotices.length}');
+
+      // 각 공지글의 is_active 상태 출력
+      for (int i = 0; i < allNotices.length; i++) {
+        print(
+          'DEBUG: 공지글 ${i + 1} (${allNotices[i].title}): is_active = ${allNotices[i].isActive}',
+        );
+      }
+
+      print(
+        'DEBUG: 활성화된 공지글 수: ${allNotices.where((notice) => notice.isActive).length}',
+      );
+      print(
+        'DEBUG: 비활성화된 공지글 수: ${allNotices.where((notice) => !notice.isActive).length}',
+      );
+      print('DEBUG: showActiveOnly 상태: $showActiveOnly');
+
+      final loadedNotices =
+          showActiveOnly
+              ? allNotices.where((notice) => notice.isActive).toList()
+              : allNotices.where((notice) => !notice.isActive).toList();
+
+      print('DEBUG: 필터링 후 공지글 수: ${loadedNotices.length}');
+
+      // 중요 공지는 상단에, 일반 공지는 최신순으로 정렬
+      loadedNotices.sort((a, b) {
+        // 중요 공지 우선 정렬
+        if (a.isImportant && !b.isImportant) return -1;
+        if (!a.isImportant && b.isImportant) return 1;
+
+        // 같은 중요도면 최신순 정렬
+        return b.createdAt.compareTo(a.createdAt);
+      });
 
       setState(() {
         notices = loadedNotices;
@@ -51,6 +84,35 @@ class _AdminNoticeListScreenState extends State<AdminNoticeListScreen> {
     }
   }
 
+  Future<void> _toggleNoticeActive(Notice notice) async {
+    try {
+      final updatedNotice = await NoticeService.toggleNoticeActive(
+        notice.noticeIdx,
+      );
+
+      if (mounted) {
+        final statusText = updatedNotice.isActive ? '활성화' : '비활성화';
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('공지글이 ${statusText}되었습니다.'),
+            backgroundColor:
+                updatedNotice.isActive ? AppTheme.success : AppTheme.mediumGray,
+          ),
+        );
+        _loadNotices(); // 목록 새로고침
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('상태 변경 실패: ${e.toString()}'),
+            backgroundColor: AppTheme.error,
+          ),
+        );
+      }
+    }
+  }
+
   Future<void> _deleteNotice(Notice notice) async {
     // 확인 다이얼로그
     final confirmed = await showDialog<bool>(
@@ -58,7 +120,9 @@ class _AdminNoticeListScreenState extends State<AdminNoticeListScreen> {
       builder: (BuildContext context) {
         return AlertDialog(
           title: const Text('공지글 삭제'),
-          content: Text('\'${notice.title}\'을(를) 삭제하시겠습니까?\n\n삭제된 공지글은 복구할 수 없습니다.'),
+          content: Text(
+            '\'${notice.title}\'을(를) 삭제하시겠습니까?\n\n삭제된 공지글은 복구할 수 없습니다.',
+          ),
           actions: [
             TextButton(
               onPressed: () => Navigator.of(context).pop(false),
@@ -66,9 +130,7 @@ class _AdminNoticeListScreenState extends State<AdminNoticeListScreen> {
             ),
             TextButton(
               onPressed: () => Navigator.of(context).pop(true),
-              style: TextButton.styleFrom(
-                foregroundColor: AppTheme.error,
-              ),
+              style: TextButton.styleFrom(foregroundColor: AppTheme.error),
               child: const Text('삭제'),
             ),
           ],
@@ -80,7 +142,7 @@ class _AdminNoticeListScreenState extends State<AdminNoticeListScreen> {
 
     try {
       await NoticeService.deleteNotice(notice.noticeIdx);
-      
+
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
@@ -113,13 +175,16 @@ class _AdminNoticeListScreenState extends State<AdminNoticeListScreen> {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  notice.content,
-                  style: AppTheme.bodyMediumStyle,
-                ),
+                Text(notice.content, style: AppTheme.bodyMediumStyle),
                 const SizedBox(height: 16),
                 Text(
                   '작성자: ${notice.authorEmail}',
+                  style: AppTheme.bodySmallStyle.copyWith(
+                    color: AppTheme.textSecondary,
+                  ),
+                ),
+                Text(
+                  '대상: ${_getTargetAudienceText(notice.targetAudience)}',
                   style: AppTheme.bodySmallStyle.copyWith(
                     color: AppTheme.textSecondary,
                   ),
@@ -159,98 +224,74 @@ class _AdminNoticeListScreenState extends State<AdminNoticeListScreen> {
         showBackButton: true,
         actions: [
           IconButton(
-            icon: Icon(showActiveOnly ? Icons.visibility : Icons.visibility_off),
+            icon: Icon(
+              showActiveOnly ? Icons.visibility : Icons.visibility_off,
+            ),
             onPressed: () {
               setState(() {
                 showActiveOnly = !showActiveOnly;
               });
               _loadNotices();
             },
-            tooltip: showActiveOnly ? '전체 보기' : '활성 공지만 보기',
+            tooltip: showActiveOnly ? '숨김 공지 보기' : '보임 공지 보기',
           ),
+          IconButton(icon: const Icon(Icons.refresh), onPressed: _loadNotices),
           IconButton(
-            icon: const Icon(Icons.refresh),
-            onPressed: _loadNotices,
+            icon: const Icon(Icons.add, color: Colors.black),
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const AdminNoticeCreateScreen(),
+                ),
+              ).then((result) {
+                if (result == true) {
+                  _loadNotices();
+                }
+              });
+            },
+            tooltip: '새 공지 작성',
           ),
         ],
       ),
-      body: isLoading
-          ? Center(
-              child: CircularProgressIndicator(
-                color: AppTheme.primaryBlue,
-              ),
-            )
-          : errorMessage != null
+      body:
+          isLoading
               ? Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(
-                        Icons.error_outline,
-                        size: 64,
-                        color: AppTheme.error,
-                      ),
-                      const SizedBox(height: 16),
-                      Text(
-                        '오류가 발생했습니다',
-                        style: AppTheme.h4Style,
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        errorMessage!,
-                        style: AppTheme.bodyMediumStyle,
-                        textAlign: TextAlign.center,
-                      ),
-                      const SizedBox(height: 24),
-                      ElevatedButton.icon(
-                        onPressed: _loadNotices,
-                        icon: const Icon(Icons.refresh),
-                        label: const Text('다시 시도'),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: AppTheme.primaryBlue,
-                          foregroundColor: Colors.white,
-                        ),
-                      ),
-                    ],
-                  ),
-                )
-              : Column(
+                child: CircularProgressIndicator(color: AppTheme.primaryBlue),
+              )
+              : errorMessage != null
+              ? Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    // 필터 상태 표시
-                    Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.all(16.0),
-                      color: AppTheme.lightGray,
-                      child: Row(
-                        children: [
-                          Icon(
-                            showActiveOnly ? Icons.visibility : Icons.visibility_off,
-                            size: 20,
-                            color: AppTheme.textSecondary,
-                          ),
-                          const SizedBox(width: 8),
-                          Text(
-                            showActiveOnly ? '활성 공지만 표시' : '모든 공지 표시',
-                            style: AppTheme.bodyMediumStyle.copyWith(
-                              color: AppTheme.textSecondary,
-                            ),
-                          ),
-                          const Spacer(),
-                          Text(
-                            '총 ${notices.length}개',
-                            style: AppTheme.bodyMediumStyle.copyWith(
-                              color: AppTheme.textSecondary,
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
-                        ],
+                    Icon(Icons.error_outline, size: 64, color: AppTheme.error),
+                    const SizedBox(height: 16),
+                    Text('오류가 발생했습니다', style: AppTheme.h4Style),
+                    const SizedBox(height: 8),
+                    Text(
+                      errorMessage!,
+                      style: AppTheme.bodyMediumStyle,
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 24),
+                    ElevatedButton.icon(
+                      onPressed: _loadNotices,
+                      icon: const Icon(Icons.refresh),
+                      label: const Text('다시 시도'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppTheme.primaryBlue,
+                        foregroundColor: Colors.white,
                       ),
                     ),
-
-                    // 공지글 목록
-                    Expanded(
-                      child: notices.isEmpty
-                          ? Center(
+                  ],
+                ),
+              )
+              : Column(
+                children: [
+                  Expanded(
+                    child:
+                        notices.isEmpty
+                            ? Center(
                               child: Column(
                                 mainAxisAlignment: MainAxisAlignment.center,
                                 children: [
@@ -260,10 +301,7 @@ class _AdminNoticeListScreenState extends State<AdminNoticeListScreen> {
                                     color: AppTheme.mediumGray,
                                   ),
                                   const SizedBox(height: 16),
-                                  Text(
-                                    '공지사항이 없습니다',
-                                    style: AppTheme.h4Style,
-                                  ),
+                                  Text('공지사항이 없습니다', style: AppTheme.h4Style),
                                   const SizedBox(height: 8),
                                   Text(
                                     '새로운 공지사항을 작성해보세요',
@@ -272,7 +310,7 @@ class _AdminNoticeListScreenState extends State<AdminNoticeListScreen> {
                                 ],
                               ),
                             )
-                          : RefreshIndicator(
+                            : RefreshIndicator(
                               onRefresh: _loadNotices,
                               color: AppTheme.primaryBlue,
                               child: ListView.builder(
@@ -280,11 +318,17 @@ class _AdminNoticeListScreenState extends State<AdminNoticeListScreen> {
                                 itemCount: notices.length,
                                 itemBuilder: (context, index) {
                                   final notice = notices[index];
-                                  return Card(
+                                  return Container(
                                     margin: const EdgeInsets.only(bottom: 12.0),
-                                    elevation: 2,
-                                    shape: RoundedRectangleBorder(
+                                    decoration: BoxDecoration(
+                                      color: Colors.white,
                                       borderRadius: BorderRadius.circular(12),
+                                      border: Border.all(
+                                        color: notice.isImportant 
+                                            ? AppTheme.error
+                                            : AppTheme.mediumGray.withOpacity(0.3),
+                                        width: notice.isImportant ? 2 : 1,
+                                      ),
                                     ),
                                     child: InkWell(
                                       borderRadius: BorderRadius.circular(12),
@@ -292,62 +336,61 @@ class _AdminNoticeListScreenState extends State<AdminNoticeListScreen> {
                                       child: Padding(
                                         padding: const EdgeInsets.all(16.0),
                                         child: Column(
-                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
                                           children: [
                                             Row(
                                               children: [
                                                 Expanded(
                                                   child: Text(
                                                     notice.title,
-                                                    style: AppTheme.h4Style.copyWith(
-                                                      fontWeight: FontWeight.w600,
-                                                    ),
+                                                    style: AppTheme.h4Style
+                                                        .copyWith(
+                                                          fontWeight:
+                                                              FontWeight.w600,
+                                                        ),
                                                     maxLines: 2,
-                                                    overflow: TextOverflow.ellipsis,
+                                                    overflow:
+                                                        TextOverflow.ellipsis,
                                                   ),
                                                 ),
                                                 // 상태 표시
                                                 Row(
-                                                  mainAxisSize: MainAxisSize.min,
+                                                  mainAxisSize:
+                                                      MainAxisSize.min,
                                                   children: [
-                                                    if (notice.isImportant)
-                                                      Container(
-                                                        margin: const EdgeInsets.only(right: 8),
-                                                        padding: const EdgeInsets.symmetric(
-                                                          horizontal: 6,
-                                                          vertical: 2,
-                                                        ),
-                                                        decoration: BoxDecoration(
-                                                          color: AppTheme.error.withOpacity(0.1),
-                                                          borderRadius: BorderRadius.circular(4),
-                                                        ),
-                                                        child: Text(
-                                                          '중요',
-                                                          style: AppTheme.bodySmallStyle.copyWith(
-                                                            color: AppTheme.error,
-                                                            fontWeight: FontWeight.w600,
-                                                          ),
-                                                        ),
-                                                      ),
                                                     Container(
-                                                      padding: const EdgeInsets.symmetric(
-                                                        horizontal: 6,
-                                                        vertical: 2,
-                                                      ),
+                                                      padding:
+                                                          const EdgeInsets.symmetric(
+                                                            horizontal: 6,
+                                                            vertical: 2,
+                                                          ),
                                                       decoration: BoxDecoration(
-                                                        color: notice.isActive
-                                                            ? AppTheme.success.withOpacity(0.1)
-                                                            : AppTheme.mediumGray.withOpacity(0.1),
-                                                        borderRadius: BorderRadius.circular(4),
+                                                        color:
+                                                            _getTargetAudienceColor(
+                                                              notice
+                                                                  .targetAudience,
+                                                            ).withOpacity(0.1),
+                                                        borderRadius:
+                                                            BorderRadius.circular(
+                                                              4,
+                                                            ),
                                                       ),
                                                       child: Text(
-                                                        notice.isActive ? '활성' : '비활성',
-                                                        style: AppTheme.bodySmallStyle.copyWith(
-                                                          color: notice.isActive
-                                                              ? AppTheme.success
-                                                              : AppTheme.mediumGray,
-                                                          fontWeight: FontWeight.w600,
+                                                        _getTargetAudienceText(
+                                                          notice.targetAudience,
                                                         ),
+                                                        style: AppTheme
+                                                            .bodySmallStyle
+                                                            .copyWith(
+                                                              color: _getTargetAudienceColor(
+                                                                notice
+                                                                    .targetAudience,
+                                                              ),
+                                                              fontWeight:
+                                                                  FontWeight
+                                                                      .w600,
+                                                            ),
                                                       ),
                                                     ),
                                                   ],
@@ -360,9 +403,13 @@ class _AdminNoticeListScreenState extends State<AdminNoticeListScreen> {
                                                         Navigator.push(
                                                           context,
                                                           MaterialPageRoute(
-                                                            builder: (context) => AdminNoticeCreateScreen(
-                                                              editNotice: notice,
-                                                            ),
+                                                            builder:
+                                                                (
+                                                                  context,
+                                                                ) => AdminNoticeCreateScreen(
+                                                                  editNotice:
+                                                                      notice,
+                                                                ),
                                                           ),
                                                         ).then((result) {
                                                           if (result == true) {
@@ -370,42 +417,108 @@ class _AdminNoticeListScreenState extends State<AdminNoticeListScreen> {
                                                           }
                                                         });
                                                         break;
+                                                      case 'toggle':
+                                                        _toggleNoticeActive(
+                                                          notice,
+                                                        );
+                                                        break;
                                                       case 'delete':
                                                         _deleteNotice(notice);
                                                         break;
                                                     }
                                                   },
-                                                  itemBuilder: (BuildContext context) => [
-                                                    const PopupMenuItem(
-                                                      value: 'edit',
-                                                      child: Row(
-                                                        children: [
-                                                          Icon(Icons.edit, size: 20),
-                                                          SizedBox(width: 8),
-                                                          Text('수정'),
-                                                        ],
-                                                      ),
-                                                    ),
-                                                    const PopupMenuItem(
-                                                      value: 'delete',
-                                                      child: Row(
-                                                        children: [
-                                                          Icon(Icons.delete, size: 20, color: Colors.red),
-                                                          SizedBox(width: 8),
-                                                          Text('삭제', style: TextStyle(color: Colors.red)),
-                                                        ],
-                                                      ),
-                                                    ),
-                                                  ],
+                                                  itemBuilder:
+                                                      (
+                                                        BuildContext context,
+                                                      ) => [
+                                                        const PopupMenuItem(
+                                                          value: 'edit',
+                                                          child: Row(
+                                                            children: [
+                                                              Icon(
+                                                                Icons.edit,
+                                                                size: 20,
+                                                              ),
+                                                              SizedBox(
+                                                                width: 8,
+                                                              ),
+                                                              Text('수정'),
+                                                            ],
+                                                          ),
+                                                        ),
+                                                        PopupMenuItem(
+                                                          value: 'toggle',
+                                                          child: Row(
+                                                            children: [
+                                                              Icon(
+                                                                notice.isActive
+                                                                    ? Icons
+                                                                        .visibility_off
+                                                                    : Icons
+                                                                        .visibility,
+                                                                size: 20,
+                                                                color:
+                                                                    notice.isActive
+                                                                        ? AppTheme
+                                                                            .mediumGray
+                                                                        : AppTheme
+                                                                            .success,
+                                                              ),
+                                                              SizedBox(
+                                                                width: 8,
+                                                              ),
+                                                              Text(
+                                                                notice.isActive
+                                                                    ? '비활성화'
+                                                                    : '활성화',
+                                                                style: TextStyle(
+                                                                  color:
+                                                                      notice.isActive
+                                                                          ? AppTheme
+                                                                              .mediumGray
+                                                                          : AppTheme
+                                                                              .success,
+                                                                ),
+                                                              ),
+                                                            ],
+                                                          ),
+                                                        ),
+                                                        const PopupMenuItem(
+                                                          value: 'delete',
+                                                          child: Row(
+                                                            children: [
+                                                              Icon(
+                                                                Icons.delete,
+                                                                size: 20,
+                                                                color:
+                                                                    Colors.red,
+                                                              ),
+                                                              SizedBox(
+                                                                width: 8,
+                                                              ),
+                                                              Text(
+                                                                '삭제',
+                                                                style: TextStyle(
+                                                                  color:
+                                                                      Colors
+                                                                          .red,
+                                                                ),
+                                                              ),
+                                                            ],
+                                                          ),
+                                                        ),
+                                                      ],
                                                 ),
                                               ],
                                             ),
                                             const SizedBox(height: 8),
                                             Text(
                                               notice.content,
-                                              style: AppTheme.bodyMediumStyle.copyWith(
-                                                color: AppTheme.textSecondary,
-                                              ),
+                                              style: AppTheme.bodyMediumStyle
+                                                  .copyWith(
+                                                    color:
+                                                        AppTheme.textSecondary,
+                                                  ),
                                               maxLines: 2,
                                               overflow: TextOverflow.ellipsis,
                                             ),
@@ -419,24 +532,37 @@ class _AdminNoticeListScreenState extends State<AdminNoticeListScreen> {
                                                 ),
                                                 const SizedBox(width: 4),
                                                 Text(
-                                                  DateFormat('yyyy-MM-dd HH:mm').format(notice.createdAt),
-                                                  style: AppTheme.bodySmallStyle.copyWith(
-                                                    color: AppTheme.textTertiary,
-                                                  ),
+                                                  DateFormat(
+                                                    'yyyy-MM-dd HH:mm',
+                                                  ).format(notice.createdAt),
+                                                  style: AppTheme.bodySmallStyle
+                                                      .copyWith(
+                                                        color:
+                                                            AppTheme
+                                                                .textTertiary,
+                                                      ),
                                                 ),
-                                                if (notice.updatedAt != notice.createdAt) ...[
+                                                if (notice.updatedAt !=
+                                                    notice.createdAt) ...[
                                                   const SizedBox(width: 12),
                                                   Icon(
                                                     Icons.edit,
                                                     size: 16,
-                                                    color: AppTheme.textTertiary,
+                                                    color:
+                                                        AppTheme.textTertiary,
                                                   ),
                                                   const SizedBox(width: 4),
                                                   Text(
-                                                    DateFormat('yyyy-MM-dd HH:mm').format(notice.updatedAt),
-                                                    style: AppTheme.bodySmallStyle.copyWith(
-                                                      color: AppTheme.textTertiary,
-                                                    ),
+                                                    DateFormat(
+                                                      'yyyy-MM-dd HH:mm',
+                                                    ).format(notice.updatedAt),
+                                                    style: AppTheme
+                                                        .bodySmallStyle
+                                                        .copyWith(
+                                                          color:
+                                                              AppTheme
+                                                                  .textTertiary,
+                                                        ),
                                                   ),
                                                 ],
                                               ],
@@ -449,26 +575,35 @@ class _AdminNoticeListScreenState extends State<AdminNoticeListScreen> {
                                 },
                               ),
                             ),
-                    ),
-                  ],
-                ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () {
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) => const AdminNoticeCreateScreen(),
-            ),
-          ).then((result) {
-            if (result == true) {
-              _loadNotices();
-            }
-          });
-        },
-        backgroundColor: AppTheme.primaryBlue,
-        foregroundColor: Colors.white,
-        child: const Icon(Icons.add),
-      ),
+                  ),
+                ],
+              ),
     );
+  }
+
+  String _getTargetAudienceText(int targetAudience) {
+    switch (targetAudience) {
+      case 0:
+        return '전체';
+      case 1:
+        return '병원';
+      case 2:
+        return '사용자';
+      default:
+        return '전체';
+    }
+  }
+
+  Color _getTargetAudienceColor(int targetAudience) {
+    switch (targetAudience) {
+      case 0:
+        return AppTheme.primaryBlue; // 전체: 파란색
+      case 1:
+        return Colors.orange; // 병원: 주황색
+      case 2:
+        return AppTheme.success; // 사용자: 초록색
+      default:
+        return AppTheme.primaryBlue;
+    }
   }
 }

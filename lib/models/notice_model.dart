@@ -7,6 +7,7 @@ class Notice {
   final DateTime createdAt;
   final DateTime updatedAt;
   final String authorEmail;
+  final int targetAudience; // 0: all, 2: hospital, 3: user
 
   Notice({
     required this.noticeIdx,
@@ -17,6 +18,7 @@ class Notice {
     required this.createdAt,
     required this.updatedAt,
     required this.authorEmail,
+    required this.targetAudience,
   });
 
   factory Notice.fromJson(Map<String, dynamic> json) {
@@ -29,6 +31,7 @@ class Notice {
       createdAt: DateTime.parse(json['created_at']),
       updatedAt: DateTime.parse(json['updated_at']),
       authorEmail: json['author_email'] ?? '',
+      targetAudience: json['target_audience'] ?? 0,
     );
   }
 
@@ -42,6 +45,7 @@ class Notice {
       'created_at': createdAt.toIso8601String(),
       'updated_at': updatedAt.toIso8601String(),
       'author_email': authorEmail,
+      'target_audience': targetAudience,
     };
   }
 }
@@ -50,11 +54,13 @@ class NoticeCreateRequest {
   final String title;
   final String content;
   final bool isImportant;
+  final int targetAudience;
 
   NoticeCreateRequest({
     required this.title,
     required this.content,
     this.isImportant = false,
+    this.targetAudience = 0,
   });
 
   Map<String, dynamic> toJson() {
@@ -62,6 +68,7 @@ class NoticeCreateRequest {
       'title': title,
       'content': content,
       'is_important': isImportant,
+      'target_audience': targetAudience,
     };
   }
 }
@@ -71,22 +78,25 @@ class NoticeUpdateRequest {
   final String? content;
   final bool? isImportant;
   final bool? isActive;
+  final int? targetAudience;
 
   NoticeUpdateRequest({
     this.title,
     this.content,
     this.isImportant,
     this.isActive,
+    this.targetAudience,
   });
 
   Map<String, dynamic> toJson() {
     final Map<String, dynamic> data = {};
-    
+
     if (title != null) data['title'] = title;
     if (content != null) data['content'] = content;
     if (isImportant != null) data['is_important'] = isImportant;
     if (isActive != null) data['is_active'] = isActive;
-    
+    if (targetAudience != null) data['target_audience'] = targetAudience;
+
     return data;
   }
 }
