@@ -17,6 +17,12 @@ class NoticeService {
   static Future<Notice> createNotice(NoticeCreateRequest request) async {
     try {
       final token = await _getAuthToken();
+      if (token.isEmpty) {
+        throw Exception('인증 토큰이 없습니다. 다시 로그인해주세요.');
+      }
+      
+      print('DEBUG: 공지글 작성 요청 - URL: $baseUrl/');
+      print('DEBUG: 요청 본문: ${jsonEncode(request.toJson())}');
       
       final response = await http.post(
         Uri.parse('$baseUrl/'),
@@ -27,48 +33,62 @@ class NoticeService {
         body: jsonEncode(request.toJson()),
       );
 
-      if (response.statusCode == 201) {
-        final data = jsonDecode(response.body);
+      print('DEBUG: 응답 상태코드: ${response.statusCode}');
+      print('DEBUG: 응답 본문: ${response.body}');
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        final data = jsonDecode(utf8.decode(response.bodyBytes));
         return Notice.fromJson(data);
+      } else if (response.statusCode == 401) {
+        throw Exception('권한이 없습니다. 관리자 계정으로 로그인해주세요.');
+      } else if (response.statusCode == 403) {
+        throw Exception('관리자 권한이 필요합니다.');
       } else {
-        final error = jsonDecode(response.body);
-        throw Exception('공지글 작성 실패: ${error['detail'] ?? response.body}');
+        final error = jsonDecode(utf8.decode(response.bodyBytes));
+        throw Exception('공지글 작성 실패: ${error['detail'] ?? error['message'] ?? response.body}');
       }
     } catch (e) {
+      print('ERROR: 공지글 작성 중 오류: $e');
       throw Exception('공지글 작성 중 오류 발생: $e');
     }
   }
 
   // 공지글 목록 조회 (모든 사용자)
-  static Future<NoticeListResponse> getNotices({
-    int page = 1,
-    int pageSize = 10,
+  static Future<List<Notice>> getNotices({
     bool activeOnly = true,
-    bool importantOnly = false,
   }) async {
     try {
-      final queryParams = {
-        'page': page.toString(),
-        'page_size': pageSize.toString(),
-        'active_only': activeOnly.toString(),
-        'important_only': importantOnly.toString(),
-      };
+      final queryParams = <String, String>{};
+      if (activeOnly) {
+        queryParams['active_only'] = 'true';
+      }
 
-      final uri = Uri.parse(baseUrl).replace(
-        path: '$baseUrl/',
-        queryParameters: queryParams,
+      final uri = Uri.parse('$baseUrl/').replace(
+        queryParameters: queryParams.isNotEmpty ? queryParams : null,
       );
+
+      print('DEBUG: 공지글 목록 조회 - URL: $uri');
 
       final response = await http.get(uri);
 
+      print('DEBUG: 공지글 목록 응답 상태코드: ${response.statusCode}');
+      print('DEBUG: 공지글 목록 응답 본문: ${response.body}');
+
       if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-        return NoticeListResponse.fromJson(data);
+        final data = jsonDecode(utf8.decode(response.bodyBytes));
+        
+        // 새로운 API는 직접 배열을 반환
+        if (data is List) {
+          return data.map((notice) => Notice.fromJson(notice)).toList();
+        } else {
+          throw Exception('예상치 못한 응답 형식');
+        }
       } else {
-        final error = jsonDecode(response.body);
-        throw Exception('공지글 목록 조회 실패: ${error['detail'] ?? response.body}');
+        final error = jsonDecode(utf8.decode(response.bodyBytes));
+        throw Exception('공지글 목록 조회 실패: ${error['detail'] ?? error['message'] ?? response.body}');
       }
     } catch (e) {
+      print('ERROR: 공지글 목록 조회 중 오류: $e');
       throw Exception('공지글 목록 조회 중 오류 발생: $e');
     }
   }
@@ -76,20 +96,26 @@ class NoticeService {
   // 특정 공지글 상세 조회 (모든 사용자)
   static Future<Notice> getNoticeDetail(int noticeIdx) async {
     try {
+      print('DEBUG: 공지글 상세 조회 - URL: $baseUrl/$noticeIdx');
+
       final response = await http.get(
         Uri.parse('$baseUrl/$noticeIdx'),
       );
 
+      print('DEBUG: 공지글 상세 응답 상태코드: ${response.statusCode}');
+      print('DEBUG: 공지글 상세 응답 본문: ${response.body}');
+
       if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
+        final data = jsonDecode(utf8.decode(response.bodyBytes));
         return Notice.fromJson(data);
       } else if (response.statusCode == 404) {
         throw Exception('공지글을 찾을 수 없습니다.');
       } else {
-        final error = jsonDecode(response.body);
-        throw Exception('공지글 조회 실패: ${error['detail'] ?? response.body}');
+        final error = jsonDecode(utf8.decode(response.bodyBytes));
+        throw Exception('공지글 조회 실패: ${error['detail'] ?? error['message'] ?? response.body}');
       }
     } catch (e) {
+      print('ERROR: 공지글 조회 중 오류: $e');
       throw Exception('공지글 조회 중 오류 발생: $e');
     }
   }
@@ -98,6 +124,12 @@ class NoticeService {
   static Future<Notice> updateNotice(int noticeIdx, NoticeUpdateRequest request) async {
     try {
       final token = await _getAuthToken();
+      if (token.isEmpty) {
+        throw Exception('인증 토큰이 없습니다. 다시 로그인해주세요.');
+      }
+      
+      print('DEBUG: 공지글 수정 요청 - URL: $baseUrl/$noticeIdx');
+      print('DEBUG: 수정 요청 본문: ${jsonEncode(request.toJson())}');
       
       final response = await http.put(
         Uri.parse('$baseUrl/$noticeIdx'),
@@ -108,56 +140,83 @@ class NoticeService {
         body: jsonEncode(request.toJson()),
       );
 
+      print('DEBUG: 수정 응답 상태코드: ${response.statusCode}');
+      print('DEBUG: 수정 응답 본문: ${response.body}');
+
       if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
+        final data = jsonDecode(utf8.decode(response.bodyBytes));
         return Notice.fromJson(data);
+      } else if (response.statusCode == 401) {
+        throw Exception('권한이 없습니다. 관리자 계정으로 로그인해주세요.');
+      } else if (response.statusCode == 403) {
+        throw Exception('관리자 권한이 필요합니다.');
       } else if (response.statusCode == 404) {
         throw Exception('공지글을 찾을 수 없습니다.');
       } else {
-        final error = jsonDecode(response.body);
-        throw Exception('공지글 수정 실패: ${error['detail'] ?? response.body}');
+        final error = jsonDecode(utf8.decode(response.bodyBytes));
+        throw Exception('공지글 수정 실패: ${error['detail'] ?? error['message'] ?? response.body}');
       }
     } catch (e) {
+      print('ERROR: 공지글 수정 중 오류: $e');
       throw Exception('공지글 수정 중 오류 발생: $e');
     }
   }
 
-  // 공지글 삭제 (관리자만)
+  // 공지글 삭제 (관리자만) - 소프트 삭제 (is_active = false)
   static Future<void> deleteNotice(int noticeIdx) async {
     try {
       final token = await _getAuthToken();
+      if (token.isEmpty) {
+        throw Exception('인증 토큰이 없습니다. 다시 로그인해주세요.');
+      }
+      
+      print('DEBUG: 공지글 삭제 요청 - URL: $baseUrl/$noticeIdx');
       
       final response = await http.delete(
         Uri.parse('$baseUrl/$noticeIdx'),
         headers: {
           'Authorization': 'Bearer $token',
+          'Content-Type': 'application/json',
         },
       );
 
-      if (response.statusCode == 204) {
+      print('DEBUG: 삭제 응답 상태코드: ${response.statusCode}');
+      print('DEBUG: 삭제 응답 본문: ${response.body}');
+
+      if (response.statusCode == 204 || response.statusCode == 200) {
         return; // 성공적으로 삭제됨
+      } else if (response.statusCode == 401) {
+        throw Exception('권한이 없습니다. 관리자 계정으로 로그인해주세요.');
+      } else if (response.statusCode == 403) {
+        throw Exception('관리자 권한이 필요합니다.');
       } else if (response.statusCode == 404) {
         throw Exception('공지글을 찾을 수 없습니다.');
       } else {
-        final error = jsonDecode(response.body);
-        throw Exception('공지글 삭제 실패: ${error['detail'] ?? response.body}');
+        final error = jsonDecode(utf8.decode(response.bodyBytes));
+        throw Exception('공지글 삭제 실패: ${error['detail'] ?? error['message'] ?? response.body}');
       }
     } catch (e) {
+      print('ERROR: 공지글 삭제 중 오류: $e');
       throw Exception('공지글 삭제 중 오류 발생: $e');
     }
   }
 
   // 중요 공지글만 조회 (홈 화면 등에서 사용)
-  static Future<List<Notice>> getImportantNotices({int limit = 5}) async {
+  static Future<List<Notice>> getImportantNotices() async {
     try {
-      final response = await getNotices(
-        page: 1,
-        pageSize: limit,
-        activeOnly: true,
-        importantOnly: true,
-      );
-      return response.notices;
+      final allNotices = await getNotices(activeOnly: true);
+      
+      // 중요 공지글만 필터링하고 최신순으로 정렬
+      final importantNotices = allNotices
+          .where((notice) => notice.isImportant)
+          .toList();
+      
+      // 생성일 기준 최신순 정렬
+      importantNotices.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+      
+      return importantNotices.take(5).toList(); // 최대 5개만 반환
     } catch (e) {
+      print('ERROR: 중요 공지글 조회 중 오류: $e');
       throw Exception('중요 공지글 조회 중 오류 발생: $e');
     }
   }

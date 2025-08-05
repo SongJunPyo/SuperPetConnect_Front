@@ -69,7 +69,7 @@ class _AdminNoticeCreateScreenState extends State<AdminNoticeCreateScreen> {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
               content: Text('공지글이 성공적으로 수정되었습니다.'),
-              backgroundColor: AppTheme.primaryBlue,
+              backgroundColor: Colors.green,
             ),
           );
           Navigator.pop(context, true); // 수정 성공 표시
@@ -88,7 +88,7 @@ class _AdminNoticeCreateScreenState extends State<AdminNoticeCreateScreen> {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
               content: Text('공지글이 성공적으로 작성되었습니다.'),
-              backgroundColor: AppTheme.primaryBlue,
+              backgroundColor: Colors.green,
             ),
           );
           Navigator.pop(context, true); // 작성 성공 표시
@@ -99,7 +99,7 @@ class _AdminNoticeCreateScreenState extends State<AdminNoticeCreateScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('오류가 발생했습니다: ${e.toString()}'),
-            backgroundColor: Colors.red,
+            backgroundColor: AppTheme.error,
           ),
         );
       }

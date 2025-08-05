@@ -2,7 +2,7 @@
 
 class Pet {
   final int? petId; // 등록 전에는 null일 수 있음
-  final int guardianIdx; // 보호자 ID
+  final String ownerEmail; // 보호자 이메일 (이메일 기반 관계로 변경)
   final String name;
   final String species;
   final String? breed;
@@ -16,7 +16,7 @@ class Pet {
 
   Pet({
     this.petId,
-    required this.guardianIdx,
+    required this.ownerEmail,
     required this.name,
     required this.species,
     this.breed,
@@ -54,7 +54,7 @@ class Pet {
     
     return Pet(
       petId: json['pet_id'],
-      guardianIdx: json['guardian_idx'] ?? 0,
+      ownerEmail: json['owner_email'] ?? '',
       name: json['name'] ?? '',
       species: json['species'] ?? '',
       breed: json['breed'],
@@ -72,7 +72,7 @@ class Pet {
   Map<String, dynamic> toMap() {
     return {
       'pet_id': petId,
-      'guardian_idx': guardianIdx,
+      'owner_email': ownerEmail,
       'name': name,
       'species': species,
       'breed': breed,

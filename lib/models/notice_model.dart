@@ -6,7 +6,6 @@ class Notice {
   final bool isActive;
   final DateTime createdAt;
   final DateTime updatedAt;
-  final String authorName;
   final String authorEmail;
 
   Notice({
@@ -17,7 +16,6 @@ class Notice {
     required this.isActive,
     required this.createdAt,
     required this.updatedAt,
-    required this.authorName,
     required this.authorEmail,
   });
 
@@ -26,12 +24,11 @@ class Notice {
       noticeIdx: json['notice_idx'],
       title: json['title'],
       content: json['content'],
-      isImportant: json['is_important'],
-      isActive: json['is_active'],
+      isImportant: json['is_important'] ?? false,
+      isActive: json['is_active'] ?? true,
       createdAt: DateTime.parse(json['created_at']),
       updatedAt: DateTime.parse(json['updated_at']),
-      authorName: json['author_name'],
-      authorEmail: json['author_email'],
+      authorEmail: json['author_email'] ?? '',
     );
   }
 
@@ -44,7 +41,6 @@ class Notice {
       'is_active': isActive,
       'created_at': createdAt.toIso8601String(),
       'updated_at': updatedAt.toIso8601String(),
-      'author_name': authorName,
       'author_email': authorEmail,
     };
   }
@@ -95,27 +91,28 @@ class NoticeUpdateRequest {
   }
 }
 
-class NoticeListResponse {
-  final List<Notice> notices;
-  final int totalCount;
-  final int page;
-  final int pageSize;
-
-  NoticeListResponse({
-    required this.notices,
-    required this.totalCount,
-    required this.page,
-    required this.pageSize,
-  });
-
-  factory NoticeListResponse.fromJson(Map<String, dynamic> json) {
-    return NoticeListResponse(
-      notices: (json['notices'] as List)
-          .map((notice) => Notice.fromJson(notice))
-          .toList(),
-      totalCount: json['total_count'],
-      page: json['page'],
-      pageSize: json['page_size'],
-    );
-  }
-}
+// NoticeListResponse는 더 이상 사용하지 않음 (새로운 API는 직접 배열 반환)
+// class NoticeListResponse {
+//   final List<Notice> notices;
+//   final int totalCount;
+//   final int page;
+//   final int pageSize;
+//
+//   NoticeListResponse({
+//     required this.notices,
+//     required this.totalCount,
+//     required this.page,
+//     required this.pageSize,
+//   });
+//
+//   factory NoticeListResponse.fromJson(Map<String, dynamic> json) {
+//     return NoticeListResponse(
+//       notices: (json['notices'] as List)
+//           .map((notice) => Notice.fromJson(notice))
+//           .toList(),
+//       totalCount: json['total_count'],
+//       page: json['page'],
+//       pageSize: json['page_size'],
+//     );
+//   }
+// }

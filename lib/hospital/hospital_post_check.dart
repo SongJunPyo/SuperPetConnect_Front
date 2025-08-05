@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../models/hospital_post_model.dart';
+import '../models/donation_application_model.dart';
 import '../services/hospital_post_service.dart';
 import '../utils/app_theme.dart';
 
@@ -322,7 +323,7 @@ class PostDetailScreen extends StatefulWidget {
 }
 
 class _PostDetailScreenState extends State<PostDetailScreen> {
-  List<DonationApplicant> applicants = [];
+  List<DonationApplication> applicants = [];
   bool isLoading = true;
   String? errorMessage;
 
@@ -352,17 +353,17 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
     }
   }
 
-  Future<void> _updateApplicantStatus(DonationApplicant applicant, String status) async {
+  Future<void> _updateApplicantStatus(DonationApplication applicant, String status) async {
     try {
       final success = await HospitalPostService.updateApplicantStatus(
         widget.post.id,
-        applicant.id,
+        applicant.applicationId.toString(),
         status,
       );
       
       if (success) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('${applicant.name}님의 신청을 $status했습니다.')),
+          SnackBar(content: Text('${applicant.applicantName}님의 신청을 $status했습니다.')),
         );
         _loadApplicants(); // 목록 새로고침
       }
@@ -647,7 +648,7 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
                                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                             children: [
                                               Text(
-                                                applicant.name,
+                                                applicant.applicantName,
                                                 style: AppTheme.h4Style.copyWith(
                                                   fontWeight: FontWeight.w600,
                                                 ),
@@ -659,16 +660,16 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
                                                 ),
                                                 decoration: BoxDecoration(
                                                   color: _getApplicantStatusColor(
-                                                    applicant.status,
+                                                    applicant.status.displayName,
                                                   ).withOpacity(0.15),
                                                   borderRadius: BorderRadius.circular(8.0),
                                                 ),
                                                 child: Text(
-                                                  applicant.status,
+                                                  applicant.status.displayName,
                                                   style: AppTheme.bodySmallStyle.copyWith(
                                                     fontWeight: FontWeight.w600,
                                                     color: _getApplicantStatusColor(
-                                                      applicant.status,
+                                                      applicant.status.displayName,
                                                     ),
                                                   ),
                                                 ),
@@ -680,13 +681,13 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
                                             context,
                                             Icons.call_outlined,
                                             '연락처',
-                                            applicant.contact,
+                                            applicant.applicantPhone,
                                           ),
                                           _buildDetailRow(
                                             context,
                                             Icons.pets_outlined,
-                                            applicant.petInfo.species == 'dog' ? '반려견' : '반려묘',
-                                            applicant.petInfo.displayText,
+                                            applicant.pet.speciesKorean,
+                                            applicant.pet.displayText,
                                           ),
                                           if (applicant.lastDonationDate != null)
                                             _buildDetailRow(
@@ -699,7 +700,7 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
                                             context,
                                             Icons.date_range_outlined,
                                             '신청일',
-                                            applicant.appliedDate,
+                                            '${applicant.appliedDate.year}-${applicant.appliedDate.month.toString().padLeft(2, '0')}-${applicant.appliedDate.day.toString().padLeft(2, '0')}',
                                           ),
                                         ],
                                       ),
@@ -782,24 +783,30 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
     );
   }
 
-  void _showApplicantActionDialog(BuildContext context, DonationApplicant applicant) {
+  void _showApplicantActionDialog(BuildContext context, DonationApplication applicant) {
     showDialog(
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
-          title: Text('${applicant.name} (${applicant.petInfo.displayText})'),
+          title: Text('${applicant.applicantName} (${applicant.pet.displayText})'),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('연락처: ${applicant.contact}'),
+              Text('연락처: ${applicant.applicantPhone}'),
+              Text('이메일: ${applicant.applicantEmail}'),
+              Text('반려동물: ${applicant.pet.name} (${applicant.pet.speciesKorean})'),
+              Text('나이: ${applicant.pet.age}'),
+              Text('체중: ${applicant.pet.weightKg}kg'),
               if (applicant.lastDonationDate != null)
                 Text('직전 헌혈: ${applicant.lastDonationDate}'),
               Text('총 헌혈 횟수: ${applicant.donationCount}회'),
-              Text('신청일: ${applicant.appliedDate}'),
+              Text('신청일: ${applicant.appliedDate.year}-${applicant.appliedDate.month.toString().padLeft(2, '0')}-${applicant.appliedDate.day.toString().padLeft(2, '0')}'),
+              if (applicant.hospitalNotes != null && applicant.hospitalNotes!.isNotEmpty)
+                Text('메모: ${applicant.hospitalNotes}'),
             ],
           ),
-          actions: applicant.status == '대기'
+          actions: applicant.status == ApplicationStatus.pending
               ? [
                   TextButton(
                     onPressed: () {
