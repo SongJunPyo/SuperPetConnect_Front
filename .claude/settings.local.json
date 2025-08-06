@@ -5,7 +5,8 @@
       "Bash(./gradlew:*)",
       "Bash(rmdir:*)",
       "Bash(rm:*)",
-      "Bash(dart format:*)"
+      "Bash(dart format:*)",
+      "Bash(curl:*)"
     ],
     "deny": []
   }
