@@ -6,6 +6,7 @@ import '../utils/app_theme.dart';
 import '../widgets/app_card.dart';
 import '../widgets/app_app_bar.dart';
 import '../auth/profile_management.dart';
+import 'hospital_column_list.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
@@ -55,7 +56,7 @@ class _HospitalDashboardState extends State<HospitalDashboard> {
   Future<void> _loadHospitalName() async {
     final prefs = await SharedPreferences.getInstance();
     final token = prefs.getString('auth_token');
-    
+
     // 먼저 로컬에 저장된 이름 확인
     final savedName = prefs.getString('hospital_name');
     if (savedName != null && savedName.isNotEmpty) {
@@ -63,7 +64,7 @@ class _HospitalDashboardState extends State<HospitalDashboard> {
         hospitalName = savedName;
       });
     }
-    
+
     // 서버에서 최신 이름 가져오기
     if (token != null) {
       try {
@@ -78,11 +79,11 @@ class _HospitalDashboardState extends State<HospitalDashboard> {
         if (response.statusCode == 200) {
           final data = json.decode(utf8.decode(response.bodyBytes));
           final userName = data['name'] ?? 'S동물메디컬센터';
-          
+
           setState(() {
             hospitalName = userName;
           });
-          
+
           // 로컬 저장소에도 업데이트
           await prefs.setString('hospital_name', userName);
         }
@@ -101,9 +102,7 @@ class _HospitalDashboardState extends State<HospitalDashboard> {
         onProfilePressed: () {
           Navigator.push(
             context,
-            MaterialPageRoute(
-              builder: (context) => const ProfileManagement(),
-            ),
+            MaterialPageRoute(builder: (context) => const ProfileManagement()),
           );
         },
         onNotificationPressed: () {
@@ -123,10 +122,7 @@ class _HospitalDashboardState extends State<HospitalDashboard> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    '안녕하세요, $hospitalName 입니다!',
-                    style: AppTheme.h2Style,
-                  ),
+                  Text('안녕하세요, $hospitalName 님!', style: AppTheme.h2Style),
                   const SizedBox(height: AppTheme.spacing8),
                   Text(
                     currentDateTime,
@@ -138,18 +134,18 @@ class _HospitalDashboardState extends State<HospitalDashboard> {
                   SizedBox(
                     width: double.infinity,
                     child: AppInfoCard(
-                    icon: Icons.info_outline,
-                    title: '새로운 헌혈 신청 2건이 도착했습니다!',
-                    description: '신청 현황 보기',
-                    onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => const HospitalPostCheck(),
-                        ),
-                      );
-                    },
-                  ),
+                      icon: Icons.info_outline,
+                      title: '새로운 헌혈 신청 2건이 도착했습니다!',
+                      description: '신청 현황 보기',
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => const HospitalPostCheck(),
+                          ),
+                        );
+                      },
+                    ),
                   ),
                 ],
               ),
@@ -159,10 +155,7 @@ class _HospitalDashboardState extends State<HospitalDashboard> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    "게시글 관리",
-                    style: AppTheme.h3Style,
-                  ),
+                  Text("게시글 관리", style: AppTheme.h3Style),
                   const SizedBox(height: AppTheme.spacing16),
                   Column(
                     children: [
@@ -205,8 +198,11 @@ class _HospitalDashboardState extends State<HospitalDashboard> {
                         iconColor: AppTheme.warning,
                         backgroundColor: AppTheme.warning.withOpacity(0.1),
                         onTap: () {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text('칼럼 작성 기능 (미구현)')),
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => const HospitalColumnList(),
+                            ),
                           );
                         },
                       ),
@@ -224,10 +220,7 @@ class _HospitalDashboardState extends State<HospitalDashboard> {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Text(
-                        "최근 헌혈 신청 현황",
-                        style: AppTheme.h3Style,
-                      ),
+                      Text("최근 헌혈 신청 현황", style: AppTheme.h3Style),
                       TextButton(
                         onPressed: () {
                           Navigator.push(
@@ -252,7 +245,7 @@ class _HospitalDashboardState extends State<HospitalDashboard> {
                 ],
               ),
             ),
-            
+
             // 최근 칼럼 섹션 추가
             Padding(
               padding: AppTheme.pagePadding,
@@ -262,10 +255,7 @@ class _HospitalDashboardState extends State<HospitalDashboard> {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Text(
-                        "최근 칼럼",
-                        style: AppTheme.h3Style,
-                      ),
+                      Text("최근 칼럼", style: AppTheme.h3Style),
                       TextButton(
                         onPressed: () {
                           ScaffoldMessenger.of(context).showSnackBar(
@@ -292,7 +282,6 @@ class _HospitalDashboardState extends State<HospitalDashboard> {
       ),
     );
   }
-
 
   // 최근 헌혈 신청 현황 목록을 구성하는 위젯
   Widget _buildRecentApplicantList() {
@@ -400,10 +389,7 @@ class _HospitalDashboardState extends State<HospitalDashboard> {
           padding: const EdgeInsets.all(AppTheme.spacing20),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(AppTheme.radius16),
-            border: Border.all(
-              color: iconColor.withOpacity(0.2),
-              width: 1.5,
-            ),
+            border: Border.all(color: iconColor.withOpacity(0.2), width: 1.5),
           ),
           child: Row(
             children: [
@@ -414,11 +400,7 @@ class _HospitalDashboardState extends State<HospitalDashboard> {
                   color: backgroundColor,
                   borderRadius: BorderRadius.circular(AppTheme.radius12),
                 ),
-                child: Icon(
-                  icon,
-                  size: 28,
-                  color: iconColor,
-                ),
+                child: Icon(icon, size: 28, color: iconColor),
               ),
               const SizedBox(width: AppTheme.spacing16),
               Expanded(
@@ -462,7 +444,7 @@ class _HospitalDashboardState extends State<HospitalDashboard> {
       ),
     );
   }
-  
+
   // 최근 칼럼 목록을 구성하는 위젯
   Widget _buildRecentColumnList() {
     // 가데이터 칼럼 목록
@@ -500,7 +482,11 @@ class _HospitalDashboardState extends State<HospitalDashboard> {
         child: Center(
           child: Column(
             children: [
-              Icon(Icons.article_outlined, size: 48, color: AppTheme.mediumGray),
+              Icon(
+                Icons.article_outlined,
+                size: 48,
+                color: AppTheme.mediumGray,
+              ),
               const SizedBox(height: 16),
               Text(
                 '작성된 칼럼이 없습니다.',
@@ -515,103 +501,106 @@ class _HospitalDashboardState extends State<HospitalDashboard> {
     }
 
     return Column(
-      children: recentColumns.map((column) {
-        return Container(
-          margin: const EdgeInsets.only(bottom: AppTheme.spacing12),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(AppTheme.radius12),
-            border: Border.all(
-              color: AppTheme.lightGray.withOpacity(0.5),
-              width: 1,
-            ),
-          ),
-          child: Material(
-            color: Colors.transparent,
-            child: InkWell(
-              onTap: () {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text('${column['title']} 상세보기 (미구현)')),
-                );
-              },
-              borderRadius: BorderRadius.circular(AppTheme.radius12),
-              child: Padding(
-                padding: const EdgeInsets.all(AppTheme.spacing16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Expanded(
-                          child: Text(
-                            column['title'],
-                            style: AppTheme.h4Style.copyWith(
-                              fontWeight: FontWeight.w600,
-                            ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: AppTheme.spacing8,
-                            vertical: AppTheme.spacing4,
-                          ),
-                          decoration: BoxDecoration(
-                            color: AppTheme.lightBlue,
-                            borderRadius: BorderRadius.circular(AppTheme.radius8),
-                          ),
-                          child: Text(
-                            '조회 ${column['views']}',
-                            style: AppTheme.captionStyle.copyWith(
-                              color: AppTheme.primaryBlue,
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: AppTheme.spacing8),
-                    Text(
-                      column['content'],
-                      style: AppTheme.bodyMediumStyle,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    const SizedBox(height: AppTheme.spacing12),
-                    Row(
-                      children: [
-                        Icon(
-                          Icons.person_outline,
-                          size: 16,
-                          color: AppTheme.textTertiary,
-                        ),
-                        const SizedBox(width: AppTheme.spacing4),
-                        Text(
-                          column['author'],
-                          style: AppTheme.bodySmallStyle,
-                        ),
-                        const SizedBox(width: AppTheme.spacing16),
-                        Icon(
-                          Icons.calendar_today_outlined,
-                          size: 16,
-                          color: AppTheme.textTertiary,
-                        ),
-                        const SizedBox(width: AppTheme.spacing4),
-                        Text(
-                          column['date'],
-                          style: AppTheme.bodySmallStyle,
-                        ),
-                      ],
-                    ),
-                  ],
+      children:
+          recentColumns.map((column) {
+            return Container(
+              margin: const EdgeInsets.only(bottom: AppTheme.spacing12),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(AppTheme.radius12),
+                border: Border.all(
+                  color: AppTheme.lightGray.withOpacity(0.5),
+                  width: 1,
                 ),
               ),
-            ),
-          ),
-        );
-      }).toList(),
+              child: Material(
+                color: Colors.transparent,
+                child: InkWell(
+                  onTap: () {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('${column['title']} 상세보기 (미구현)')),
+                    );
+                  },
+                  borderRadius: BorderRadius.circular(AppTheme.radius12),
+                  child: Padding(
+                    padding: const EdgeInsets.all(AppTheme.spacing16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Expanded(
+                              child: Text(
+                                column['title'],
+                                style: AppTheme.h4Style.copyWith(
+                                  fontWeight: FontWeight.w600,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: AppTheme.spacing8,
+                                vertical: AppTheme.spacing4,
+                              ),
+                              decoration: BoxDecoration(
+                                color: AppTheme.lightBlue,
+                                borderRadius: BorderRadius.circular(
+                                  AppTheme.radius8,
+                                ),
+                              ),
+                              child: Text(
+                                '조회 ${column['views']}',
+                                style: AppTheme.captionStyle.copyWith(
+                                  color: AppTheme.primaryBlue,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: AppTheme.spacing8),
+                        Text(
+                          column['content'],
+                          style: AppTheme.bodyMediumStyle,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        const SizedBox(height: AppTheme.spacing12),
+                        Row(
+                          children: [
+                            Icon(
+                              Icons.person_outline,
+                              size: 16,
+                              color: AppTheme.textTertiary,
+                            ),
+                            const SizedBox(width: AppTheme.spacing4),
+                            Text(
+                              column['author'],
+                              style: AppTheme.bodySmallStyle,
+                            ),
+                            const SizedBox(width: AppTheme.spacing16),
+                            Icon(
+                              Icons.calendar_today_outlined,
+                              size: 16,
+                              color: AppTheme.textTertiary,
+                            ),
+                            const SizedBox(width: AppTheme.spacing4),
+                            Text(
+                              column['date'],
+                              style: AppTheme.bodySmallStyle,
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            );
+          }).toList(),
     );
   }
 }

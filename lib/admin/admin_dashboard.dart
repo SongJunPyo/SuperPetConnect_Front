@@ -6,6 +6,7 @@ import 'package:connect/admin/admin_hospital_check.dart';
 import 'package:connect/admin/admin_signup_management.dart';
 import 'package:connect/admin/admin_approved_posts.dart';
 import 'package:connect/admin/admin_notice_list.dart';
+import 'package:connect/admin/admin_column_management.dart';
 import '../utils/app_theme.dart';
 import '../widgets/app_card.dart';
 import '../widgets/app_app_bar.dart';
@@ -261,6 +262,22 @@ class _AdminDashboardState extends State<AdminDashboard> {
                       context,
                       MaterialPageRoute(
                         builder: (context) => const AdminNoticeListScreen(),
+                      ),
+                    );
+                  },
+                ),
+                const SizedBox(height: AppTheme.spacing16),
+                _buildPremiumFeatureCard(
+                  icon: Icons.rate_review_outlined,
+                  title: "칼럼 게시글 신청 관리",
+                  subtitle: "병원 칼럼 승인 및 발행 관리",
+                  iconColor: Colors.purple,
+                  backgroundColor: Colors.purple.withOpacity(0.1),
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const AdminColumnManagement(),
                       ),
                     );
                   },
