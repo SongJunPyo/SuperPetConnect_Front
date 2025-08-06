@@ -46,7 +46,7 @@ class DonationApplicationService {
         }
         // 기존 형태로 반환하는 경우
         else if (data is Map) {
-          return ApplicationListResponse.fromJson(data);
+          return ApplicationListResponse.fromJson(data as Map<String, dynamic>);
         }
         
         throw Exception('예상치 못한 응답 형식');
