@@ -387,6 +387,8 @@ class _AdminColumnManagementState extends State<AdminColumnManagement> with Tick
   }
 
   Widget _buildColumnCard(HospitalColumn column) {
+    final index = columns.indexOf(column) + 1;
+    
     return Card(
       color: Colors.white,
       elevation: 2,
@@ -415,8 +417,45 @@ class _AdminColumnManagementState extends State<AdminColumnManagement> with Tick
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              // 번호와 상태, 메뉴 행
               Row(
                 children: [
+                  // 세련된 번호 표시
+                  Container(
+                    width: 32,
+                    height: 24,
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [
+                          AppTheme.primaryBlue,
+                          AppTheme.primaryBlue.withOpacity(0.8),
+                        ],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      ),
+                      borderRadius: BorderRadius.circular(6),
+                      boxShadow: [
+                        BoxShadow(
+                          color: AppTheme.primaryBlue.withOpacity(0.3),
+                          offset: const Offset(0, 2),
+                          blurRadius: 4,
+                        ),
+                      ],
+                    ),
+                    child: Center(
+                      child: Text(
+                        '#$index',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 11,
+                          fontWeight: FontWeight.bold,
+                          letterSpacing: 0.5,
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  // 상태 표시
                   Container(
                     padding: const EdgeInsets.symmetric(
                       horizontal: 8,
@@ -508,6 +547,19 @@ class _AdminColumnManagementState extends State<AdminColumnManagement> with Tick
                     style: Theme.of(context).textTheme.bodySmall?.copyWith(
                       color: Colors.grey[600],
                       fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  Icon(
+                    Icons.visibility_outlined,
+                    size: 16,
+                    color: Colors.grey[600],
+                  ),
+                  const SizedBox(width: 4),
+                  Text(
+                    '${column.viewCount}',
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: Colors.grey[600],
                     ),
                   ),
                   const SizedBox(width: 16),

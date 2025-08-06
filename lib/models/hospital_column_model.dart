@@ -7,6 +7,7 @@ class HospitalColumn {
   final DateTime updatedAt;
   final int hospitalIdx;
   final String hospitalName;
+  final int viewCount;
 
   HospitalColumn({
     required this.columnIdx,
@@ -17,6 +18,7 @@ class HospitalColumn {
     required this.updatedAt,
     required this.hospitalIdx,
     required this.hospitalName,
+    this.viewCount = 0,
   });
 
   factory HospitalColumn.fromJson(Map<String, dynamic> json) {
@@ -33,6 +35,7 @@ class HospitalColumn {
       ),
       hospitalIdx: json['hospital_idx'] ?? 0,
       hospitalName: json['hospital_name'] ?? '',
+      viewCount: json['view_count'] ?? 0,
     );
   }
 
@@ -46,6 +49,7 @@ class HospitalColumn {
       'updated_at': updatedAt.toIso8601String(),
       'hospital_idx': hospitalIdx,
       'hospital_name': hospitalName,
+      'view_count': viewCount,
     };
   }
 }

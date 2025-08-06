@@ -4,6 +4,7 @@ import '../models/hospital_column_model.dart';
 import '../utils/app_theme.dart';
 import 'hospital_column_edit.dart';
 import 'package:intl/intl.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class HospitalColumnDetail extends StatefulWidget {
   final int columnIdx;
@@ -27,6 +28,33 @@ class _HospitalColumnDetailState extends State<HospitalColumnDetail> {
   void initState() {
     super.initState();
     _loadColumnDetail();
+    _increaseViewCountIfNeeded();
+  }
+
+  // 세션 스토리지를 활용한 중복 조회 방지
+  Future<void> _increaseViewCountIfNeeded() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final viewKey = 'column_viewed_${widget.columnIdx}';
+      
+      // 이미 조회한 칼럼인지 확인
+      final hasViewed = prefs.getBool(viewKey) ?? false;
+      
+      if (!hasViewed) {
+        // 조회수 증가 API 호출
+        await HospitalColumnService.increaseViewCount(widget.columnIdx);
+        
+        // 세션에 조회 기록 저장
+        await prefs.setBool(viewKey, true);
+        
+        print('DEBUG: 칼럼 ${widget.columnIdx} 조회수 증가 완료');
+      } else {
+        print('DEBUG: 칼럼 ${widget.columnIdx}은 이미 조회한 칼럼입니다.');
+      }
+    } catch (e) {
+      print('WARNING: 조회수 증가 처리 중 오류: $e');
+      // 조회수 증가 실패는 사용자 경험에 영향을 주지 않도록 무시
+    }
   }
 
   Future<void> _loadColumnDetail() async {
@@ -335,6 +363,23 @@ class _HospitalColumnDetailState extends State<HospitalColumnDetail> {
                           ),
                         ),
                         const SizedBox(width: 16),
+                        Icon(
+                          Icons.visibility_outlined,
+                          size: 16,
+                          color: Colors.grey[600],
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          '조회 ${column!.viewCount}',
+                          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                            color: Colors.grey[600],
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    Row(
+                      children: [
                         Icon(
                           Icons.calendar_today,
                           size: 16,

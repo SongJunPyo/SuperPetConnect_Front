@@ -454,6 +454,39 @@ class HospitalColumnService {
     }
   }
 
+  // 조회수 증가 (세션 스토리지로 중복 방지)
+  static Future<void> increaseViewCount(int columnIdx) async {
+    try {
+      final token = await _getAuthToken();
+      
+      print('DEBUG: 조회수 증가 요청 - URL: $baseUrl/columns/$columnIdx/view');
+      
+      final response = await http.post(
+        Uri.parse('$baseUrl/columns/$columnIdx/view'),
+        headers: token.isNotEmpty ? {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        } : {
+          'Content-Type': 'application/json',
+        },
+      );
+
+      print('DEBUG: 조회수 증가 응답 상태코드: ${response.statusCode}');
+      print('DEBUG: 조회수 증가 응답 본문: ${response.body}');
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        print('DEBUG: 조회수 증가 성공');
+        return;
+      } else {
+        print('WARNING: 조회수 증가 실패 - 상태코드: ${response.statusCode}');
+        // 조회수 증가 실패는 사용자 경험에 영향을 주지 않도록 예외를 던지지 않음
+      }
+    } catch (e) {
+      print('WARNING: 조회수 증가 중 오류 (무시됨): $e');
+      // 조회수 증가 실패는 사용자 경험에 영향을 주지 않도록 예외를 던지지 않음
+    }
+  }
+
   // 관리자용: 칼럼 상세 조회 (전용 API 사용)
   static Future<HospitalColumn> getAdminColumnDetail(int columnIdx) async {
     try {

@@ -329,6 +329,48 @@ class NoticeService {
     }
   }
 
+  // 공개 공지글 조회 (사용자 화면용, 인증 불필요)
+  static Future<List<Notice>> getPublicNotices() async {
+    try {
+      print('DEBUG: 공개 공지글 목록 조회 - URL: $baseUrl/public');
+
+      final response = await http.get(
+        Uri.parse('$baseUrl/public'),
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      );
+
+      print('DEBUG: 공개 공지글 목록 응답 상태코드: ${response.statusCode}');
+      print('DEBUG: 공개 공지글 목록 응답 본문: ${response.body}');
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(utf8.decode(response.bodyBytes));
+
+        // API는 직접 배열을 반환
+        if (data is List) {
+          return data.map((notice) => Notice.fromJson(notice)).toList();
+        } else {
+          throw Exception('예상치 못한 응답 형식');
+        }
+      } else {
+        final error = jsonDecode(utf8.decode(response.bodyBytes));
+        throw Exception(
+          '공개 공지글 목록 조회 실패: ${error['detail'] ?? error['message'] ?? response.body}',
+        );
+      }
+    } catch (e) {
+      print('ERROR: 공개 공지글 목록 조회 중 오류: $e');
+      // 인증이 필요한 경우 일반 getNotices로 fallback
+      try {
+        return await getNotices(activeOnly: true, userRole: 'user');
+      } catch (fallbackError) {
+        print('ERROR: fallback 공지글 조회도 실패: $fallbackError');
+        throw Exception('공지글 목록 조회 중 오류 발생: $e');
+      }
+    }
+  }
+
   // 중요 공지글만 조회 (홈 화면 등에서 사용)
   static Future<List<Notice>> getImportantNotices() async {
     try {

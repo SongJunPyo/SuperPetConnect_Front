@@ -7,6 +7,8 @@ class Notice {
   final DateTime createdAt;
   final DateTime updatedAt;
   final String authorEmail;
+  final String authorName;
+  final int? viewCount;
   final int targetAudience; // 0: all, 2: hospital, 3: user
 
   Notice({
@@ -18,6 +20,8 @@ class Notice {
     required this.createdAt,
     required this.updatedAt,
     required this.authorEmail,
+    required this.authorName,
+    this.viewCount,
     required this.targetAudience,
   });
 
@@ -31,6 +35,8 @@ class Notice {
       createdAt: DateTime.parse(json['created_at']),
       updatedAt: DateTime.parse(json['updated_at']),
       authorEmail: json['author_email'] ?? '',
+      authorName: json['author_name'] ?? json['authorName'] ?? json['author_email']?.split('@')[0] ?? '관리자',
+      viewCount: json['view_count'] ?? json['viewCount'],
       targetAudience: json['target_audience'] ?? 0,
     );
   }
@@ -45,6 +51,8 @@ class Notice {
       'created_at': createdAt.toIso8601String(),
       'updated_at': updatedAt.toIso8601String(),
       'author_email': authorEmail,
+      'author_name': authorName,
+      'view_count': viewCount ?? 0,
       'target_audience': targetAudience,
     };
   }
