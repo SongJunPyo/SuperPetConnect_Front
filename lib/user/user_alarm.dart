@@ -1,14 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:connect/settings/notification_settings_screen.dart';
 
-class HospitalAlarm extends StatefulWidget {
-  const HospitalAlarm({super.key});
+class UserAlarm extends StatefulWidget {
+  const UserAlarm({super.key});
 
   @override
-  _HospitalAlarmState createState() => _HospitalAlarmState();
+  _UserAlarmState createState() => _UserAlarmState();
 }
 
-class _HospitalAlarmState extends State<HospitalAlarm> {
+class _UserAlarmState extends State<UserAlarm> {
   // 알림 데이터는 그대로 유지합니다.
   List<Map<String, dynamic>> alarmList = [
     {

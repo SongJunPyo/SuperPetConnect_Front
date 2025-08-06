@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'pet_management.dart';
+import 'package:connect/user/user_alarm.dart';
 
 class UserDashboard extends StatefulWidget {
   const UserDashboard({super.key});
@@ -90,9 +91,9 @@ class _UserDashboardState extends State<UserDashboard>
               color: Colors.black87,
             ),
             onPressed: () {
-              // TODO: 알림 페이지로 이동하는 로직 추가
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('알림 페이지로 이동 (준비 중)')),
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const UserAlarm()),
               );
             },
           ),

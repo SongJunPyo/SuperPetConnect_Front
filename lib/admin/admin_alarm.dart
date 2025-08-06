@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:connect/settings/notification_settings_screen.dart';
 
 class AdminAlarm extends StatefulWidget {
   const AdminAlarm({super.key}); // Key? key -> super.key로 변경
@@ -97,9 +98,11 @@ class _AdminAlarmState extends State<AdminAlarm> {
             ), // 설정 아이콘
             tooltip: '알림 설정',
             onPressed: () {
-              // TODO: 알림 설정 페이지로 이동하는 로직 추가
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('알림 설정 페이지로 이동 (미구현)')),
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const NotificationSettingsScreen(),
+                ),
               );
             },
           ),
