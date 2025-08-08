@@ -129,23 +129,26 @@ class _LoginScreenState extends State<LoginScreen> {
           // 사용자 유형에 따라 적절한 화면으로 이동
           switch (data['account_type']) {
             case 1: // 관리자
-              Navigator.pushReplacement(
+              Navigator.pushAndRemoveUntil(
                 context,
                 MaterialPageRoute(builder: (context) => const AdminDashboard()),
+                (route) => false,
               );
               break;
             case 2: // 병원
-              Navigator.pushReplacement(
+              Navigator.pushAndRemoveUntil(
                 context,
                 MaterialPageRoute(
                   builder: (context) => const HospitalDashboard(),
                 ),
+                (route) => false,
               );
               break;
             case 3: // 일반 사용자
-              Navigator.pushReplacement(
+              Navigator.pushAndRemoveUntil(
                 context,
                 MaterialPageRoute(builder: (context) => const UserDashboard()),
+                (route) => false,
               );
               break;
             default:
@@ -351,11 +354,12 @@ class _LoginScreenState extends State<LoginScreen> {
                     child: AppButton(
                       text: '관리자 토큰',
                       onPressed: () {
-                        Navigator.push(
+                        Navigator.pushAndRemoveUntil(
                           context,
                           MaterialPageRoute(
                             builder: (context) => const FcmTokenScreen(),
                           ),
+                          (route) => false,
                         );
                       },
                       customColor: AppTheme.success,
@@ -367,11 +371,12 @@ class _LoginScreenState extends State<LoginScreen> {
                     child: AppButton(
                       text: '사용자',
                       onPressed: () {
-                        Navigator.push(
+                        Navigator.pushAndRemoveUntil(
                           context,
                           MaterialPageRoute(
                             builder: (context) => const UserDashboard(),
                           ),
+                          (route) => false,
                         );
                       },
                       customColor: AppTheme.warning,
@@ -383,11 +388,12 @@ class _LoginScreenState extends State<LoginScreen> {
                     child: AppButton(
                       text: '병원',
                       onPressed: () {
-                        Navigator.push(
+                        Navigator.pushAndRemoveUntil(
                           context,
                           MaterialPageRoute(
                             builder: (context) => const HospitalDashboard(),
                           ),
+                          (route) => false,
                         );
                       },
                       customColor: AppTheme.warning,
@@ -399,11 +405,12 @@ class _LoginScreenState extends State<LoginScreen> {
                     child: AppButton(
                       text: '관리자',
                       onPressed: () {
-                        Navigator.push(
+                        Navigator.pushAndRemoveUntil(
                           context,
                           MaterialPageRoute(
                             builder: (context) => const AdminDashboard(),
                           ),
+                          (route) => false,
                         );
                       },
                       customColor: AppTheme.warning,

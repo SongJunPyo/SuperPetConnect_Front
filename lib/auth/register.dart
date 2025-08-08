@@ -5,6 +5,7 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:firebase_messaging/firebase_messaging.dart'; // FCM 기능 추가
 import '../utils/config.dart';
+import 'welcome.dart';
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
@@ -103,7 +104,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
           message = '회원가입이 완료되었습니다. 관리자 승인까지 기다려주세요.';
           _showSnackBar(message, isSuccess: true);
           if (mounted) {
-            Navigator.pop(context);
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(
+                builder: (context) => const WelcomeScreen(),
+              ),
+            );
           }
         } else if (response.statusCode == 409) {
           message = '이미 가입된 이메일 또는 전화번호입니다.';
