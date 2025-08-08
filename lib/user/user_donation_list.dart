@@ -68,15 +68,20 @@ class _UserDonationListScreenState extends State<UserDonationListScreen> {
             }
 
             // 동물 타입 필터
-            if (selectedAnimalType != '전체' &&
-                donation.animalType != selectedAnimalType) {
-              return false;
+            if (selectedAnimalType != '전체') {
+              String animalTypeText = donation.animalTypeText;
+              String filterValue = selectedAnimalType == 'DOG' ? '강아지' : '고양이';
+              if (animalTypeText != filterValue) {
+                return false;
+              }
             }
 
-            // 혈액형 필터
-            if (selectedBloodType != '전체' &&
-                donation.bloodType != selectedBloodType) {
-              return false;
+            // 혈액형 필터 (긴급 헌혈인 경우에만 적용)
+            if (selectedBloodType != '전체' && donation.isUrgent) {
+              String donationBloodType = donation.displayBloodType;
+              if (donationBloodType != selectedBloodType && donationBloodType != '혈액형 무관') {
+                return false;
+              }
             }
 
             // 긴급 필터

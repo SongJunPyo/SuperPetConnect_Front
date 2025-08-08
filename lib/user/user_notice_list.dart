@@ -48,10 +48,11 @@ class _UserNoticeListScreenState extends State<UserNoticeListScreen> {
       List<Notice> allNotices = noticesData.map((noticePost) {
         return Notice(
           noticeIdx: noticePost.noticeIdx,
+          accountIdx: 0, // DashboardService에서 제공하지 않는 필드
           title: noticePost.title,
           content: noticePost.contentPreview,
-          isImportant: noticePost.isImportant,
-          isActive: true,
+          noticeImportant: noticePost.isImportant,
+          noticeActive: true,
           createdAt: noticePost.createdAt,
           updatedAt: noticePost.createdAt,
           authorEmail: noticePost.authorEmail,
@@ -81,8 +82,8 @@ class _UserNoticeListScreenState extends State<UserNoticeListScreen> {
       // 중요 공지는 상단에, 일반 공지는 최신순으로 정렬
       allNotices.sort((a, b) {
         // 중요 공지 우선 정렬
-        if (a.isImportant && !b.isImportant) return -1;
-        if (!a.isImportant && b.isImportant) return 1;
+        if (a.noticeImportant && !b.noticeImportant) return -1;
+        if (!a.noticeImportant && b.noticeImportant) return 1;
 
         // 같은 중요도면 최신순 정렬
         return b.createdAt.compareTo(a.createdAt);
@@ -153,10 +154,11 @@ class _UserNoticeListScreenState extends State<UserNoticeListScreen> {
         if (index != -1) {
           notices[index] = Notice(
             noticeIdx: notices[index].noticeIdx,
+            accountIdx: notices[index].accountIdx,
             title: notices[index].title,
             content: notices[index].content,
-            isImportant: notices[index].isImportant,
-            isActive: notices[index].isActive,
+            noticeImportant: notices[index].noticeImportant,
+            noticeActive: notices[index].noticeActive,
             createdAt: notices[index].createdAt,
             updatedAt: notices[index].updatedAt,
             authorEmail: notices[index].authorEmail,
@@ -174,7 +176,7 @@ class _UserNoticeListScreenState extends State<UserNoticeListScreen> {
         return AlertDialog(
           title: Row(
             children: [
-              if (notice.isImportant) ...[
+              if (notice.noticeImportant) ...[
                 Container(
                   padding: const EdgeInsets.symmetric(
                     horizontal: 6,
@@ -199,7 +201,7 @@ class _UserNoticeListScreenState extends State<UserNoticeListScreen> {
                 child: Text(
                   noticeDetail?.title ?? notice.title,
                   style: AppTheme.h4Style.copyWith(
-                    color: (noticeDetail?.isImportant ?? notice.isImportant) ? AppTheme.error : AppTheme.textPrimary,
+                    color: (noticeDetail?.isImportant ?? notice.noticeImportant) ? AppTheme.error : AppTheme.textPrimary,
                   ),
                 ),
               ),
@@ -491,7 +493,7 @@ class _UserNoticeListScreenState extends State<UserNoticeListScreen> {
                                 Row(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    if (notice.isImportant) ...[
+                                    if (notice.noticeImportant) ...[
                                       Container(
                                         padding: const EdgeInsets.symmetric(
                                           horizontal: 6,
@@ -516,8 +518,8 @@ class _UserNoticeListScreenState extends State<UserNoticeListScreen> {
                                       child: MarqueeText(
                                         text: notice.title,
                                         style: AppTheme.bodyMediumStyle.copyWith(
-                                          color: notice.isImportant ? AppTheme.error : AppTheme.textPrimary,
-                                          fontWeight: notice.isImportant ? FontWeight.w600 : FontWeight.w500,
+                                          color: notice.noticeImportant ? AppTheme.error : AppTheme.textPrimary,
+                                          fontWeight: notice.noticeImportant ? FontWeight.w600 : FontWeight.w500,
                                           fontSize: 14,
                                         ),
                                         animationDuration: const Duration(milliseconds: 4000),

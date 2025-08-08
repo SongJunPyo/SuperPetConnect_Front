@@ -1,0 +1,52 @@
+● donation_post_times 테이블 구현 완료
+
+  DB 테이블 구조:
+  - donation_posts → donation_post_dates → donation_post_times
+  - 헌혈 게시글 → 날짜들 → 시간들의 3단계 구조
+
+  구현 내용:
+
+  1. 모델 (models/donation_post.py):
+    - DonationPostTimes 클래스 추가
+    - Donation_post_dates와의 relationship 설정
+  2. 스키마 (schemas/donation_post_times_schema.py):
+    - 기본 CRUD 스키마들
+    - 복합 응답 스키마들 (날짜+시간 포함)
+    - 벌크 생성 스키마들
+  3. API 엔드포인트 (api/donation_post_times.py):
+    - GET /api/donation_post_times/date/{post_dates_idx} - 특정 날짜의 시간들 조회
+    - GET /api/donation_post_times/{post_times_idx} - 특정 시간 조회
+    - POST /api/donation_post_times/ - 단일 시간 등록
+    - POST /api/donation_post_times/bulk - 여러 시간 한번에 등록
+    - POST /api/donation_post_times/date-time - 날짜+시간 함께 생성
+    - PUT /api/donation_post_times/{post_times_idx} - 시간 수정
+    - DELETE /api/donation_post_times/{post_times_idx} - 시간 삭제
+    - GET /api/donation_post_times/post/{post_idx}/dates-with-times - 게시글의 모든 날짜+시간 조회
+
+  프론트엔드 사용 예시:
+  // 1. 헌혈 날짜와 시간들 함께 생성
+  POST /api/donation_post_times/date-time
+  {
+    "post_idx": 1,
+    "donation_date": "2024-01-15T00:00:00",
+    "donation_times": [
+      "2024-01-15T09:00:00",
+      "2024-01-15T10:00:00",
+      "2024-01-15T11:00:00"
+    ]
+  }
+
+  // 2. 기존 날짜에 시간들 추가
+  POST /api/donation_post_times/bulk
+  {
+    "post_dates_idx": 1,
+    "donation_times": [
+      "2024-01-15T14:00:00",
+      "2024-01-15T15:00:00"
+    ]
+  }
+
+  // 3. 게시글의 모든 날짜+시간 조회
+  GET /api/donation_post_times/post/1/dates-with-times
+
+  모든 API는 병원 계정 권한이 필요하며, 자신의 게시글에만 접근 가능합니다.

@@ -3,6 +3,7 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../utils/app_theme.dart';
+import '../utils/config.dart';
 
 class ProfileManagement extends StatefulWidget {
   const ProfileManagement({super.key});
@@ -16,6 +17,8 @@ class _ProfileManagementState extends State<ProfileManagement> {
   final TextEditingController emailController = TextEditingController();
   final TextEditingController phoneController = TextEditingController();
   final TextEditingController addressController = TextEditingController();
+  final TextEditingController latitudeController = TextEditingController();
+  final TextEditingController longitudeController = TextEditingController();
 
   bool isLoading = true;
   String? token;
@@ -34,6 +37,8 @@ class _ProfileManagementState extends State<ProfileManagement> {
     emailController.dispose();
     phoneController.dispose();
     addressController.dispose();
+    latitudeController.dispose();
+    longitudeController.dispose();
     super.dispose();
   }
 
@@ -89,7 +94,7 @@ class _ProfileManagementState extends State<ProfileManagement> {
   Future<void> _fetchUserProfile() async {
     try {
       final response = await http.get(
-        Uri.parse('http://10.100.54.176:8002/api/auth/profile'),
+        Uri.parse('${Config.serverUrl}/api/auth/profile'),
         headers: {
           'Authorization': 'Bearer $token',
           'Content-Type': 'application/json; charset=UTF-8',
@@ -103,6 +108,8 @@ class _ProfileManagementState extends State<ProfileManagement> {
           emailController.text = data['email'] ?? '';
           phoneController.text = data['phone_number'] ?? '';
           addressController.text = data['address'] ?? '';
+          latitudeController.text = data['latitude']?.toString() ?? '37.5665';
+          longitudeController.text = data['longitude']?.toString() ?? '126.9780';
           isLoading = false;
         });
       } else {
@@ -219,7 +226,7 @@ class _ProfileManagementState extends State<ProfileManagement> {
 
     try {
       final response = await http.put(
-        Uri.parse('http://10.100.54.176:8002/api/auth/profile'),
+        Uri.parse('${Config.serverUrl}/api/auth/profile'),
         headers: {
           'Authorization': 'Bearer $token',
           'Content-Type': 'application/json; charset=UTF-8',
@@ -229,6 +236,8 @@ class _ProfileManagementState extends State<ProfileManagement> {
           'email': emailController.text,
           'phone_number': phoneController.text,
           'address': addressController.text,
+          'latitude': double.tryParse(latitudeController.text) ?? 37.5665,
+          'longitude': double.tryParse(longitudeController.text) ?? 126.9780,
         }),
       );
 
@@ -474,6 +483,38 @@ class _ProfileManagementState extends State<ProfileManagement> {
                           addressController,
                         ),
                         onChanged: (value) => setState(() {}),
+                      ),
+                      const SizedBox(height: AppTheme.spacing20),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: TextField(
+                              controller: latitudeController,
+                              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                              decoration: _buildInputDecoration(
+                                "위도 (latitude)",
+                                Icons.gps_fixed_outlined,
+                                20,
+                                latitudeController,
+                              ),
+                              onChanged: (value) => setState(() {}),
+                            ),
+                          ),
+                          const SizedBox(width: AppTheme.spacing12),
+                          Expanded(
+                            child: TextField(
+                              controller: longitudeController,
+                              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                              decoration: _buildInputDecoration(
+                                "경도 (longitude)",
+                                Icons.gps_fixed_outlined,
+                                20,
+                                longitudeController,
+                              ),
+                              onChanged: (value) => setState(() {}),
+                            ),
+                          ),
+                        ],
                       ),
                     ],
                   ),

@@ -1,6 +1,8 @@
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import '../utils/config.dart';
+import '../models/donation_post_date_model.dart';
+import 'donation_date_service.dart';
 
 class DashboardService {
   static String get baseUrl => Config.serverUrl;
@@ -261,6 +263,55 @@ class DashboardService {
       return null;
     }
   }
+  
+  // 상세 게시글 정보 및 헌혁 날짜 조회 (with donation dates)
+  static Future<DonationPost?> getDonationPostDetail(int postIdx) async {
+    try {
+      final uri = Uri.parse('$baseUrl/api/public/posts/$postIdx');
+
+      print('DEBUG: 헌혁 게시글 상세 API 요청 - URL: $uri');
+      final response = await http.get(uri);
+      print('DEBUG: 헌혁 게시글 상세 응늵 상태코드: ${response.statusCode}');
+      print('DEBUG: 헌혁 게시글 상세 응늵 본문: ${response.body}');
+      
+      if (response.statusCode == 200) {
+        final data = jsonDecode(utf8.decode(response.bodyBytes));
+        
+        // 게시글 상세 정보로 DonationPost 생성
+        final donationPost = DonationPost.fromJson(data);
+        
+        // 헌퀁 날짜 목록을 별도로 조회하여 추가
+        try {
+          final donationDates = await DonationDateService.getDonationDatesByPostIdx(postIdx);
+          // 기존 DonationPost에 헌핲 날짜 정보 추가한 새로운 객체 생성
+          return DonationPost(
+            postIdx: donationPost.postIdx,
+            title: donationPost.title,
+            hospitalName: donationPost.hospitalName,
+            location: donationPost.location,
+            animalType: donationPost.animalType,
+            emergencyBloodType: donationPost.emergencyBloodType,
+            status: donationPost.status,
+            types: donationPost.types,
+            viewCount: donationPost.viewCount,
+            createdAt: donationPost.createdAt,
+            donationDate: donationPost.donationDate,
+            updatedAt: donationPost.updatedAt,
+            donationDates: donationDates, // 헌핲 날짜 정보 추가
+          );
+        } catch (e) {
+          print('DEBUG: 헌핲 날짜 조회 실패, 기본 게시글 정보만 반환: $e');
+          return donationPost; // 헌핲 날짜 조회 실패 시 기본 게시글 정보만 반환
+        }
+      } else {
+        print('DEBUG: 헌핲 게시글 상세 API 실패 - 상태코드: ${response.statusCode}');
+        return null;
+      }
+    } catch (e) {
+      print('ERROR: 헌핲 게시글 상세 API 오류: $e');
+      return null;
+    }
+  }
 }
 
 // 데이터 모델들
@@ -311,40 +362,42 @@ class DashboardData {
 }
 
 class DonationPost {
-  final int postId;
+  final int postIdx;
   final String title;
   final String hospitalName;
   final String location;
-  final String animalType;
-  final String bloodType;
-  final String status;
-  final bool isUrgent;
+  final int animalType;
+  final String? emergencyBloodType;
+  final int status;
+  final int types;
   final int viewCount;
   final DateTime createdAt;
   final DateTime? donationDate;
   final DateTime? updatedAt;
+  final List<DonationPostDate>? donationDates; // 헌혁 날짜 목록
 
   DonationPost({
-    required this.postId,
+    required this.postIdx,
     required this.title,
     required this.hospitalName,
     required this.location,
     required this.animalType,
-    required this.bloodType,
+    this.emergencyBloodType,
     required this.status,
-    required this.isUrgent,
+    required this.types,
     required this.viewCount,
     required this.createdAt,
     this.donationDate,
     this.updatedAt,
+    this.donationDates,
   });
 
   factory DonationPost.fromJson(Map<String, dynamic> json) {
     print('DEBUG: DonationPost.fromJson - Raw JSON: $json');
     print('DEBUG: Title from API: "${json['title'] ?? 'NULL'}"');
     
-    // types 필드로 긴급/장기 판단: 1=긴급, 2=장기
-    bool isUrgentFromTypes = (json['types'] ?? 2) == 1;
+    // types 필드로 긴급/정기 판단: 0=긴급, 1=정기
+    int typesValue = json['types'] ?? 1; // 기본값 정기(1)
     
     // registrationDate를 createdAt으로 사용
     DateTime createdAtFromReg = DateTime.tryParse(json['registrationDate'] ?? '') ?? DateTime.now();
@@ -355,32 +408,85 @@ class DonationPost {
     // date를 donationDate로 사용 (fallback)
     DateTime? donationDateFromDate = DateTime.tryParse(json['date'] ?? '');
     
+    // donation_dates 배열 처리
+    List<DonationPostDate>? donationDatesList;
+    if (json['donation_dates'] != null && json['donation_dates'] is List) {
+      donationDatesList = (json['donation_dates'] as List)
+          .map((item) => DonationPostDate.fromJson(item))
+          .toList();
+    }
+
     return DonationPost(
-      postId: json['post_id'] ?? json['id'] ?? 0,
+      postIdx: json['postIdx'] ?? json['post_id'] ?? json['id'] ?? 0,
       title: json['title'] ?? '',
       hospitalName: json['hospital_name'] ?? json['hospitalName'] ?? '',
       location: json['location'] ?? '',
-      animalType: json['animal_type'] ?? json['animalType'] ?? '',
-      bloodType: json['blood_type']?.toString() ?? json['bloodType']?.toString() ?? '',
-      status: json['status'] ?? 'recruiting',
-      isUrgent: json['is_urgent'] ?? json['isUrgent'] ?? isUrgentFromTypes,
+      animalType: json['animalType'] ?? json['animal_type'] ?? 0,
+      emergencyBloodType: json['emergencyBloodType'] ?? json['blood_type']?.toString() ?? json['bloodType']?.toString(),
+      status: json['status'] ?? 0,
+      types: typesValue,
       viewCount: json['view_count'] ?? json['viewCount'] ?? 0,
-      createdAt: json['created_at'] != null ? DateTime.tryParse(json['created_at']) ?? createdAtFromReg : createdAtFromReg,
+      createdAt: json['created_at'] != null ? DateTime.tryParse(json['created_at']) ?? createdAtFromReg : (json['createdDate'] != null ? DateTime.tryParse(json['createdDate']) ?? createdAtFromReg : createdAtFromReg),
       donationDate: donationDateFromField ?? (json['donation_date'] != null ? DateTime.tryParse(json['donation_date']) : donationDateFromDate),
       updatedAt: DateTime.tryParse(json['updated_at'] ?? json['updatedAt'] ?? ''),
+      donationDates: donationDatesList,
     );
   }
 
   // 혈액형 표시용 헬퍼 메서드
   String get displayBloodType {
-    if (bloodType.isEmpty || bloodType.toLowerCase() == 'null' || bloodType == 'null') {
-      return 'ALL';
+    if (types == 0 && emergencyBloodType != null && emergencyBloodType!.isNotEmpty) {
+      return emergencyBloodType!;
     }
-    return bloodType;
+    return '혈액형 무관';
   }
 
+  bool get isUrgent => types == 0;
+  
   // 헌혈 유형 확인 (긴급/정기)
   bool get isRegular => !isUrgent;
+  
+  String get typeText => types == 0 ? '긴급' : '정기';
+  
+  String get statusText {
+    switch (status) {
+      case 0: return '대기';
+      case 1: return '승인';
+      case 2: return '거절';
+      case 3: return '마감';
+      default: return '알 수 없음';
+    }
+  }
+  
+  String get animalTypeText => animalType == 0 ? '강아지' : '고양이';
+  
+  // 헌혁 날짜 표시용 헬퍼 메서드
+  String get donationDatesText {
+    if (donationDates == null || donationDates!.isEmpty) {
+      return '예정된 헌혈 날짜가 없습니다.';
+    }
+    
+    final sortedDates = List<DonationPostDate>.from(donationDates!)..sort((a, b) => a.donationDate.compareTo(b.donationDate));
+    final dateTexts = sortedDates.map((date) => date.formattedDate).toList();
+    
+    if (dateTexts.length == 1) {
+      return '헌혈 날짜: ${dateTexts.first}';
+    } else if (dateTexts.length <= 3) {
+      return '헌핲날짜: ${dateTexts.join(', ')}';
+    } else {
+      return '헌핲날짜: ${dateTexts.take(2).join(', ')} 외 ${dateTexts.length - 2}개';
+    }
+  }
+  
+  // 가장 빠른 헌혂 날짜 반환
+  DateTime? get earliestDonationDate {
+    if (donationDates == null || donationDates!.isEmpty) {
+      return donationDate; // fallback으로 기존 donationDate 사용
+    }
+    
+    final sortedDates = List<DonationPostDate>.from(donationDates!)..sort((a, b) => a.donationDate.compareTo(b.donationDate));
+    return sortedDates.first.donationDate;
+  }
 }
 
 class ColumnPost {

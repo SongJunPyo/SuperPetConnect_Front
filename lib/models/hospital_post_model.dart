@@ -1,28 +1,32 @@
 class HospitalPost {
-  final String id;
+  final int postIdx;
   final String title;
-  final String date;
+  final String createdDate;
   final List<TimeRange> timeRanges;
-  final int types; // 1: 긴급, 2: 정기
-  final String? bloodType;
+  final int types; // 0: 긴급, 1: 정기
+  final String? emergencyBloodType;
   final String location;
-  final String status;
+  final int status; // 0: 대기, 1: 승인, 2: 거절, 3: 마감
   final String registrationDate;
   final int applicantCount;
-  final String? description;
+  final String? descriptions;
+  final int animalType; // 0: 강아지, 1: 고양이
+  final int? viewCount;
 
   HospitalPost({
-    required this.id,
+    required this.postIdx,
     required this.title,
-    required this.date,
+    required this.createdDate,
     required this.timeRanges,
     required this.types,
-    this.bloodType,
+    this.emergencyBloodType,
     required this.location,
     required this.status,
     required this.registrationDate,
     required this.applicantCount,
-    this.description,
+    this.descriptions,
+    required this.animalType,
+    this.viewCount,
   });
 
   factory HospitalPost.fromJson(Map<String, dynamic> json) {
@@ -30,11 +34,11 @@ class HospitalPost {
       print('Parsing HospitalPost from JSON: $json');
       
       // 각 필드를 개별적으로 파싱하여 어디서 에러가 발생하는지 확인
-      final id = json['id'] ?? '';
-      print('id: $id (type: ${id.runtimeType})');
+      final postIdx = json['postIdx'] ?? json['id'] ?? 0;
+      print('postIdx: $postIdx (type: ${postIdx.runtimeType})');
       
       final title = json['title'] ?? '';
-      final date = json['date'] ?? '';
+      final createdDate = json['createdDate'] ?? json['date'] ?? '';
       
       // timeRanges 파싱 시 타입 확인
       print('timeRanges raw: ${json['timeRanges']} (type: ${json['timeRanges'].runtimeType})');
@@ -47,24 +51,28 @@ class HospitalPost {
               .toList()
           : <TimeRange>[];
       
-      final types = json['types'] ?? 2;
+      final types = json['types'] ?? 1; // 기본값을 정기(1)로 변경
       print('types: $types (type: ${types.runtimeType})');
       
+      final status = json['status'] ?? 0; // 기본값 대기(0)
+      final animalType = json['animalType'] ?? json['animal_type'] ?? 0;
       final applicantCount = json['applicantCount'] ?? 0;
       print('applicantCount: $applicantCount (type: ${applicantCount.runtimeType})');
       
       return HospitalPost(
-        id: id,
+        postIdx: postIdx is int ? postIdx : int.tryParse(postIdx.toString()) ?? 0,
         title: title,
-        date: date,
+        createdDate: createdDate,
         timeRanges: timeRanges,
         types: types,
-        bloodType: json['bloodType'],
+        emergencyBloodType: json['emergencyBloodType'] ?? json['bloodType'],
         location: json['location'] ?? '',
-        status: json['status'] ?? '',
+        status: status is int ? status : (status == '승인' ? 1 : 0),
         registrationDate: json['registrationDate'] ?? '',
         applicantCount: applicantCount,
-        description: json['description'],
+        descriptions: json['descriptions'] ?? json['description'],
+        animalType: animalType,
+        viewCount: json['viewCount'] ?? json['view_count'],
       );
     } catch (e, stackTrace) {
       print('Error parsing HospitalPost: $e');
@@ -73,7 +81,28 @@ class HospitalPost {
     }
   }
 
-  bool get isUrgent => types == 1;
+  bool get isUrgent => types == 0;
+  
+  String get typeText => types == 0 ? '긴급' : '정기';
+  
+  String get statusText {
+    switch (status) {
+      case 0: return '대기';
+      case 1: return '승인';
+      case 2: return '거절';
+      case 3: return '마감';
+      default: return '알 수 없음';
+    }
+  }
+  
+  String get animalTypeText => animalType == 0 ? '강아지' : '고양이';
+  
+  String get displayBloodType {
+    if (types == 0 && emergencyBloodType != null) {
+      return emergencyBloodType!;
+    }
+    return '혈액형 무관';
+  }
 }
 
 class TimeRange {

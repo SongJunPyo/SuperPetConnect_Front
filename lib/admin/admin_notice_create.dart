@@ -31,8 +31,8 @@ class _AdminNoticeCreateScreenState extends State<AdminNoticeCreateScreen> {
     if (isEditMode) {
       _titleController.text = widget.editNotice!.title;
       _contentController.text = widget.editNotice!.content;
-      _isImportant = widget.editNotice!.isImportant;
-      _isActive = widget.editNotice!.isActive;
+      _isImportant = widget.editNotice!.noticeImportant;
+      _isActive = widget.editNotice!.noticeActive;
       _targetAudience = widget.editNotice!.targetAudience;
     }
   }
@@ -59,8 +59,8 @@ class _AdminNoticeCreateScreenState extends State<AdminNoticeCreateScreen> {
         final updateRequest = NoticeUpdateRequest(
           title: _titleController.text.trim(),
           content: _contentController.text.trim(),
-          isImportant: _isImportant,
-          isActive: _isActive,
+          noticeImportant: _isImportant,
+          noticeActive: _isActive,
           targetAudience: _targetAudience,
         );
 
@@ -83,7 +83,7 @@ class _AdminNoticeCreateScreenState extends State<AdminNoticeCreateScreen> {
         final createRequest = NoticeCreateRequest(
           title: _titleController.text.trim(),
           content: _contentController.text.trim(),
-          isImportant: _isImportant,
+          noticeImportant: _isImportant,
           targetAudience: _targetAudience,
         );
 

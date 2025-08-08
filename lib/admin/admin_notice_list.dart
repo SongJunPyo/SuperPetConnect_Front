@@ -43,30 +43,30 @@ class _AdminNoticeListScreenState extends State<AdminNoticeListScreen> {
       // 각 공지글의 is_active 상태 출력
       for (int i = 0; i < allNotices.length; i++) {
         print(
-          'DEBUG: 공지글 ${i + 1} (${allNotices[i].title}): is_active = ${allNotices[i].isActive}',
+          'DEBUG: 공지글 ${i + 1} (${allNotices[i].title}): notice_active = ${allNotices[i].noticeActive}',
         );
       }
 
       print(
-        'DEBUG: 활성화된 공지글 수: ${allNotices.where((notice) => notice.isActive).length}',
+        'DEBUG: 활성화된 공지글 수: ${allNotices.where((notice) => notice.noticeActive).length}',
       );
       print(
-        'DEBUG: 비활성화된 공지글 수: ${allNotices.where((notice) => !notice.isActive).length}',
+        'DEBUG: 비활성화된 공지글 수: ${allNotices.where((notice) => !notice.noticeActive).length}',
       );
       print('DEBUG: showActiveOnly 상태: $showActiveOnly');
 
       final loadedNotices =
           showActiveOnly
-              ? allNotices.where((notice) => notice.isActive).toList()
-              : allNotices.where((notice) => !notice.isActive).toList();
+              ? allNotices.where((notice) => notice.noticeActive).toList()
+              : allNotices.where((notice) => !notice.noticeActive).toList();
 
       print('DEBUG: 필터링 후 공지글 수: ${loadedNotices.length}');
 
       // 중요 공지는 상단에, 일반 공지는 최신순으로 정렬
       loadedNotices.sort((a, b) {
         // 중요 공지 우선 정렬
-        if (a.isImportant && !b.isImportant) return -1;
-        if (!a.isImportant && b.isImportant) return 1;
+        if (a.noticeImportant && !b.noticeImportant) return -1;
+        if (!a.noticeImportant && b.noticeImportant) return 1;
 
         // 같은 중요도면 최신순 정렬
         return b.createdAt.compareTo(a.createdAt);
@@ -91,12 +91,12 @@ class _AdminNoticeListScreenState extends State<AdminNoticeListScreen> {
       );
 
       if (mounted) {
-        final statusText = updatedNotice.isActive ? '활성화' : '비활성화';
+        final statusText = updatedNotice.noticeActive ? '활성화' : '비활성화';
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('공지글이 ${statusText}되었습니다.'),
             backgroundColor:
-                updatedNotice.isActive ? AppTheme.success : AppTheme.mediumGray,
+                updatedNotice.noticeActive ? AppTheme.success : AppTheme.mediumGray,
           ),
         );
         _loadNotices(); // 목록 새로고침
@@ -324,10 +324,10 @@ class _AdminNoticeListScreenState extends State<AdminNoticeListScreen> {
                                       color: Colors.white,
                                       borderRadius: BorderRadius.circular(12),
                                       border: Border.all(
-                                        color: notice.isImportant 
+                                        color: notice.noticeImportant 
                                             ? AppTheme.error
                                             : AppTheme.mediumGray.withOpacity(0.3),
-                                        width: notice.isImportant ? 2 : 1,
+                                        width: notice.noticeImportant ? 2 : 1,
                                       ),
                                     ),
                                     child: InkWell(
@@ -451,14 +451,14 @@ class _AdminNoticeListScreenState extends State<AdminNoticeListScreen> {
                                                           child: Row(
                                                             children: [
                                                               Icon(
-                                                                notice.isActive
+                                                                notice.noticeActive
                                                                     ? Icons
                                                                         .visibility_off
                                                                     : Icons
                                                                         .visibility,
                                                                 size: 20,
                                                                 color:
-                                                                    notice.isActive
+                                                                    notice.noticeActive
                                                                         ? AppTheme
                                                                             .mediumGray
                                                                         : AppTheme
@@ -468,12 +468,12 @@ class _AdminNoticeListScreenState extends State<AdminNoticeListScreen> {
                                                                 width: 8,
                                                               ),
                                                               Text(
-                                                                notice.isActive
+                                                                notice.noticeActive
                                                                     ? '비활성화'
                                                                     : '활성화',
                                                                 style: TextStyle(
                                                                   color:
-                                                                      notice.isActive
+                                                                      notice.noticeActive
                                                                           ? AppTheme
                                                                               .mediumGray
                                                                           : AppTheme

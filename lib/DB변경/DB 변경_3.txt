@@ -1,0 +1,142 @@
+● 📊 donation_posts 테이블 실제 구조 반영 완료!
+
+  ✅ 완료된 작업
+
+  1. 실제 DB 구조 확인 - 테이블 스키마와 모델 차이점 발견
+  2. DonationPost 모델 수정 - 실제 DB 구조에 완전히 맞춤
+  3. 필드명 변경 적용 - post_id → post_idx, post_date → created_date
+  4. 관련 모델 업데이트 - donation_applications, donation_post_dates
+  5. API 코드 수정 - 모든 참조 필드명 업데이트
+
+  📱 프론트엔드 API 변경사항
+
+  🔥 중요: 실제 DB 구조에 맞춘 필드명 변경!
+
+  실제 DB 테이블 구조:
+  donation_posts:
+  - post_idx (PK)           # post_id에서 변경
+  - hospital_idx (FK)
+  - hospital_code (varchar)
+  - types (tinyint)         # 0: 긴급, 1: 정기
+  - animal_type (int)       # 0: 강아지, 1: 고양이
+  - status (int)            # 0: 대기, 1: 승인, 2: 거절, 3: 마감
+  - view_count (int)
+  - title (varchar)
+  - descriptions (text)
+  - created_date (datetime) # post_date에서 변경
+
+  1. 관리자 게시글 목록 API (GET /api/auth/admin/posts)
+
+  변경된 응답 구조:
+  {
+    "posts": [
+      {
+        "postIdx": 1,              // ✨ post_id → post_idx
+        "title": "긴급! A형 혈액 필요",
+        "hospitalIdx": 5,
+        "hospitalCode": "1234567890", // ✨ 실제 DB 필드 유지
+        "hospitalName": "우리병원",
+        "createdDate": "2024-01-15T10:30:00", // ✨ post_date → created_date
+        "types": 0,                // ✨ INT: 0=긴급, 1=정기
+        "postType": "긴급",
+        "status": 0,               // ✨ INT: 0=대기, 1=승인, 2=거절, 3=마감  
+        "statusKr": "대기",
+        "animalType": 0,           // ✨ INT: 0=강아지, 1=고양이
+        "animalTypeKr": "강아지",
+        "descriptions": "설명 내용",
+        "viewCount": 15,           // 조회수
+        "applicantCount": 0        // 신청자 수
+      }
+    ],
+    "total": 1
+  }
+
+  2. 게시글 작성/수정 요청
+
+  요청 데이터:
+  {
+    "title": "헌혈견 모집",
+    "descriptions": "상세 설명",
+    "types": 1,         // 0: 긴급, 1: 정기
+    "animal_type": 0,   // 0: 강아지, 1: 고양이
+    "status": 1,        // 0: 대기, 1: 승인, 2: 거절, 3: 마감
+    "hospital_idx": 5,
+    "hospital_code": "1234567890"
+  }
+
+  3. 상태 필터링 (?status=값)
+
+  지원하는 상태 값:
+  // 숫자로 필터링
+  "?status=0" // 대기
+  "?status=1" // 승인  
+  "?status=2" // 거절
+  "?status=3" // 마감
+
+  // 한글로 필터링 (하위 호환)
+  "?status=대기"
+  "?status=승인"
+  "?status=거절"
+  "?status=모집마감"
+
+  // 영어로 필터링 (하위 호환)
+  "?status=wait_to_approved"
+  "?status=approved"
+  "?status=rejected"
+  "?status=closed"
+
+  💻 프론트엔드 구현 가이드
+
+  1. 필드명 변경 대응
+
+  // 기존 코드
+  const postId = post.post_id;
+  const postDate = post.post_date;
+
+  // 새로운 코드  
+  const postId = post.postIdx;
+  const createdDate = post.createdDate;
+
+  2. INT 값 처리 함수
+
+  // 상태 변환
+  const getStatusText = (status) => {
+    const statusMap = {
+      0: "대기", 1: "승인", 2: "거절", 3: "마감"
+    };
+    return statusMap[status] || "알 수 없음";
+  };
+
+  // 게시글 타입 변환
+  const getTypeText = (types) => {
+    return types === 0 ? "긴급" : "정기";
+  };
+
+  // 동물 타입 변환
+  const getAnimalText = (animalType) => {
+    return animalType === 0 ? "강아지" : "고양이";
+  };
+
+  3. API 호출 예시
+
+  // 상태별 필터링
+  const fetchPosts = async (status) => {
+    const response = await fetch(`/api/auth/admin/posts?status=${status}`);
+    const data = await response.json();
+
+    data.posts.forEach(post => {
+      console.log(`${post.postIdx}: ${getStatusText(post.status)}`);
+    });
+  };
+
+  // 숫자 상태로 호출
+  fetchPosts(0); // 대기 상태 게시글만
+  fetchPosts(1); // 승인 상태 게시글만
+
+  🎯 핵심 변경점 요약
+
+  1. postId → postIdx (모든 게시글 식별자)
+  2. postDate → createdDate (생성일시)
+  3. status, types, animal_type 모두 INT 값 사용
+  4. hospital_code 필드 유지 (별도 테이블과 함께)
+  5. 하위 호환성 지원 (기존 문자열 상태값도 처리)

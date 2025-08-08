@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:connect/hospital/hospital_post.dart';
 import 'package:connect/hospital/hospital_alarm.dart';
 import 'package:connect/hospital/hospital_post_check.dart';
+import 'package:connect/hospital/hospital_datetime_management.dart';
+import 'hospital_application_management.dart';
 import '../utils/app_theme.dart';
 import '../widgets/app_card.dart';
 import '../widgets/app_app_bar.dart';
@@ -12,6 +14,7 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:intl/intl.dart';
 import 'dart:async';
+import '../utils/config.dart';
 
 class HospitalDashboard extends StatefulWidget {
   const HospitalDashboard({super.key});
@@ -69,7 +72,7 @@ class _HospitalDashboardState extends State<HospitalDashboard> {
     if (token != null) {
       try {
         final response = await http.get(
-          Uri.parse('http://10.100.54.176:8002/api/auth/profile'),
+          Uri.parse('${Config.serverUrl}/api/auth/profile'),
           headers: {
             'Authorization': 'Bearer $token',
             'Content-Type': 'application/json; charset=UTF-8',
@@ -204,6 +207,52 @@ class _HospitalDashboardState extends State<HospitalDashboard> {
                             MaterialPageRoute(
                               builder: (context) => const HospitalColumnList(),
                             ),
+                          );
+                        },
+                      ),
+                      const SizedBox(height: AppTheme.spacing16),
+                      _buildPremiumFeatureCard(
+                        icon: Icons.date_range_outlined,
+                        title: "헌혈 날짜/시간 관리", 
+                        subtitle: "등록된 게시글의 헌혈 날짜와 시간 관리",
+                        iconColor: AppTheme.primaryBlue,
+                        backgroundColor: AppTheme.lightBlue,
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => const HospitalDateTimeManagementScreen(),
+                            ),
+                          );
+                        },
+                      ),
+                      const SizedBox(height: AppTheme.spacing16),
+                      _buildPremiumFeatureCard(
+                        icon: Icons.assignment_outlined,
+                        title: "헌혈 신청 관리", 
+                        subtitle: "접수된 헌혈 신청 검토 및 승인 처리",
+                        iconColor: Colors.green,
+                        backgroundColor: Colors.green.withOpacity(0.1),
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => const HospitalApplicationManagementScreen(),
+                            ),
+                          );
+                        },
+                      ),
+                      const SizedBox(height: AppTheme.spacing16),
+                      _buildPremiumFeatureCard(
+                        icon: Icons.bloodtype_outlined,
+                        title: "헌혈 완료 통계", 
+                        subtitle: "완료된 헌혈 기록 및 통계 확인",
+                        iconColor: Colors.red.shade600,
+                        backgroundColor: Colors.red.shade50,
+                        onTap: () {
+                          // TODO: 헌혈 완료 통계 화면으로 이동
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text('헌혈 통계 화면 (구현 예정)')),
                           );
                         },
                       ),

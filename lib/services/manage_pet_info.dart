@@ -57,13 +57,13 @@ class PetService {
     }
   }
 
-  static Future<void> deletePet(int petId) async {
+  static Future<void> deletePet(int petIdx) async {
     try {
       final prefs = await SharedPreferences.getInstance();
       final token = prefs.getString('auth_token');
 
       final response = await http.delete(
-        Uri.parse('$baseUrl/pets/$petId'),
+        Uri.parse('$baseUrl/pets/$petIdx'),
         headers: {
           'Content-Type': 'application/json',
           'Authorization': 'Bearer $token',

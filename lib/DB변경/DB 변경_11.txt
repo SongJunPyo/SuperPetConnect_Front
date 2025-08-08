@@ -1,0 +1,144 @@
+● notices 테이블 구조 변경 완료
+
+  DB 테이블 변경사항:
+  - author_email → account_idx (FK → accounts.account_idx)
+  - is_important → notice_important (컬럼명 변경)
+  - is_active → notice_active (컬럼명 변경)
+  - title 길이: varchar(100) → varchar(200)
+
+  수정 완료 항목:
+
+  1. 모델 수정 (models/notice.py):
+    - author_email → account_idx로 FK 변경
+    - is_important → notice_important
+    - is_active → notice_active
+    - Account와의 relationship 추가
+  2. Account 모델 수정:
+    - Notice와의 역방향 relationship 추가
+  3. 스키마 수정 (schemas/notice.py):
+    - 필드명 변경에 맞춘 스키마 업데이트
+    - author_email 제거, account_idx 추가
+    - author_email은 JOIN을 통해 선택적으로 제공
+  4. API 엔드포인트 수정 (api/notices.py):
+    - 모든 쿼리를 account_idx 기반으로 수정
+    - JOIN 쿼리 업데이트 (Notice.author_email == Account.email → Notice.account_idx == Account.account_idx)
+    - 필드명 변경 적용 (is_important → notice_important, is_active → notice_active)
+    - 응답 객체 생성 시 새로운 스키마 구조 적용
+
+  ---
+  프론트엔드 API 사용 가이드
+
+  1. 공지사항 생성 (관리자)
+
+  POST /api/notices/
+  Authorization: Bearer {admin_token}
+
+  {
+    "title": "중요 공지사항",
+    "content": "공지사항 내용입니다.",
+    "target_audience": 0,  // 0: 전체, 1: 병원만, 2: 사용자만
+    "notice_important": true
+  }
+
+  // 응답
+  {
+    "notice_idx": 1,
+    "account_idx": 1,
+    "author_name": "관리자",
+    "author_email": "admin@example.com",
+    "title": "중요 공지사항",
+    "content": "공지사항 내용입니다.",
+    "target_audience": 0,
+    "notice_important": true,
+    "notice_active": true,
+    "view_count": 0,
+    "created_at": "2024-01-15T10:00:00",
+    "updated_at": "2024-01-15T10:00:00"
+  }
+
+  2. 공지사항 목록 조회 (로그인 사용자)
+
+  GET /api/notices/?active_only=true
+  Authorization: Bearer {token}
+
+  // 응답 - 사용자 타입에 따라 필터링됨
+  [
+    {
+      "notice_idx": 1,
+      "account_idx": 1,
+      "author_name": "관리자",
+      "author_email": "admin@example.com",
+      "title": "중요 공지사항",
+      "content": "공지사항 내용입니다.",
+      "target_audience": 0,
+      "notice_important": true,
+      "notice_active": true,
+      "view_count": 25,
+      "created_at": "2024-01-15T10:00:00",
+      "updated_at": "2024-01-15T10:00:00"
+    }
+  ]
+
+  3. 공지사항 수정 (관리자)
+
+  PUT /api/notices/1
+  Authorization: Bearer {admin_token}
+
+  {
+    "title": "수정된 공지사항",
+    "notice_important": false,
+    "notice_active": true
+  }
+
+  4. 공지사항 활성화/비활성화 토글 (관리자)
+
+  PATCH /api/notices/1/toggle
+  Authorization: Bearer {admin_token}
+
+  // 응답
+  {
+    "message": "공지사항이 비활성화되었습니다.",
+    "notice_idx": 1,
+    "notice_active": false
+  }
+
+  5. 공개 공지사항 조회 (로그인 불필요)
+
+  GET /api/public/notices/?limit=10
+
+  // 응답
+  {
+    "notices": [
+      {
+        "notice_idx": 1,
+        "account_idx": 1,
+        "author_name": "관리자",
+        "author_email": "admin@example.com",
+        "title": "공개 공지사항",
+        "content": "전체 내용...",
+        "content_preview": "공개 공지사항 내용의 일부...",
+        "target_audience": 0,
+        "notice_important": true,
+        "notice_active": true,
+        "view_count": 50,
+        "created_at": "2024-01-15T10:00:00",
+        "updated_at": "2024-01-15T10:00:00"
+      }
+    ]
+  }
+
+  6. 관리자용 공지사항 관리
+
+  GET /api/admin/notices/?active_only=false
+  Authorization: Bearer {admin_token}
+
+  // 비활성화된 공지사항도 포함하여 모든 공지사항 조회
+
+  주요 변경사항 요약:
+  - 작성자 식별: author_email → account_idx + JOIN을 통한 작성자 정보 제공
+  - 중요도 필드: is_important → notice_important
+  - 활성화 필드: is_active → notice_active
+  - 제목 길이: 최대 200자로 확장
+  - 응답 구조: account_idx 기반으로 변경되었으나 author_name, author_email은 JOIN을 통해 계속 제공
+
+  기존 프론트엔드 코드에서 API 응답 구조는 거의 동일하게 유지되므로 최소한의 수정만 필요합니다.

@@ -108,13 +108,13 @@ class _PetRegisterScreenState extends State<PetRegisterScreen> {
 
     final prefs = await SharedPreferences.getInstance();
     final token = prefs.getString('auth_token');
-    final int? guardianIdx = prefs.getInt('guardian_idx');
+    final int? accountIdx = prefs.getInt('guardian_idx'); // account_idx로 사용
 
     // 🚨 불러온 값 확인하는 디버그 로그 추가
     print('DEBUG: _savePet()에서 불러온 token: $token');
-    print('DEBUG: _savePet()에서 불러온 guardianIdx: $guardianIdx');
+    print('DEBUG: _savePet()에서 불러온 accountIdx: $accountIdx');
 
-    if (token == null || guardianIdx == null || guardianIdx == 0) {
+    if (token == null || accountIdx == null || accountIdx == 0) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('로그인 정보가 없거나 유효하지 않습니다. 다시 로그인해주세요.')),
       );
@@ -132,7 +132,13 @@ class _PetRegisterScreenState extends State<PetRegisterScreen> {
       'vaccinated': _isVaccinated ? 1 : 0,
       'has_disease': _hasDisease ? 1 : 0,
       'has_birth_experience': _hasBirthExperience ? 1 : 0,
+      'prev_donation_date': null, // 신규 등록 시 null
     };
+    
+    // 등록 모드일 때만 account_idx 추가
+    if (!_isEditMode && accountIdx != null) {
+      petData['account_idx'] = accountIdx;
+    }
 
     try {
       final String apiUrl;
@@ -141,7 +147,7 @@ class _PetRegisterScreenState extends State<PetRegisterScreen> {
       if (_isEditMode) {
         // 수정 모드: PUT 요청
         apiUrl =
-            '${Config.serverUrl}/api/pets/${widget.petToEdit!.petId}'; // 펫 ID 포함
+            '${Config.serverUrl}/api/pets/${widget.petToEdit!.petIdx}'; // 펫 ID 포함
         response = await http.put(
           // PUT 요청
           Uri.parse(apiUrl),

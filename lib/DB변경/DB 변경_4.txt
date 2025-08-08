@@ -1,0 +1,147 @@
+  📱 프론트엔드 API 변경사항
+
+  🔥 중요: 긴급 헌혈에만 혈액형 정보 추가!
+
+  새로운 테이블 구조:
+  emergency_donation_posts:
+  - post_idx (FK → donation_posts.post_idx)
+  - blood_type (varchar(50), NULL 허용)
+
+  1. 헌혈 게시글 작성 API (POST /api/donation-posts/)
+
+  요청 데이터:
+  {
+    "title": "긴급! A형 혈액 필요",
+    "descriptions": "상세 설명",
+    "types": 0,  // 0: 긴급, 1: 정기
+    "animal_type": 0,  // 0: 강아지, 1: 고양이
+    "hospital_idx": 5,
+    "hospital_code": "1234567890",
+    "emergency_blood_type": "A형"  // ✨ 긴급일 때만 필요, NULL 허용
+  }
+
+  긴급 헌혈이 아닌 경우:
+  {
+    "title": "정기 헌혈견 모집",
+    "descriptions": "상세 설명",
+    "types": 1,  // 정기
+    "animal_type": 0,
+    "hospital_idx": 5,
+    "hospital_code": "1234567890",
+    "emergency_blood_type": null  // ✨ NULL로 전송 (선택사항)
+  }
+
+  2. 관리자 게시글 목록 API (GET /api/auth/admin/posts)
+
+  응답 데이터 추가:
+  {
+    "posts": [
+      {
+        "postIdx": 1,
+        "title": "긴급! A형 혈액 필요",
+        "types": 0,
+        "postType": "긴급",
+        "animalType": 0,
+        "animalTypeKr": "강아지",
+        "status": 0,
+        "statusKr": "대기",
+        "emergencyBloodType": "A형",  // ✨ 새로 추가 (긴급일 때만 값 존재)
+        "hospitalIdx": 5,
+        "hospitalCode": "1234567890",
+        "hospitalName": "우리병원",
+        "descriptions": "상세 설명",
+        "viewCount": 10,
+        "createdDate": "2024-01-15T10:30:00"
+      },
+      {
+        "postIdx": 2,
+        "title": "정기 헌혈견 모집",
+        "types": 1,
+        "postType": "정기",
+        "emergencyBloodType": null,  // ✨ 정기 헌혈은 NULL
+        // ... 기타 필드들
+      }
+    ]
+  }
+
+  3. 일반 사용자용 게시글 목록 API (GET /api/donation-posts/)
+
+  필터링 옵션:
+  // 긴급 헌혈만
+  GET /api/donation-posts/?types=0
+
+  // 정기 헌혈만  
+  GET /api/donation-posts/?types=1
+
+  // 강아지만
+  GET /api/donation-posts/?animal_type=0
+
+  // 고양이만
+  GET /api/donation-posts/?animal_type=1
+
+  // 조합 가능
+  GET /api/donation-posts/?types=0&animal_type=0  // 긴급 + 강아지
+
+  💻 프론트엔드 구현 가이드
+
+  1. 게시글 작성 폼 처리
+
+  const handleSubmit = (formData) => {
+    const payload = {
+      title: formData.title,
+      descriptions: formData.descriptions,
+      types: formData.types,
+      animal_type: formData.animal_type,
+      hospital_idx: userInfo.hospitalIdx,
+      hospital_code: userInfo.hospitalCode,
+      // 긴급 헌혈일 때만 혈액형 포함
+      emergency_blood_type: formData.types === 0 ? formData.bloodType : null
+    };
+
+    // API 호출
+    fetch('/api/donation-posts/', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+  };
+
+  2. 게시글 목록 표시
+
+  const renderPost = (post) => {
+    return (
+      <div>
+        <h3>{post.title}</h3>
+        <p>타입: {post.postType}</p>
+        <p>동물: {post.animalTypeKr}</p>
+        <p>상태: {post.statusKr}</p>
+
+        {/* 긴급 헌혈인 경우에만 혈액형 표시 */}
+        {post.types === 0 && post.emergencyBloodType && (
+          <p>필요 혈액형: {post.emergencyBloodType}</p>
+        )}
+
+        <p>병원: {post.hospitalName}</p>
+        <p>조회수: {post.viewCount}</p>
+      </div>
+    );
+  };
+
+  3. NULL 값 처리 방식
+
+  // 서버로 전송 시
+  const payload = {
+    // ... 기타 필드들
+    emergency_blood_type: isEmergency ? bloodType : null  // NULL로 명시적 전송
+  };
+
+  // 응답 처리 시  
+  const bloodTypeText = post.emergencyBloodType || "혈액형 무관";
+
+  🎯 핵심 포인트
+
+  1. 긴급 헌혈 (types=0): emergency_blood_type 필드 사용
+  2. 정기 헌혈 (types=1): emergency_blood_type는 NULL
+  3. NULL 처리: 프론트엔드에서 null로 전송, 서버에서 적절히 처리
+  4. 하위 호환성: 기존 API도 계속 동작
+  5. 권한: 병원 계정만 게시글 작성 가능

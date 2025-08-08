@@ -1,0 +1,67 @@
+● 🏥 hospitals 테이블 분리 및 정규화 완료!
+
+  ✅ 완료된 작업
+
+  1. Hospital SQLAlchemy 모델 생성 - /models/hospital.py
+  2. accounts 테이블에서 hospital_code 제거 - 별도 테이블로 분리
+  3. DonationPost 모델 수정 - hospital_code → hospital_idx 외래키로 변경
+  4. 관계 설정 완료 - Account ↔ Hospital ↔ DonationPost
+  5. DB 마이그레이션 적용 - 모든 변경사항 반영
+
+  📱 프론트엔드 API 변경사항
+
+  🔥 중요 변경: Hospital 관련 데이터 구조 변화!
+
+  이제 병원 정보는 별도 테이블에서 관리됩니다:
+
+  -- 새로운 구조
+  hospitals 테이블:
+  - hospital_idx (PK)
+  - account_idx (FK → accounts.account_idx)
+  - hospital_code (요양기관기호)
+  - column_active (칼럼 활성화 여부)
+
+  1. 관리자 승인 API (POST /api/signup_management/approve-user/{user_id})
+
+  기존 동작: accounts 테이블에 hospital_code 저장
+  새로운 동작: hospitals 테이블에 별도 레코드 생성
+
+  {
+    "user_type": 2,
+    "hospital_id": "1234567890"
+  }
+  → hospitals 테이블에 새 레코드 생성 (account_idx, hospital_code, column_active=true)
+
+  2. 관리자 게시글 목록 API (GET /api/auth/admin/posts)
+
+  응답 데이터 변화:
+  {
+    "posts": [
+      {
+        "postId": 1,
+        "hospitalIdx": 5,        // ✨ 새로 추가 (hospitals.hospital_idx)
+        "hospitalCode": "1234567890",  // hospitals.hospital_code에서 조인
+        "hospitalName": "병원명",       // hospitals → accounts 조인
+        "authorEmail": "hospital@example.com"
+        // ... 기타 필드들
+      }
+    ]
+  }
+
+  3. 헌혈 게시글 작성/수정 시
+
+  기존: hospital_code 직접 참조
+  새로운: hospital_idx 외래키 참조
+
+  💻 프론트엔드 구현 가이드
+
+  1. 병원 승인 후: accounts와 hospitals 두 테이블 모두 업데이트됨
+  2. 게시글 데이터: hospitalIdx 필드 추가로 병원 식별
+  3. 병원 정보 표시: 조인된 데이터로 병원명, 코드 모두 제공
+  4. 칼럼 활성화: column_active 필드로 병원의 칼럼 작성 권한 관리
+
+  🔄 DB 정규화 효과
+
+  - 데이터 일관성 향상 (병원 정보 중복 제거)
+  - 관계 명확화 (Account → Hospital → DonationPost)
+  - 확장성 개선 (병원별 추가 설정 가능)

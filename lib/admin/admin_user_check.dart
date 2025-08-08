@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import '../models/black_list_model.dart';
+import '../services/black_list_service.dart';
 
 // 사용자 데이터 모델은 그대로 유지합니다.
 class User {
@@ -362,11 +364,38 @@ class AdminUserDetailScreen extends StatefulWidget {
 
 class _AdminUserDetailScreenState extends State<AdminUserDetailScreen> {
   late String userStatus;
+  UserBlackListStatus? blackListStatus;
+  bool isLoadingBlackListStatus = false;
 
   @override
   void initState() {
     super.initState();
     userStatus = widget.user.status;
+    _loadBlackListStatus();
+  }
+  
+  // 블랙리스트 상태 조회
+  Future<void> _loadBlackListStatus() async {
+    setState(() {
+      isLoadingBlackListStatus = true;
+    });
+    
+    try {
+      // 예시로 User id를 account_idx로 사용
+      final accountIdx = int.tryParse(widget.user.id) ?? 1;
+      final status = await BlackListService.getUserBlackListStatus(accountIdx);
+      
+      setState(() {
+        blackListStatus = status;
+        isLoadingBlackListStatus = false;
+      });
+    } catch (e) {
+      setState(() {
+        blackListStatus = null;
+        isLoadingBlackListStatus = false;
+      });
+      print('블랙리스트 상태 조회 실패: $e');
+    }
   }
 
   // 사용자 상태별 색상 (AdminUserCheck에서 재활용)
@@ -400,6 +429,157 @@ class _AdminUserDetailScreenState extends State<AdminUserDetailScreen> {
           "사용자 '${widget.user.name}'의 상태가 '$newStatus'(으)로 변경되었습니다. 사유: $reason",
         ),
       ),
+    );
+  }
+
+  // 블랙리스트 등록 다이얼로그
+  void _showBlackListRegistrationDialog() {
+    final TextEditingController contentController = TextEditingController();
+    final TextEditingController dDayController = TextEditingController(text: '7');
+    final TextTheme textTheme = Theme.of(context).textTheme;
+    final ColorScheme colorScheme = Theme.of(context).colorScheme;
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext dialogContext) {
+        return AlertDialog(
+          title: Text('블랙리스트 등록', style: textTheme.titleLarge),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  '대상 사용자: ${widget.user.name}',
+                  style: textTheme.bodyLarge?.copyWith(
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Text('정지 사유를 입력해주세요.', style: textTheme.bodyMedium),
+                const SizedBox(height: 8),
+                TextField(
+                  controller: contentController,
+                  decoration: InputDecoration(
+                    hintText: '블랙리스트 등록 사유',
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                      borderSide: BorderSide(
+                        color: colorScheme.primary,
+                        width: 2,
+                      ),
+                    ),
+                  ),
+                  maxLines: 3,
+                  keyboardType: TextInputType.multiline,
+                ),
+                const SizedBox(height: 16),
+                Text('정지 일수를 지정해주세요.', style: textTheme.bodyMedium),
+                const SizedBox(height: 8),
+                TextField(
+                  controller: dDayController,
+                  decoration: InputDecoration(
+                    hintText: '정지 일수',
+                    suffix: const Text('일'),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                      borderSide: BorderSide(
+                        color: colorScheme.primary,
+                        width: 2,
+                      ),
+                    ),
+                  ),
+                  keyboardType: TextInputType.number,
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(),
+              style: TextButton.styleFrom(foregroundColor: Colors.grey[600]),
+              child: const Text('취소'),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                if (contentController.text.trim().isEmpty) {
+                  ScaffoldMessenger.of(dialogContext).showSnackBar(
+                    const SnackBar(content: Text('정지 사유를 입력해주세요.')),
+                  );
+                  return;
+                }
+                
+                final dDay = int.tryParse(dDayController.text);
+                if (dDay == null || dDay < 1) {
+                  ScaffoldMessenger.of(dialogContext).showSnackBar(
+                    const SnackBar(content: Text('올바른 정지 일수를 입력해주세요. (1일 이상)')),
+                  );
+                  return;
+                }
+                
+                if (dDay > 365) {
+                  ScaffoldMessenger.of(dialogContext).showSnackBar(
+                    const SnackBar(content: Text('정지 일수는 365일 이하로 입력해주세요.')),
+                  );
+                  return;
+                }
+
+                // 블랙리스트 등록 요청
+                try {
+                  // 예시로 account_idx를 User id로 사용 (실제로는 서버에서 받아와야 함)
+                  final accountIdx = int.tryParse(widget.user.id) ?? 1;
+                  
+                  final request = BlackListCreateRequest(
+                    accountIdx: accountIdx,
+                    content: contentController.text.trim(),
+                    dDay: dDay,
+                  );
+
+                  await BlackListService.createBlackList(request);
+
+                  Navigator.of(dialogContext).pop();
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('${widget.user.name}님이 블랙리스트에 등록되었습니다.'),
+                      backgroundColor: Colors.green,
+                    ),
+                  );
+                  
+                  // 사용자 상태를 '정지'로 업데이트
+                  setState(() {
+                    userStatus = '정지';
+                    widget.user.status = '정지';
+                  });
+                  
+                } catch (e) {
+                  Navigator.of(dialogContext).pop();
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('블랙리스트 등록 실패: ${e.toString()}'),
+                      backgroundColor: Colors.red,
+                    ),
+                  );
+                }
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.black,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+              ),
+              child: const Text('등록'),
+            ),
+          ],
+        );
+      },
     );
   }
 
@@ -603,6 +783,65 @@ class _AdminUserDetailScreenState extends State<AdminUserDetailScreen> {
                       '가입일',
                       widget.user.registrationDate,
                     ),
+                    
+                    // 블랙리스트 상태 정보
+                    const SizedBox(height: 16),
+                    const Divider(),
+                    const SizedBox(height: 8),
+                    Text(
+                      '블랙리스트 상태',
+                      style: textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    if (isLoadingBlackListStatus)
+                      const Row(
+                        children: [
+                          SizedBox(
+                            width: 16,
+                            height: 16,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          ),
+                          SizedBox(width: 8),
+                          Text('블랙리스트 상태 확인 중...'),
+                        ],
+                      )
+                    else if (blackListStatus != null)
+                      Column(
+                        children: [
+                          _buildDetailRow(
+                            context,
+                            blackListStatus!.isSuspended 
+                                ? Icons.block 
+                                : Icons.check_circle_outline,
+                            '상태',
+                            blackListStatus!.statusText,
+                          ),
+                          if (blackListStatus!.isSuspended) ..[
+                            _buildDetailRow(
+                              context,
+                              Icons.timer_outlined,
+                              '남은 일수',
+                              blackListStatus!.remainingDaysText,
+                            ),
+                            if (blackListStatus!.content != null)
+                              _buildDetailRow(
+                                context,
+                                Icons.description_outlined,
+                                '정지 사유',
+                                blackListStatus!.content!,
+                              ),
+                          ],
+                        ],
+                      )
+                    else
+                      _buildDetailRow(
+                        context,
+                        Icons.check_circle_outline,
+                        '상태',
+                        '정상 사용자',
+                      ),
                   ],
                 ),
               ),
@@ -708,6 +947,30 @@ class _AdminUserDetailScreenState extends State<AdminUserDetailScreen> {
                     ),
                   ),
                 ],
+              ),
+            ),
+            
+            // 블랙리스트 등록 버튼
+            Padding(
+              padding: const EdgeInsets.symmetric(
+                horizontal: 20.0,
+                vertical: 8.0,
+              ),
+              child: SizedBox(
+                width: double.infinity,
+                child: ElevatedButton.icon(
+                  onPressed: () => _showBlackListRegistrationDialog(),
+                  icon: const Icon(Icons.block),
+                  label: const Text('블랙리스트 등록'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.black,
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                  ),
+                ),
               ),
             ),
             const SizedBox(height: 24),

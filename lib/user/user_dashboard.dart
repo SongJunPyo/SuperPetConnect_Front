@@ -7,6 +7,8 @@ import '../auth/profile_management.dart';
 import 'user_notice_list.dart';
 import 'user_donation_list.dart';
 import 'user_column_list.dart';
+import 'user_donation_applications.dart';
+import 'user_donation_history.dart';
 import '../services/dashboard_service.dart';
 import '../models/hospital_column_model.dart';
 import '../models/notice_model.dart';
@@ -18,6 +20,7 @@ import 'dart:async';
 import '../widgets/marquee_text.dart';
 import '../utils/number_format_util.dart';
 import '../widgets/refreshable_screen.dart';
+import '../utils/config.dart';
 
 class UserDashboard extends StatefulWidget {
   const UserDashboard({super.key});
@@ -80,7 +83,7 @@ class _UserDashboardState extends State<UserDashboard>
     if (token != null) {
       try {
         final response = await http.get(
-          Uri.parse('http://10.100.54.176:8002/api/auth/profile'),
+          Uri.parse('${Config.serverUrl}/api/auth/profile'),
           headers: {
             'Authorization': 'Bearer $token',
             'Content-Type': 'application/json; charset=UTF-8',
@@ -183,10 +186,11 @@ class _UserDashboardState extends State<UserDashboard>
           noticePosts.map((notice) {
             return Notice(
               noticeIdx: notice.noticeIdx,
+              accountIdx: 0, // DashboardService에서 제공하지 않는 필드
               title: notice.title,
               content: notice.contentPreview,
-              isImportant: notice.isImportant,
-              isActive: true,
+              noticeImportant: notice.isImportant,
+              noticeActive: true,
               createdAt: notice.createdAt,
               updatedAt: notice.updatedAt,
               authorEmail: notice.authorEmail,
@@ -197,8 +201,8 @@ class _UserDashboardState extends State<UserDashboard>
           }).toList();
 
       sortedNotices.sort((a, b) {
-        if (a.isImportant && !b.isImportant) return -1;
-        if (!a.isImportant && b.isImportant) return 1;
+        if (a.noticeImportant && !b.noticeImportant) return -1;
+        if (!a.noticeImportant && b.noticeImportant) return 1;
         return b.createdAt.compareTo(a.createdAt);
       });
 
@@ -310,6 +314,73 @@ class _UserDashboardState extends State<UserDashboard>
                     // TODO: 헌혈 요청 목록으로 이동
                   },
                 ),
+              ),
+              const SizedBox(height: AppTheme.spacing20),
+              
+              // 퀵 액세스 메뉴
+              Text('내 헌혈 관리', style: AppTheme.h3Style),
+              const SizedBox(height: AppTheme.spacing12),
+              Row(
+                children: [
+                  Expanded(
+                    child: _buildQuickAccessCard(
+                      icon: Icons.assignment,
+                      title: '내 신청',
+                      subtitle: '헌혈 신청 내역',
+                      color: AppTheme.primaryBlue,
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => const UserDonationApplicationsScreen(),
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                  const SizedBox(width: AppTheme.spacing12),
+                  Expanded(
+                    child: _buildQuickAccessCard(
+                      icon: Icons.pets,
+                      title: '반려동물',
+                      subtitle: '내 반려동물 관리',
+                      color: Colors.green,
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => const PetManagementScreen(),
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: AppTheme.spacing12),
+              Row(
+                children: [
+                  Expanded(
+                    child: _buildQuickAccessCard(
+                      icon: Icons.bloodtype,
+                      title: '헌혈 이력',
+                      subtitle: '완료된 헌혈 기록',
+                      color: Colors.red.shade600,
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => const UserDonationHistoryScreen(),
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                  const SizedBox(width: AppTheme.spacing12),
+                  Expanded(
+                    child: Container(), // 빈 공간
+                  ),
+                ],
               ),
             ],
           ),
@@ -1008,7 +1079,7 @@ class _UserDashboardState extends State<UserDashboard>
                               Row(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  if (notice.isImportant) ...[
+                                  if (notice.noticeImportant) ...[
                                     Container(
                                       padding: const EdgeInsets.symmetric(
                                         horizontal: 6,
@@ -1033,8 +1104,8 @@ class _UserDashboardState extends State<UserDashboard>
                                     child: MarqueeText(
                                       text: notice.title,
                                       style: AppTheme.bodyMediumStyle.copyWith(
-                                        color: notice.isImportant ? AppTheme.error : AppTheme.textPrimary,
-                                        fontWeight: notice.isImportant ? FontWeight.w600 : FontWeight.w500,
+                                        color: notice.noticeImportant ? AppTheme.error : AppTheme.textPrimary,
+                                        fontWeight: notice.noticeImportant ? FontWeight.w600 : FontWeight.w500,
                                         fontSize: 14,
                                       ),
                                       animationDuration: const Duration(milliseconds: 4000),
@@ -1140,6 +1211,60 @@ class _UserDashboardState extends State<UserDashboard>
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  // 퀵 액세스 카드를 생성하는 위젯
+  Widget _buildQuickAccessCard({
+    required IconData icon,
+    required String title,
+    required String subtitle,
+    required Color color,
+    required VoidCallback onTap,
+  }) {
+    return Material(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(AppTheme.radius12),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(AppTheme.radius12),
+        child: Container(
+          padding: const EdgeInsets.all(AppTheme.spacing16),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(AppTheme.radius12),
+            border: Border.all(color: color.withOpacity(0.2), width: 1.5),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                width: 48,
+                height: 48,
+                decoration: BoxDecoration(
+                  color: color.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(AppTheme.radius8),
+                ),
+                child: Icon(icon, size: 24, color: color),
+              ),
+              const SizedBox(height: AppTheme.spacing12),
+              Text(
+                title,
+                style: AppTheme.bodyLargeStyle.copyWith(
+                  fontWeight: FontWeight.w600,
+                  color: AppTheme.textPrimary,
+                ),
+              ),
+              const SizedBox(height: AppTheme.spacing4),
+              Text(
+                subtitle,
+                style: AppTheme.bodySmallStyle.copyWith(
+                  color: AppTheme.textSecondary,
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }

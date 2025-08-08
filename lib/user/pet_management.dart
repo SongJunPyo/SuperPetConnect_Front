@@ -75,8 +75,8 @@ class _PetManagementScreenState extends State<PetManagementScreen> {
             TextButton(
               // onPressed를 비동기(async)로 변경
               onPressed: () async {
-                // petId가 null인 경우는 없어야 하지만, 안전을 위해 확인
-                if (pet.petId == null) {
+                // petIdx가 null인 경우는 없어야 하지만, 안전을 위해 확인
+                if (pet.petIdx == null) {
                   _showSnackBar('잘못된 펫 정보입니다.');
                   Navigator.of(context).pop();
                   return;
@@ -84,7 +84,7 @@ class _PetManagementScreenState extends State<PetManagementScreen> {
 
                 try {
                   // 1. PetService를 통해 서버에 삭제 요청
-                  await PetService.deletePet(pet.petId!);
+                  await PetService.deletePet(pet.petIdx!);
 
                   // 2. 다이얼로그 닫기
                   Navigator.of(context).pop();
@@ -274,8 +274,8 @@ class _PetManagementScreenState extends State<PetManagementScreen> {
 
   // 각 펫의 정보를 보여주는 카드 위젯
   Widget _buildPetCard(Pet pet) {
-    // 헌혈 가능 여부 체크
-    final canDonate = _checkDonationEligibility(pet);
+    // 헌혈 가능 여부 체크 (Pet 모델의 canDonate 사용)
+    final canDonate = pet.canDonate;
 
     return Container(
       margin: const EdgeInsets.only(bottom: AppTheme.spacing16),
@@ -395,6 +395,16 @@ class _PetManagementScreenState extends State<PetManagementScreen> {
                           color: AppTheme.textSecondary,
                         ),
                       ),
+                      const SizedBox(height: AppTheme.spacing4),
+                      // 이전 헌혈 일자 정보
+                      Text(
+                        pet.prevDonationDate != null
+                            ? '이전 헌혈: ${pet.prevDonationDate!.year}년 ${pet.prevDonationDate!.month}월 ${pet.prevDonationDate!.day}일'
+                            : '헌혈 이력: 첫 헌혈 예정',
+                        style: AppTheme.bodyMediumStyle.copyWith(
+                          color: AppTheme.textSecondary,
+                        ),
+                      ),
                       const SizedBox(height: AppTheme.spacing8),
                       // 헌혈 가능 여부 표시
                       Row(
@@ -407,7 +417,7 @@ class _PetManagementScreenState extends State<PetManagementScreen> {
                           ),
                           const SizedBox(width: AppTheme.spacing4),
                           Text(
-                            canDonate ? '헌혈 가능' : '헌혈 불가',
+                            pet.donationStatusText,
                             style: AppTheme.bodySmallStyle.copyWith(
                               color:
                                   canDonate
@@ -490,7 +500,7 @@ class _PetManagementScreenState extends State<PetManagementScreen> {
 
   // 펫 상세 정보를 보여주는 다이얼로그
   void _showPetDetailDialog(Pet pet) {
-    final canDonate = _checkDonationEligibility(pet);
+    final canDonate = pet.canDonate;
     final donationReasons = _getDonationIneligibilityReasons(pet);
 
     showDialog(

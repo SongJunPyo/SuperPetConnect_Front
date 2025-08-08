@@ -1,22 +1,24 @@
 class Notice {
   final int noticeIdx;
+  final int accountIdx; // 작성자 계정 ID (FK)
   final String title;
   final String content;
-  final bool isImportant;
-  final bool isActive;
+  final bool noticeImportant; // 필드명 변경
+  final bool noticeActive; // 필드명 변경
   final DateTime createdAt;
   final DateTime updatedAt;
-  final String authorEmail;
-  final String authorName;
+  final String authorEmail; // JOIN을 통해 제공
+  final String authorName; // JOIN을 통해 제공
   final int? viewCount;
-  final int targetAudience; // 0: all, 2: hospital, 3: user
+  final int targetAudience; // 0: all, 1: hospital, 2: user
 
   Notice({
     required this.noticeIdx,
+    required this.accountIdx,
     required this.title,
     required this.content,
-    required this.isImportant,
-    required this.isActive,
+    required this.noticeImportant,
+    required this.noticeActive,
     required this.createdAt,
     required this.updatedAt,
     required this.authorEmail,
@@ -28,10 +30,11 @@ class Notice {
   factory Notice.fromJson(Map<String, dynamic> json) {
     return Notice(
       noticeIdx: json['notice_idx'],
+      accountIdx: json['account_idx'],
       title: json['title'],
       content: json['content'],
-      isImportant: json['is_important'] ?? false,
-      isActive: json['is_active'] ?? true,
+      noticeImportant: json['notice_important'] ?? json['is_important'] ?? false, // 호환성을 위해 둘 다 지원
+      noticeActive: json['notice_active'] ?? json['is_active'] ?? true, // 호환성을 위해 둘 다 지원
       createdAt: DateTime.parse(json['created_at']),
       updatedAt: DateTime.parse(json['updated_at']),
       authorEmail: json['author_email'] ?? '',
@@ -44,10 +47,11 @@ class Notice {
   Map<String, dynamic> toJson() {
     return {
       'notice_idx': noticeIdx,
+      'account_idx': accountIdx,
       'title': title,
       'content': content,
-      'is_important': isImportant,
-      'is_active': isActive,
+      'notice_important': noticeImportant,
+      'notice_active': noticeActive,
       'created_at': createdAt.toIso8601String(),
       'updated_at': updatedAt.toIso8601String(),
       'author_email': authorEmail,
@@ -61,13 +65,13 @@ class Notice {
 class NoticeCreateRequest {
   final String title;
   final String content;
-  final bool isImportant;
+  final bool noticeImportant;
   final int targetAudience;
 
   NoticeCreateRequest({
     required this.title,
     required this.content,
-    this.isImportant = false,
+    this.noticeImportant = false,
     this.targetAudience = 0,
   });
 
@@ -75,7 +79,7 @@ class NoticeCreateRequest {
     return {
       'title': title,
       'content': content,
-      'is_important': isImportant,
+      'notice_important': noticeImportant,
       'target_audience': targetAudience,
     };
   }
@@ -84,15 +88,15 @@ class NoticeCreateRequest {
 class NoticeUpdateRequest {
   final String? title;
   final String? content;
-  final bool? isImportant;
-  final bool? isActive;
+  final bool? noticeImportant;
+  final bool? noticeActive;
   final int? targetAudience;
 
   NoticeUpdateRequest({
     this.title,
     this.content,
-    this.isImportant,
-    this.isActive,
+    this.noticeImportant,
+    this.noticeActive,
     this.targetAudience,
   });
 
@@ -101,8 +105,8 @@ class NoticeUpdateRequest {
 
     if (title != null) data['title'] = title;
     if (content != null) data['content'] = content;
-    if (isImportant != null) data['is_important'] = isImportant;
-    if (isActive != null) data['is_active'] = isActive;
+    if (noticeImportant != null) data['notice_important'] = noticeImportant;
+    if (noticeActive != null) data['notice_active'] = noticeActive;
     if (targetAudience != null) data['target_audience'] = targetAudience;
 
     return data;

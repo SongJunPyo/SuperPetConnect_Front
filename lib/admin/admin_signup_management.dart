@@ -13,6 +13,8 @@ class SignupUser {
   final String name;
   final String phoneNumber;
   final String address;
+  final double latitude;
+  final double longitude;
   final int userType; // Flutter 모델에서는 'userType'으로 사용
   final DateTime createdTime; // String -> DateTime으로 변경
   String status; // 승인 상태: '대기', '승인', '거절'
@@ -23,6 +25,8 @@ class SignupUser {
     required this.name,
     required this.phoneNumber,
     required this.address,
+    required this.latitude,
+    required this.longitude,
     required this.userType,
     required this.createdTime,
     required this.status,
@@ -39,6 +43,10 @@ class SignupUser {
         json['phone_number'] is String ? json['phone_number'] : '';
     final String parsedAddress =
         json['address'] is String ? json['address'] : '';
+    final double parsedLatitude =
+        json['latitude'] is num ? json['latitude'].toDouble() : 37.5665;
+    final double parsedLongitude =
+        json['longitude'] is num ? json['longitude'].toDouble() : 126.9780;
     final int parsedUserType =
         json['account_type'] is int
             ? json['account_type']
@@ -58,6 +66,8 @@ class SignupUser {
       name: parsedName,
       phoneNumber: parsedPhoneNumber,
       address: parsedAddress,
+      latitude: parsedLatitude,
+      longitude: parsedLongitude,
       userType: parsedUserType,
       createdTime: parsedCreatedTime,
       status: approvedBool ? '승인' : '대기',
@@ -110,9 +120,8 @@ class _AdminSignupManagementState extends State<AdminSignupManagement> {
     });
 
     try {
-      // TODO: Config.serverUrl 사용으로 변경
       final url = Uri.parse(
-        'http://10.100.54.176:8002/api/signup_management/pending-users',
+        '${Config.serverUrl}/api/signup_management/pending-users',
       );
       final response = await http.get(
         url,
@@ -170,9 +179,8 @@ class _AdminSignupManagementState extends State<AdminSignupManagement> {
     }
 
     try {
-      // TODO: Config.serverUrl 사용으로 변경
       final url = Uri.parse(
-        'http://10.100.54.176:8002/api/signup_management/approve-user/${user.id}',
+        '${Config.serverUrl}/api/signup_management/approve-user/${user.id}',
       );
 
       final Map<String, dynamic> requestBody = {'user_type': selectedUserType};
@@ -180,7 +188,7 @@ class _AdminSignupManagementState extends State<AdminSignupManagement> {
       if (selectedUserType == 2 &&
           hospitalId != null &&
           hospitalId.isNotEmpty) {
-        requestBody['hospital_id'] = hospitalId;
+        requestBody['hospital_code'] = hospitalId;
       }
 
       final response = await http.post(
@@ -225,10 +233,9 @@ class _AdminSignupManagementState extends State<AdminSignupManagement> {
     }
 
     try {
-      // TODO: Config.serverUrl 사용으로 변경
       final response = await http.post(
         Uri.parse(
-          'http://10.100.54.176:8002/api/signup_management/reject-user/${user.id}',
+          '${Config.serverUrl}/api/signup_management/reject-user/${user.id}',
         ),
         headers: <String, String>{
           'Content-Type': 'application/json; charset=UTF-8',
@@ -349,7 +356,7 @@ class _AdminSignupManagementState extends State<AdminSignupManagement> {
                         controller: _hospitalIdController,
                         decoration: InputDecoration(
                           labelText: '요양기관기호',
-                          hintText: '병원 고유 ID를 입력하세요.',
+                          hintText: '병원 코드를 입력하세요.',
                           border: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(8),
                           ),
@@ -578,6 +585,12 @@ class _AdminSignupManagementState extends State<AdminSignupManagement> {
                               Icons.location_on_outlined,
                               '주소',
                               user.address,
+                            ),
+                            _buildDetailRow(
+                              context,
+                              Icons.gps_fixed_outlined,
+                              '위치',
+                              '위도: ${user.latitude.toStringAsFixed(4)}, 경도: ${user.longitude.toStringAsFixed(4)}',
                             ),
                             _buildDetailRow(
                               context,

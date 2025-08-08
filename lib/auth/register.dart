@@ -91,6 +91,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
             'phone_number': formattedPhoneNumber.trim(), // 하이픈 제거된 전화번호 전송
             'address': _addressController.text,
             'fcm_token': fcmToken, // FCM 토큰 추가
+            'latitude': 37.5665, // 서울 시청 위도 (가데이터)
+            'longitude': 126.9780, // 서울 시청 경도 (가데이터)
           }),
         );
 
