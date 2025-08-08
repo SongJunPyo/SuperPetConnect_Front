@@ -96,23 +96,24 @@ class _HospitalDashboardState extends State<HospitalDashboard> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppDashboardAppBar(
-        onBackPressed: () => Navigator.pop(context),
-        onProfilePressed: () {
-          Navigator.push(
-            context,
-            MaterialPageRoute(builder: (context) => const ProfileManagement()),
-          );
-        },
-        onNotificationPressed: () {
-          Navigator.push(
-            context,
-            MaterialPageRoute(builder: (context) => const HospitalAlarm()),
-          );
-        },
-      ),
-      body: SingleChildScrollView(
+    return WillPopScope(
+      onWillPop: () async => false, // 뒤로가기 방지
+      child: Scaffold(
+        appBar: AppDashboardAppBar(
+          onProfilePressed: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (context) => const ProfileManagement()),
+            );
+          },
+          onNotificationPressed: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (context) => const HospitalAlarm()),
+            );
+          },
+        ),
+        body: SingleChildScrollView(
         // 전체 화면을 스크롤 가능하게
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -278,6 +279,7 @@ class _HospitalDashboardState extends State<HospitalDashboard> {
               ),
             ),
           ],
+        ),
         ),
       ),
     );

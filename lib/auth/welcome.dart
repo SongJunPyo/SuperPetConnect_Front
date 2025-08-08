@@ -137,11 +137,7 @@ class _WelcomeScreenState extends State<WelcomeScreen>
         showBackButton: false,
         actions: [
           IconButton(
-            icon: const CircleAvatar(
-              radius: 18,
-              backgroundColor: AppTheme.primaryBlue,
-              child: Icon(Icons.person, color: Colors.white, size: 20),
-            ),
+            icon: const Icon(Icons.key, color: Colors.black87, size: 24),
             onPressed: () {
               Navigator.push(
                 context,
@@ -234,8 +230,10 @@ class _WelcomeScreenState extends State<WelcomeScreen>
             ),
             SliverFillRemaining(
               child: Container(
-                margin: const EdgeInsets.symmetric(
-                  horizontal: AppTheme.spacing16,
+                margin: const EdgeInsets.only(
+                  left: AppTheme.spacing16,
+                  right: AppTheme.spacing16,
+                  bottom: AppTheme.spacing16, // 하단 여백 추가
                 ),
                 decoration: BoxDecoration(
                   color: Colors.white,
@@ -307,13 +305,42 @@ class _WelcomeScreenState extends State<WelcomeScreen>
           Expanded(
             child: ListView.separated(
               padding: EdgeInsets.zero,
-              itemCount: notices.length,
+              itemCount: notices.length + 1, // ... 아이템 추가를 위해 +1
               separatorBuilder: (context, index) => Container(
                 height: 1,
                 color: AppTheme.lightGray.withOpacity(0.2),
                 margin: const EdgeInsets.symmetric(horizontal: 16),
               ),
               itemBuilder: (context, index) {
+                // 마지막 아이템은 ... 버튼
+                if (index == notices.length) {
+                  return InkWell(
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const UserNoticeListScreen(),
+                        ),
+                      );
+                    },
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 16,
+                      ),
+                      child: Center(
+                        child: Text(
+                          '...',
+                          style: AppTheme.h3Style.copyWith(
+                            color: AppTheme.textTertiary,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                    ),
+                  );
+                }
+                
                 final notice = notices[index];
 
                 return InkWell(
@@ -493,42 +520,6 @@ class _WelcomeScreenState extends State<WelcomeScreen>
               },
             ),
           ),
-          // 더보기 버튼 (가장 밑 가운데 정렬)
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            child: Center(
-              child: GestureDetector(
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => const UserNoticeListScreen(),
-                    ),
-                  );
-                },
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 8,
-                  ),
-                  decoration: BoxDecoration(
-                    color: AppTheme.veryLightGray,
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(
-                      color: AppTheme.lightGray.withOpacity(0.5),
-                    ),
-                  ),
-                  child: Text(
-                    '더보기',
-                    style: AppTheme.bodySmallStyle.copyWith(
-                      color: AppTheme.primaryBlue,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          ),
         ],
       ),
     );
@@ -578,13 +569,42 @@ class _WelcomeScreenState extends State<WelcomeScreen>
           Expanded(
             child: ListView.separated(
               padding: EdgeInsets.zero,
-              itemCount: columns.length,
+              itemCount: columns.length + 1, // ... 아이템 추가를 위해 +1
               separatorBuilder: (context, index) => Container(
                 height: 1,
                 color: AppTheme.lightGray.withOpacity(0.2),
                 margin: const EdgeInsets.symmetric(horizontal: 16),
               ),
               itemBuilder: (context, index) {
+                // 마지막 아이템은 ... 버튼
+                if (index == columns.length) {
+                  return InkWell(
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const UserColumnListScreen(),
+                        ),
+                      );
+                    },
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 16,
+                      ),
+                      child: Center(
+                        child: Text(
+                          '...',
+                          style: AppTheme.h3Style.copyWith(
+                            color: AppTheme.textTertiary,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                    ),
+                  );
+                }
+                
                 final column = columns[index];
                 final isImportant = column.title.contains('[중요]') ||
                     column.title.contains('[공지]');
@@ -762,42 +782,6 @@ class _WelcomeScreenState extends State<WelcomeScreen>
                   ),
                 );
               },
-            ),
-          ),
-          // 더보기 버튼 (가장 밑 가운데 정렬)
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            child: Center(
-              child: GestureDetector(
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => const UserColumnListScreen(),
-                    ),
-                  );
-                },
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 8,
-                  ),
-                  decoration: BoxDecoration(
-                    color: AppTheme.veryLightGray,
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(
-                      color: AppTheme.lightGray.withOpacity(0.5),
-                    ),
-                  ),
-                  child: Text(
-                    '더보기',
-                    style: AppTheme.bodySmallStyle.copyWith(
-                      color: AppTheme.primaryBlue,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                ),
-              ),
             ),
           ),
         ],

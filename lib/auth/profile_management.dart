@@ -118,6 +118,97 @@ class _ProfileManagementState extends State<ProfileManagement> {
     }
   }
 
+  // 로그아웃 기능
+  Future<void> _logout() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.clear();
+    
+    if (mounted) {
+      Navigator.of(context).pushNamedAndRemoveUntil(
+        '/',
+        (Route<dynamic> route) => false,
+      );
+    }
+  }
+  
+  // 로그아웃 팝업
+  void _showLogoutDialog() {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('로그아웃'),
+          content: const Text('정말 로그아웃 하시겠습니까?'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('취소'),
+            ),
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+                _logout();
+              },
+              child: Text('로그아웃', style: TextStyle(color: AppTheme.error)),
+            ),
+          ],
+        );
+      },
+    );
+  }
+  
+  // 저장 팝업
+  void _showSaveDialog() {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('프로필 저장'),
+          content: const Text('변경사항을 저장하시겠습니까?'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('취소'),
+            ),
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+                _updateUserProfile();
+              },
+              child: const Text('저장'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+  
+  // 닫기 팝업
+  void _showCloseDialog() {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('프로필 닫기'),
+          content: const Text('정말 닫으시겠습니까?\n저장하지 않은 변경사항은 사라집니다.'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('취소'),
+            ),
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+                Navigator.of(context).pop();
+              },
+              child: Text('닫기', style: TextStyle(color: AppTheme.error)),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
   Future<void> _updateUserProfile() async {
     if (token == null) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -243,14 +334,22 @@ class _ProfileManagementState extends State<ProfileManagement> {
         elevation: 0,
         iconTheme: IconThemeData(color: AppTheme.textPrimary),
         actions: [
+          // X 버튼 (닫기)
+          IconButton(
+            icon: Icon(Icons.close, color: Colors.black87),
+            onPressed: _showCloseDialog,
+          ),
+          // 저장 버튼
+          IconButton(
+            icon: Icon(Icons.save_outlined, color: Colors.black87),
+            onPressed: _showSaveDialog,
+          ),
+          // 로그아웃 버튼
           Padding(
             padding: const EdgeInsets.only(right: AppTheme.spacing8),
             child: IconButton(
-              icon: Icon(
-                Icons.save_outlined,
-                color: AppTheme.primaryBlue,
-              ),
-              onPressed: _updateUserProfile,
+              icon: Icon(Icons.logout, color: Colors.black87),
+              onPressed: _showLogoutDialog,
             ),
           ),
         ],
@@ -377,33 +476,6 @@ class _ProfileManagementState extends State<ProfileManagement> {
                         onChanged: (value) => setState(() {}),
                       ),
                     ],
-                  ),
-                ),
-              ),
-            ),
-            const SizedBox(height: AppTheme.spacing32),
-            SizedBox(
-              width: double.infinity,
-              height: 56,
-              child: ElevatedButton(
-                onPressed: () {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('계정 탈퇴 기능 (미구현)')),
-                  );
-                },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppTheme.error,
-                  foregroundColor: Colors.white,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(AppTheme.radius12),
-                  ),
-                  elevation: 0,
-                ),
-                child: Text(
-                  "계정 탈퇴",
-                  style: AppTheme.bodyLargeStyle.copyWith(
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
                   ),
                 ),
               ),

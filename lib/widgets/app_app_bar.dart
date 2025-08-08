@@ -99,8 +99,8 @@ class AppDashboardAppBar extends StatelessWidget
           children: [
             IconButton(
               icon: const Icon(
-                Icons.notifications_outlined,
-                color: AppTheme.textPrimary,
+                Icons.notifications,
+                color: Colors.black87,
               ),
               onPressed: onNotificationPressed,
             ),
@@ -125,11 +125,7 @@ class AppDashboardAppBar extends StatelessWidget
 
         // 프로필 버튼
         IconButton(
-          icon: const CircleAvatar(
-            radius: 18,
-            backgroundColor: AppTheme.primaryBlue,
-            child: Icon(Icons.person, color: Colors.white, size: 20),
-          ),
+          icon: const Icon(Icons.person, color: Colors.black87, size: 24),
           onPressed: onProfilePressed,
         ),
       ],

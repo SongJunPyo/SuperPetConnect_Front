@@ -245,9 +245,10 @@ class _UserDashboardState extends State<UserDashboard>
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppDashboardAppBar(
-        onBackPressed: () => Navigator.pop(context),
+    return WillPopScope(
+      onWillPop: () async => false, // 뒤로가기 방지
+      child: Scaffold(
+        appBar: AppDashboardAppBar(
         onProfilePressed: () async {
           // 프로필 관리 페이지로 이동 후 돌아올 때 사용자 이름 새로고침
           await Navigator.push(
@@ -274,118 +275,115 @@ class _UserDashboardState extends State<UserDashboard>
           },
         ),
       ),
-      body: RefreshableScreen(
-        onRefresh: _loadDashboardData,
-        child: _buildDashboardContent(),
-      ), // 항상 대시보드 메인 내용 표시
+        body: _buildDashboardContent(), // 항상 대시보드 메인 내용 표시
+      ),
     );
   }
 
   // 사용자 대시보드의 메인 내용을 구성하는 위젯
   Widget _buildDashboardContent() {
-    return SingleChildScrollView(
-      physics: const AlwaysScrollableScrollPhysics(), // pull-to-refresh 활성화
-      child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Padding(
-              padding: AppTheme.pagePadding,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text('안녕하세요, $userName님!', style: AppTheme.h2Style),
-                  const SizedBox(height: AppTheme.spacing8),
-                  Text(
-                    currentDateTime,
-                    style: AppTheme.bodyLargeStyle.copyWith(
-                      color: AppTheme.textSecondary,
-                    ),
-                  ),
-                  const SizedBox(height: AppTheme.spacing20),
-                  SizedBox(
-                    width: double.infinity,
-                    child: AppInfoCard(
-                      icon: Icons.info_outline,
-                      title: '새로운 헌혈 요청 5건이 도착했습니다!',
-                      description: '자세히 보기',
-                      onTap: () {
-                        // TODO: 헌혈 요청 목록으로 이동
-                      },
-                    ),
-                  ),
-                ],
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // 상단 고정 컨텐츠
+        Padding(
+          padding: AppTheme.pagePadding,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('안녕하세요, $userName님!', style: AppTheme.h2Style),
+              const SizedBox(height: AppTheme.spacing8),
+              Text(
+                currentDateTime,
+                style: AppTheme.bodyLargeStyle.copyWith(
+                  color: AppTheme.textSecondary,
+                ),
               ),
-            ),
-            // 탭바 (관리자 스타일)
-            Container(
-              margin: const EdgeInsets.symmetric(
-                horizontal: AppTheme.spacing16,
+              const SizedBox(height: AppTheme.spacing20),
+              SizedBox(
+                width: double.infinity,
+                child: AppInfoCard(
+                  icon: Icons.notifications,
+                  title: '새로운 헌혈 요청 5건이 도착했습니다!',
+                  description: '자세히 보기',
+                  onTap: () {
+                    // TODO: 헌혈 요청 목록으로 이동
+                  },
+                ),
               ),
-              child: TabBar(
-                controller: _tabController,
-                tabs: const [
-                  Tab(
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(Icons.bloodtype, size: 20),
-                        SizedBox(width: 8),
-                        Text('헌혈 모집'),
-                      ],
-                    ),
-                  ),
-                  Tab(
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(Icons.article, size: 20),
-                        SizedBox(width: 8),
-                        Text('칼럼'),
-                      ],
-                    ),
-                  ),
-                  Tab(
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(Icons.announcement, size: 20),
-                        SizedBox(width: 8),
-                        Text('공지사항'),
-                      ],
-                    ),
-                  ),
-                ],
-                labelColor: Colors.black87,
-                unselectedLabelColor: Colors.grey,
-                indicatorColor: Colors.black87,
-                dividerColor: Colors.transparent,
-              ),
-            ),
-            // 탭 뷰 (실제 게시판 내용)
-            Container(
-              height: MediaQuery.of(context).size.height * 0.6,
-              margin: const EdgeInsets.symmetric(
-                horizontal: AppTheme.spacing16,
-              ),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: AppTheme.lightGray.withOpacity(0.3)),
-              ),
-              child: TabBarView(
-                controller: _tabController,
-                children: [
-                  _buildBloodDonationBoard(), // 헌혈 모집 게시판 내용
-                  _buildColumnBoard(), // 칼럼 게시판 내용
-                  _buildNoticeBoard(), // 공지사항 게시판 내용
-                ],
-              ),
-            ),
-            // TODO: 내 헌혈 활동 섹션 (나중에 추가)
-            // TODO: 마이페이지/설정 섹션 (나중에 추가)
-          ],
+            ],
+          ),
         ),
-      );
+        // 탭바
+        Container(
+          margin: const EdgeInsets.symmetric(
+            horizontal: AppTheme.spacing16,
+          ),
+          child: TabBar(
+            controller: _tabController,
+            tabs: const [
+              Tab(
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.bloodtype, size: 20),
+                    SizedBox(width: 8),
+                    Text('헌혈 모집'),
+                  ],
+                ),
+              ),
+              Tab(
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.article, size: 20),
+                    SizedBox(width: 8),
+                    Text('칼럼'),
+                  ],
+                ),
+              ),
+              Tab(
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.announcement, size: 20),
+                    SizedBox(width: 8),
+                    Text('공지사항'),
+                  ],
+                ),
+              ),
+            ],
+            labelColor: Colors.black87,
+            unselectedLabelColor: Colors.grey,
+            indicatorColor: Colors.black87,
+            dividerColor: Colors.transparent,
+          ),
+        ),
+        // 탭 뷰 (나머지 공간 모두 차지)
+        Expanded(
+          child: Container(
+            margin: const EdgeInsets.only(
+              left: AppTheme.spacing16,
+              right: AppTheme.spacing16,
+              bottom: AppTheme.spacing16, // 하단 여백
+            ),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: AppTheme.lightGray.withOpacity(0.3)),
+            ),
+            child: TabBarView(
+              controller: _tabController,
+              children: [
+                _buildBloodDonationBoard(), // 헌혈 모집 게시판 내용
+                _buildColumnBoard(), // 칼럼 게시판 내용
+                _buildNoticeBoard(), // 공지사항 게시판 내용
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
   }
 
   // 헌혈 모집 게시판 위젯을 생성합니다.
@@ -422,7 +420,7 @@ class _UserDashboardState extends State<UserDashboard>
           Expanded(
             child: ListView.separated(
               padding: EdgeInsets.zero,
-              itemCount: donations.length,
+              itemCount: donations.length + 1, // ... 아이템 추가를 위해 +1
               separatorBuilder:
                   (context, index) => Container(
                     height: 1,
@@ -430,6 +428,35 @@ class _UserDashboardState extends State<UserDashboard>
                     margin: const EdgeInsets.symmetric(horizontal: 16),
                   ),
               itemBuilder: (context, index) {
+                // 마지막 아이템은 ... 버튼
+                if (index == donations.length) {
+                  return InkWell(
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const UserDonationListScreen(),
+                        ),
+                      );
+                    },
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 16,
+                      ),
+                      child: Center(
+                        child: Text(
+                          '...',
+                          style: AppTheme.h3Style.copyWith(
+                            color: AppTheme.textTertiary,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                    ),
+                  );
+                }
+                
                 final donation = donations[index];
 
                 return InkWell(
@@ -612,42 +639,6 @@ class _UserDashboardState extends State<UserDashboard>
               },
             ),
           ),
-          // 더보기 버튼 (가장 밑 가운데 정렬)
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            child: Center(
-              child: GestureDetector(
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => const UserDonationListScreen(),
-                    ),
-                  );
-                },
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 8,
-                  ),
-                  decoration: BoxDecoration(
-                    color: AppTheme.veryLightGray,
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(
-                      color: AppTheme.lightGray.withOpacity(0.5),
-                    ),
-                  ),
-                  child: Text(
-                    '더보기',
-                    style: AppTheme.bodySmallStyle.copyWith(
-                      color: AppTheme.primaryBlue,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          ),
         ],
       ),
     );
@@ -683,7 +674,7 @@ class _UserDashboardState extends State<UserDashboard>
           Expanded(
             child: ListView.separated(
               padding: EdgeInsets.zero,
-              itemCount: columns.length,
+              itemCount: columns.length + 1, // ... 아이템 추가를 위해 +1
               separatorBuilder:
                   (context, index) => Container(
                     height: 1,
@@ -691,6 +682,35 @@ class _UserDashboardState extends State<UserDashboard>
                     margin: const EdgeInsets.symmetric(horizontal: 16),
                   ),
               itemBuilder: (context, index) {
+                // 마지막 아이템은 ... 버튼
+                if (index == columns.length) {
+                  return InkWell(
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const UserColumnListScreen(),
+                        ),
+                      );
+                    },
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 16,
+                      ),
+                      child: Center(
+                        child: Text(
+                          '...',
+                          style: AppTheme.h3Style.copyWith(
+                            color: AppTheme.textTertiary,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                    ),
+                  );
+                }
+                
                 final column = columns[index];
                 final isImportant =
                     column.title.contains('[중요]') ||
@@ -867,42 +887,6 @@ class _UserDashboardState extends State<UserDashboard>
               },
             ),
           ),
-          // 더보기 버튼 (가장 밑 가운데 정렬)
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            child: Center(
-              child: GestureDetector(
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => const UserColumnListScreen(),
-                    ),
-                  );
-                },
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 8,
-                  ),
-                  decoration: BoxDecoration(
-                    color: AppTheme.veryLightGray,
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(
-                      color: AppTheme.lightGray.withOpacity(0.5),
-                    ),
-                  ),
-                  child: Text(
-                    '더보기',
-                    style: AppTheme.bodySmallStyle.copyWith(
-                      color: AppTheme.primaryBlue,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          ),
         ],
       ),
     );
@@ -942,7 +926,7 @@ class _UserDashboardState extends State<UserDashboard>
           Expanded(
             child: ListView.separated(
               padding: EdgeInsets.zero,
-              itemCount: notices.length,
+              itemCount: notices.length + 1, // ... 아이템 추가를 위해 +1
               separatorBuilder:
                   (context, index) => Container(
                     height: 1,
@@ -950,6 +934,35 @@ class _UserDashboardState extends State<UserDashboard>
                     margin: const EdgeInsets.symmetric(horizontal: 16),
                   ),
               itemBuilder: (context, index) {
+                // 마지막 아이템은 ... 버튼
+                if (index == notices.length) {
+                  return InkWell(
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const UserNoticeListScreen(),
+                        ),
+                      );
+                    },
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 16,
+                      ),
+                      child: Center(
+                        child: Text(
+                          '...',
+                          style: AppTheme.h3Style.copyWith(
+                            color: AppTheme.textTertiary,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                    ),
+                  );
+                }
+                
                 final notice = notices[index];
 
                 return InkWell(
@@ -1124,42 +1137,6 @@ class _UserDashboardState extends State<UserDashboard>
                   ),
                 );
               },
-            ),
-          ),
-          // 더보기 버튼 (가장 밑 가운데 정렬)
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            child: Center(
-              child: GestureDetector(
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => const UserNoticeListScreen(),
-                    ),
-                  );
-                },
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 8,
-                  ),
-                  decoration: BoxDecoration(
-                    color: AppTheme.veryLightGray,
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(
-                      color: AppTheme.lightGray.withOpacity(0.5),
-                    ),
-                  ),
-                  child: Text(
-                    '더보기',
-                    style: AppTheme.bodySmallStyle.copyWith(
-                      color: AppTheme.primaryBlue,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                ),
-              ),
             ),
           ),
         ],
