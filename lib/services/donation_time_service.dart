@@ -3,6 +3,7 @@
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:flutter/material.dart';
 import '../models/donation_post_time_model.dart';
 import '../utils/config.dart';
 
@@ -278,6 +279,3 @@ class DonationTimeService {
     );
   }
 }
-
-// TimeOfDay import를 위한 Flutter import 추가
-import 'package:flutter/material.dart';

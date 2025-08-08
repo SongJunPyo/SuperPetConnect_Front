@@ -452,7 +452,7 @@ class _DateTimeManagementDialogState extends State<DateTimeManagementDialog> {
                   const SizedBox(width: AppTheme.spacing8),
                   ElevatedButton.icon(
                     onPressed: _showQuickTemplateDialog,
-                    icon: const Icon(Icons.template_outlined, size: 18),
+                    icon: const Icon(Icons.receipt_outlined, size: 18),
                     label: const Text('템플릿'),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.white,

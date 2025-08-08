@@ -398,6 +398,7 @@ class _AdminDonationApprovalScreenState extends State<AdminDonationApprovalScree
   }
 
   Widget _buildCancellationApprovalCard(AdminPendingDonation pending) {
+    String updatedReason = pending.cancelledReason ?? '';
     return Container(
       margin: const EdgeInsets.only(bottom: AppTheme.spacing16),
       decoration: BoxDecoration(
@@ -607,7 +608,7 @@ class _AdminDonationApprovalScreenState extends State<AdminDonationApprovalScree
               ),
               onChanged: (value) {
                 // 사유 수정 값 저장
-                pending.cancelledReason = value;
+                updatedReason = value;
               },
             ),
 
@@ -854,9 +855,9 @@ extension AdminPendingDonationExt on AdminPendingDonation {
       petWeight: application.pet?.weightKg,
       postTitle: application.postTitle,
       hospitalName: application.hospitalName,
-      userName: application.userName,
+      userName: application.pet?.name ?? 'Unknown',
       donationTime: application.donationTime,
-      createdAt: application.appliedAt,
+      createdAt: application.createdAt ?? DateTime.now(),
     );
   }
 }

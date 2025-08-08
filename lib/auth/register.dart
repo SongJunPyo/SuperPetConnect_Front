@@ -81,24 +81,32 @@ class _RegisterScreenState extends State<RegisterScreen> {
         );
         final fcmToken = _fcmToken ?? ""; // FCM 토큰이 없으면 빈 문자열로 설정
 
+        final requestBody = {
+          'email': _emailController.text.trim(),
+          'password': _passwordController.text.trim(),
+          'name': _nameController.text.trim(),
+          'phone_number': formattedPhoneNumber.trim(), // 하이픈 제거된 전화번호 전송
+          'address': _addressController.text,
+          'fcm_token': fcmToken, // FCM 토큰 추가
+          'latitude': 37.5665, // 서울 시청 위도 (가데이터)
+          'longitude': 126.9780, // 서울 시청 경도 (가데이터)
+        };
+
+        print('DEBUG: 회원가입 요청 URL: ${Config.serverUrl}/api/register');
+        print('DEBUG: 회원가입 요청 데이터: ${json.encode(requestBody)}');
+
         final response = await http.post(
           Uri.parse('${Config.serverUrl}/api/register'),
           headers: {'Content-Type': 'application/json'},
-          body: json.encode({
-            'email': _emailController.text.trim(),
-            'password': _passwordController.text.trim(),
-            'name': _nameController.text.trim(),
-            'phone_number': formattedPhoneNumber.trim(), // 하이픈 제거된 전화번호 전송
-            'address': _addressController.text,
-            'fcm_token': fcmToken, // FCM 토큰 추가
-            'latitude': 37.5665, // 서울 시청 위도 (가데이터)
-            'longitude': 126.9780, // 서울 시청 경도 (가데이터)
-          }),
+          body: json.encode(requestBody),
         );
 
         if (mounted) {
           Navigator.pop(context);
         }
+
+        print('DEBUG: 회원가입 응답 상태코드: ${response.statusCode}');
+        print('DEBUG: 회원가입 응답 본문: ${response.body}');
 
         String message;
 
@@ -116,9 +124,22 @@ class _RegisterScreenState extends State<RegisterScreen> {
         } else if (response.statusCode == 409) {
           message = '이미 가입된 이메일 또는 전화번호입니다.';
           _showSnackBar(message);
+        } else if (response.statusCode == 500) {
+          message = '서버 내부 오류가 발생했습니다.\n잠시 후 다시 시도해주세요.\n\n만약 문제가 계속되면 관리자에게 문의해주세요.';
+          _showSnackBar(message);
+          print('서버 오류 상세: ${response.body}');
+        } else if (response.statusCode == 400) {
+          // 서버에서 구체적인 에러 메시지가 올 수 있음
+          try {
+            final errorData = json.decode(response.body);
+            message = errorData['detail'] ?? errorData['message'] ?? '입력 데이터에 오류가 있습니다.';
+          } catch (e) {
+            message = '입력 데이터 형식이 올바르지 않습니다.';
+          }
+          _showSnackBar(message);
         } else {
           message =
-              '회원가입에 실패했습니다. 다시 시도해주세요.\n${utf8.decode(response.bodyBytes)}';
+              '회원가입에 실패했습니다. (오류코드: ${response.statusCode})\n다시 시도해주세요.\n\n${response.body}';
           _showSnackBar(message);
         }
       } catch (e) {

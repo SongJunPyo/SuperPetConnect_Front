@@ -4,6 +4,7 @@ import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:math' as math; // min 함수 사용을 위해 추가
 import '../utils/app_theme.dart';
+import '../utils/config.dart';
 import '../widgets/app_card.dart';
 
 // 회원 가입 신청자 데이터 모델

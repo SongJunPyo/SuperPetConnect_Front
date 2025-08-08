@@ -192,15 +192,15 @@ class _HospitalPostCheckState extends State<HospitalPostCheck> {
                                           ),
                                           decoration: BoxDecoration(
                                             color: _getStatusColor(
-                                              post.status,
+                                              _getStatusText(post.status),
                                             ).withOpacity(0.15),
                                             borderRadius: BorderRadius.circular(8.0),
                                           ),
                                           child: Text(
-                                            post.status,
+                                            _getStatusText(post.status),
                                             style: AppTheme.bodySmallStyle.copyWith(
                                               fontWeight: FontWeight.w600,
-                                              color: _getStatusColor(post.status),
+                                              color: _getStatusColor(_getStatusText(post.status)),
                                             ),
                                           ),
                                         ),
@@ -238,7 +238,7 @@ class _HospitalPostCheckState extends State<HospitalPostCheck> {
                                         ),
                                         const SizedBox(width: 4),
                                         Text(
-                                          post.date,
+                                          post.createdDate,
                                           style: AppTheme.bodyMediumStyle,
                                         ),
                                         if (post.timeRanges.isNotEmpty) ...[
@@ -294,14 +294,32 @@ class _HospitalPostCheckState extends State<HospitalPostCheck> {
     );
   }
 
+  // 상태 번호를 텍스트로 변환하는 함수
+  String _getStatusText(int status) {
+    switch (status) {
+      case 0:
+        return '대기';
+      case 1:
+        return '승인';
+      case 2:
+        return '거절';
+      case 3:
+        return '마감';
+      default:
+        return '알 수 없음';
+    }
+  }
+
   // 상태에 따른 색상 반환 함수
   Color _getStatusColor(String status) {
     switch (status) {
       case '모집중':
       case '모집 중':
+      case '승인':
         return AppTheme.primaryBlue;
       case '모집마감':
       case '모집 마감':
+      case '마감':
         return AppTheme.mediumGray;
       case '대기':
         return AppTheme.warning;
@@ -340,7 +358,7 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
         errorMessage = null;
       });
 
-      final loadedApplicants = await HospitalPostService.getApplicants(widget.post.id);
+      final loadedApplicants = await HospitalPostService.getApplicants(widget.post.postIdx.toString());
       setState(() {
         applicants = loadedApplicants;
         isLoading = false;
@@ -356,7 +374,7 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
   Future<void> _updateApplicantStatus(DonationApplication applicant, String status) async {
     try {
       final success = await HospitalPostService.updateApplicantStatus(
-        widget.post.id,
+        widget.post.postIdx.toString(),
         applicant.applicationId.toString(),
         status,
       );
@@ -403,7 +421,7 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
               if (value == '모집마감' || value == '모집 마감') {
                 try {
                   final success = await HospitalPostService.updatePostStatus(
-                    widget.post.id,
+                    widget.post.postIdx.toString(),
                     value,
                   );
                   if (success) {
@@ -467,15 +485,15 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
                         ),
                         decoration: BoxDecoration(
                           color: _getStatusColor(
-                            widget.post.status,
+                            _getStatusText(widget.post.status),
                           ).withOpacity(0.15),
                           borderRadius: BorderRadius.circular(12.0),
                         ),
                         child: Text(
-                          widget.post.status,
+                          _getStatusText(widget.post.status),
                           style: AppTheme.bodyLargeStyle.copyWith(
                             fontWeight: FontWeight.w600,
-                            color: _getStatusColor(widget.post.status),
+                            color: _getStatusColor(_getStatusText(widget.post.status)),
                           ),
                         ),
                       ),
@@ -507,7 +525,7 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
                     context,
                     Icons.calendar_today_outlined,
                     '날짜',
-                    widget.post.date,
+                    widget.post.createdDate,
                   ),
                   _buildDetailRow(
                     context,
@@ -515,12 +533,12 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
                     '장소',
                     widget.post.location,
                   ),
-                  if (widget.post.bloodType != null)
+                  if (widget.post.emergencyBloodType != null)
                     _buildDetailRow(
                       context,
                       Icons.bloodtype_outlined,
                       '혈액형',
-                      widget.post.bloodType!,
+                      widget.post.displayBloodType,
                     ),
                   _buildDetailRow(
                     context,
@@ -528,12 +546,12 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
                     '시간대',
                     widget.post.timeRanges.map((t) => '${t.time} (${t.team}팀)').join(', '),
                   ),
-                  if (widget.post.description != null && widget.post.description!.isNotEmpty)
+                  if (widget.post.descriptions != null && widget.post.descriptions!.isNotEmpty)
                     _buildDetailRow(
                       context,
                       Icons.description_outlined,
                       '설명',
-                      widget.post.description!,
+                      widget.post.descriptions!,
                     ),
                 ],
               ),
@@ -714,6 +732,22 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
         ],
       ),
     );
+  }
+
+  // 상태 번호를 텍스트로 변환하는 함수
+  String _getStatusText(int status) {
+    switch (status) {
+      case 0:
+        return '대기';
+      case 1:
+        return '승인';
+      case 2:
+        return '거절';
+      case 3:
+        return '마감';
+      default:
+        return '알 수 없음';
+    }
   }
 
   Color _getStatusColor(String status) {

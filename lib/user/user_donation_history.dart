@@ -427,7 +427,7 @@ class _UserDonationHistoryScreenState extends State<UserDonationHistoryScreen> {
       margin: const EdgeInsets.only(bottom: AppTheme.spacing8),
       padding: const EdgeInsets.all(AppTheme.spacing12),
       decoration: BoxDecoration(
-        color: Colors.red.shade25,
+        color: Colors.red.shade50,
         borderRadius: BorderRadius.circular(AppTheme.radius8),
         border: Border.all(
           color: Colors.red.shade100,

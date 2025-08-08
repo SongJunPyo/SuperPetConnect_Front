@@ -818,7 +818,7 @@ class _AdminUserDetailScreenState extends State<AdminUserDetailScreen> {
                             '상태',
                             blackListStatus!.statusText,
                           ),
-                          if (blackListStatus!.isSuspended) ..[
+                          if (blackListStatus!.isSuspended) ...[
                             _buildDetailRow(
                               context,
                               Icons.timer_outlined,

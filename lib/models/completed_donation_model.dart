@@ -437,7 +437,7 @@ class CompleteDonationRequest {
     };
     
     if (completedAt != null) {
-      json['completed_at'] = completedAt!.toIso8601String();
+      json['completed_at'] = completedAt!.millisecondsSinceEpoch;
     }
     
     return json;

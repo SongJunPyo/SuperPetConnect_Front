@@ -87,10 +87,11 @@ class _WelcomeScreenState extends State<WelcomeScreen>
       final sortedNotices = noticePosts.map((notice) {
         return Notice(
           noticeIdx: notice.noticeIdx,
+          accountIdx: 0, // DashboardService에서 제공하지 않는 필드
           title: notice.title,
           content: notice.contentPreview,
-          isImportant: notice.isImportant,
-          isActive: true,
+          noticeImportant: notice.isImportant,
+          noticeActive: true,
           createdAt: notice.createdAt,
           updatedAt: notice.updatedAt,
           authorEmail: notice.authorEmail,
@@ -102,14 +103,14 @@ class _WelcomeScreenState extends State<WelcomeScreen>
 
       // 중요 공지 우선 정렬
       sortedNotices.sort((a, b) {
-        if (a.isImportant && !b.isImportant) return -1;
-        if (!a.isImportant && b.isImportant) return 1;
+        if (a.noticeImportant && !b.noticeImportant) return -1;
+        if (!a.noticeImportant && b.noticeImportant) return 1;
         return b.createdAt.compareTo(a.createdAt);
       });
 
       setState(() {
         columns = sortedColumns.take(10).toList();
-        notices = sortedNotices.take(10).toList();
+        notices = List<Notice>.from(sortedNotices.take(10));
         isLoadingColumns = false;
         isLoadingNotices = false;
       });
@@ -385,7 +386,7 @@ class _WelcomeScreenState extends State<WelcomeScreen>
                               Row(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  if (notice.isImportant) ...[
+                                  if (notice.noticeImportant) ...[
                                     Container(
                                       padding: const EdgeInsets.symmetric(
                                         horizontal: 6,
@@ -410,10 +411,10 @@ class _WelcomeScreenState extends State<WelcomeScreen>
                                     child: MarqueeText(
                                       text: notice.title,
                                       style: AppTheme.bodyMediumStyle.copyWith(
-                                        color: notice.isImportant
+                                        color: notice.noticeImportant
                                             ? AppTheme.error
                                             : AppTheme.textPrimary,
-                                        fontWeight: notice.isImportant
+                                        fontWeight: notice.noticeImportant
                                             ? FontWeight.w600
                                             : FontWeight.w500,
                                         fontSize: 14,

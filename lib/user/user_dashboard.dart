@@ -536,7 +536,7 @@ class _UserDashboardState extends State<UserDashboard>
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(
                         content: Text(
-                          '헌혈 모집글 ${donation.postId} 상세 페이지 (준비 중)',
+                          '헌혈 모집글 ${donation.postIdx} 상세 페이지 (준비 중)',
                         ),
                       ),
                     );
