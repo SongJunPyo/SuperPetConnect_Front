@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import '../utils/app_theme.dart';
 import '../services/dashboard_service.dart';
 import 'package:intl/intl.dart';
+import '../widgets/marquee_text.dart';
+import '../utils/number_format_util.dart';
 
 class UserDonationListScreen extends StatefulWidget {
   const UserDonationListScreen({super.key});
@@ -260,6 +262,10 @@ class _UserDonationListScreenState extends State<UserDonationListScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () => Navigator.of(context).pop(),
+        ),
         title: const Text(
           '헌혈 모집',
           style: TextStyle(fontWeight: FontWeight.bold, color: Colors.black87),
@@ -375,7 +381,13 @@ class _UserDonationListScreenState extends State<UserDonationListScreen> {
               ],
             ),
           ),
-          Expanded(child: _buildContent()),
+          Expanded(
+            child: RefreshIndicator(
+              onRefresh: _loadDonations,
+              color: AppTheme.primaryBlue,
+              child: _buildContent(),
+            ),
+          ),
         ],
       ),
     );
@@ -442,10 +454,7 @@ class _UserDonationListScreenState extends State<UserDonationListScreen> {
         children: [
           // 목록
           Expanded(
-            child: RefreshIndicator(
-              onRefresh: _loadDonations,
-              color: AppTheme.primaryBlue,
-              child: ListView.separated(
+            child: ListView.separated(
                 padding: EdgeInsets.zero,
                 itemCount: donations.length,
                 separatorBuilder:
@@ -522,8 +531,8 @@ class _UserDonationListScreenState extends State<UserDonationListScreen> {
                                     ),
                                     const SizedBox(width: 8),
                                     Expanded(
-                                      child: Text(
-                                        donation.title,
+                                      child: MarqueeText(
+                                        text: donation.title,
                                         style: AppTheme.bodyMediumStyle
                                             .copyWith(
                                               color:
@@ -536,8 +545,8 @@ class _UserDonationListScreenState extends State<UserDonationListScreen> {
                                                       : FontWeight.w500,
                                               fontSize: 14,
                                             ),
-                                        maxLines: 1,
-                                        overflow: TextOverflow.ellipsis,
+                                        animationDuration: const Duration(milliseconds: 4000),
+                                        pauseDuration: const Duration(milliseconds: 1000),
                                       ),
                                     ),
                                   ],
@@ -594,11 +603,11 @@ class _UserDonationListScreenState extends State<UserDonationListScreen> {
                               const SizedBox(width: 8),
                               // 2줄 높이의 조회수 박스
                               Container(
-                                height: 32, // 높이 줄임
-                                width: 36, // 고정 너비 설정
+                                height: 36, // 높이 늘림
+                                width: 40, // 너비 늘림
                                 padding: const EdgeInsets.symmetric(
                                   horizontal: 4,
-                                  vertical: 2,
+                                  vertical: 4,
                                 ),
                                 decoration: BoxDecoration(
                                   color: AppTheme.mediumGray.withOpacity(0.2),
@@ -619,7 +628,7 @@ class _UserDonationListScreenState extends State<UserDonationListScreen> {
                                     ),
                                     const SizedBox(height: 1),
                                     Text(
-                                      '${donation.viewCount}',
+                                      NumberFormatUtil.formatViewCount(donation.viewCount),
                                       style: AppTheme.bodySmallStyle.copyWith(
                                         color: AppTheme.textTertiary,
                                         fontSize: 10,
@@ -638,7 +647,6 @@ class _UserDonationListScreenState extends State<UserDonationListScreen> {
                 },
               ),
             ),
-          ),
         ],
       ),
     );

@@ -15,6 +15,9 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:intl/intl.dart';
 import 'dart:async';
+import '../widgets/marquee_text.dart';
+import '../utils/number_format_util.dart';
+import '../widgets/refreshable_screen.dart';
 
 class UserDashboard extends StatefulWidget {
   const UserDashboard({super.key});
@@ -163,7 +166,7 @@ class _UserDashboardState extends State<UserDashboard>
               isPublished: true,
               viewCount: column.viewCount,
               createdAt: column.createdAt,
-              updatedAt: column.createdAt,
+              updatedAt: column.updatedAt,
             );
           }).toList();
 
@@ -185,7 +188,7 @@ class _UserDashboardState extends State<UserDashboard>
               isImportant: notice.isImportant,
               isActive: true,
               createdAt: notice.createdAt,
-              updatedAt: notice.createdAt,
+              updatedAt: notice.updatedAt,
               authorEmail: notice.authorEmail,
               authorName: notice.authorName,
               viewCount: notice.viewCount,
@@ -271,18 +274,18 @@ class _UserDashboardState extends State<UserDashboard>
           },
         ),
       ),
-      body: _buildDashboardContent(), // 항상 대시보드 메인 내용 표시
+      body: RefreshableScreen(
+        onRefresh: _loadDashboardData,
+        child: _buildDashboardContent(),
+      ), // 항상 대시보드 메인 내용 표시
     );
   }
 
   // 사용자 대시보드의 메인 내용을 구성하는 위젯
   Widget _buildDashboardContent() {
-    return RefreshIndicator(
-      onRefresh: _loadDashboardData,
-      color: AppTheme.primaryBlue,
-      child: SingleChildScrollView(
-        physics: const AlwaysScrollableScrollPhysics(), // pull-to-refresh 활성화
-        child: Column(
+    return SingleChildScrollView(
+      physics: const AlwaysScrollableScrollPhysics(), // pull-to-refresh 활성화
+      child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Padding(
@@ -352,9 +355,9 @@ class _UserDashboardState extends State<UserDashboard>
                     ),
                   ),
                 ],
-                labelColor: AppTheme.primaryBlue,
+                labelColor: Colors.black87,
                 unselectedLabelColor: Colors.grey,
-                indicatorColor: AppTheme.primaryBlue,
+                indicatorColor: Colors.black87,
                 dividerColor: Colors.transparent,
               ),
             ),
@@ -382,8 +385,7 @@ class _UserDashboardState extends State<UserDashboard>
             // TODO: 마이페이지/설정 섹션 (나중에 추가)
           ],
         ),
-      ),
-    );
+      );
   }
 
   // 헌혈 모집 게시판 위젯을 생성합니다.
@@ -495,8 +497,8 @@ class _UserDashboardState extends State<UserDashboard>
                                   ),
                                   const SizedBox(width: 8),
                                   Expanded(
-                                    child: Text(
-                                      donation.title,
+                                    child: MarqueeText(
+                                      text: donation.title,
                                       style: AppTheme.bodyMediumStyle.copyWith(
                                         color:
                                             donation.isUrgent
@@ -508,8 +510,8 @@ class _UserDashboardState extends State<UserDashboard>
                                                 : FontWeight.w500,
                                         fontSize: 14,
                                       ),
-                                      maxLines: 2,
-                                      overflow: TextOverflow.ellipsis,
+                                      animationDuration: const Duration(milliseconds: 4000),
+                                      pauseDuration: const Duration(milliseconds: 1000),
                                     ),
                                   ),
                                 ],
@@ -566,11 +568,11 @@ class _UserDashboardState extends State<UserDashboard>
                             const SizedBox(width: 8),
                             // 2줄 높이의 조회수 박스
                             Container(
-                              height: 32, // 높이 줄임
-                              width: 36, // 고정 너비 설정
+                              height: 36, // 높이 늘림
+                              width: 40, // 너비 늘림
                               padding: const EdgeInsets.symmetric(
                                 horizontal: 4,
-                                vertical: 2,
+                                vertical: 4,
                               ),
                               decoration: BoxDecoration(
                                 color: AppTheme.mediumGray.withOpacity(0.2),
@@ -591,7 +593,7 @@ class _UserDashboardState extends State<UserDashboard>
                                   ),
                                   const SizedBox(height: 1),
                                   Text(
-                                    '${donation.viewCount}',
+                                    NumberFormatUtil.formatViewCount(donation.viewCount),
                                     style: AppTheme.bodySmallStyle.copyWith(
                                       color: AppTheme.textTertiary,
                                       fontSize: 10,
@@ -711,96 +713,152 @@ class _UserDashboardState extends State<UserDashboard>
                     child: Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        // 왼쪽: 순서 (3줄 높이에 맞춤)
+                        // 왼쪽: 순서 (카드 중앙 높이)
                         Container(
                           width: 28,
-                          height: 60,
-                          child: Center(
-                            child: Text(
-                              '${index + 1}',
-                              style: AppTheme.bodySmallStyle.copyWith(
-                                color: AppTheme.textTertiary,
-                                fontWeight: FontWeight.w500,
-                                fontSize: 13,
-                              ),
-                              textAlign: TextAlign.center,
+                          child: Text(
+                            '${index + 1}',
+                            style: AppTheme.bodySmallStyle.copyWith(
+                              color: AppTheme.textTertiary,
+                              fontWeight: FontWeight.w500,
+                              fontSize: 13,
                             ),
+                            textAlign: TextAlign.center,
                           ),
                         ),
                         const SizedBox(width: 8),
-                        // 중앙: 3줄 구조 콘텐츠
+                        // 중앙: 메인 콘텐츠
                         Expanded(
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              // 첫 번째 줄: 제목
-                              Text(
-                                column.title,
-                                style: AppTheme.bodyMediumStyle.copyWith(
-                                  color: isImportant ? AppTheme.error : AppTheme.textPrimary,
-                                  fontWeight: isImportant ? FontWeight.w600 : FontWeight.w500,
-                                  fontSize: 14,
-                                ),
-                                maxLines: 2,
-                                overflow: TextOverflow.ellipsis,
+                              // 첫 번째 줄: 뱃지 + 제목
+                              Row(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  if (isImportant) ...[
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 6,
+                                        vertical: 2,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color: AppTheme.error,
+                                        borderRadius: BorderRadius.circular(4),
+                                      ),
+                                      child: Text(
+                                        '중요',
+                                        style: AppTheme.bodySmallStyle.copyWith(
+                                          color: Colors.white,
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 10,
+                                        ),
+                                      ),
+                                    ),
+                                    const SizedBox(width: 8),
+                                  ],
+                                  Expanded(
+                                    child: MarqueeText(
+                                      text: column.title,
+                                      style: AppTheme.bodyMediumStyle.copyWith(
+                                        color: isImportant ? AppTheme.error : AppTheme.textPrimary,
+                                        fontWeight: isImportant ? FontWeight.w600 : FontWeight.w500,
+                                        fontSize: 14,
+                                      ),
+                                      animationDuration: const Duration(milliseconds: 4000),
+                                      pauseDuration: const Duration(milliseconds: 1000),
+                                    ),
+                                  ),
+                                ],
                               ),
-                              const SizedBox(height: 4),
-                              // 두 번째 줄: 등록 날짜
-                              Text(
-                                '등록: ${DateFormat('yy.MM.dd').format(column.createdAt)}',
-                                style: AppTheme.bodySmallStyle.copyWith(
-                                  color: AppTheme.textTertiary,
-                                  fontSize: 12,
-                                ),
-                              ),
-                              const SizedBox(height: 4),
-                              // 세 번째 줄: 작성자
-                              Text(
-                                column.hospitalName.length > 15
-                                    ? '${column.hospitalName.substring(0, 15)}..'
-                                    : column.hospitalName,
-                                style: AppTheme.bodySmallStyle.copyWith(
-                                  color: AppTheme.textSecondary,
-                                  fontSize: 12,
-                                ),
+                              const SizedBox(height: 6),
+                              // 두 번째 줄: 작성자 이름
+                              Row(
+                                children: [
+                                  Expanded(
+                                    child: Text(
+                                      column.hospitalName.length > 15
+                                          ? '${column.hospitalName.substring(0, 15)}..'
+                                          : column.hospitalName,
+                                      style: AppTheme.bodySmallStyle.copyWith(
+                                        color: AppTheme.textSecondary,
+                                        fontSize: 12,
+                                      ),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ),
+                                ],
                               ),
                             ],
                           ),
                         ),
-                        const SizedBox(width: 8),
-                        // 오른쪽: 조회수 박스 (3줄 높이)
-                        Container(
-                          height: 60,
-                          width: 30,
-                          padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 4),
-                          decoration: BoxDecoration(
-                            color: AppTheme.mediumGray.withOpacity(0.2),
-                            borderRadius: BorderRadius.circular(4),
-                            border: Border.all(
-                              color: AppTheme.lightGray.withOpacity(0.3),
-                              width: 0.5,
-                            ),
-                          ),
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Icon(
-                                Icons.visibility_outlined,
-                                size: 12,
-                                color: AppTheme.textTertiary,
-                              ),
-                              const SizedBox(height: 4),
-                              Text(
-                                '${column.viewCount}',
-                                style: AppTheme.bodySmallStyle.copyWith(
-                                  color: AppTheme.textTertiary,
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.w500,
+                        const SizedBox(width: 12),
+                        // 오른쪽: 날짜들 + 2줄 높이의 조회수 박스
+                        Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            // 날짜 컬럼 (작성/수정일 세로 배치)
+                            Column(
+                              crossAxisAlignment: CrossAxisAlignment.end,
+                              children: [
+                                Text(
+                                  '작성: ${DateFormat('yy.MM.dd').format(column.createdAt)}',
+                                  style: AppTheme.bodySmallStyle.copyWith(
+                                    color: AppTheme.textTertiary,
+                                    fontSize: 11,
+                                  ),
                                 ),
-                                textAlign: TextAlign.center,
+                                const SizedBox(height: 2),
+                                Text(
+                                  '수정: ${DateFormat('yy.MM.dd').format(column.updatedAt)}',
+                                  style: AppTheme.bodySmallStyle.copyWith(
+                                    color: AppTheme.textTertiary,
+                                    fontSize: 11,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(width: 8),
+                            // 2줄 높이의 조회수 박스
+                            Container(
+                              height: 36,
+                              width: 40,
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 4,
+                                vertical: 4,
                               ),
-                            ],
-                          ),
+                              decoration: BoxDecoration(
+                                color: AppTheme.mediumGray.withOpacity(0.2),
+                                borderRadius: BorderRadius.circular(6),
+                                border: Border.all(
+                                  color: AppTheme.lightGray.withOpacity(0.3),
+                                  width: 1,
+                                ),
+                              ),
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(
+                                    Icons.visibility_outlined,
+                                    size: 10,
+                                    color: AppTheme.textTertiary,
+                                  ),
+                                  const SizedBox(height: 1),
+                                  Text(
+                                    NumberFormatUtil.formatViewCount(column.viewCount),
+                                    style: AppTheme.bodySmallStyle.copyWith(
+                                      color: AppTheme.textTertiary,
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                    textAlign: TextAlign.center,
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
                         ),
                       ],
                     ),
@@ -906,15 +964,15 @@ class _UserDashboardState extends State<UserDashboard>
                   child: Container(
                     padding: const EdgeInsets.symmetric(
                       horizontal: 12,
-                      vertical: 12,
+                      vertical: 10,
                     ),
                     child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+                      crossAxisAlignment: CrossAxisAlignment.center,
                       children: [
-                        // 왼쪽: 순서 (3줄 높이에 맞춤)
+                        // 왼쪽: 순서 (2줄 높이 중앙 정렬)
                         Container(
                           width: 28,
-                          height: 60,
+                          height: 40,
                           child: Center(
                             child: Text(
                               '${index + 1}',
@@ -928,7 +986,7 @@ class _UserDashboardState extends State<UserDashboard>
                           ),
                         ),
                         const SizedBox(width: 8),
-                        // 중앙: 3줄 구조 콘텐츠
+                        // 중앙: 메인 콘텐츠
                         Expanded(
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
@@ -959,76 +1017,107 @@ class _UserDashboardState extends State<UserDashboard>
                                     const SizedBox(width: 8),
                                   ],
                                   Expanded(
-                                    child: Text(
-                                      notice.title,
+                                    child: MarqueeText(
+                                      text: notice.title,
                                       style: AppTheme.bodyMediumStyle.copyWith(
                                         color: notice.isImportant ? AppTheme.error : AppTheme.textPrimary,
                                         fontWeight: notice.isImportant ? FontWeight.w600 : FontWeight.w500,
                                         fontSize: 14,
                                       ),
-                                      maxLines: 2,
+                                      animationDuration: const Duration(milliseconds: 4000),
+                                      pauseDuration: const Duration(milliseconds: 1000),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 6),
+                              // 두 번째 줄: 작성자 이름
+                              Row(
+                                children: [
+                                  Expanded(
+                                    child: Text(
+                                      notice.authorName.length > 15
+                                          ? '${notice.authorName.substring(0, 15)}..'
+                                          : notice.authorName,
+                                      style: AppTheme.bodySmallStyle.copyWith(
+                                        color: AppTheme.textSecondary,
+                                        fontSize: 12,
+                                      ),
+                                      maxLines: 1,
                                       overflow: TextOverflow.ellipsis,
                                     ),
                                   ),
                                 ],
                               ),
-                              const SizedBox(height: 4),
-                              // 두 번째 줄: 등록 날짜
-                              Text(
-                                '등록: ${DateFormat('yy.MM.dd').format(notice.createdAt)}',
-                                style: AppTheme.bodySmallStyle.copyWith(
-                                  color: AppTheme.textTertiary,
-                                  fontSize: 12,
-                                ),
-                              ),
-                              const SizedBox(height: 4),
-                              // 세 번째 줄: 작성자
-                              Text(
-                                notice.authorName.length > 15
-                                    ? '${notice.authorName.substring(0, 15)}..'
-                                    : notice.authorName,
-                                style: AppTheme.bodySmallStyle.copyWith(
-                                  color: AppTheme.textSecondary,
-                                  fontSize: 12,
-                                ),
-                              ),
                             ],
                           ),
                         ),
-                        const SizedBox(width: 8),
-                        // 오른쪽: 조회수 박스 (3줄 높이)
-                        Container(
-                          height: 60,
-                          width: 30,
-                          padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 4),
-                          decoration: BoxDecoration(
-                            color: AppTheme.mediumGray.withOpacity(0.2),
-                            borderRadius: BorderRadius.circular(4),
-                            border: Border.all(
-                              color: AppTheme.lightGray.withOpacity(0.3),
-                              width: 0.5,
-                            ),
-                          ),
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Icon(
-                                Icons.visibility_outlined,
-                                size: 12,
-                                color: AppTheme.textTertiary,
-                              ),
-                              const SizedBox(height: 4),
-                              Text(
-                                '${notice.viewCount ?? 0}',
-                                style: AppTheme.bodySmallStyle.copyWith(
-                                  color: AppTheme.textTertiary,
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.w500,
+                        const SizedBox(width: 12),
+                        // 오른쪽: 날짜들 + 2줄 높이의 조회수 박스
+                        Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            // 날짜 컬럼 (작성/수정일 세로 배치)
+                            Column(
+                              crossAxisAlignment: CrossAxisAlignment.end,
+                              children: [
+                                Text(
+                                  '작성: ${DateFormat('yy.MM.dd').format(notice.createdAt)}',
+                                  style: AppTheme.bodySmallStyle.copyWith(
+                                    color: AppTheme.textTertiary,
+                                    fontSize: 11,
+                                  ),
                                 ),
-                                textAlign: TextAlign.center,
+                                const SizedBox(height: 2),
+                                Text(
+                                  '수정: ${DateFormat('yy.MM.dd').format(notice.updatedAt)}',
+                                  style: AppTheme.bodySmallStyle.copyWith(
+                                    color: AppTheme.textTertiary,
+                                    fontSize: 11,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(width: 8),
+                            // 2줄 높이의 조회수 박스
+                            Container(
+                              height: 36,
+                              width: 40,
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 4,
+                                vertical: 4,
                               ),
-                            ],
-                          ),
+                              decoration: BoxDecoration(
+                                color: AppTheme.mediumGray.withOpacity(0.2),
+                                borderRadius: BorderRadius.circular(6),
+                                border: Border.all(
+                                  color: AppTheme.lightGray.withOpacity(0.3),
+                                  width: 1,
+                                ),
+                              ),
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(
+                                    Icons.visibility_outlined,
+                                    size: 10,
+                                    color: AppTheme.textTertiary,
+                                  ),
+                                  const SizedBox(height: 1),
+                                  Text(
+                                    NumberFormatUtil.formatViewCount(notice.viewCount ?? 0),
+                                    style: AppTheme.bodySmallStyle.copyWith(
+                                      color: AppTheme.textTertiary,
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                    textAlign: TextAlign.center,
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
                         ),
                       ],
                     ),

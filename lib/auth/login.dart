@@ -13,6 +13,7 @@ import '../widgets/app_button.dart';
 import '../widgets/app_input_field.dart';
 import '../widgets/app_app_bar.dart';
 import 'package:connect/auth/fcm_token_screen.dart';
+import 'package:flutter/foundation.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -39,14 +40,18 @@ class _LoginScreenState extends State<LoginScreen> {
               (context) => const Center(child: CircularProgressIndicator()),
         );
 
-        // FCM 토큰 가져오기
+        // FCM 토큰 가져오기 (웹에서는 스킵)
         String? fcmToken;
-        try {
-          fcmToken = await FirebaseMessaging.instance.getToken();
-          print('FCM 토큰 획득: $fcmToken');
-        } catch (e) {
-          print('FCM 토큰 획득 실패: $e');
-          // FCM 토큰이 없어도 로그인은 계속 진행
+        if (!kIsWeb) {
+          try {
+            fcmToken = await FirebaseMessaging.instance.getToken();
+            print('FCM 토큰 획득: $fcmToken');
+          } catch (e) {
+            print('FCM 토큰 획득 실패: $e');
+            // FCM 토큰이 없어도 로그인은 계속 진행
+          }
+        } else {
+          print('웹 환경에서는 FCM 토큰 스킵');
         }
 
         // API 요청 body 구성
@@ -60,12 +65,20 @@ class _LoginScreenState extends State<LoginScreen> {
           requestBody['fcm_token'] = fcmToken;
         }
 
-        // API 요청
+        // API 요청 (웹 환경 대응)
+        print('DEBUG: 로그인 API 요청 시작');
+        print('DEBUG: 서버 URL: ${Config.serverUrl}');
+        print('DEBUG: 요청 데이터: $requestBody');
+        
         final response = await http.post(
           Uri.parse('${Config.serverUrl}/api/login'),
-          headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+          headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+            'Accept': 'application/json',
+            if (kIsWeb) 'Access-Control-Allow-Origin': '*',
+          },
           body: requestBody,
-        );
+        ).timeout(const Duration(seconds: 15));
 
         // 로딩 닫기
         if (mounted) {
@@ -161,12 +174,25 @@ class _LoginScreenState extends State<LoginScreen> {
           // 에러 발생 시 로딩 닫기 전 위젯 마운트 상태 확인
           Navigator.pop(context);
         }
+        
+        print('ERROR: 로그인 요청 실패: $e');
+        print('ERROR: 에러 타입: ${e.runtimeType}');
+        
+        String errorMessage = '서버 연결 오류가 발생했습니다.';
+        
+        if (e.toString().contains('NotInitializedError')) {
+          errorMessage = 'HTTP 클라이언트 초기화 오류가 발생했습니다.\n웹 브라우저를 새로고침하거나 앱을 재시작해주세요.';
+        } else if (e.toString().contains('TimeoutException')) {
+          errorMessage = '요청 시간이 초과되었습니다.\n네트워크 연결을 확인해주세요.';
+        } else if (e.toString().contains('SocketException')) {
+          errorMessage = '네트워크 연결을 확인해주세요.';
+        }
+        
         _showAlertDialog(
           context,
           '연결 오류',
-          '서버 연결 오류가 발생했습니다. 네트워크 상태를 확인해주세요.\n$e',
+          '$errorMessage\n\n상세 오류: $e',
         );
-        print('Login Error: $e'); // 자세한 오류 로깅
       }
     }
   }

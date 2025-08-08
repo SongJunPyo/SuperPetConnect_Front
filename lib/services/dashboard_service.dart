@@ -144,7 +144,17 @@ class DashboardService {
       );
 
       print('DEBUG: 공개 칼럼 API 요청 - URL: $uri');
-      final response = await http.get(uri);
+      print('DEBUG: Base URL from Config: $baseUrl');
+      
+      final response = await http.get(
+        uri,
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+          'Access-Control-Allow-Origin': '*',
+        },
+      ).timeout(const Duration(seconds: 10));
+      
       print('DEBUG: 공개 칼럼 응답 상태코드: ${response.statusCode}');
       print('DEBUG: 공개 칼럼 응답 본문: ${response.body}');
       
@@ -161,6 +171,7 @@ class DashboardService {
       }
     } catch (e) {
       print('ERROR: 공개 칼럼 API 오류: $e');
+      print('ERROR: 에러 타입: ${e.runtimeType}');
       return [];
     }
   }
@@ -178,7 +189,17 @@ class DashboardService {
       );
 
       print('DEBUG: 공개 공지사항 API 요청 - URL: $uri');
-      final response = await http.get(uri);
+      print('DEBUG: Base URL from Config: $baseUrl');
+      
+      final response = await http.get(
+        uri,
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+          'Access-Control-Allow-Origin': '*',
+        },
+      ).timeout(const Duration(seconds: 10));
+      
       print('DEBUG: 공개 공지사항 응답 상태코드: ${response.statusCode}');
       print('DEBUG: 공개 공지사항 응답 본문: ${response.body}');
       
@@ -213,6 +234,7 @@ class DashboardService {
       }
     } catch (e) {
       print('ERROR: 공개 공지사항 API 오류: $e');
+      print('ERROR: 에러 타입: ${e.runtimeType}');
       return [];
     }
   }
@@ -369,6 +391,7 @@ class ColumnPost {
   final String contentPreview;
   final bool isImportant;
   final DateTime createdAt;
+  final DateTime updatedAt;
 
   ColumnPost({
     required this.columnIdx,
@@ -378,6 +401,7 @@ class ColumnPost {
     required this.contentPreview,
     required this.isImportant,
     required this.createdAt,
+    required this.updatedAt,
   });
 
   factory ColumnPost.fromJson(Map<String, dynamic> json) {
@@ -389,6 +413,7 @@ class ColumnPost {
       contentPreview: json['content_preview'] ?? json['content'] ?? '',
       isImportant: json['is_important'] ?? false,
       createdAt: DateTime.tryParse(json['created_at'] ?? '') ?? DateTime.now(),
+      updatedAt: DateTime.tryParse(json['updated_at'] ?? '') ?? DateTime.now(),
     );
   }
 }
@@ -403,6 +428,7 @@ class NoticePost {
   final String authorName;
   final int viewCount;
   final DateTime createdAt;
+  final DateTime updatedAt;
 
   NoticePost({
     required this.noticeIdx,
@@ -414,6 +440,7 @@ class NoticePost {
     required this.authorName,
     required this.viewCount,
     required this.createdAt,
+    required this.updatedAt,
   });
 
   factory NoticePost.fromJson(Map<String, dynamic> json) {
@@ -429,6 +456,7 @@ class NoticePost {
       authorName: json['author_name'] ?? json['authorName'] ?? '관리자',
       viewCount: json['view_count'] ?? json['viewCount'] ?? 0,
       createdAt: DateTime.tryParse(json['created_at'] ?? json['createdAt'] ?? '') ?? DateTime.now(),
+      updatedAt: DateTime.tryParse(json['updated_at'] ?? json['updatedAt'] ?? '') ?? DateTime.now(),
     );
   }
 }

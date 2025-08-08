@@ -12,6 +12,7 @@ import 'package:timezone/timezone.dart' as tz;
 import 'package:intl/date_symbol_data_local.dart'; // 로케일 데이터 초기화용
 import 'dart:convert';
 import 'dart:io'; // Platform 확인을 위해 추가
+import 'package:flutter/foundation.dart';
 
 // 로컬 알림 플러그인 인스턴스
 final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
@@ -78,18 +79,21 @@ void main() async {
     // return; // 앱 종료
   }
 
-  // 2. 백그라운드 메시지 핸들러 등록 (Firebase 초기화 후)
-  FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
+  // 2. 백그라운드 메시지 핸들러 등록 (Firebase 초기화 후, 웹에서는 스킵)
+  if (!kIsWeb) {
+    FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
+  }
 
-  // 3. 타임존 설정
+  // 3. 타임존 설정 (웹에서는 조건부 처리)
   tz.initializeTimeZones();
   try {
-    if (Platform.isAndroid || Platform.isIOS) {
+    if (!kIsWeb && (Platform.isAndroid || Platform.isIOS)) {
       tz.setLocalLocation(tz.getLocation('Asia/Seoul'));
+      print('타임존 설정 완료: Asia/Seoul');
     } else {
       tz.setLocalLocation(tz.UTC);
+      print('타임존 설정 완료: UTC (웹 또는 기타 플랫폼)');
     }
-    print('타임존 설정 완료: Asia/Seoul');
   } catch (e) {
     print('타임존 설정 실패, UTC로 fallback: $e');
     tz.setLocalLocation(tz.UTC);
@@ -99,75 +103,85 @@ void main() async {
   await initializeDateFormatting('ko_KR', null);
   print('한국어 로케일 초기화 완료');
 
-  // 4. 로컬 알림 플러그인 초기화
-  const AndroidInitializationSettings initializationSettingsAndroid =
-      AndroidInitializationSettings('@mipmap/ic_launcher');
-  const DarwinInitializationSettings initializationSettingsDarwin =
-      DarwinInitializationSettings(
-        requestAlertPermission: true,
-        requestBadgePermission: true,
-        requestSoundPermission: true,
-      );
-  const InitializationSettings initializationSettings = InitializationSettings(
-    android: initializationSettingsAndroid,
-    iOS: initializationSettingsDarwin,
-  );
-
-  await flutterLocalNotificationsPlugin.initialize(
-    initializationSettings,
-    onDidReceiveNotificationResponse: (
-      NotificationResponse notificationResponse,
-    ) async {
-      print('알림 탭! Payload: ${notificationResponse.payload}');
-      // TODO: payload를 파싱하여 해당 화면으로 이동하는 로직 추가
-    },
-  );
-
-  // 5. 알림 권한 요청 (Firebase 초기화 및 로컬 알림 초기화 후)
-  try {
-    NotificationSettings settings = await FirebaseMessaging.instance
-        .requestPermission(
-          alert: true,
-          announcement: false,
-          badge: true,
-          carPlay: false,
-          criticalAlert: false,
-          provisional: false,
-          sound: true,
+  // 4. 로컬 알림 플러그인 초기화 (모바일에서만)
+  if (!kIsWeb) {
+    const AndroidInitializationSettings initializationSettingsAndroid =
+        AndroidInitializationSettings('@mipmap/ic_launcher');
+    const DarwinInitializationSettings initializationSettingsDarwin =
+        DarwinInitializationSettings(
+          requestAlertPermission: true,
+          requestBadgePermission: true,
+          requestSoundPermission: true,
         );
+    const InitializationSettings initializationSettings = InitializationSettings(
+      android: initializationSettingsAndroid,
+      iOS: initializationSettingsDarwin,
+    );
 
-    if (settings.authorizationStatus == AuthorizationStatus.authorized) {
-      print('사용자에게 알림 권한이 허용되었습니다.');
-    } else if (settings.authorizationStatus ==
-        AuthorizationStatus.provisional) {
-      print('사용자에게 임시 알림 권한이 허용되었습니다.');
-    } else {
-      print('사용자에게 알림 권한이 거부되었습니다.');
-      // TODO: 사용자에게 알림 권한 설정 페이지로 이동하도록 안내하는 UI 표시
-    }
-  } catch (e) {
-    print('FCM 알림 권한 요청 중 오류 발생: $e');
+    await flutterLocalNotificationsPlugin.initialize(
+      initializationSettings,
+      onDidReceiveNotificationResponse: (
+        NotificationResponse notificationResponse,
+      ) async {
+        print('알림 탭! Payload: ${notificationResponse.payload}');
+        // TODO: payload를 파싱하여 해당 화면으로 이동하는 로직 추가
+      },
+    );
   }
 
-  // 6. FCM 메시지 리스너 등록 (Firebase 초기화 후)
-  FirebaseMessaging.onMessage.listen((RemoteMessage message) {
-    print("포그라운드 메시지 수신: ${message.messageId}");
-    if (message.notification != null) {
-      _showLocalNotification(message);
-    }
-  });
+  // 5. 알림 권한 요청 (Firebase 초기화 및 로컬 알림 초기화 후, 모바일에서만)
+  if (!kIsWeb) {
+    try {
+      NotificationSettings settings = await FirebaseMessaging.instance
+          .requestPermission(
+            alert: true,
+            announcement: false,
+            badge: true,
+            carPlay: false,
+            criticalAlert: false,
+            provisional: false,
+            sound: true,
+          );
 
-  FirebaseMessaging.instance.getInitialMessage().then((RemoteMessage? message) {
-    if (message != null) {
-      print("종료 상태에서 앱 시작 메시지: ${message.messageId}");
-      // TODO: 알림을 통해 앱이 열렸을 때 특정 화면으로 이동하는 로직 추가
+      if (settings.authorizationStatus == AuthorizationStatus.authorized) {
+        print('사용자에게 알림 권한이 허용되었습니다.');
+      } else if (settings.authorizationStatus ==
+          AuthorizationStatus.provisional) {
+        print('사용자에게 임시 알림 권한이 허용되었습니다.');
+      } else {
+        print('사용자에게 알림 권한이 거부되었습니다.');
+        // TODO: 사용자에게 알림 권한 설정 페이지로 이동하도록 안내하는 UI 표시
+      }
+    } catch (e) {
+      print('FCM 알림 권한 요청 중 오류 발생: $e');
     }
-  });
+  } else {
+    print('웹 환경에서는 FCM 권한 요청을 스킵합니다.');
+  }
 
-  FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) {
-    print("백그라운드에서 앱 열림 메시지: ${message.messageId}");
-    // TODO: 알림을 탭했을 때 특정 화면으로 이동하는 로직 추가
-  });
+  // 6. FCM 메시지 리스너 등록 (Firebase 초기화 후, 모바일에서만)
+  if (!kIsWeb) {
+    FirebaseMessaging.onMessage.listen((RemoteMessage message) {
+      print("포그라운드 메시지 수신: ${message.messageId}");
+      if (message.notification != null) {
+        _showLocalNotification(message);
+      }
+    });
+
+    FirebaseMessaging.instance.getInitialMessage().then((RemoteMessage? message) {
+      if (message != null) {
+        print("종료 상태에서 앱 시작 메시지: ${message.messageId}");
+        // TODO: 알림을 통해 앱이 열렸을 때 특정 화면으로 이동하는 로직 추가
+      }
+    });
+
+    FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) {
+      print("백그라운드에서 앱 열림 메시지: ${message.messageId}");
+      // TODO: 알림을 탭했을 때 특정 화면으로 이동하는 로직 추가
+    });
+  } else {
+    print('웹 환경에서는 FCM 메시지 리스너를 스킵합니다.');
+  }
 
   runApp(const MyApp());
 }
