@@ -50,6 +50,11 @@ class _HospitalDashboardState extends State<HospitalDashboard> {
     });
   }
 
+  Future<void> _refreshData() async {
+    await _loadHospitalName();
+    _updateDateTime();
+  }
+
   void _startTimer() {
     _timer = Timer.periodic(const Duration(minutes: 1), (timer) {
       _updateDateTime();
@@ -116,9 +121,13 @@ class _HospitalDashboardState extends State<HospitalDashboard> {
             );
           },
         ),
-        body: SingleChildScrollView(
-        // 전체 화면을 스크롤 가능하게
-        child: Column(
+        body: RefreshIndicator(
+          onRefresh: _refreshData,
+          color: AppTheme.primaryBlue,
+          child: SingleChildScrollView(
+            // 전체 화면을 스크롤 가능하게
+            physics: const AlwaysScrollableScrollPhysics(),
+            child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Padding(
@@ -328,7 +337,8 @@ class _HospitalDashboardState extends State<HospitalDashboard> {
               ),
             ),
           ],
-        ),
+            ),
+          ),
         ),
       ),
     );
@@ -552,8 +562,7 @@ class _HospitalDashboardState extends State<HospitalDashboard> {
     }
 
     return Column(
-      children:
-          recentColumns.map((column) {
+      children: recentColumns.map((column) {
             return Container(
               margin: const EdgeInsets.only(bottom: AppTheme.spacing12),
               decoration: BoxDecoration(
@@ -651,7 +660,7 @@ class _HospitalDashboardState extends State<HospitalDashboard> {
                 ),
               ),
             );
-          }).toList(),
+      }).toList(),
     );
   }
 }

@@ -6,7 +6,9 @@
       "Bash(rmdir:*)",
       "Bash(rm:*)",
       "Bash(dart format:*)",
-      "Bash(curl:*)"
+      "Bash(curl:*)",
+      "Bash(dart:*)",
+      "Bash(sed:*)"
     ],
     "deny": []
   }

@@ -83,14 +83,16 @@ class _WelcomeScreenState extends State<WelcomeScreen>
         return b.createdAt.compareTo(a.createdAt);
       });
 
-      // 공지사항 변환
-      final sortedNotices = noticePosts.map((notice) {
+      // 공지사항 변환 (청중 타겟이 전체(0) 또는 사용자(3)만 필터링)
+      final sortedNotices = noticePosts
+          .where((notice) => notice.targetAudience == 0 || notice.targetAudience == 3)
+          .map((notice) {
         return Notice(
           noticeIdx: notice.noticeIdx,
           accountIdx: 0, // DashboardService에서 제공하지 않는 필드
           title: notice.title,
           content: notice.contentPreview,
-          noticeImportant: notice.isImportant,
+          noticeImportant: notice.noticeImportant, // 1=뱃지 표시, 0=뱃지 숨김
           noticeActive: true,
           createdAt: notice.createdAt,
           updatedAt: notice.updatedAt,
@@ -101,10 +103,10 @@ class _WelcomeScreenState extends State<WelcomeScreen>
         );
       }).toList();
 
-      // 중요 공지 우선 정렬
+      // 뱃지가 있는 공지를 상단에 정렬
       sortedNotices.sort((a, b) {
-        if (a.noticeImportant && !b.noticeImportant) return -1;
-        if (!a.noticeImportant && b.noticeImportant) return 1;
+        if (a.showBadge && !b.showBadge) return -1;
+        if (!a.showBadge && b.showBadge) return 1;
         return b.createdAt.compareTo(a.createdAt);
       });
 
@@ -346,12 +348,7 @@ class _WelcomeScreenState extends State<WelcomeScreen>
 
                 return InkWell(
                   onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => const UserNoticeListScreen(),
-                      ),
-                    );
+                    _showNoticeBottomSheet(context, notice);
                   },
                   child: Container(
                     padding: const EdgeInsets.symmetric(
@@ -361,32 +358,34 @@ class _WelcomeScreenState extends State<WelcomeScreen>
                     child: Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        // 왼쪽: 순서 (카드 중앙 높이)
-                        Container(
-                          width: 28,
-                          child: Center(
-                            child: Text(
-                              '${index + 1}',
-                              style: AppTheme.bodySmallStyle.copyWith(
-                                color: AppTheme.textTertiary,
-                                fontWeight: FontWeight.w500,
-                                fontSize: 13,
-                              ),
-                              textAlign: TextAlign.center,
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 8),
                         // 중앙: 메인 콘텐츠
                         Expanded(
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              // 첫 번째 줄: 뱃지 + 제목
+                              // 첫 번째 줄: 숫자 + 뱃지 + 제목
                               Row(
-                                crossAxisAlignment: CrossAxisAlignment.start,
+                                crossAxisAlignment: CrossAxisAlignment.center,
                                 children: [
-                                  if (notice.noticeImportant) ...[
+                                  // 순서 번호 (1.5줄 위치)
+                                  Container(
+                                    width: 20,
+                                    height: 30,
+                                    child: Center(
+                                      child: Text(
+                                        '${index + 1}',
+                                        style: AppTheme.bodySmallStyle.copyWith(
+                                          color: AppTheme.textTertiary,
+                                          fontWeight: FontWeight.w500,
+                                          fontSize: 13,
+                                        ),
+                                        textAlign: TextAlign.center,
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  // 뱃지 (있는 경우)
+                                  if (notice.showBadge) ...[
                                     Container(
                                       padding: const EdgeInsets.symmetric(
                                         horizontal: 6,
@@ -397,7 +396,7 @@ class _WelcomeScreenState extends State<WelcomeScreen>
                                         borderRadius: BorderRadius.circular(4),
                                       ),
                                       child: Text(
-                                        '공지',
+                                        notice.badgeText,
                                         style: AppTheme.bodySmallStyle.copyWith(
                                           color: Colors.white,
                                           fontWeight: FontWeight.bold,
@@ -407,16 +406,13 @@ class _WelcomeScreenState extends State<WelcomeScreen>
                                     ),
                                     const SizedBox(width: 8),
                                   ],
+                                  // 제목
                                   Expanded(
                                     child: MarqueeText(
                                       text: notice.title,
                                       style: AppTheme.bodyMediumStyle.copyWith(
-                                        color: notice.noticeImportant
-                                            ? AppTheme.error
-                                            : AppTheme.textPrimary,
-                                        fontWeight: notice.noticeImportant
-                                            ? FontWeight.w600
-                                            : FontWeight.w500,
+                                        color: notice.showBadge ? AppTheme.error : AppTheme.textPrimary,
+                                        fontWeight: notice.showBadge ? FontWeight.w600 : FontWeight.w500,
                                         fontSize: 14,
                                       ),
                                       animationDuration: const Duration(milliseconds: 4000),
@@ -427,22 +423,19 @@ class _WelcomeScreenState extends State<WelcomeScreen>
                               ),
                               const SizedBox(height: 6),
                               // 두 번째 줄: 작성자 이름
-                              Row(
-                                children: [
-                                  Expanded(
-                                    child: Text(
-                                      notice.authorName.length > 15
-                                          ? '${notice.authorName.substring(0, 15)}..'
-                                          : notice.authorName,
-                                      style: AppTheme.bodySmallStyle.copyWith(
-                                        color: AppTheme.textSecondary,
-                                        fontSize: 12,
-                                      ),
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                    ),
+                              Padding(
+                                padding: const EdgeInsets.only(left: 28), // 숫자 너비만큼 들여쓰기
+                                child: Text(
+                                  notice.authorName.length > 15
+                                      ? '${notice.authorName.substring(0, 15)}..'
+                                      : notice.authorName,
+                                  style: AppTheme.bodySmallStyle.copyWith(
+                                    color: AppTheme.textSecondary,
+                                    fontSize: 12,
                                   ),
-                                ],
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
                               ),
                             ],
                           ),
@@ -627,29 +620,32 @@ class _WelcomeScreenState extends State<WelcomeScreen>
                     child: Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        // 왼쪽: 순서 (카드 중앙 높이)
-                        Container(
-                          width: 28,
-                          child: Text(
-                            '${index + 1}',
-                            style: AppTheme.bodySmallStyle.copyWith(
-                              color: AppTheme.textTertiary,
-                              fontWeight: FontWeight.w500,
-                              fontSize: 13,
-                            ),
-                            textAlign: TextAlign.center,
-                          ),
-                        ),
-                        const SizedBox(width: 8),
                         // 중앙: 메인 콘텐츠
                         Expanded(
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              // 첫 번째 줄: 뱃지 + 제목
+                              // 첫 번째 줄: 숫자 + 뱃지 + 제목
                               Row(
-                                crossAxisAlignment: CrossAxisAlignment.start,
+                                crossAxisAlignment: CrossAxisAlignment.center,
                                 children: [
+                                  // 순서 번호 (1.5줄 위치)
+                                  Container(
+                                    width: 20,
+                                    height: 30,
+                                    child: Center(
+                                      child: Text(
+                                        '${index + 1}',
+                                        style: AppTheme.bodySmallStyle.copyWith(
+                                          color: AppTheme.textTertiary,
+                                          fontWeight: FontWeight.w500,
+                                          fontSize: 13,
+                                        ),
+                                        textAlign: TextAlign.center,
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
                                   if (isImportant) ...[
                                     Container(
                                       padding: const EdgeInsets.symmetric(
@@ -691,22 +687,19 @@ class _WelcomeScreenState extends State<WelcomeScreen>
                               ),
                               const SizedBox(height: 6),
                               // 두 번째 줄: 작성자 이름
-                              Row(
-                                children: [
-                                  Expanded(
-                                    child: Text(
-                                      column.hospitalName.length > 15
-                                          ? '${column.hospitalName.substring(0, 15)}..'
-                                          : column.hospitalName,
-                                      style: AppTheme.bodySmallStyle.copyWith(
-                                        color: AppTheme.textSecondary,
-                                        fontSize: 12,
-                                      ),
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                    ),
+                              Padding(
+                                padding: const EdgeInsets.only(left: 28), // 숫자 너비만큼 들여쓰기
+                                child: Text(
+                                  column.hospitalName.length > 15
+                                      ? '${column.hospitalName.substring(0, 15)}..'
+                                      : column.hospitalName,
+                                  style: AppTheme.bodySmallStyle.copyWith(
+                                    color: AppTheme.textSecondary,
+                                    fontSize: 12,
                                   ),
-                                ],
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
                               ),
                             ],
                           ),
@@ -787,6 +780,145 @@ class _WelcomeScreenState extends State<WelcomeScreen>
           ),
         ],
       ),
+    );
+  }
+
+  // 공지사항 바텀시트 표시
+  void _showNoticeBottomSheet(BuildContext context, Notice notice) async {
+    // 상세 조회 API 호출 (조회수 자동 증가)
+    final noticeDetail = await DashboardService.getNoticeDetail(notice.noticeIdx);
+    
+    if (!mounted) return;
+    
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(
+          top: Radius.circular(20),
+        ),
+      ),
+      builder: (BuildContext context) {
+        return DraggableScrollableSheet(
+          initialChildSize: 0.7,
+          minChildSize: 0.5,
+          maxChildSize: 0.95,
+          expand: false,
+          builder: (context, scrollController) {
+            return Container(
+              decoration: const BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.vertical(
+                  top: Radius.circular(20),
+                ),
+              ),
+              child: Column(
+                children: [
+                  // 핸들 바
+                  Container(
+                    width: 40,
+                    height: 4,
+                    margin: const EdgeInsets.symmetric(vertical: 12),
+                    decoration: BoxDecoration(
+                      color: Colors.grey[300],
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                  // 제목 영역
+                  Container(
+                    padding: const EdgeInsets.fromLTRB(20, 8, 20, 16),
+                    child: Row(
+                      children: [
+                        if (notice.showBadge) ...[
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 4,
+                            ),
+                            decoration: BoxDecoration(
+                              color: AppTheme.error,
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: Text(
+                              notice.badgeText,
+                              style: AppTheme.bodySmallStyle.copyWith(
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                        ],
+                        Expanded(
+                          child: Text(
+                            noticeDetail?.title ?? notice.title,
+                            style: AppTheme.h3Style.copyWith(
+                              color: notice.showBadge ? AppTheme.error : AppTheme.textPrimary,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.close),
+                          onPressed: () => Navigator.pop(context),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const Divider(height: 1),
+                  // 메타 정보
+                  Container(
+                    padding: const EdgeInsets.all(20),
+                    child: Row(
+                      children: [
+                        Text(
+                          '${notice.authorName} • ',
+                          style: AppTheme.bodySmallStyle.copyWith(
+                            color: AppTheme.textSecondary,
+                          ),
+                        ),
+                        Text(
+                          DateFormat('yyyy년 MM월 dd일').format(noticeDetail?.createdAt ?? notice.createdAt),
+                          style: AppTheme.bodySmallStyle.copyWith(
+                            color: AppTheme.textSecondary,
+                          ),
+                        ),
+                        const Spacer(),
+                        Icon(
+                          Icons.visibility_outlined,
+                          size: 16,
+                          color: AppTheme.textSecondary,
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          NumberFormatUtil.formatViewCount(noticeDetail?.viewCount ?? notice.viewCount ?? 0),
+                          style: AppTheme.bodySmallStyle.copyWith(
+                            color: AppTheme.textSecondary,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  // 내용
+                  Expanded(
+                    child: SingleChildScrollView(
+                      controller: scrollController,
+                      padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+                      child: Text(
+                        noticeDetail?.contentPreview ?? notice.content,
+                        style: AppTheme.bodyMediumStyle.copyWith(
+                          height: 1.6,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
     );
   }
 }

@@ -3,7 +3,7 @@ class Notice {
   final int accountIdx; // 작성자 계정 ID (FK)
   final String title;
   final String content;
-  final bool noticeImportant; // 필드명 변경
+  final int noticeImportant; // 0=긴급, 1=정기 (int로 변경)
   final bool noticeActive; // 필드명 변경
   final DateTime createdAt;
   final DateTime updatedAt;
@@ -33,7 +33,7 @@ class Notice {
       accountIdx: json['account_idx'],
       title: json['title'],
       content: json['content'],
-      noticeImportant: json['notice_important'] ?? json['is_important'] ?? false, // 호환성을 위해 둘 다 지원
+      noticeImportant: _parseNoticeImportant(json['notice_important']), // 0=긴급, 1=정기
       noticeActive: json['notice_active'] ?? json['is_active'] ?? true, // 호환성을 위해 둘 다 지원
       createdAt: DateTime.parse(json['created_at']),
       updatedAt: DateTime.parse(json['updated_at']),
@@ -43,6 +43,24 @@ class Notice {
       targetAudience: json['target_audience'] ?? 0,
     );
   }
+  
+  // notice_important 필드 파싱 헬퍼 메서드 (bool/int 호환)
+  static int _parseNoticeImportant(dynamic value) {
+    print('DEBUG: notice_important 값 타입: ${value.runtimeType}, 값: $value'); // 디버그 로그 추가
+    if (value == null) return 1; // 기본값: 뱃지 숨김(1)
+    if (value is int) return value;
+    if (value is bool) return value ? 0 : 1; // true=뱃지 표시(0), false=뱃지 숨김(1)  
+    if (value is String) {
+      if (value.toLowerCase() == 'true') return 0;
+      if (value.toLowerCase() == 'false') return 1;
+      return int.tryParse(value) ?? 1;
+    }
+    return 1; // fallback: 뱃지 숨김(1)
+  }
+  
+  // notice_important 필드를 이용한 헬퍼 메서드 (0=뱃지 표시, 1=뱃지 숨김)
+  bool get showBadge => noticeImportant == 0;
+  String get badgeText => '공지';
 
   Map<String, dynamic> toJson() {
     return {
@@ -65,13 +83,13 @@ class Notice {
 class NoticeCreateRequest {
   final String title;
   final String content;
-  final bool noticeImportant;
+  final int noticeImportant;
   final int targetAudience;
 
   NoticeCreateRequest({
     required this.title,
     required this.content,
-    this.noticeImportant = false,
+    this.noticeImportant = 1, // 기본값은 뱃지 숨김(1)
     this.targetAudience = 0,
   });
 
@@ -88,7 +106,7 @@ class NoticeCreateRequest {
 class NoticeUpdateRequest {
   final String? title;
   final String? content;
-  final bool? noticeImportant;
+  final int? noticeImportant;
   final bool? noticeActive;
   final int? targetAudience;
 

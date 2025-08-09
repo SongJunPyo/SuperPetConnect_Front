@@ -14,11 +14,12 @@ class ProfileManagement extends StatefulWidget {
 
 class _ProfileManagementState extends State<ProfileManagement> {
   final TextEditingController nameController = TextEditingController();
+  final TextEditingController nicknameController = TextEditingController();
+  final TextEditingController addressController = TextEditingController();
+  
+  // 내부적으로만 사용 (화면에 표시하지 않음)
   final TextEditingController emailController = TextEditingController();
   final TextEditingController phoneController = TextEditingController();
-  final TextEditingController addressController = TextEditingController();
-  final TextEditingController latitudeController = TextEditingController();
-  final TextEditingController longitudeController = TextEditingController();
 
   bool isLoading = true;
   String? token;
@@ -34,11 +35,10 @@ class _ProfileManagementState extends State<ProfileManagement> {
   @override
   void dispose() {
     nameController.dispose();
+    nicknameController.dispose();
+    addressController.dispose();
     emailController.dispose();
     phoneController.dispose();
-    addressController.dispose();
-    latitudeController.dispose();
-    longitudeController.dispose();
     super.dispose();
   }
 
@@ -105,11 +105,11 @@ class _ProfileManagementState extends State<ProfileManagement> {
         final data = json.decode(utf8.decode(response.bodyBytes));
         setState(() {
           nameController.text = data['name'] ?? '';
+          nicknameController.text = data['nickname'] ?? '';
+          addressController.text = data['address'] ?? '';
+          // 내부적으로만 저장 (화면에 표시하지 않음)
           emailController.text = data['email'] ?? '';
           phoneController.text = data['phone_number'] ?? '';
-          addressController.text = data['address'] ?? '';
-          latitudeController.text = data['latitude']?.toString() ?? '37.5665';
-          longitudeController.text = data['longitude']?.toString() ?? '126.9780';
           isLoading = false;
         });
       } else {
@@ -233,11 +233,11 @@ class _ProfileManagementState extends State<ProfileManagement> {
         },
         body: jsonEncode({
           'name': nameController.text,
-          'email': emailController.text,
+          'nickname': nicknameController.text,
           'phone_number': phoneController.text,
           'address': addressController.text,
-          'latitude': double.tryParse(latitudeController.text) ?? 37.5665,
-          'longitude': double.tryParse(longitudeController.text) ?? 126.9780,
+          'latitude': 37.5665,
+          'longitude': 126.9780,
         }),
       );
 
@@ -445,28 +445,15 @@ class _ProfileManagementState extends State<ProfileManagement> {
                         ),
                         onChanged: (value) => setState(() {}),
                       ),
-                      TextField(
-                        controller: emailController,
-                        maxLength: 30,
-                        keyboardType: TextInputType.emailAddress,
-                        decoration: _buildInputDecoration(
-                          "이메일",
-                          Icons.email_outlined,
-                          30,
-                          emailController,
-                        ),
-                        onChanged: (value) => setState(() {}),
-                      ),
                       const SizedBox(height: AppTheme.spacing20),
                       TextField(
-                        controller: phoneController,
-                        maxLength: 15,
-                        keyboardType: TextInputType.phone,
+                        controller: nicknameController,
+                        maxLength: 30,
                         decoration: _buildInputDecoration(
-                          "연락처",
-                          Icons.phone_outlined,
-                          15,
-                          phoneController,
+                          "닉네임",
+                          Icons.badge_outlined,
+                          30,
+                          nicknameController,
                         ),
                         onChanged: (value) => setState(() {}),
                       ),
@@ -483,38 +470,6 @@ class _ProfileManagementState extends State<ProfileManagement> {
                           addressController,
                         ),
                         onChanged: (value) => setState(() {}),
-                      ),
-                      const SizedBox(height: AppTheme.spacing20),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: TextField(
-                              controller: latitudeController,
-                              keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                              decoration: _buildInputDecoration(
-                                "위도 (latitude)",
-                                Icons.gps_fixed_outlined,
-                                20,
-                                latitudeController,
-                              ),
-                              onChanged: (value) => setState(() {}),
-                            ),
-                          ),
-                          const SizedBox(width: AppTheme.spacing12),
-                          Expanded(
-                            child: TextField(
-                              controller: longitudeController,
-                              keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                              decoration: _buildInputDecoration(
-                                "경도 (longitude)",
-                                Icons.gps_fixed_outlined,
-                                20,
-                                longitudeController,
-                              ),
-                              onChanged: (value) => setState(() {}),
-                            ),
-                          ),
-                        ],
                       ),
                     ],
                   ),

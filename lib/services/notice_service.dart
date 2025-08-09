@@ -376,9 +376,9 @@ class NoticeService {
     try {
       final allNotices = await getNotices(activeOnly: true);
 
-      // 중요 공지글만 필터링하고 최신순으로 정렬
+      // 뱃지가 있는 공지글만 필터링하고 최신순으로 정렬
       final importantNotices =
-          allNotices.where((notice) => notice.noticeImportant).toList();
+          allNotices.where((notice) => notice.showBadge).toList();
 
       // 생성일 기준 최신순 정렬
       importantNotices.sort((a, b) => b.createdAt.compareTo(a.createdAt));

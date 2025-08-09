@@ -62,13 +62,13 @@ class _AdminNoticeListScreenState extends State<AdminNoticeListScreen> {
 
       print('DEBUG: 필터링 후 공지글 수: ${loadedNotices.length}');
 
-      // 중요 공지는 상단에, 일반 공지는 최신순으로 정렬
+      // 뱃지가 있는 공지를 상단에, 그 다음 최신순으로 정렬  
       loadedNotices.sort((a, b) {
-        // 중요 공지 우선 정렬
-        if (a.noticeImportant && !b.noticeImportant) return -1;
-        if (!a.noticeImportant && b.noticeImportant) return 1;
+        // 뱃지가 있는 공지 우선 정렬
+        if (a.showBadge && !b.showBadge) return -1;
+        if (!a.showBadge && b.showBadge) return 1;
 
-        // 같은 중요도면 최신순 정렬
+        // 같은 조건이면 최신순 정렬
         return b.createdAt.compareTo(a.createdAt);
       });
 
@@ -324,10 +324,10 @@ class _AdminNoticeListScreenState extends State<AdminNoticeListScreen> {
                                       color: Colors.white,
                                       borderRadius: BorderRadius.circular(12),
                                       border: Border.all(
-                                        color: notice.noticeImportant 
+                                        color: notice.showBadge 
                                             ? AppTheme.error
                                             : AppTheme.mediumGray.withOpacity(0.3),
-                                        width: notice.noticeImportant ? 2 : 1,
+                                        width: notice.showBadge ? 2 : 1,
                                       ),
                                     ),
                                     child: InkWell(

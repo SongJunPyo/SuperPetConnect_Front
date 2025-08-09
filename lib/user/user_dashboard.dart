@@ -21,6 +21,8 @@ import '../widgets/marquee_text.dart';
 import '../utils/number_format_util.dart';
 import '../widgets/refreshable_screen.dart';
 import '../utils/config.dart';
+import '../widgets/region_selection_sheet.dart';
+import '../models/region_model.dart';
 
 class UserDashboard extends StatefulWidget {
   const UserDashboard({super.key});
@@ -44,6 +46,15 @@ class _UserDashboardState extends State<UserDashboard>
   bool isLoadingNotices = false;
   bool isLoadingDonations = false;
   bool isLoadingDashboard = false;
+  
+  // 지역 선택 관련 변수들
+  Region? selectedLargeRegion;
+  Region? selectedMediumRegion;
+  String get selectedRegionText {
+    if (selectedLargeRegion == null) return '전체 지역';
+    if (selectedMediumRegion == null) return selectedLargeRegion!.name;
+    return '${selectedLargeRegion!.name} ${selectedMediumRegion!.name}';
+  }
 
   @override
   void initState() {
@@ -123,6 +134,12 @@ class _UserDashboardState extends State<UserDashboard>
     }
   }
 
+  Future<void> _refreshData() async {
+    await _loadUserName();
+    _updateDateTime();
+    await _loadDashboardData();
+  }
+
   // 통합 대시보드 데이터 로드
   Future<void> _loadDashboardData() async {
     setState(() {
@@ -181,15 +198,17 @@ class _UserDashboardState extends State<UserDashboard>
         return b.createdAt.compareTo(a.createdAt);
       });
 
-      // 공지사항 정렬 (중요 공지 우선, 그 다음 최신순)
+      // 공지사항 필터링 및 정렬 (청중 타겟이 전체(0) 또는 사용자(3)만)
       final sortedNotices =
-          noticePosts.map((notice) {
+          noticePosts
+              .where((notice) => notice.targetAudience == 0 || notice.targetAudience == 3)
+              .map((notice) {
             return Notice(
               noticeIdx: notice.noticeIdx,
               accountIdx: 0, // DashboardService에서 제공하지 않는 필드
               title: notice.title,
               content: notice.contentPreview,
-              noticeImportant: notice.isImportant,
+              noticeImportant: notice.noticeImportant, // 1=뱃지 표시, 0=뱃지 숨김
               noticeActive: true,
               createdAt: notice.createdAt,
               updatedAt: notice.updatedAt,
@@ -201,8 +220,8 @@ class _UserDashboardState extends State<UserDashboard>
           }).toList();
 
       sortedNotices.sort((a, b) {
-        if (a.noticeImportant && !b.noticeImportant) return -1;
-        if (!a.noticeImportant && b.noticeImportant) return 1;
+        if (a.showBadge && !b.showBadge) return -1;
+        if (!a.showBadge && b.showBadge) return 1;
         return b.createdAt.compareTo(a.createdAt);
       });
 
@@ -238,6 +257,25 @@ class _UserDashboardState extends State<UserDashboard>
       // 하루 안에는 시간으로 표시
       return DateFormat('HH:mm').format(dateTime);
     }
+  }
+
+  // 지역 선택 바텀 시트 표시
+  void _showRegionSelectionSheet() {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => RegionSelectionSheet(
+        onRegionSelected: (largeRegion, mediumRegion, smallRegion) {
+          setState(() {
+            selectedLargeRegion = largeRegion;
+            selectedMediumRegion = mediumRegion;
+          });
+          // 지역이 변경되면 데이터 새로고침
+          _loadDashboardData();
+        },
+      ),
+    );
   }
 
   @override
@@ -279,14 +317,20 @@ class _UserDashboardState extends State<UserDashboard>
           },
         ),
       ),
-        body: _buildDashboardContent(), // 항상 대시보드 메인 내용 표시
+        body: RefreshIndicator(
+          onRefresh: _refreshData,
+          color: AppTheme.primaryBlue,
+          child: _buildDashboardContent(),
+        ),
       ),
     );
   }
 
   // 사용자 대시보드의 메인 내용을 구성하는 위젯
   Widget _buildDashboardContent() {
-    return Column(
+    return SingleChildScrollView(
+      physics: const AlwaysScrollableScrollPhysics(),
+      child: Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         // 상단 고정 컨텐츠
@@ -320,67 +364,34 @@ class _UserDashboardState extends State<UserDashboard>
               // 퀵 액세스 메뉴
               Text('내 헌혈 관리', style: AppTheme.h3Style),
               const SizedBox(height: AppTheme.spacing12),
-              Row(
-                children: [
-                  Expanded(
-                    child: _buildQuickAccessCard(
-                      icon: Icons.assignment,
-                      title: '내 신청',
-                      subtitle: '헌혈 신청 내역',
-                      color: AppTheme.primaryBlue,
-                      onTap: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => const UserDonationApplicationsScreen(),
-                          ),
-                        );
-                      },
+              _buildLongActionCard(
+                icon: Icons.assignment,
+                title: '신청 현황',
+                subtitle: '헌혈 신청 내역',
+                color: AppTheme.primaryBlue,
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const UserDonationApplicationsScreen(),
                     ),
-                  ),
-                  const SizedBox(width: AppTheme.spacing12),
-                  Expanded(
-                    child: _buildQuickAccessCard(
-                      icon: Icons.pets,
-                      title: '반려동물',
-                      subtitle: '내 반려동물 관리',
-                      color: Colors.green,
-                      onTap: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => const PetManagementScreen(),
-                          ),
-                        );
-                      },
-                    ),
-                  ),
-                ],
+                  );
+                },
               ),
               const SizedBox(height: AppTheme.spacing12),
-              Row(
-                children: [
-                  Expanded(
-                    child: _buildQuickAccessCard(
-                      icon: Icons.bloodtype,
-                      title: '헌혈 이력',
-                      subtitle: '완료된 헌혈 기록',
-                      color: Colors.red.shade600,
-                      onTap: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => const UserDonationHistoryScreen(),
-                          ),
-                        );
-                      },
+              _buildLongActionCard(
+                icon: Icons.bloodtype,
+                title: '헌혈 이력',
+                subtitle: '완료된 헌혈 기록',
+                color: Colors.red.shade600,
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const UserDonationHistoryScreen(),
                     ),
-                  ),
-                  const SizedBox(width: AppTheme.spacing12),
-                  Expanded(
-                    child: Container(), // 빈 공간
-                  ),
-                ],
+                  );
+                },
               ),
             ],
           ),
@@ -430,30 +441,30 @@ class _UserDashboardState extends State<UserDashboard>
             dividerColor: Colors.transparent,
           ),
         ),
-        // 탭 뷰 (나머지 공간 모두 차지)
-        Expanded(
-          child: Container(
-            margin: const EdgeInsets.only(
-              left: AppTheme.spacing16,
-              right: AppTheme.spacing16,
-              bottom: AppTheme.spacing16, // 하단 여백
-            ),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: AppTheme.lightGray.withOpacity(0.3)),
-            ),
-            child: TabBarView(
-              controller: _tabController,
-              children: [
-                _buildBloodDonationBoard(), // 헌혈 모집 게시판 내용
-                _buildColumnBoard(), // 칼럼 게시판 내용
-                _buildNoticeBoard(), // 공지사항 게시판 내용
-              ],
-            ),
+        // 탭 뷰
+        Container(
+          margin: const EdgeInsets.only(
+            left: AppTheme.spacing16,
+            right: AppTheme.spacing16,
+            bottom: AppTheme.spacing16, // 하단 여백
+          ),
+          height: 400, // 고정 높이
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: AppTheme.lightGray.withOpacity(0.3)),
+          ),
+          child: TabBarView(
+            controller: _tabController,
+            children: [
+              _buildBloodDonationBoard(), // 헌혈 모집 게시판 내용
+              _buildColumnBoard(), // 칼럼 게시판 내용
+              _buildNoticeBoard(), // 공지사항 게시판 내용
+            ],
           ),
         ),
       ],
+      ),
     );
   }
 
@@ -487,6 +498,51 @@ class _UserDashboardState extends State<UserDashboard>
       ),
       child: Column(
         children: [
+          // 지역 필터 버튼
+          Container(
+            padding: const EdgeInsets.all(12),
+            child: GestureDetector(
+              onTap: _showRegionSelectionSheet,
+              child: Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 12,
+                ),
+                decoration: BoxDecoration(
+                  color: AppTheme.veryLightGray,
+                  borderRadius: BorderRadius.circular(AppTheme.radius8),
+                  border: Border.all(
+                    color: AppTheme.lightGray.withOpacity(0.5),
+                  ),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Row(
+                      children: [
+                        Icon(
+                          Icons.location_on_outlined,
+                          size: 18,
+                          color: AppTheme.textSecondary,
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          selectedRegionText,
+                          style: AppTheme.bodyMediumStyle.copyWith(
+                            color: AppTheme.textSecondary,
+                          ),
+                        ),
+                      ],
+                    ),
+                    Icon(
+                      Icons.keyboard_arrow_down,
+                      color: AppTheme.textSecondary,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
           // 헌혈 모집 목록
           Expanded(
             child: ListView.separated(
@@ -804,29 +860,32 @@ class _UserDashboardState extends State<UserDashboard>
                     child: Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        // 왼쪽: 순서 (카드 중앙 높이)
-                        Container(
-                          width: 28,
-                          child: Text(
-                            '${index + 1}',
-                            style: AppTheme.bodySmallStyle.copyWith(
-                              color: AppTheme.textTertiary,
-                              fontWeight: FontWeight.w500,
-                              fontSize: 13,
-                            ),
-                            textAlign: TextAlign.center,
-                          ),
-                        ),
-                        const SizedBox(width: 8),
                         // 중앙: 메인 콘텐츠
                         Expanded(
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              // 첫 번째 줄: 뱃지 + 제목
+                              // 첫 번째 줄: 숫자 + 뱃지 + 제목
                               Row(
-                                crossAxisAlignment: CrossAxisAlignment.start,
+                                crossAxisAlignment: CrossAxisAlignment.center,
                                 children: [
+                                  // 순서 번호 (1.5줄 위치)
+                                  Container(
+                                    width: 20,
+                                    height: 30,
+                                    child: Center(
+                                      child: Text(
+                                        '${index + 1}',
+                                        style: AppTheme.bodySmallStyle.copyWith(
+                                          color: AppTheme.textTertiary,
+                                          fontWeight: FontWeight.w500,
+                                          fontSize: 13,
+                                        ),
+                                        textAlign: TextAlign.center,
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
                                   if (isImportant) ...[
                                     Container(
                                       padding: const EdgeInsets.symmetric(
@@ -864,22 +923,19 @@ class _UserDashboardState extends State<UserDashboard>
                               ),
                               const SizedBox(height: 6),
                               // 두 번째 줄: 작성자 이름
-                              Row(
-                                children: [
-                                  Expanded(
-                                    child: Text(
-                                      column.hospitalName.length > 15
-                                          ? '${column.hospitalName.substring(0, 15)}..'
-                                          : column.hospitalName,
-                                      style: AppTheme.bodySmallStyle.copyWith(
-                                        color: AppTheme.textSecondary,
-                                        fontSize: 12,
-                                      ),
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                    ),
+                              Padding(
+                                padding: const EdgeInsets.only(left: 28), // 숫자 너비만큼 들여쓰기
+                                child: Text(
+                                  column.hospitalName.length > 15
+                                      ? '${column.hospitalName.substring(0, 15)}..'
+                                      : column.hospitalName,
+                                  style: AppTheme.bodySmallStyle.copyWith(
+                                    color: AppTheme.textSecondary,
+                                    fontSize: 12,
                                   ),
-                                ],
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
                               ),
                             ],
                           ),
@@ -1038,12 +1094,7 @@ class _UserDashboardState extends State<UserDashboard>
 
                 return InkWell(
                   onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => const UserNoticeListScreen(),
-                      ),
-                    );
+                    _showNoticeBottomSheet(context, notice);
                   },
                   child: Container(
                     padding: const EdgeInsets.symmetric(
@@ -1079,7 +1130,8 @@ class _UserDashboardState extends State<UserDashboard>
                               Row(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  if (notice.noticeImportant) ...[
+                                  // notice_important가 1이면 뱃지 표시
+                                  if (notice.showBadge) ...[
                                     Container(
                                       padding: const EdgeInsets.symmetric(
                                         horizontal: 6,
@@ -1090,7 +1142,7 @@ class _UserDashboardState extends State<UserDashboard>
                                         borderRadius: BorderRadius.circular(4),
                                       ),
                                       child: Text(
-                                        '공지',
+                                        notice.badgeText,
                                         style: AppTheme.bodySmallStyle.copyWith(
                                           color: Colors.white,
                                           fontWeight: FontWeight.bold,
@@ -1104,8 +1156,8 @@ class _UserDashboardState extends State<UserDashboard>
                                     child: MarqueeText(
                                       text: notice.title,
                                       style: AppTheme.bodyMediumStyle.copyWith(
-                                        color: notice.noticeImportant ? AppTheme.error : AppTheme.textPrimary,
-                                        fontWeight: notice.noticeImportant ? FontWeight.w600 : FontWeight.w500,
+                                        color: notice.showBadge ? AppTheme.error : AppTheme.textPrimary,
+                                        fontWeight: notice.showBadge ? FontWeight.w600 : FontWeight.w500,
                                         fontSize: 14,
                                       ),
                                       animationDuration: const Duration(milliseconds: 4000),
@@ -1215,6 +1267,80 @@ class _UserDashboardState extends State<UserDashboard>
     );
   }
 
+  // 가로 길게 생성하는 액션 카드 (관리자 스타일)
+  Widget _buildLongActionCard({
+    required IconData icon,
+    required String title,
+    required String subtitle,
+    required Color color,
+    required VoidCallback onTap,
+  }) {
+    return Material(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(AppTheme.radius16),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(AppTheme.radius16),
+        child: Container(
+          padding: const EdgeInsets.all(AppTheme.spacing20),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(AppTheme.radius16),
+            border: Border.all(color: color.withOpacity(0.2), width: 1.5),
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 56,
+                height: 56,
+                decoration: BoxDecoration(
+                  color: color.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(AppTheme.radius12),
+                ),
+                child: Icon(icon, size: 28, color: color),
+              ),
+              const SizedBox(width: AppTheme.spacing16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: AppTheme.h4Style.copyWith(
+                        fontWeight: FontWeight.w700,
+                        color: AppTheme.textPrimary,
+                      ),
+                    ),
+                    const SizedBox(height: AppTheme.spacing4),
+                    Text(
+                      subtitle,
+                      style: AppTheme.bodyMediumStyle.copyWith(
+                        color: AppTheme.textSecondary,
+                        height: 1.3,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Container(
+                width: 36,
+                height: 36,
+                decoration: BoxDecoration(
+                  color: color.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(AppTheme.radius8),
+                ),
+                child: Icon(
+                  Icons.arrow_forward_ios,
+                  size: 16,
+                  color: color,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   // 퀵 액세스 카드를 생성하는 위젯
   Widget _buildQuickAccessCard({
     required IconData icon,
@@ -1266,6 +1392,145 @@ class _UserDashboardState extends State<UserDashboard>
           ),
         ),
       ),
+    );
+  }
+
+  // 공지사항 바텀시트 표시
+  void _showNoticeBottomSheet(BuildContext context, Notice notice) async {
+    // 상세 조회 API 호출 (조회수 자동 증가)
+    final noticeDetail = await DashboardService.getNoticeDetail(notice.noticeIdx);
+    
+    if (!mounted) return;
+    
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(
+          top: Radius.circular(20),
+        ),
+      ),
+      builder: (BuildContext context) {
+        return DraggableScrollableSheet(
+          initialChildSize: 0.7,
+          minChildSize: 0.5,
+          maxChildSize: 0.95,
+          expand: false,
+          builder: (context, scrollController) {
+            return Container(
+              decoration: const BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.vertical(
+                  top: Radius.circular(20),
+                ),
+              ),
+              child: Column(
+                children: [
+                  // 핸들 바
+                  Container(
+                    width: 40,
+                    height: 4,
+                    margin: const EdgeInsets.symmetric(vertical: 12),
+                    decoration: BoxDecoration(
+                      color: Colors.grey[300],
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                  // 제목 영역
+                  Container(
+                    padding: const EdgeInsets.fromLTRB(20, 8, 20, 16),
+                    child: Row(
+                      children: [
+                        if (notice.showBadge) ...[
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 4,
+                            ),
+                            decoration: BoxDecoration(
+                              color: AppTheme.error,
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: Text(
+                              notice.badgeText,
+                              style: AppTheme.bodySmallStyle.copyWith(
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                        ],
+                        Expanded(
+                          child: Text(
+                            noticeDetail?.title ?? notice.title,
+                            style: AppTheme.h3Style.copyWith(
+                              color: notice.showBadge ? AppTheme.error : AppTheme.textPrimary,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.close),
+                          onPressed: () => Navigator.pop(context),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const Divider(height: 1),
+                  // 메타 정보
+                  Container(
+                    padding: const EdgeInsets.all(20),
+                    child: Row(
+                      children: [
+                        Text(
+                          '${notice.authorName} • ',
+                          style: AppTheme.bodySmallStyle.copyWith(
+                            color: AppTheme.textSecondary,
+                          ),
+                        ),
+                        Text(
+                          DateFormat('yyyy년 MM월 dd일').format(noticeDetail?.createdAt ?? notice.createdAt),
+                          style: AppTheme.bodySmallStyle.copyWith(
+                            color: AppTheme.textSecondary,
+                          ),
+                        ),
+                        const Spacer(),
+                        Icon(
+                          Icons.visibility_outlined,
+                          size: 16,
+                          color: AppTheme.textSecondary,
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          NumberFormatUtil.formatViewCount(noticeDetail?.viewCount ?? notice.viewCount ?? 0),
+                          style: AppTheme.bodySmallStyle.copyWith(
+                            color: AppTheme.textSecondary,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  // 내용
+                  Expanded(
+                    child: SingleChildScrollView(
+                      controller: scrollController,
+                      padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+                      child: Text(
+                        noticeDetail?.contentPreview ?? notice.content,
+                        style: AppTheme.bodyMediumStyle.copyWith(
+                          height: 1.6,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
     );
   }
 }

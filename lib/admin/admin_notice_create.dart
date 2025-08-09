@@ -18,7 +18,7 @@ class _AdminNoticeCreateScreenState extends State<AdminNoticeCreateScreen> {
   final _formKey = GlobalKey<FormState>();
   final _titleController = TextEditingController();
   final _contentController = TextEditingController();
-  bool _isImportant = false;
+  int _isImportant = 1; // 0=뱃지 표시, 1=뱃지 숨김, 기본값은 숨김
   bool _isActive = true;
   bool _isLoading = false;
   int _targetAudience = 0; // 0: all, 1: hospital, 2: user
@@ -274,10 +274,10 @@ class _AdminNoticeCreateScreenState extends State<AdminNoticeCreateScreen> {
                 child: Row(
                   children: [
                     Checkbox(
-                      value: _isImportant,
+                      value: _isImportant == 0, // 0=뱃지 표시이면 체크
                       onChanged: (value) {
                         setState(() {
-                          _isImportant = value ?? false;
+                          _isImportant = (value ?? false) ? 0 : 1; // 체크되면 뱃지 표시(0), 아니면 숨김(1)
                         });
                       },
                       activeColor: AppTheme.primaryBlue,
@@ -287,14 +287,14 @@ class _AdminNoticeCreateScreenState extends State<AdminNoticeCreateScreen> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            '중요 공지',
+                            '공지 뱃지 표시',
                             style: AppTheme.bodyMediumStyle.copyWith(
                               fontWeight: FontWeight.w600,
                             ),
                           ),
                           const SizedBox(height: AppTheme.spacing4),
                           Text(
-                            '체크하면 상단에 고정되어 표시됩니다.',
+                            '체크하면 공지 뱃지가 표시되어 상단에 고정됩니다.',
                             style: AppTheme.bodySmallStyle.copyWith(
                               color: AppTheme.textSecondary,
                             ),

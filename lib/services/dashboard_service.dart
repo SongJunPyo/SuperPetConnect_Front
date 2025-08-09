@@ -94,20 +94,12 @@ class DashboardService {
   // 개별 API: 헌혈 모집글
   static Future<List<DonationPost>> getPublicPosts({int limit = 10}) async {
     try {
-      final uri = Uri.parse('$baseUrl/api/public/posts').replace(
-        queryParameters: {'limit': limit.toString()},
-      );
+      final uri = Uri.parse('$baseUrl/api/posts');
 
-      print('DEBUG: 헌혈 모집글 API 요청 - URL: $uri');
       final response = await http.get(uri);
-      print('DEBUG: 헌혈 모집글 응답 상태코드: ${response.statusCode}');
-      if (response.statusCode == 200) {
-        print('DEBUG: 헌혈 모집글 응답 본문: ${response.body}');
-      }
       
       if (response.statusCode == 200) {
         final data = jsonDecode(utf8.decode(response.bodyBytes));
-        print('DEBUG: 헌혈 모집글 전체 응답 구조: $data');
         
         List<dynamic> postsData;
         if (data is Map<String, dynamic>) {
@@ -121,12 +113,12 @@ class DashboardService {
         }
         
         final posts = postsData
+            .take(limit)
             .map((item) => DonationPost.fromJson(item))
             .toList();
-        print('DEBUG: 헌혈 모집글 파싱 결과: ${posts.length}개');
+        print('DEBUG: 헌혈 모집글 로드 완료: ${posts.length}개');
         return posts;
       } else {
-        print('DEBUG: 헌혈 모집글 API 실패 - 상태코드: ${response.statusCode}');
         return [];
       }
     } catch (e) {
@@ -145,9 +137,6 @@ class DashboardService {
         },
       );
 
-      print('DEBUG: 공개 칼럼 API 요청 - URL: $uri');
-      print('DEBUG: Base URL from Config: $baseUrl');
-      
       final response = await http.get(
         uri,
         headers: {
@@ -157,23 +146,16 @@ class DashboardService {
         },
       ).timeout(const Duration(seconds: 10));
       
-      print('DEBUG: 공개 칼럼 응답 상태코드: ${response.statusCode}');
-      print('DEBUG: 공개 칼럼 응답 본문: ${response.body}');
-      
       if (response.statusCode == 200) {
         final data = jsonDecode(utf8.decode(response.bodyBytes));
         final columns = (data['columns'] as List)
             .map((item) => ColumnPost.fromJson(item))
             .toList();
-        print('DEBUG: 공개 칼럼 파싱 결과: ${columns.length}개');
         return columns;
       } else {
-        print('DEBUG: 공개 칼럼 API 실패 - 상태코드: ${response.statusCode}');
         return [];
       }
     } catch (e) {
-      print('ERROR: 공개 칼럼 API 오류: $e');
-      print('ERROR: 에러 타입: ${e.runtimeType}');
       return [];
     }
   }
@@ -190,9 +172,6 @@ class DashboardService {
         queryParameters: {'limit': limit.toString()},
       );
 
-      print('DEBUG: 공개 공지사항 API 요청 - URL: $uri');
-      print('DEBUG: Base URL from Config: $baseUrl');
-      
       final response = await http.get(
         uri,
         headers: {
@@ -202,13 +181,8 @@ class DashboardService {
         },
       ).timeout(const Duration(seconds: 10));
       
-      print('DEBUG: 공개 공지사항 응답 상태코드: ${response.statusCode}');
-      print('DEBUG: 공개 공지사항 응답 본문: ${response.body}');
-      
       if (response.statusCode == 200) {
         final data = jsonDecode(utf8.decode(response.bodyBytes));
-        print('DEBUG: 공개 공지사항 전체 응답 구조: $data');
-        print('DEBUG: 데이터 타입: ${data.runtimeType}');
         
         List<dynamic> noticesData;
         if (data is Map<String, dynamic>) {
@@ -222,21 +196,12 @@ class DashboardService {
         final notices = noticesData
             .map((item) => NoticePost.fromJson(item))
             .toList();
-        print('DEBUG: 공개 공지사항 파싱 결과: ${notices.length}개');
-        
-        // target_audience 확인용 디버그 로그
-        for (var notice in notices) {
-          print('DEBUG: 공지사항 "${notice.title}" - target_audience: ${notice.targetAudience}');
-        }
         
         return notices;
       } else {
-        print('DEBUG: 공개 공지사항 API 실패 - 상태코드: ${response.statusCode}');
         return [];
       }
     } catch (e) {
-      print('ERROR: 공개 공지사항 API 오류: $e');
-      print('ERROR: 에러 타입: ${e.runtimeType}');
       return [];
     }
   }
@@ -393,43 +358,45 @@ class DonationPost {
   });
 
   factory DonationPost.fromJson(Map<String, dynamic> json) {
-    print('DEBUG: DonationPost.fromJson - Raw JSON: $json');
-    print('DEBUG: Title from API: "${json['title'] ?? 'NULL'}"');
-    
     // types 필드로 긴급/정기 판단: 0=긴급, 1=정기
     int typesValue = json['types'] ?? 1; // 기본값 정기(1)
     
-    // registrationDate를 createdAt으로 사용
-    DateTime createdAtFromReg = DateTime.tryParse(json['registrationDate'] ?? '') ?? DateTime.now();
+    // 병원 정보 처리
+    String hospitalName = '';
+    String location = '';
+    if (json['hospital'] != null) {
+      final hospital = json['hospital'] as Map<String, dynamic>;
+      hospitalName = hospital['name'] ?? '';
+      location = hospital['address'] ?? '';
+    }
     
-    // donationDate 필드 직접 사용 (새 API에서 제공)
-    DateTime? donationDateFromField = DateTime.tryParse(json['donationDate'] ?? '');
+    // post_date를 donationDate로 사용
+    DateTime? donationDate = DateTime.tryParse(json['post_date'] ?? '');
     
-    // date를 donationDate로 사용 (fallback)
-    DateTime? donationDateFromDate = DateTime.tryParse(json['date'] ?? '');
-    
-    // donation_dates 배열 처리
-    List<DonationPostDate>? donationDatesList;
-    if (json['donation_dates'] != null && json['donation_dates'] is List) {
-      donationDatesList = (json['donation_dates'] as List)
-          .map((item) => DonationPostDate.fromJson(item))
-          .toList();
+    // ID를 정수로 변환
+    int postIdx = 0;
+    if (json['id'] != null) {
+      if (json['id'] is String) {
+        postIdx = int.tryParse(json['id']) ?? 0;
+      } else {
+        postIdx = json['id'] ?? 0;
+      }
     }
 
     return DonationPost(
-      postIdx: json['postIdx'] ?? json['post_id'] ?? json['id'] ?? 0,
+      postIdx: postIdx,
       title: json['title'] ?? '',
-      hospitalName: json['hospital_name'] ?? json['hospitalName'] ?? '',
-      location: json['location'] ?? '',
-      animalType: json['animalType'] ?? json['animal_type'] ?? 0,
-      emergencyBloodType: json['emergencyBloodType'] ?? json['blood_type']?.toString() ?? json['bloodType']?.toString(),
+      hospitalName: hospitalName,
+      location: location,
+      animalType: 0, // 서버 응답에 없으므로 기본값
+      emergencyBloodType: json['emergency_blood_type']?.toString(),
       status: json['status'] ?? 0,
       types: typesValue,
-      viewCount: json['view_count'] ?? json['viewCount'] ?? 0,
-      createdAt: json['created_at'] != null ? DateTime.tryParse(json['created_at']) ?? createdAtFromReg : (json['createdDate'] != null ? DateTime.tryParse(json['createdDate']) ?? createdAtFromReg : createdAtFromReg),
-      donationDate: donationDateFromField ?? (json['donation_date'] != null ? DateTime.tryParse(json['donation_date']) : donationDateFromDate),
-      updatedAt: DateTime.tryParse(json['updated_at'] ?? json['updatedAt'] ?? ''),
-      donationDates: donationDatesList,
+      viewCount: 0, // 서버 응답에 없으므로 기본값
+      createdAt: DateTime.now(), // 서버 응답에 없으므로 현재 시간
+      donationDate: donationDate,
+      updatedAt: null,
+      donationDates: null,
     );
   }
 
@@ -514,7 +481,7 @@ class ColumnPost {
     return ColumnPost(
       columnIdx: json['column_idx'] ?? 0,
       title: json['title'] ?? '',
-      authorName: json['author_name'] ?? '',
+      authorName: json['nickname'] ?? json['author_name'] ?? '',
       viewCount: json['view_count'] ?? 0,
       contentPreview: json['content_preview'] ?? json['content'] ?? '',
       isImportant: json['is_important'] ?? false,
@@ -527,7 +494,7 @@ class ColumnPost {
 class NoticePost {
   final int noticeIdx;
   final String title;
-  final bool isImportant;
+  final int noticeImportant; // 0=긴급, 1=정기 (int로 변경)
   final String contentPreview;
   final int targetAudience;
   final String authorEmail;
@@ -539,7 +506,7 @@ class NoticePost {
   NoticePost({
     required this.noticeIdx,
     required this.title,
-    required this.isImportant,
+    required this.noticeImportant,
     required this.contentPreview,
     required this.targetAudience,
     required this.authorEmail,
@@ -550,21 +517,37 @@ class NoticePost {
   });
 
   factory NoticePost.fromJson(Map<String, dynamic> json) {
-    print('DEBUG: NoticePost.fromJson - Raw JSON: $json');
-    
     return NoticePost(
       noticeIdx: json['notice_idx'] ?? json['id'] ?? 0,
       title: json['title'] ?? '',
-      isImportant: json['is_important'] ?? json['isImportant'] ?? false,
+      noticeImportant: _parseNoticeImportant(json['notice_important']), // 0=긴급, 1=정기
       contentPreview: json['content_preview'] ?? json['content'] ?? '',
       targetAudience: json['target_audience'] ?? json['targetAudience'] ?? 0,
       authorEmail: json['author_email'] ?? json['authorEmail'] ?? '',
-      authorName: json['author_name'] ?? json['authorName'] ?? '관리자',
+      authorName: json['nickname'] ?? json['author_name'] ?? json['authorName'] ?? '관리자',
       viewCount: json['view_count'] ?? json['viewCount'] ?? 0,
       createdAt: DateTime.tryParse(json['created_at'] ?? json['createdAt'] ?? '') ?? DateTime.now(),
       updatedAt: DateTime.tryParse(json['updated_at'] ?? json['updatedAt'] ?? '') ?? DateTime.now(),
     );
   }
+  
+  // notice_important 필드 파싱 헬퍼 메서드 (bool/int 호환)
+  static int _parseNoticeImportant(dynamic value) {
+    print('DEBUG: NoticePost notice_important 값 타입: ${value.runtimeType}, 값: $value'); // 디버그 로그 추가
+    if (value == null) return 1; // 기본값: 뱃지 숨김(1)
+    if (value is int) return value;
+    if (value is bool) return value ? 0 : 1; // true=뱃지 표시(0), false=뱃지 숨김(1)  
+    if (value is String) {
+      if (value.toLowerCase() == 'true') return 0;
+      if (value.toLowerCase() == 'false') return 1;
+      return int.tryParse(value) ?? 1;
+    }
+    return 1; // fallback: 뱃지 숨김(1)
+  }
+  
+  // notice_important 필드를 이용한 헬퍼 메서드 (0=뱃지 표시, 1=뱃지 숨김)
+  bool get showBadge => noticeImportant == 0;
+  String get badgeText => '공지';
 }
 
 class DashboardStatistics {

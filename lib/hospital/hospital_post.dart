@@ -21,9 +21,11 @@ class HospitalPost extends StatefulWidget {
 
 class _HospitalPostState extends State<HospitalPost> {
   final TextEditingController _titleController = TextEditingController();
-  final TextEditingController _locationController = TextEditingController(); // 지역을 위한 컨트롤러 추가
+  final TextEditingController _locationController =
+      TextEditingController(); // 지역을 위한 컨트롤러 추가
   // Legacy variables removed - now using selectedDonationDatesWithTimes
-  List<DonationDateWithTimes> selectedDonationDatesWithTimes = []; // 헌혈 날짜+시간 목록
+  List<DonationDateWithTimes> selectedDonationDatesWithTimes =
+      []; // 헌혈 날짜+시간 목록
   DateTime selectedDate = DateTime.now();
   String selectedType = "정기"; // 초기값을 정기로 변경
   String selectedAnimalType = "dog"; // 동물 종류 (dog/cat)
@@ -76,7 +78,7 @@ class _HospitalPostState extends State<HospitalPost> {
         final name = data['name'] ?? '';
         print('프로필에서 주소 가져오기 성공: $address');
         print('프로필에서 병원 이름 가져오기 성공: $name');
-        
+
         // 병원 이름도 함께 저장
         if (name.isNotEmpty) {
           setState(() {
@@ -84,7 +86,7 @@ class _HospitalPostState extends State<HospitalPost> {
           });
           _updateTitleText(); // 병원 이름이 업데이트되면 제목도 업데이트
         }
-        
+
         return address;
       } else {
         print('프로필 API 호출 실패 - HTTP ${response.statusCode}: ${response.body}');
@@ -125,17 +127,35 @@ class _HospitalPostState extends State<HospitalPost> {
       // 병원 코드 가져오기
       final prefs = await SharedPreferences.getInstance();
       final hospitalCode = prefs.getString('hospital_code');
-      
+
       if (hospitalCode == null || hospitalCode.isEmpty) {
         _showAlertDialog('오류', '병원 코드가 없습니다. 병원 계정이 아니거나 승인되지 않았습니다.');
         return;
       }
 
+      // 선택된 날짜와 시간 데이터 준비
+      List<Map<String, dynamic>> dateTimeData = [];
+      for (final dateWithTimes in selectedDonationDatesWithTimes) {
+        final dateStr =
+            "${dateWithTimes.donationDate.year}-${dateWithTimes.donationDate.month.toString().padLeft(2, '0')}-${dateWithTimes.donationDate.day.toString().padLeft(2, '0')}";
+
+        for (final timeData in dateWithTimes.times) {
+          dateTimeData.add({
+            "date": dateStr,
+            "time":
+                "${timeData.donationTime.hour.toString().padLeft(2, '0')}:${timeData.donationTime.minute.toString().padLeft(2, '0')}",
+          });
+        }
+      }
+
       // 서버로 보낼 데이터를 Map 형태로 만듭니다.
       final Map<String, dynamic> postData = {
         "date":
-            "${selectedDate.year}-${selectedDate.month.toString().padLeft(2, '0')}-${selectedDate.day.toString().padLeft(2, '0')}",
-        "timeRanges": [], // 빈 배열로 초기화 (새로운 시스템에서는 selectedDonationDatesWithTimes 사용)
+            dateTimeData.isNotEmpty
+                ? dateTimeData.first["date"]
+                : "${DateTime.now().year}-${DateTime.now().month.toString().padLeft(2, '0')}-${DateTime.now().day.toString().padLeft(2, '0')}",
+        "timeRanges": [], // 기존 호환성을 위해 유지
+        "dateTimeSlots": dateTimeData, // 새로운 날짜+시간 데이터
         "types": selectedType == "긴급" ? 0 : 1,
         "title": _titleController.text,
         "descriptions": additionalDescription,
@@ -146,7 +166,8 @@ class _HospitalPostState extends State<HospitalPost> {
 
       // '긴급' 타입일 때만 'emergency_blood_type' 필드를 추가합니다.
       if (selectedType == "긴급") {
-        postData['emergency_blood_type'] = selectedBlood == "전체" ? null : selectedBlood;
+        postData['emergency_blood_type'] =
+            selectedBlood == "전체" ? null : selectedBlood;
       } else {
         postData['emergency_blood_type'] = null;
       }
@@ -172,7 +193,7 @@ class _HospitalPostState extends State<HospitalPost> {
         // 게시글이 성공적으로 생성된 경우, 선택된 헌혈 날짜들도 추가
         final responseData = jsonDecode(response.body);
         final postIdx = responseData['postIdx'] ?? responseData['post_idx'];
-        
+
         if (postIdx != null && selectedDonationDatesWithTimes.isNotEmpty) {
           try {
             for (final dateWithTimes in selectedDonationDatesWithTimes) {
@@ -182,13 +203,15 @@ class _HospitalPostState extends State<HospitalPost> {
                 dateWithTimes.times.map((t) => t.donationTime).toList(),
               );
             }
-            print('헌혈 날짜+시간 ${selectedDonationDatesWithTimes.length}개가 성공적으로 추가되었습니다.');
+            print(
+              '헌혈 날짜+시간 ${selectedDonationDatesWithTimes.length}개가 성공적으로 추가되었습니다.',
+            );
           } catch (e) {
             print('헌혈 날짜+시간 추가 실패: $e');
             // 게시글은 성공했지만 날짜+시간 추가가 실패한 경우에도 성공으로 처리
           }
         }
-        
+
         _showAlertDialog('성공', '게시글이 성공적으로 등록되었습니다.', () {
           Navigator.of(context).pop(); // 다이얼로그 닫기
           Navigator.of(context).pushReplacement(
@@ -249,7 +272,7 @@ class _HospitalPostState extends State<HospitalPost> {
       setState(() {
         _locationController.text = "";
       });
-      
+
       // 주소를 가져올 수 없다는 메시지 표시
       WidgetsBinding.instance.addPostFrameCallback((_) {
         _showAlertDialog('알림', '병원 주소를 불러올 수 없습니다.\n직접 입력해주세요.');
@@ -267,15 +290,15 @@ class _HospitalPostState extends State<HospitalPost> {
   void _updateTitleText() {
     // 동물 종류 변환
     String animalTypeKorean = selectedAnimalType == "dog" ? "강아지" : "고양이";
-    
+
     // 기본 제목 구성
     String title = '[$hospitalName] $animalTypeKorean $selectedType 헌혈';
-    
+
     // 긴급 타입이고 혈액형이 "전체"가 아닌 경우 혈액형 정보 추가
     if (selectedType == "긴급" && selectedBlood != "전체") {
       title += ' ($selectedBlood)';
     }
-    
+
     _titleController.text = title;
   }
 
@@ -283,8 +306,17 @@ class _HospitalPostState extends State<HospitalPost> {
   List<String> _getBloodTypeOptions() {
     if (selectedAnimalType == "dog") {
       return [
-        '전체', 'DEA 1.1+', 'DEA 1.1-', 'DEA 1.2+', 'DEA 1.2-', 
-        'DEA 3', 'DEA 4', 'DEA 5', 'DEA 6', 'DEA 7', '기타'
+        '전체',
+        'DEA 1.1+',
+        'DEA 1.1-',
+        'DEA 1.2+',
+        'DEA 1.2-',
+        'DEA 3',
+        'DEA 4',
+        'DEA 5',
+        'DEA 6',
+        'DEA 7',
+        '기타',
       ];
     } else if (selectedAnimalType == "cat") {
       return ['전체', 'A형', 'B형', 'AB형', '기타'];
@@ -301,15 +333,98 @@ class _HospitalPostState extends State<HospitalPost> {
     }
   }
 
+  // Modal Bottom Sheet for adding date/time
+  void _showAddDateTimeBottomSheet() {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder:
+          (context) => DraggableScrollableSheet(
+            initialChildSize: 0.9,
+            minChildSize: 0.5,
+            maxChildSize: 0.95,
+            builder:
+                (context, scrollController) => Container(
+                  decoration: const BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.vertical(
+                      top: Radius.circular(20),
+                    ),
+                  ),
+                  child: AddDateTimeBottomSheet(
+                    onSave: (dateWithTimes) {
+                      setState(() {
+                        // 같은 날짜가 이미 있는지 확인
+                        final existingIndex = selectedDonationDatesWithTimes
+                            .indexWhere(
+                              (existing) =>
+                                  existing.donationDate.year ==
+                                      dateWithTimes.donationDate.year &&
+                                  existing.donationDate.month ==
+                                      dateWithTimes.donationDate.month &&
+                                  existing.donationDate.day ==
+                                      dateWithTimes.donationDate.day,
+                            );
+
+                        if (existingIndex != -1) {
+                          // 같은 날짜가 있으면 시간만 추가
+                          final existing =
+                              selectedDonationDatesWithTimes[existingIndex];
+                          final updatedTimes = List<DonationPostTime>.from(
+                            existing.times,
+                          );
+
+                          // 중복되지 않는 시간만 추가
+                          for (final newTime in dateWithTimes.times) {
+                            final isDuplicate = updatedTimes.any(
+                              (existingTime) =>
+                                  existingTime.donationTime.hour ==
+                                      newTime.donationTime.hour &&
+                                  existingTime.donationTime.minute ==
+                                      newTime.donationTime.minute,
+                            );
+
+                            if (!isDuplicate) {
+                              updatedTimes.add(newTime);
+                            }
+                          }
+
+                          // 시간순으로 정렬
+                          updatedTimes.sort(
+                            (a, b) => a.donationTime.compareTo(b.donationTime),
+                          );
+
+                          // 기존 항목 업데이트
+                          selectedDonationDatesWithTimes[existingIndex] =
+                              DonationDateWithTimes(
+                                postDatesId: existing.postDatesId,
+                                postIdx: existing.postIdx,
+                                donationDate: existing.donationDate,
+                                times: updatedTimes,
+                              );
+                        } else {
+                          // 새로운 날짜면 추가
+                          selectedDonationDatesWithTimes.add(dateWithTimes);
+                        }
+
+                        // 날짜순으로 정렬
+                        selectedDonationDatesWithTimes.sort(
+                          (a, b) => a.donationDate.compareTo(b.donationDate),
+                        );
+                      });
+                    },
+                    scrollController: scrollController,
+                  ),
+                ),
+          ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text(
-          "헌혈 게시글 작성",
-          style: AppTheme.h3Style.copyWith(fontWeight: FontWeight.w700),
-        ),
-        centerTitle: false,
         backgroundColor: Colors.white,
         elevation: 0,
         leading: IconButton(
@@ -327,16 +442,13 @@ class _HospitalPostState extends State<HospitalPost> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               // 헌혈 날짜 및 시간 선택 섹션
-              Text("헌혈 일시 선택", style: AppTheme.h3Style),
+              Text("헌혈 게시글 작성", style: AppTheme.h3Style),
               const SizedBox(height: 16),
               Container(
                 decoration: BoxDecoration(
                   color: Colors.white,
                   borderRadius: BorderRadius.circular(AppTheme.radius16),
-                  border: Border.all(
-                    color: AppTheme.lightGray.withOpacity(0.5),
-                    width: 1,
-                  ),
+                  border: Border.all(color: AppTheme.lightGray.withOpacity(0.5), width: 1),
                 ),
                 child: Padding(
                   padding: const EdgeInsets.all(AppTheme.spacing20),
@@ -347,25 +459,16 @@ class _HospitalPostState extends State<HospitalPost> {
                       SizedBox(
                         width: double.infinity,
                         child: OutlinedButton.icon(
-                          onPressed: () {
-                            showDialog(
-                              context: context,
-                              builder: (context) => AddDateTimeDialog(
-                                onSave: (dateWithTimes) {
-                                  setState(() {
-                                    selectedDonationDatesWithTimes.add(dateWithTimes);
-                                  });
-                                },
-                              ),
-                            );
-                          },
+                          onPressed: _showAddDateTimeBottomSheet,
                           icon: const Icon(Icons.add_circle_outline, size: 20),
-                          label: const Text('헌혈 날짜 + 시간 추가'),
+                          label: const Text('헌혈 일정 작성'),
                           style: OutlinedButton.styleFrom(
-                            foregroundColor: AppTheme.primaryBlue,
-                            side: BorderSide(color: AppTheme.primaryBlue),
+                            foregroundColor: AppTheme.textSecondary,
+                            side: BorderSide(color: AppTheme.lightGray.withOpacity(0.5)),
                             shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(AppTheme.radius12),
+                              borderRadius: BorderRadius.circular(
+                                AppTheme.radius12,
+                              ),
                             ),
                             padding: const EdgeInsets.symmetric(
                               vertical: AppTheme.spacing16,
@@ -373,7 +476,7 @@ class _HospitalPostState extends State<HospitalPost> {
                           ),
                         ),
                       ),
-                      
+
                       const SizedBox(height: AppTheme.spacing16),
 
                       // 선택된 날짜+시간 목록 표시
@@ -385,62 +488,107 @@ class _HospitalPostState extends State<HospitalPost> {
                           physics: const NeverScrollableScrollPhysics(),
                           itemCount: selectedDonationDatesWithTimes.length,
                           itemBuilder: (context, index) {
-                            final dateWithTimes = selectedDonationDatesWithTimes[index];
-                            return Card(
-                              margin: const EdgeInsets.only(bottom: AppTheme.spacing8),
-                              elevation: 1,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(AppTheme.radius12),
-                                side: BorderSide(color: AppTheme.lightGray),
+                            final dateWithTimes =
+                                selectedDonationDatesWithTimes[index];
+                            return Container(
+                              margin: const EdgeInsets.only(
+                                bottom: AppTheme.spacing8,
                               ),
-                              child: ExpansionTile(
-                                title: Text(
-                                  dateWithTimes.dateOnly,
-                                  style: AppTheme.bodyLargeStyle.copyWith(
-                                    fontWeight: FontWeight.w600,
-                                  ),
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                borderRadius: BorderRadius.circular(
+                                  AppTheme.radius12,
                                 ),
-                                subtitle: Text(
-                                  '${dateWithTimes.times.length}개의 시간대',
-                                  style: AppTheme.bodySmallStyle.copyWith(
-                                    color: AppTheme.textSecondary,
+                                border: Border.all(color: AppTheme.lightGray),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.black.withOpacity(0.05),
+                                    blurRadius: 2,
+                                    offset: const Offset(0, 1),
                                   ),
+                                ],
+                              ),
+                              child: ClipRRect(
+                                borderRadius: BorderRadius.circular(
+                                  AppTheme.radius12,
                                 ),
-                                trailing: PopupMenuButton<String>(
-                                  onSelected: (value) {
-                                    if (value == 'delete') {
-                                      setState(() {
-                                        selectedDonationDatesWithTimes.removeAt(index);
-                                      });
-                                    }
-                                  },
-                                  itemBuilder: (context) => [
-                                    const PopupMenuItem(
-                                      value: 'delete',
-                                      child: Row(
-                                        children: [
-                                          Icon(Icons.delete, size: 18, color: Colors.red),
-                                          SizedBox(width: 8),
-                                          Text('삭제', style: TextStyle(color: Colors.red)),
+                                child: ExpansionTile(
+                                  title: Text(
+                                    dateWithTimes.dateOnly,
+                                    style: AppTheme.bodyLargeStyle.copyWith(
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                  subtitle: Text(
+                                    '${dateWithTimes.times.length}개의 시간대',
+                                    style: AppTheme.bodySmallStyle.copyWith(
+                                      color: AppTheme.textSecondary,
+                                    ),
+                                  ),
+                                  tilePadding: const EdgeInsets.symmetric(
+                                    horizontal: AppTheme.spacing20,
+                                    vertical: AppTheme.spacing8,
+                                  ),
+                                  childrenPadding: EdgeInsets.zero,
+                                  shape: const Border(), // 테두리 제거
+                                  collapsedShape:
+                                      const Border(), // 닫혔을 때 테두리 제거
+                                  trailing: PopupMenuButton<String>(
+                                    onSelected: (value) {
+                                      if (value == 'delete') {
+                                        setState(() {
+                                          selectedDonationDatesWithTimes
+                                              .removeAt(index);
+                                        });
+                                      }
+                                    },
+                                    itemBuilder:
+                                        (context) => [
+                                          const PopupMenuItem(
+                                            value: 'delete',
+                                            child: Row(
+                                              children: [
+                                                Icon(
+                                                  Icons.delete,
+                                                  size: 18,
+                                                  color: Colors.red,
+                                                ),
+                                                SizedBox(width: 8),
+                                                Text(
+                                                  '삭제',
+                                                  style: TextStyle(
+                                                    color: Colors.red,
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                          ),
                                         ],
-                                      ),
+                                    child: Icon(
+                                      Icons.more_vert,
+                                      color: AppTheme.textSecondary,
                                     ),
-                                  ],
-                                  child: Icon(Icons.more_vert, color: AppTheme.textSecondary),
+                                  ),
+                                  children:
+                                      dateWithTimes.times.map((time) {
+                                        return ListTile(
+                                          leading: Icon(
+                                            Icons.schedule,
+                                            size: 20,
+                                            color: AppTheme.primaryBlue,
+                                          ),
+                                          title: Text(
+                                            time.formatted12Hour,
+                                            style: AppTheme.bodyMediumStyle,
+                                          ),
+                                          contentPadding:
+                                              const EdgeInsets.symmetric(
+                                                horizontal: AppTheme.spacing20,
+                                                vertical: AppTheme.spacing4,
+                                              ),
+                                        );
+                                      }).toList(),
                                 ),
-                                children: dateWithTimes.times.map((time) {
-                                  return ListTile(
-                                    leading: Icon(Icons.schedule, size: 20, color: AppTheme.primaryBlue),
-                                    title: Text(
-                                      time.formatted12Hour,
-                                      style: AppTheme.bodyMediumStyle,
-                                    ),
-                                    contentPadding: const EdgeInsets.symmetric(
-                                      horizontal: AppTheme.spacing20,
-                                      vertical: AppTheme.spacing4,
-                                    ),
-                                  );
-                                }).toList(),
                               ),
                             );
                           },
@@ -451,7 +599,9 @@ class _HospitalPostState extends State<HospitalPost> {
                           padding: const EdgeInsets.all(AppTheme.spacing24),
                           decoration: BoxDecoration(
                             color: AppTheme.lightGray.withOpacity(0.3),
-                            borderRadius: BorderRadius.circular(AppTheme.radius12),
+                            borderRadius: BorderRadius.circular(
+                              AppTheme.radius12,
+                            ),
                           ),
                           child: Center(
                             child: Column(
@@ -478,7 +628,6 @@ class _HospitalPostState extends State<HospitalPost> {
                 ),
               ),
 
-              
               const SizedBox(height: 32), // 섹션 간 간격
               // 정보 작성 파트
               Text("작성 정보", style: AppTheme.h3Style),
@@ -521,14 +670,8 @@ class _HospitalPostState extends State<HospitalPost> {
                       DropdownButtonFormField<String>(
                         value: selectedAnimalType,
                         items: const [
-                          DropdownMenuItem(
-                            value: "dog",
-                            child: Text("강아지"),
-                          ),
-                          DropdownMenuItem(
-                            value: "cat", 
-                            child: Text("고양이"),
-                          ),
+                          DropdownMenuItem(value: "dog", child: Text("강아지")),
+                          DropdownMenuItem(value: "cat", child: Text("고양이")),
                         ],
                         onChanged: (value) {
                           setState(() {
@@ -540,7 +683,7 @@ class _HospitalPostState extends State<HospitalPost> {
                         decoration: _buildInputDecoration(
                           context,
                           "동물 종류",
-                          selectedAnimalType == "dog" 
+                          selectedAnimalType == "dog"
                               ? FontAwesomeIcons.dog
                               : FontAwesomeIcons.cat,
                         ),
@@ -577,7 +720,8 @@ class _HospitalPostState extends State<HospitalPost> {
                       if (selectedType == "긴급") ...[
                         DropdownButtonFormField<String>(
                           value: selectedBlood,
-                          items: _getBloodTypeOptions()
+                          items:
+                              _getBloodTypeOptions()
                                   .map(
                                     (type) => DropdownMenuItem(
                                       value: type,
@@ -625,7 +769,7 @@ class _HospitalPostState extends State<HospitalPost> {
 
               // 등록 버튼
               Material(
-                color: AppTheme.primaryBlue,
+                color: Colors.black,
                 borderRadius: BorderRadius.circular(AppTheme.radius12),
                 child: InkWell(
                   onTap: _submitPost,
@@ -1270,339 +1414,265 @@ class _EditEntryDialogState extends State<_EditEntryDialog> {
   }
 }
 
-// 새로운 날짜+시간 통합 선택 다이얼로그
-class AddDateTimeDialog extends StatefulWidget {
+// Modal Bottom Sheet Widget for Date/Time Addition
+class AddDateTimeBottomSheet extends StatefulWidget {
   final Function(DonationDateWithTimes) onSave;
+  final ScrollController scrollController;
 
-  const AddDateTimeDialog({
+  const AddDateTimeBottomSheet({
     super.key,
     required this.onSave,
+    required this.scrollController,
   });
 
   @override
-  State<AddDateTimeDialog> createState() => _AddDateTimeDialogState();
+  State<AddDateTimeBottomSheet> createState() => _AddDateTimeBottomSheetState();
 }
 
-class _AddDateTimeDialogState extends State<AddDateTimeDialog> {
+class _AddDateTimeBottomSheetState extends State<AddDateTimeBottomSheet> {
   DateTime selectedDate = DateTime.now();
-  List<DateTime> selectedTimes = [];
-  bool showTimeTemplates = true;
+  List<TimeOfDay> selectedTimes = [];
 
   @override
   Widget build(BuildContext context) {
-    return Dialog(
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(AppTheme.radius16),
+    return Padding(
+      padding: EdgeInsets.only(
+        bottom: MediaQuery.of(context).viewInsets.bottom,
       ),
-      child: Container(
-        constraints: const BoxConstraints(maxHeight: 600, maxWidth: 400),
-        padding: const EdgeInsets.all(AppTheme.spacing20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            // 제목
-            Row(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // Handle bar
+          Container(
+            width: 40,
+            height: 4,
+            margin: const EdgeInsets.symmetric(vertical: 8),
+            decoration: BoxDecoration(
+              color: Colors.grey[300],
+              borderRadius: BorderRadius.circular(2),
+            ),
+          ),
+
+          // Header
+          Padding(
+            padding: const EdgeInsets.all(20),
+            child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text(
-                  '헌혈 날짜 + 시간 추가',
+                  '헌혈 일정 작성',
                   style: AppTheme.h3Style.copyWith(fontWeight: FontWeight.w700),
                 ),
                 IconButton(
-                  onPressed: () => Navigator.of(context).pop(),
+                  onPressed: () => Navigator.pop(context),
                   icon: const Icon(Icons.close),
                 ),
               ],
             ),
-            const SizedBox(height: AppTheme.spacing20),
+          ),
 
-            // 날짜 선택
-            Container(
-              padding: const EdgeInsets.all(AppTheme.spacing16),
-              decoration: BoxDecoration(
-                color: AppTheme.lightBlue.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(AppTheme.radius12),
-                border: Border.all(color: AppTheme.lightBlue),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        '헌혈 날짜',
-                        style: AppTheme.bodyLargeStyle.copyWith(
-                          fontWeight: FontWeight.w600,
-                        ),
+          Expanded(
+            child: ListView(
+              controller: widget.scrollController,
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              children: [
+                // Date Selection
+                Text(
+                  '날짜 선택',
+                  style: AppTheme.bodyLargeStyle.copyWith(
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Container(
+                  decoration: BoxDecoration(
+                    border: Border.all(color: Colors.black),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: ListTile(
+                    leading: const Icon(
+                      Icons.calendar_today,
+                      color: Colors.black,
+                    ),
+                    title: Text(
+                      '${selectedDate.year}년 ${selectedDate.month}월 ${selectedDate.day}일',
+                      style: const TextStyle(color: Colors.black),
+                    ),
+                    trailing: const Icon(
+                      Icons.arrow_forward_ios,
+                      size: 16,
+                      color: Colors.black,
+                    ),
+                    onTap: () async {
+                      final date = await showDatePicker(
+                        context: context,
+                        initialDate: selectedDate,
+                        firstDate: DateTime.now(),
+                        lastDate: DateTime.now().add(const Duration(days: 365)),
+                      );
+                      if (date != null) {
+                        setState(() {
+                          selectedDate = date;
+                        });
+                      }
+                    },
+                  ),
+                ),
+
+                const SizedBox(height: 24),
+
+                // Time Selection
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      '시간 선택',
+                      style: AppTheme.bodyLargeStyle.copyWith(
+                        fontWeight: FontWeight.w600,
                       ),
-                      TextButton.icon(
-                        onPressed: () async {
-                          final pickedDate = await showDatePicker(
-                            context: context,
-                            initialDate: selectedDate,
-                            firstDate: DateTime.now(),
-                            lastDate: DateTime.now().add(const Duration(days: 365)),
-                          );
-                          if (pickedDate != null) {
+                    ),
+                    TextButton.icon(
+                      onPressed: _addTimeSlot,
+                      icon: const Icon(
+                        Icons.add,
+                        color: Colors.black,
+                        size: 20,
+                      ),
+                      label: const Text(
+                        '시간 추가',
+                        style: TextStyle(color: Colors.black),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+
+                // Selected Times List
+                if (selectedTimes.isNotEmpty) ...[
+                  ...selectedTimes.asMap().entries.map((entry) {
+                    int index = entry.key;
+                    TimeOfDay time = entry.value;
+                    return Container(
+                      margin: const EdgeInsets.only(bottom: 8),
+                      decoration: BoxDecoration(
+                        border: Border.all(color: Colors.black),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: ListTile(
+                        leading: const Icon(
+                          Icons.access_time,
+                          color: Colors.black,
+                        ),
+                        title: Text(
+                          '${time.hour.toString().padLeft(2, '0')}:${time.minute.toString().padLeft(2, '0')}',
+                          style: const TextStyle(color: Colors.black),
+                        ),
+                        trailing: IconButton(
+                          onPressed: () {
                             setState(() {
-                              selectedDate = pickedDate;
-                              // 날짜 변경 시 시간 목록 초기화
-                              selectedTimes.clear();
+                              selectedTimes.removeAt(index);
                             });
-                          }
-                        },
-                        icon: const Icon(Icons.calendar_today, size: 18),
-                        label: const Text('변경'),
+                          },
+                          icon: const Icon(
+                            Icons.delete_outline,
+                            color: Colors.red,
+                          ),
+                        ),
                       ),
-                    ],
-                  ),
-                  const SizedBox(height: AppTheme.spacing8),
-                  Text(
-                    '${selectedDate.year}년 ${selectedDate.month}월 ${selectedDate.day}일',
-                    style: AppTheme.h4Style.copyWith(
-                      color: AppTheme.primaryBlue,
+                    );
+                  }),
+                ] else ...[
+                  Container(
+                    padding: const EdgeInsets.all(20),
+                    decoration: BoxDecoration(
+                      border: Border.all(color: Colors.grey[300]!),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: const Center(
+                      child: Text(
+                        '시간을 추가해주세요',
+                        style: TextStyle(color: Colors.grey),
+                      ),
                     ),
                   ),
                 ],
-              ),
-            ),
 
-            const SizedBox(height: AppTheme.spacing20),
+                const SizedBox(height: 30),
 
-            // 시간 선택 섹션
-            Text(
-              '헌혈 시간 선택',
-              style: AppTheme.bodyLargeStyle.copyWith(
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-            const SizedBox(height: AppTheme.spacing12),
-
-            // 시간 템플릿 버튼들
-            if (showTimeTemplates) ...[
-              Wrap(
-                spacing: AppTheme.spacing8,
-                runSpacing: AppTheme.spacing8,
-                children: [
-                  _buildTimeTemplateChip('전체 (9-17시)', () {
-                    setState(() {
-                      selectedTimes = DonationTimeService.getCommonHospitalHours(selectedDate);
-                    });
-                  }),
-                  _buildTimeTemplateChip('오전 (9-12시)', () {
-                    setState(() {
-                      selectedTimes = DonationTimeService.getMorningHours(selectedDate);
-                    });
-                  }),
-                  _buildTimeTemplateChip('오후 (14-17시)', () {
-                    setState(() {
-                      selectedTimes = DonationTimeService.getAfternoonHours(selectedDate);
-                    });
-                  }),
-                  _buildTimeTemplateChip('직접 선택', () {
-                    setState(() {
-                      showTimeTemplates = false;
-                    });
-                  }),
-                ],
-              ),
-              const SizedBox(height: AppTheme.spacing16),
-            ],
-
-            // 개별 시간 추가 버튼 (템플릿 사용 중이거나 직접 선택 모드일 때)
-            if (!showTimeTemplates || selectedTimes.isNotEmpty) ...[
-              SizedBox(
-                width: double.infinity,
-                child: OutlinedButton.icon(
-                  onPressed: _addIndividualTime,
-                  icon: const Icon(Icons.add, size: 18),
-                  label: const Text('개별 시간 추가'),
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: AppTheme.primaryBlue,
-                    side: BorderSide(color: AppTheme.primaryBlue),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(AppTheme.radius8),
-                    ),
-                  ),
-                ),
-              ),
-              const SizedBox(height: AppTheme.spacing16),
-            ],
-
-            // 선택된 시간 목록
-            Expanded(
-              child: selectedTimes.isEmpty
-                  ? Center(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(Icons.schedule, size: 48, color: Colors.grey[400]),
-                          const SizedBox(height: 12),
-                          Text(
-                            showTimeTemplates 
-                                ? '위의 템플릿을 선택하거나\n직접 시간을 추가해주세요'
-                                : '헌혈 시간을 추가해주세요',
-                            style: AppTheme.bodyMediumStyle.copyWith(
-                              color: AppTheme.textSecondary,
-                            ),
-                            textAlign: TextAlign.center,
-                          ),
-                        ],
+                // Save Button
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    onPressed: selectedTimes.isNotEmpty ? _saveDateTime : null,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.black,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
                       ),
-                    )
-                  : Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Text(
-                              '선택된 헌혈 시간 (${selectedTimes.length}개)',
-                              style: AppTheme.bodyMediumStyle.copyWith(
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                            TextButton(
-                              onPressed: () {
-                                setState(() {
-                                  selectedTimes.clear();
-                                  showTimeTemplates = true;
-                                });
-                              },
-                              child: const Text('전체 삭제'),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: AppTheme.spacing8),
-                        Expanded(
-                          child: ListView.builder(
-                            itemCount: selectedTimes.length,
-                            itemBuilder: (context, index) {
-                              final time = selectedTimes[index];
-                              return Container(
-                                margin: const EdgeInsets.only(bottom: AppTheme.spacing8),
-                                padding: const EdgeInsets.all(AppTheme.spacing12),
-                                decoration: BoxDecoration(
-                                  color: Colors.white,
-                                  borderRadius: BorderRadius.circular(AppTheme.radius8),
-                                  border: Border.all(color: AppTheme.lightGray),
-                                ),
-                                child: Row(
-                                  children: [
-                                    Icon(Icons.schedule, size: 20, color: AppTheme.primaryBlue),
-                                    const SizedBox(width: AppTheme.spacing8),
-                                    Expanded(
-                                      child: Text(
-                                        '${time.hour.toString().padLeft(2, '0')}:${time.minute.toString().padLeft(2, '0')}',
-                                        style: AppTheme.bodyMediumStyle.copyWith(
-                                          fontWeight: FontWeight.w500,
-                                        ),
-                                      ),
-                                    ),
-                                    IconButton(
-                                      onPressed: () {
-                                        setState(() {
-                                          selectedTimes.removeAt(index);
-                                        });
-                                      },
-                                      icon: Icon(Icons.close, size: 18, color: AppTheme.textSecondary),
-                                      padding: EdgeInsets.zero,
-                                      constraints: const BoxConstraints(),
-                                    ),
-                                  ],
-                                ),
-                              );
-                            },
-                          ),
-                        ),
-                      ],
                     ),
-            ),
-
-            const SizedBox(height: AppTheme.spacing16),
-
-            // 저장 버튼
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                onPressed: selectedTimes.isEmpty
-                    ? null
-                    : () {
-                        final dateWithTimes = DonationDateWithTimes(
-                          postDatesId: 0, // 새로 생성하는 경우
-                          postIdx: 0, // 실제로는 게시글 ID가 들어감
-                          donationDate: selectedDate,
-                          times: selectedTimes.map((time) => DonationPostTime(
-                            postTimesId: null,
-                            postDatesIdx: 0,
-                            donationTime: time,
-                          )).toList(),
-                        );
-                        widget.onSave(dateWithTimes);
-                        Navigator.of(context).pop();
-                      },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppTheme.primaryBlue,
-                  foregroundColor: Colors.white,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(AppTheme.radius8),
+                    child: const Text('일정 저장'),
                   ),
                 ),
-                child: const Text('저장하기'),
-              ),
+
+                const SizedBox(height: 20),
+              ],
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
 
-  Widget _buildTimeTemplateChip(String label, VoidCallback onTap) {
-    return ActionChip(
-      label: Text(label),
-      onPressed: onTap,
-      backgroundColor: AppTheme.lightBlue.withOpacity(0.1),
-      side: BorderSide(color: AppTheme.primaryBlue),
-      labelStyle: AppTheme.bodySmallStyle.copyWith(
-        color: AppTheme.primaryBlue,
-        fontWeight: FontWeight.w500,
-      ),
-    );
-  }
-
-  Future<void> _addIndividualTime() async {
-    final TimeOfDay? pickedTime = await showTimePicker(
+  void _addTimeSlot() async {
+    final time = await showIntervalTimePicker(
       context: context,
-      initialTime: TimeOfDay.now(),
+      initialTime: const TimeOfDay(hour: 9, minute: 0), // 오전 9시로 초기 설정
+      interval: 5, // 5분 단위로 설정
     );
 
-    if (pickedTime != null) {
-      final DateTime newTime = DateTime(
-        selectedDate.year,
-        selectedDate.month,
-        selectedDate.day,
-        pickedTime.hour,
-        pickedTime.minute,
-      );
-
+    if (time != null) {
       setState(() {
-        // 중복 시간 체크
-        bool isDuplicate = selectedTimes.any((time) => 
-          time.hour == newTime.hour && time.minute == newTime.minute
-        );
-
-        if (!isDuplicate) {
-          selectedTimes.add(newTime);
-          selectedTimes.sort(); // 시간순으로 정렬
-          showTimeTemplates = false; // 직접 추가하면 템플릿 숨김
-        } else {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('이미 선택된 시간입니다.')),
+        if (!selectedTimes.any(
+          (t) => t.hour == time.hour && t.minute == time.minute,
+        )) {
+          selectedTimes.add(time);
+          selectedTimes.sort(
+            (a, b) =>
+                a.hour.compareTo(b.hour) != 0
+                    ? a.hour.compareTo(b.hour)
+                    : a.minute.compareTo(b.minute),
           );
         }
       });
     }
+  }
+
+  void _saveDateTime() {
+    final dateWithTimes = DonationDateWithTimes(
+      postDatesId: 0, // 임시값, 서버에서 생성됨
+      postIdx: 0, // 임시값, 서버에서 생성됨
+      donationDate: selectedDate,
+      times:
+          selectedTimes
+              .map<DonationPostTime>(
+                (time) => DonationPostTime(
+                  postTimesId: null, // nullable이므로 null로 설정
+                  postDatesIdx: 0, // 임시값
+                  donationTime: DateTime(
+                    selectedDate.year,
+                    selectedDate.month,
+                    selectedDate.day,
+                    time.hour,
+                    time.minute,
+                  ),
+                ),
+              )
+              .toList(),
+    );
+
+    widget.onSave(dateWithTimes);
+    Navigator.pop(context);
   }
 }

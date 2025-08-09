@@ -189,7 +189,7 @@ class _AdminSignupManagementState extends State<AdminSignupManagement> {
       if (selectedUserType == 2 &&
           hospitalId != null &&
           hospitalId.isNotEmpty) {
-        requestBody['hospital_code'] = hospitalId;
+        requestBody['hospital_id'] = hospitalId;
       }
 
       final response = await http.post(

@@ -161,11 +161,7 @@ class _UserDonationApplicationsScreenState extends State<UserDonationApplication
                 ),
               ),
               Expanded(
-                child: _buildStatItem(
-                  '진행 중',
-                  '${stats['pendingApplications'] + stats['approvedApplications']}건',
-                  Colors.orange,
-                ),
+                child: Container(), // 빈 공간
               ),
             ],
           ),

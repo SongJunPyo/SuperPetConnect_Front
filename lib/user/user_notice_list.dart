@@ -51,7 +51,7 @@ class _UserNoticeListScreenState extends State<UserNoticeListScreen> {
           accountIdx: 0, // DashboardService에서 제공하지 않는 필드
           title: noticePost.title,
           content: noticePost.contentPreview,
-          noticeImportant: noticePost.isImportant,
+          noticeImportant: noticePost.noticeImportant,
           noticeActive: true,
           createdAt: noticePost.createdAt,
           updatedAt: noticePost.createdAt,
@@ -79,13 +79,13 @@ class _UserNoticeListScreenState extends State<UserNoticeListScreen> {
         }).toList();
       }
 
-      // 중요 공지는 상단에, 일반 공지는 최신순으로 정렬
+      // 뱃지가 있는 공지를 상단에, 그 다음 최신순으로 정렬
       allNotices.sort((a, b) {
-        // 중요 공지 우선 정렬
-        if (a.noticeImportant && !b.noticeImportant) return -1;
-        if (!a.noticeImportant && b.noticeImportant) return 1;
+        // 뱃지가 있는 공지 우선 정렬
+        if (a.showBadge && !b.showBadge) return -1;
+        if (!a.showBadge && b.showBadge) return 1;
 
-        // 같은 중요도면 최신순 정렬
+        // 같은 조건이면 최신순 정렬
         return b.createdAt.compareTo(a.createdAt);
       });
 
@@ -176,7 +176,7 @@ class _UserNoticeListScreenState extends State<UserNoticeListScreen> {
         return AlertDialog(
           title: Row(
             children: [
-              if (notice.noticeImportant) ...[
+              if (notice.showBadge) ...[
                 Container(
                   padding: const EdgeInsets.symmetric(
                     horizontal: 6,
@@ -187,21 +187,21 @@ class _UserNoticeListScreenState extends State<UserNoticeListScreen> {
                     borderRadius: BorderRadius.circular(4),
                   ),
                   child: Text(
-                    '공지',
+                    notice.badgeText,
                     style: AppTheme.bodySmallStyle.copyWith(
                       color: Colors.white,
                       fontWeight: FontWeight.bold,
                       fontSize: 10,
+                      ),
                     ),
                   ),
-                ),
-                const SizedBox(width: 8),
-              ],
-              Expanded(
+                  const SizedBox(width: 8),
+                ],
+                Expanded(
                 child: Text(
                   noticeDetail?.title ?? notice.title,
                   style: AppTheme.h4Style.copyWith(
-                    color: (noticeDetail?.isImportant ?? notice.noticeImportant) ? AppTheme.error : AppTheme.textPrimary,
+                    color: notice.showBadge ? AppTheme.error : AppTheme.textPrimary,
                   ),
                 ),
               ),
@@ -327,7 +327,7 @@ class _UserNoticeListScreenState extends State<UserNoticeListScreen> {
                   onChanged: _onSearchChanged,
                   decoration: InputDecoration(
                     hintText: '제목, 작성자로 검색...',
-                    prefixIcon: const Icon(Icons.search, color: AppTheme.primaryBlue),
+                    prefixIcon: const Icon(Icons.search, color: Colors.black87),
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
                       borderSide: BorderSide(color: Colors.grey.shade300),
@@ -470,30 +470,30 @@ class _UserNoticeListScreenState extends State<UserNoticeListScreen> {
                       child: Row(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          // 왼쪽: 순서 (카드 중앙 높이)
-                          Container(
-                            width: 28,
-                            child: Text(
-                              '${index + 1}',
-                              style: AppTheme.bodySmallStyle.copyWith(
-                                color: AppTheme.textTertiary,
-                                fontWeight: FontWeight.w500,
-                                fontSize: 13,
-                              ),
-                              textAlign: TextAlign.center,
-                            ),
-                          ),
-                          const SizedBox(width: 8),
                           // 중앙: 메인 콘텐츠
                           Expanded(
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                // 첫 번째 줄: 뱃지 + 제목
+                                // 첫 번째 줄: 순서 번호 + 뱃지 + 제목
                                 Row(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    if (notice.noticeImportant) ...[
+                                    // 순서 번호
+                                    Container(
+                                      width: 20,
+                                      child: Text(
+                                        '${index + 1}',
+                                        style: AppTheme.bodySmallStyle.copyWith(
+                                          color: AppTheme.textTertiary,
+                                          fontWeight: FontWeight.w500,
+                                          fontSize: 13,
+                                        ),
+                                        textAlign: TextAlign.center,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 8),
+                                    if (notice.showBadge) ...[
                                       Container(
                                         padding: const EdgeInsets.symmetric(
                                           horizontal: 6,
@@ -504,7 +504,7 @@ class _UserNoticeListScreenState extends State<UserNoticeListScreen> {
                                           borderRadius: BorderRadius.circular(4),
                                         ),
                                         child: Text(
-                                          '공지',
+                                          notice.badgeText,
                                           style: AppTheme.bodySmallStyle.copyWith(
                                             color: Colors.white,
                                             fontWeight: FontWeight.bold,
@@ -518,8 +518,8 @@ class _UserNoticeListScreenState extends State<UserNoticeListScreen> {
                                       child: MarqueeText(
                                         text: notice.title,
                                         style: AppTheme.bodyMediumStyle.copyWith(
-                                          color: notice.noticeImportant ? AppTheme.error : AppTheme.textPrimary,
-                                          fontWeight: notice.noticeImportant ? FontWeight.w600 : FontWeight.w500,
+                                          color: notice.showBadge ? AppTheme.error : AppTheme.textPrimary,
+                                          fontWeight: notice.showBadge ? FontWeight.w600 : FontWeight.w500,
                                           fontSize: 14,
                                         ),
                                         animationDuration: const Duration(milliseconds: 4000),
@@ -530,22 +530,19 @@ class _UserNoticeListScreenState extends State<UserNoticeListScreen> {
                                 ),
                                 const SizedBox(height: 6),
                                 // 두 번째 줄: 작성자 이름
-                                Row(
-                                  children: [
-                                    Expanded(
-                                      child: Text(
-                                        notice.authorName.length > 15
-                                            ? '${notice.authorName.substring(0, 15)}..'
-                                            : notice.authorName,
-                                        style: AppTheme.bodySmallStyle.copyWith(
-                                          color: AppTheme.textSecondary,
-                                          fontSize: 12,
-                                        ),
-                                        maxLines: 1,
-                                        overflow: TextOverflow.ellipsis,
-                                      ),
+                                Padding(
+                                  padding: const EdgeInsets.only(left: 28), // 순서 번호만큼 들여쓰기
+                                  child: Text(
+                                    notice.authorName.length > 15
+                                        ? '${notice.authorName.substring(0, 15)}..'
+                                        : notice.authorName,
+                                    style: AppTheme.bodySmallStyle.copyWith(
+                                      color: AppTheme.textSecondary,
+                                      fontSize: 12,
                                     ),
-                                  ],
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
                                 ),
                               ],
                             ),
