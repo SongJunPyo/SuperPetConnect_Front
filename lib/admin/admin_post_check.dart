@@ -5,6 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:math' as math;
 import '../utils/config.dart';
 import '../utils/app_theme.dart';
+import '../widgets/marquee_text.dart';
 import 'package:intl/intl.dart';
 
 class AdminPostCheck extends StatefulWidget {
@@ -14,62 +15,87 @@ class AdminPostCheck extends StatefulWidget {
   _AdminPostCheckState createState() => _AdminPostCheckState();
 }
 
-class _AdminPostCheckState extends State<AdminPostCheck> with TickerProviderStateMixin {
+class _AdminPostCheckState extends State<AdminPostCheck>
+    with SingleTickerProviderStateMixin {
   List<dynamic> posts = [];
   bool isLoading = true;
   String errorMessage = '';
   String? token;
-  String? statusFilter; // null = 전체, 'wait_to_approved' = 공개안함, 'approved' = 공개
   String searchQuery = '';
   TextEditingController searchController = TextEditingController();
-  late TabController _tabController;
   DateTime? startDate;
   DateTime? endDate;
+
+  // 슬라이딩 탭 관련
+  TabController? _tabController;
+  int _currentTabIndex = 0;
 
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 3, vsync: this);
-    _tabController.addListener(_onTabChanged);
-    // 초기 필터 설정: 0번 탭 = 전체 (null)
-    statusFilter = null;
+    _tabController = TabController(length: 2, vsync: this);
+    _tabController!.addListener(_handleTabChange);
     _loadToken().then((_) => fetchPosts());
+  }
+
+  void _handleTabChange() {
+    if (_tabController!.indexIsChanging ||
+        _tabController!.index != _currentTabIndex) {
+      setState(() {
+        _currentTabIndex = _tabController!.index;
+        print('DEBUG: 탭이 변경됨 - 새 인덱스: $_currentTabIndex');
+      });
+    }
   }
 
   @override
   void dispose() {
+    _tabController?.dispose();
     searchController.dispose();
-    _tabController.dispose();
     super.dispose();
   }
 
-  void _onTabChanged() {
-    setState(() {
-      // 0: 전체 (null), 1: 공개안함 (wait_to_approved), 2: 공개 (approved)
-      if (_tabController.index == 0) {
-        statusFilter = null;
-      } else if (_tabController.index == 1) {
-        statusFilter = 'wait_to_approved';
-      } else {
-        statusFilter = 'approved';
-      }
-    });
-    fetchPosts();
+  // 게시글 필터링 함수
+  List<dynamic> get filteredPosts {
+    print('DEBUG: 현재 탭 인덱스: $_currentTabIndex');
+    print('DEBUG: 전체 posts 개수: ${posts.length}');
+
+    // 모든 posts의 status를 출력
+    for (var i = 0; i < posts.length; i++) {
+      print(
+        'DEBUG: posts[$i] status = ${posts[i]['status']}, title = ${posts[i]['title']}',
+      );
+    }
+
+    List<dynamic> filtered;
+    if (_currentTabIndex == 0) {
+      // 대기 탭: status가 0인 게시글만 표시
+      filtered = posts.where((post) => post['status'] == 0).toList();
+      print('DEBUG: 대기 탭 필터링 결과: ${filtered.length}개');
+    } else {
+      // 거절 탭: status가 2인 게시글만 표시
+      filtered = posts.where((post) => post['status'] == 2).toList();
+      print('DEBUG: 거절 탭 필터링 결과: ${filtered.length}개');
+    }
+
+    return filtered;
   }
 
   Future<void> _loadToken() async {
     final prefs = await SharedPreferences.getInstance();
     final storedToken = prefs.getString('auth_token');
-    
+
     if (storedToken != null && storedToken.isNotEmpty) {
-      print("토큰 로드 성공: ${storedToken.substring(0, math.min(20, storedToken.length))}...");
+      print(
+        "토큰 로드 성공: ${storedToken.substring(0, math.min(20, storedToken.length))}...",
+      );
       print("토큰 길이: ${storedToken.length}");
     } else {
       print("토큰이 없거나 비어있음");
       print("저장된 사용자 이메일: ${prefs.getString('user_email') ?? '없음'}");
       print("저장된 사용자 이름: ${prefs.getString('user_name') ?? '없음'}");
     }
-    
+
     setState(() {
       token = storedToken;
     });
@@ -92,35 +118,37 @@ class _AdminPostCheckState extends State<AdminPostCheck> with TickerProviderStat
     }
 
     try {
-      // 상태에 따른 URL 구성
+      // API URL 구성 - 모든 게시글 조회
       String apiUrl = '${Config.serverUrl}/api/admin/posts';
       List<String> queryParams = [];
-      
-      if (statusFilter != null) {
-        queryParams.add('status=$statusFilter');
-      }
-      
+
       if (startDate != null) {
-        queryParams.add('start_date=${DateFormat('yyyy-MM-dd').format(startDate!)}');
+        queryParams.add(
+          'start_date=${DateFormat('yyyy-MM-dd').format(startDate!)}',
+        );
       }
-      
+
       if (endDate != null) {
-        queryParams.add('end_date=${DateFormat('yyyy-MM-dd').format(endDate!)}');
+        queryParams.add(
+          'end_date=${DateFormat('yyyy-MM-dd').format(endDate!)}',
+        );
       }
-      
+
       if (searchQuery.isNotEmpty) {
         queryParams.add('search=${Uri.encodeComponent(searchQuery)}');
       }
-      
+
       if (queryParams.isNotEmpty) {
         apiUrl += '?${queryParams.join('&')}';
       }
-      
+
       final url = Uri.parse(apiUrl);
-      
+
       print('API 요청 URL: $url');
-      print('요청 헤더 - Authorization: Bearer ${token?.substring(0, math.min(20, token?.length ?? 0))}...');
-      
+      print(
+        '요청 헤더 - Authorization: Bearer ${token?.substring(0, math.min(20, token?.length ?? 0))}...',
+      );
+
       final response = await http.get(
         url,
         headers: {
@@ -148,11 +176,14 @@ class _AdminPostCheckState extends State<AdminPostCheck> with TickerProviderStat
             isLoading = false;
           });
         }
-        print('401 인증 오류 - 토큰: ${token?.substring(0, math.min(10, token?.length ?? 0))}...');
+        print(
+          '401 인증 오류 - 토큰: ${token?.substring(0, math.min(10, token?.length ?? 0))}...',
+        );
       } else {
         if (mounted) {
           setState(() {
-            errorMessage = '게시물 목록을 불러오는데 실패했습니다: ${response.statusCode}\n${utf8.decode(response.bodyBytes)}';
+            errorMessage =
+                '게시물 목록을 불러오는데 실패했습니다: ${response.statusCode}\n${utf8.decode(response.bodyBytes)}';
             isLoading = false;
           });
         }
@@ -180,15 +211,16 @@ class _AdminPostCheckState extends State<AdminPostCheck> with TickerProviderStat
       context: context,
       firstDate: DateTime(2020),
       lastDate: DateTime.now(),
-      initialDateRange: startDate != null && endDate != null
-          ? DateTimeRange(start: startDate!, end: endDate!)
-          : null,
+      initialDateRange:
+          startDate != null && endDate != null
+              ? DateTimeRange(start: startDate!, end: endDate!)
+              : null,
       builder: (context, child) {
         return Theme(
           data: Theme.of(context).copyWith(
-            colorScheme: Theme.of(context).colorScheme.copyWith(
-              primary: AppTheme.primaryBlue,
-            ),
+            colorScheme: Theme.of(
+              context,
+            ).colorScheme.copyWith(primary: AppTheme.primaryBlue),
           ),
           child: child!,
         );
@@ -212,7 +244,11 @@ class _AdminPostCheckState extends State<AdminPostCheck> with TickerProviderStat
     fetchPosts();
   }
 
-  Future<void> _showConfirmDialog(int postId, bool approve, String title) async {
+  Future<void> _showConfirmDialog(
+    int postId,
+    bool approve,
+    String title,
+  ) async {
     final result = await showDialog<bool>(
       context: context,
       builder: (BuildContext context) {
@@ -231,10 +267,7 @@ class _AdminPostCheckState extends State<AdminPostCheck> with TickerProviderStat
           actions: [
             TextButton(
               onPressed: () => Navigator.of(context).pop(false),
-              child: const Text(
-                '취소',
-                style: TextStyle(color: Colors.grey),
-              ),
+              child: const Text('취소', style: TextStyle(color: Colors.grey)),
             ),
             ElevatedButton(
               onPressed: () => Navigator.of(context).pop(true),
@@ -256,14 +289,16 @@ class _AdminPostCheckState extends State<AdminPostCheck> with TickerProviderStat
 
   Future<void> approvePost(int postId, bool approve) async {
     if (token == null || token!.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("로그인 토큰이 없어 처리할 수 없습니다."))
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text("로그인 토큰이 없어 처리할 수 없습니다.")));
       return;
     }
 
     try {
-      final url = Uri.parse('${Config.serverUrl}/api/admin/posts/$postId/approval');
+      final url = Uri.parse(
+        '${Config.serverUrl}/api/admin/posts/$postId/approval',
+      );
       final response = await http.put(
         url,
         headers: {
@@ -294,56 +329,52 @@ class _AdminPostCheckState extends State<AdminPostCheck> with TickerProviderStat
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text("처리 실패: ${response.statusCode}\n${utf8.decode(response.bodyBytes)}"),
+            content: Text(
+              "처리 실패: ${response.statusCode}\n${utf8.decode(response.bodyBytes)}",
+            ),
             backgroundColor: Colors.red,
           ),
         );
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("오류 발생: $e"))
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text("오류 발생: $e")));
       print('approvePost Error: $e');
     }
   }
 
-  String _getPostStatus(String? status) {
-    switch (status) {
-      case 'wait_to_approved':
-      case '대기':
+  String _getPostStatus(dynamic status) {
+    // 상태값이 숫자로 전달됨: 0=대기, 1=승인/모집중, 2=거절, 3=모집마감
+    int statusNum =
+        status is int ? status : int.tryParse(status.toString()) ?? 0;
+
+    switch (statusNum) {
+      case 0:
         return '승인 대기';
-      case 'approved':
-      case '승인':
-        return '승인 완료';
-      case '거절':
-        return '거절됨';
-      case '모집중':
+      case 1:
         return '모집중';
-      case '모집마감':
+      case 2:
+        return '거절됨';
+      case 3:
         return '모집마감';
       default:
-        return '알 수 없음';
+        return '승인 대기'; // 기본값
     }
   }
 
   Color _getStatusColor(String status) {
     switch (status) {
-      case '승인 완료':
-        return Colors.green;
       case '승인 대기':
         return Colors.orange;
+      case '모집중':
+        return Colors.green;
       case '거절됨':
         return Colors.red;
-      case '모집중':
-        return Colors.blue;
       case '모집마감':
         return Colors.grey;
-      case '대기':
-        return Colors.orange;
-      case '거절':
-        return Colors.red;
       default:
-        return Colors.black;
+        return Colors.orange; // 기본값
     }
   }
 
@@ -355,7 +386,7 @@ class _AdminPostCheckState extends State<AdminPostCheck> with TickerProviderStat
     return Scaffold(
       appBar: AppBar(
         title: Text(
-          "게시물 승인 관리",
+          "헌혈 게시글 승인 관리",
           style: textTheme.titleLarge?.copyWith(
             fontWeight: FontWeight.bold,
             color: Colors.black87,
@@ -381,121 +412,133 @@ class _AdminPostCheckState extends State<AdminPostCheck> with TickerProviderStat
           ),
           const SizedBox(width: 8),
         ],
-        bottom: TabBar(
-          controller: _tabController,
-          tabs: const [
-            Tab(
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(Icons.list_alt, size: 20),
-                  SizedBox(width: 8),
-                  Text('전체'),
-                ],
-              ),
-            ),
-            Tab(
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(Icons.pending_actions, size: 20),
-                  SizedBox(width: 8),
-                  Text('공개안함'),
-                ],
-              ),
-            ),
-            Tab(
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(Icons.check_circle, size: 20),
-                  SizedBox(width: 8),
-                  Text('공개'),
-                ],
-              ),
-            ),
-          ],
-          labelColor: AppTheme.primaryBlue,
-          unselectedLabelColor: Colors.grey,
-          indicatorColor: AppTheme.primaryBlue,
-        ),
       ),
-      body: Column(
-        children: [
-          // 검색창
-          Container(
-            padding: const EdgeInsets.all(16.0),
-            child: TextField(
-              controller: searchController,
-              onChanged: _onSearchChanged,
-              decoration: InputDecoration(
-                hintText: '게시글 제목, 병원명, 내용으로 검색...',
-                prefixIcon: const Icon(Icons.search, color: AppTheme.primaryBlue),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide(color: Colors.grey.shade300),
-                ),
-                focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: const BorderSide(color: AppTheme.primaryBlue, width: 2),
-                ),
-                filled: true,
-                fillColor: Colors.grey.shade50,
-                suffixIcon: searchQuery.isNotEmpty
-                    ? IconButton(
-                        icon: const Icon(Icons.clear),
-                        onPressed: () {
-                          searchController.clear();
-                          _onSearchChanged('');
-                        },
-                      )
-                    : null,
-              ),
-            ),
-          ),
-          
-          // 날짜 범위 표시
-          if (startDate != null || endDate != null)
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
-              child: Container(
-                padding: const EdgeInsets.all(12.0),
-                decoration: BoxDecoration(
-                  color: AppTheme.lightBlue,
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: AppTheme.primaryBlue.withOpacity(0.3)),
-                ),
-                child: Row(
-                  children: [
-                    const Icon(Icons.date_range, color: AppTheme.primaryBlue, size: 18),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        '기간: ${startDate != null ? DateFormat('yyyy-MM-dd').format(startDate!) : '시작일 미지정'} ~ ${endDate != null ? DateFormat('yyyy-MM-dd').format(endDate!) : '종료일 미지정'}',
-                        style: const TextStyle(
-                          color: AppTheme.primaryBlue,
-                          fontWeight: FontWeight.w500,
-                          fontSize: 14,
+      body:
+          _tabController == null
+              ? const Center(child: CircularProgressIndicator())
+              : Column(
+                children: [
+                  // 검색창
+                  Container(
+                    padding: const EdgeInsets.all(16.0),
+                    child: TextField(
+                      controller: searchController,
+                      onChanged: _onSearchChanged,
+                      decoration: InputDecoration(
+                        hintText: '게시글 제목, 병원명, 내용으로 검색...',
+                        prefixIcon: const Icon(
+                          Icons.search,
+                          color: Colors.black,
+                        ),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide(color: Colors.grey.shade300),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: const BorderSide(
+                            color: Colors.black,
+                            width: 2,
+                          ),
+                        ),
+                        filled: true,
+                        fillColor: Colors.grey.shade50,
+                        suffixIcon:
+                            searchQuery.isNotEmpty
+                                ? IconButton(
+                                  icon: const Icon(Icons.clear),
+                                  onPressed: () {
+                                    searchController.clear();
+                                    _onSearchChanged('');
+                                  },
+                                )
+                                : null,
+                      ),
+                    ),
+                  ),
+
+                  // 슬라이딩 탭
+                  Container(
+                    color: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 8.0),
+                    child: TabBar(
+                      controller: _tabController,
+                      tabs: const [
+                        Tab(
+                          child: Padding(
+                            padding: EdgeInsets.symmetric(vertical: 12.0),
+                            child: Text('대기'),
+                          ),
+                        ),
+                        Tab(
+                          child: Padding(
+                            padding: EdgeInsets.symmetric(vertical: 12.0),
+                            child: Text('거절'),
+                          ),
+                        ),
+                      ],
+                      indicatorColor: Colors.black,
+                      labelColor: Colors.black,
+                      unselectedLabelColor: Colors.grey,
+                      labelStyle: const TextStyle(fontWeight: FontWeight.bold),
+                      indicatorWeight: 3.0,
+                      indicatorPadding: const EdgeInsets.symmetric(
+                        horizontal: 20.0,
+                      ),
+                    ),
+                  ),
+
+                  // 날짜 범위 표시
+                  if (startDate != null || endDate != null)
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16.0,
+                        vertical: 8.0,
+                      ),
+                      child: Container(
+                        padding: const EdgeInsets.all(12.0),
+                        decoration: BoxDecoration(
+                          color: Colors.grey.shade100,
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: Colors.grey.shade300),
+                        ),
+                        child: Row(
+                          children: [
+                            const Icon(
+                              Icons.date_range,
+                              color: Colors.black,
+                              size: 18,
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                '기간: ${startDate != null ? DateFormat('yyyy-MM-dd').format(startDate!) : '시작일 미지정'} ~ ${endDate != null ? DateFormat('yyyy-MM-dd').format(endDate!) : '종료일 미지정'}',
+                                style: const TextStyle(
+                                  color: Colors.black,
+                                  fontWeight: FontWeight.w500,
+                                  fontSize: 14,
+                                ),
+                              ),
+                            ),
+                            IconButton(
+                              icon: const Icon(
+                                Icons.close,
+                                color: Colors.black,
+                                size: 18,
+                              ),
+                              onPressed: _clearDateRange,
+                              padding: EdgeInsets.zero,
+                              constraints: const BoxConstraints(),
+                            ),
+                          ],
                         ),
                       ),
                     ),
-                    IconButton(
-                      icon: const Icon(Icons.close, color: AppTheme.primaryBlue, size: 18),
-                      onPressed: _clearDateRange,
-                      padding: EdgeInsets.zero,
-                      constraints: const BoxConstraints(),
-                    ),
-                  ],
-                ),
+
+                  // 콘텐츠
+                  Expanded(child: _buildContent()),
+                ],
               ),
-            ),
-          
-          // 콘텐츠
-          Expanded(
-            child: _buildContent(),
-          ),
-        ],
-      ),
     );
   }
 
@@ -520,61 +563,47 @@ class _AdminPostCheckState extends State<AdminPostCheck> with TickerProviderStat
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(
-                Icons.error_outline,
-                size: 64,
-                color: Colors.red[300],
-              ),
+              Icon(Icons.error_outline, size: 64, color: Colors.red[300]),
               const SizedBox(height: 16),
               Text(
                 '오류가 발생했습니다',
-                style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                  color: Colors.red[500],
-                ),
+                style: Theme.of(
+                  context,
+                ).textTheme.titleLarge?.copyWith(color: Colors.red[500]),
               ),
               const SizedBox(height: 8),
               Text(
                 errorMessage,
-                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: Colors.grey[600],
-                ),
+                style: Theme.of(
+                  context,
+                ).textTheme.bodyMedium?.copyWith(color: Colors.grey[600]),
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 16),
-              ElevatedButton(
-                onPressed: fetchPosts,
-                child: const Text('다시 시도'),
-              ),
+              ElevatedButton(onPressed: fetchPosts, child: const Text('다시 시도')),
             ],
           ),
         ),
       );
     }
 
-    if (posts.isEmpty) {
-      String emptyMessage = statusFilter == null 
-          ? '게시글이 없습니다.'
-          : statusFilter == 'approved'
-              ? '승인된 게시글이 없습니다.'
-              : '승인 대기 중인 게시글이 없습니다.';
-              
+    if (filteredPosts.isEmpty) {
+      String emptyMessage =
+          _currentTabIndex == 0 ? '승인 대기 중인 게시글이 없습니다.' : '거절된 게시글이 없습니다.';
+
       return Center(
         child: Padding(
           padding: const EdgeInsets.all(20.0),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(
-                Icons.article_outlined,
-                size: 64,
-                color: Colors.grey[300],
-              ),
+              Icon(Icons.article_outlined, size: 64, color: Colors.grey[300]),
               const SizedBox(height: 16),
               Text(
                 emptyMessage,
-                style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                  color: Colors.grey[500],
-                ),
+                style: Theme.of(
+                  context,
+                ).textTheme.titleMedium?.copyWith(color: Colors.grey[500]),
               ),
             ],
           ),
@@ -582,231 +611,450 @@ class _AdminPostCheckState extends State<AdminPostCheck> with TickerProviderStat
       );
     }
 
-    return ListView.builder(
-      padding: const EdgeInsets.symmetric(horizontal: 16.0),
-      itemCount: posts.length,
-      itemBuilder: (context, index) {
-        final post = posts[index];
-        print('🚨 디버그: 게시글 데이터 - ${post.toString()}');
-        String postStatus = _getPostStatus(post['status']);
-        
-        // 동물 종류 표시를 위한 변환
-        String animalTypeKorean = '';
-        if (post['animalType'] == 'dog') {
-          animalTypeKorean = '강아지';
-        } else if (post['animalType'] == 'cat') {
-          animalTypeKorean = '고양이';
-        }
-        
-        // 게시글 타입 표시를 위한 변환
-        String postType = post['types'] == 1 ? '긴급' : '정기';
-
-        return Card(
-          margin: const EdgeInsets.only(bottom: 16.0),
-          elevation: 2,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-            side: BorderSide(
-              color: Colors.grey.shade200,
-              width: 1,
+    return Column(
+      children: [
+        // 헤더
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
+          decoration: BoxDecoration(
+            color: Colors.grey.shade50,
+            border: Border(
+              bottom: BorderSide(color: Colors.grey.shade300, width: 1),
             ),
           ),
-          child: Padding(
-            padding: const EdgeInsets.all(20.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // 게시물 번호와 기본 정보
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 8.0),
-                      decoration: BoxDecoration(
-                        color: AppTheme.primaryBlue.withAlpha(38),
-                        borderRadius: BorderRadius.circular(20.0),
-                      ),
-                      child: Text(
-                        '${index + 1}',
-                        style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                          fontWeight: FontWeight.bold,
-                          color: AppTheme.primaryBlue,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Text(
-                        post['title'] ?? '제목 없음',
-                        style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                          fontWeight: FontWeight.bold,
-                          color: Colors.black87,
-                        ),
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                    const SizedBox(width: 10),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10.0, vertical: 6.0),
-                      decoration: BoxDecoration(
-                        color: _getStatusColor(postStatus).withAlpha(38),
-                        borderRadius: BorderRadius.circular(12.0),
-                      ),
-                      child: Text(
-                        postStatus,
-                        style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                          fontWeight: FontWeight.bold,
-                          color: _getStatusColor(postStatus),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                // 기타 상세 정보
-                _buildDetailRow(context, Icons.business_outlined, '병원명', post['hospital_name'] ?? 'N/A'),
-                _buildDetailRow(context, Icons.location_on_outlined, '위치', post['location'] ?? 'N/A'),
-                _buildDetailRow(context, Icons.calendar_today_outlined, '요청일', post['created_at'] ?? 'N/A'),
-                _buildDetailRow(context, Icons.pets_outlined, '동물 종류', animalTypeKorean.isNotEmpty ? animalTypeKorean : 'N/A'),
-                _buildDetailRow(context, Icons.category_outlined, '게시글 타입', postType),
-                if (post['blood_type'] != null && post['blood_type'].toString().isNotEmpty)
-                  _buildDetailRow(context, Icons.bloodtype_outlined, '혈액형', post['blood_type'] ?? 'N/A'),
-                _buildDetailRow(context, Icons.group_outlined, '신청자 수', '${post['applicant_count'] ?? 0}명'),
-                if (post['description'] != null && post['description'].toString().isNotEmpty)
-                  _buildDetailRow(context, Icons.description_outlined, '설명', post['description'] ?? 'N/A'),
-
-                const SizedBox(height: 24),
-                Text(
-                  "시간대 정보",
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.bold,
-                    color: Colors.black87,
+          child: Row(
+            children: [
+              SizedBox(
+                width: 70,
+                child: Text(
+                  '구분',
+                  style: AppTheme.bodyMediumStyle.copyWith(
+                    fontWeight: FontWeight.w600,
                   ),
                 ),
-                const SizedBox(height: 12),
-                // 시간대 정보 표시
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: List<Widget>.from(
-                    (post['timeRanges'] as List<dynamic>? ?? []).map((timeRange) {
-                      return Card(
-                        margin: const EdgeInsets.only(bottom: 8.0),
-                        elevation: 0.5,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(10),
-                          side: BorderSide(color: Colors.grey.shade200),
+              ),
+              Expanded(
+                child: Text(
+                  '제목',
+                  style: AppTheme.bodyMediumStyle.copyWith(
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+              SizedBox(
+                width: 100,
+                child: Text(
+                  '등록날짜',
+                  style: AppTheme.bodyMediumStyle.copyWith(
+                    fontWeight: FontWeight.w600,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+              ),
+            ],
+          ),
+        ),
+        // 게시글 목록
+        Expanded(
+          child: ListView.builder(
+            padding: const EdgeInsets.symmetric(horizontal: 16.0),
+            itemCount: filteredPosts.length,
+            itemBuilder: (context, index) {
+              final post = filteredPosts[index];
+              String postStatus = _getPostStatus(post['status']);
+              String postType = post['types'] == 1 ? '긴급' : '정기';
+
+              return _buildPostListItem(post, index, postStatus, postType);
+            },
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildPostListItem(
+    Map<String, dynamic> post,
+    int index,
+    String postStatus,
+    String postType,
+  ) {
+    return InkWell(
+      onTap: () => _showPostDetail(post, postStatus, postType),
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 12.0, horizontal: 0),
+        decoration: BoxDecoration(
+          border: Border(
+            bottom: BorderSide(color: Colors.grey.shade200, width: 1),
+          ),
+        ),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            // 구분 (뱃지)
+            Container(
+              width: 70,
+              alignment: Alignment.centerLeft,
+              child: Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 8.0,
+                  vertical: 4.0,
+                ),
+                decoration: BoxDecoration(
+                  color:
+                      postType == '긴급'
+                          ? Colors.red.withAlpha(38)
+                          : Colors.blue.withAlpha(38),
+                  borderRadius: BorderRadius.circular(6.0),
+                ),
+                child: Text(
+                  postType,
+                  style: AppTheme.bodySmallStyle.copyWith(
+                    fontWeight: FontWeight.w600,
+                    color: postType == '긴급' ? Colors.red : Colors.blue,
+                    fontSize: 11,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+              ),
+            ),
+            // 제목
+            Expanded(
+              child: Container(
+                padding: const EdgeInsets.only(left: 8.0, right: 8.0),
+                alignment: Alignment.centerLeft,
+                child: MarqueeText(
+                  text: post['title'] ?? '제목 없음',
+                  style: AppTheme.bodyMediumStyle.copyWith(
+                    fontWeight: FontWeight.w500,
+                  ),
+                  animationDuration: const Duration(milliseconds: 5000),
+                  pauseDuration: const Duration(milliseconds: 2000),
+                ),
+              ),
+            ),
+            // 등록날짜
+            Container(
+              width: 100,
+              alignment: Alignment.center,
+              child: Text(
+                _formatDate(post['created_date'] ?? post['created_at'] ?? ''),
+                style: AppTheme.bodySmallStyle.copyWith(
+                  fontSize: 11,
+                  color: Colors.grey[600],
+                ),
+                textAlign: TextAlign.center,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showPostDetail(
+    Map<String, dynamic> post,
+    String postStatus,
+    String postType,
+  ) {
+    // 동물 종류 표시를 위한 변환
+    String animalTypeKorean = '';
+    if (post['animalType'] == 'dog') {
+      animalTypeKorean = '강아지';
+    } else if (post['animalType'] == 'cat') {
+      animalTypeKorean = '고양이';
+    }
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (BuildContext context) {
+        return Container(
+          height: MediaQuery.of(context).size.height * 0.8,
+          padding: const EdgeInsets.all(20.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // 헤더
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text('게시글 상세정보', style: AppTheme.h3Style),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12.0,
+                      vertical: 6.0,
+                    ),
+                    decoration: BoxDecoration(
+                      color: _getStatusColor(postStatus).withOpacity(0.15),
+                      borderRadius: BorderRadius.circular(8.0),
+                    ),
+                    child: Text(
+                      postStatus,
+                      style: AppTheme.bodySmallStyle.copyWith(
+                        fontWeight: FontWeight.w600,
+                        color: _getStatusColor(postStatus),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const Divider(),
+              const SizedBox(height: 16),
+
+              Expanded(
+                child: SingleChildScrollView(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // 기본 정보
+                      _buildDetailRow(
+                        context,
+                        Icons.title,
+                        '제목',
+                        post['title'] ?? 'N/A',
+                      ),
+                      _buildDetailRow(
+                        context,
+                        Icons.business_outlined,
+                        '병원명',
+                        post['nickname'] ?? 'N/A',
+                      ),
+                      _buildDetailRow(
+                        context,
+                        Icons.location_on_outlined,
+                        '위치',
+                        post['location'] ?? 'N/A',
+                      ),
+                      _buildDetailRow(
+                        context,
+                        Icons.calendar_today_outlined,
+                        '요청일',
+                        post['created_date'] ?? post['created_at'] ?? 'N/A',
+                      ),
+                      _buildDetailRow(
+                        context,
+                        Icons.pets_outlined,
+                        '동물 종류',
+                        animalTypeKorean.isNotEmpty ? animalTypeKorean : 'N/A',
+                      ),
+                      _buildDetailRow(
+                        context,
+                        Icons.category_outlined,
+                        '게시글 타입',
+                        postType,
+                      ),
+                      if (post['blood_type'] != null &&
+                          post['blood_type'].toString().isNotEmpty)
+                        _buildDetailRow(
+                          context,
+                          Icons.bloodtype_outlined,
+                          '혈액형',
+                          post['blood_type'] ?? 'N/A',
                         ),
-                        child: Padding(
-                          padding: const EdgeInsets.all(12.0),
-                          child: Row(
-                            children: [
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      "시간: ${timeRange['time'] ?? 'N/A'}",
-                                      style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                      _buildDetailRow(
+                        context,
+                        Icons.group_outlined,
+                        '신청자 수',
+                        '${post['applicantCount'] ?? post['applicant_count'] ?? 0}명',
+                      ),
+                      if (post['description'] != null &&
+                          post['description'].toString().isNotEmpty)
+                        _buildDetailRow(
+                          context,
+                          Icons.description_outlined,
+                          '설명',
+                          post['description'] ?? 'N/A',
+                        ),
+
+                      const SizedBox(height: 24),
+                      Text("헌혈 날짜 및 시간", style: AppTheme.h4Style),
+                      const SizedBox(height: 12),
+                      // 시간대 정보 표시 및 디버깅
+                      () {
+                        print('DEBUG: post 전체 데이터: $post');
+                        print('DEBUG: timeRanges 데이터: ${post['timeRanges']}');
+                        final timeRanges =
+                            post['timeRanges'] as List<dynamic>? ?? [];
+                        print('DEBUG: timeRanges 길이: ${timeRanges.length}');
+
+                        if (timeRanges.isEmpty) {
+                          return Container(
+                            margin: const EdgeInsets.only(bottom: 8.0),
+                            padding: const EdgeInsets.all(12.0),
+                            decoration: BoxDecoration(
+                              color: Colors.red.shade50,
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(color: Colors.red.shade200),
+                            ),
+                            child: Center(
+                              child: Text(
+                                '헌혈 날짜 정보가 없습니다',
+                                style: AppTheme.bodyLargeStyle.copyWith(
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.red,
+                                ),
+                                textAlign: TextAlign.center,
+                              ),
+                            ),
+                          );
+                        }
+
+                        return Column(
+                          children:
+                              timeRanges.map<Widget>((timeRange) {
+                                print('DEBUG: timeRange 개별 데이터: $timeRange');
+                                final donationDate =
+                                    timeRange['donation_date'] ??
+                                    timeRange['time'] ??
+                                    'N/A';
+                                print('DEBUG: donation_date: $donationDate');
+
+                                return Container(
+                                  margin: const EdgeInsets.only(bottom: 8.0),
+                                  padding: const EdgeInsets.all(12.0),
+                                  decoration: BoxDecoration(
+                                    color: Colors.grey.shade50,
+                                    borderRadius: BorderRadius.circular(8),
+                                    border: Border.all(
+                                      color: Colors.grey.shade200,
+                                    ),
+                                  ),
+                                  child: Center(
+                                    child: Text(
+                                      _formatDateTime(donationDate.toString()),
+                                      style: AppTheme.bodyLargeStyle.copyWith(
                                         fontWeight: FontWeight.bold,
                                       ),
+                                      textAlign: TextAlign.center,
                                     ),
-                                    Text(
-                                      "필요 팀 수: ${timeRange['team'] ?? 'N/A'}팀",
-                                      style: Theme.of(context).textTheme.bodyMedium,
-                                    ),
-                                  ],
+                                  ),
+                                );
+                              }).toList(),
+                        );
+                      }(),
+
+                      // 승인/거절 버튼 (모든 게시글에 표시)
+                      const SizedBox(height: 24),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: OutlinedButton(
+                              onPressed: () {
+                                Navigator.of(context).pop();
+                                final postId = post['id'];
+                                if (postId != null) {
+                                  _showConfirmDialog(
+                                    postId is int
+                                        ? postId
+                                        : int.tryParse(postId.toString()) ?? 0,
+                                    true,
+                                    post['title'] ?? '제목 없음',
+                                  );
+                                }
+                              },
+                              style: OutlinedButton.styleFrom(
+                                foregroundColor: Colors.green,
+                                side: BorderSide(color: Colors.green.shade300),
+                                backgroundColor: Colors.transparent,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(8),
                                 ),
                               ),
-                            ],
-                          ),
-                        ),
-                      );
-                    }),
-                  ),
-                ),
-                
-                // 게시글 승인/거절 버튼 (대기 중인 게시글만 표시)
-                if (post['status'] == 'wait_to_approved' || post['status'] == '대기') ...[
-                  const SizedBox(height: 16),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: ElevatedButton(
-                          onPressed: () {
-                            final postId = post['id'];
-                            if (postId != null) {
-                              _showConfirmDialog(
-                                postId is int ? postId : int.tryParse(postId.toString()) ?? 0,
-                                true,
-                                post['title'] ?? '제목 없음'
-                              );
-                            } else {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(content: Text('게시글 ID가 올바르지 않습니다.')),
-                              );
-                            }
-                          },
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.green,
-                            foregroundColor: Colors.white,
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                            padding: const EdgeInsets.symmetric(vertical: 12),
-                          ),
-                          child: Text(
-                            "게시글 승인",
-                            style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                              fontWeight: FontWeight.bold,
-                              color: Colors.white,
+                              child: const Text('승인'),
                             ),
                           ),
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: ElevatedButton(
-                          onPressed: () {
-                            final postId = post['id'];
-                            if (postId != null) {
-                              _showConfirmDialog(
-                                postId is int ? postId : int.tryParse(postId.toString()) ?? 0,
-                                false,
-                                post['title'] ?? '제목 없음'
-                              );
-                            } else {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(content: Text('게시글 ID가 올바르지 않습니다.')),
-                              );
-                            }
-                          },
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.red,
-                            foregroundColor: Colors.white,
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                            padding: const EdgeInsets.symmetric(vertical: 12),
-                          ),
-                          child: Text(
-                            "게시글 거절",
-                            style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                              fontWeight: FontWeight.bold,
-                              color: Colors.white,
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: ElevatedButton(
+                              onPressed: () {
+                                Navigator.of(context).pop();
+                                final postId = post['id'];
+                                if (postId != null) {
+                                  _showConfirmDialog(
+                                    postId is int
+                                        ? postId
+                                        : int.tryParse(postId.toString()) ?? 0,
+                                    false,
+                                    post['title'] ?? '제목 없음',
+                                  );
+                                }
+                              },
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.red,
+                                foregroundColor: Colors.white,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                              ),
+                              child: const Text('거절'),
                             ),
                           ),
-                        ),
+                        ],
                       ),
                     ],
                   ),
-                ],
-              ],
-            ),
+                ),
+              ),
+            ],
           ),
         );
       },
     );
   }
 
-  Widget _buildDetailRow(BuildContext context, IconData icon, String label, String value) {
+  String _formatDateTime(String dateTime) {
+    try {
+      if (dateTime == 'N/A' || dateTime.isEmpty) return dateTime;
+
+      // YYYY-MM-DD HH:mm:ss 형식으로 가정
+      final parts = dateTime.split(' ');
+      if (parts.length >= 2) {
+        final dateParts = parts[0].split('-');
+        final timePart = parts[1].split(':');
+        if (dateParts.length == 3 && timePart.length >= 2) {
+          return '${dateParts[0]}.${dateParts[1]}.${dateParts[2]} : ${timePart[0]}:${timePart[1]}';
+        }
+      }
+
+      // 단순 시간 형식 (HH:mm)
+      if (dateTime.contains(':') && !dateTime.contains('-')) {
+        return '시간: $dateTime';
+      }
+
+      // 파싱에 실패하면 원본 반환
+      return dateTime;
+    } catch (e) {
+      return dateTime;
+    }
+  }
+
+  String _formatDate(String dateTime) {
+    try {
+      if (dateTime.isEmpty) return '-';
+
+      // YYYY-MM-DD HH:mm:ss 또는 YYYY-MM-DD 형식 처리
+      final datePart = dateTime.split(' ')[0];
+      final parts = datePart.split('-');
+
+      if (parts.length == 3) {
+        return '${parts[1]}.${parts[2]}'; // MM.DD 형식으로 반환
+      }
+
+      return dateTime;
+    } catch (e) {
+      return '-';
+    }
+  }
+
+  Widget _buildDetailRow(
+    BuildContext context,
+    IconData icon,
+    String label,
+    String value,
+  ) {
     final TextTheme textTheme = Theme.of(context).textTheme;
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4.0),

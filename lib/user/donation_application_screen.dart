@@ -102,7 +102,7 @@ class _DonationApplicationScreenState extends State<DonationApplicationScreen> {
 
       await UserApplicationService.createApplication(
         widget.postId,
-        selectedPet!.petId!,
+        selectedPet!.petIdx!,
       );
 
       if (mounted) {
@@ -285,14 +285,14 @@ class _DonationApplicationScreenState extends State<DonationApplicationScreen> {
                       else
                         ...availablePets.map((pet) => Card(
                               margin: const EdgeInsets.only(bottom: 12.0),
-                              elevation: selectedPet?.petId == pet.petId ? 3 : 1,
+                              elevation: selectedPet?.petIdx == pet.petIdx ? 3 : 1,
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(12),
                                 side: BorderSide(
-                                  color: selectedPet?.petId == pet.petId
+                                  color: selectedPet?.petIdx == pet.petIdx
                                       ? AppTheme.primaryBlue
                                       : Colors.grey.shade200,
-                                  width: selectedPet?.petId == pet.petId ? 2 : 1,
+                                  width: selectedPet?.petIdx == pet.petIdx ? 2 : 1,
                                 ),
                               ),
                               child: InkWell(

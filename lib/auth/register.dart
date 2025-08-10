@@ -20,6 +20,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
   final _nameController = TextEditingController();
+  final _nicknameController = TextEditingController(); // 닉네임 컨트롤러 추가
   final _phoneController = TextEditingController();
   final _addressController = TextEditingController();
 
@@ -33,6 +34,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
     _passwordController.dispose();
     _confirmPasswordController.dispose();
     _nameController.dispose();
+    _nicknameController.dispose(); // 닉네임 컨트롤러 dispose 추가
     _phoneController.dispose();
     _addressController.dispose();
     super.dispose();
@@ -85,6 +87,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
           'email': _emailController.text.trim(),
           'password': _passwordController.text.trim(),
           'name': _nameController.text.trim(),
+          'nickname': _nicknameController.text.trim(), // 닉네임 필드 추가
           'phone_number': formattedPhoneNumber.trim(), // 하이픈 제거된 전화번호 전송
           'address': _addressController.text,
           'fcm_token': fcmToken, // FCM 토큰 추가
@@ -368,6 +371,46 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 validator: (value) {
                   if (value == null || value.isEmpty) {
                     return '이름을 입력해주세요.';
+                  }
+                  return null;
+                },
+              ),
+              const SizedBox(height: 16),
+
+              // 닉네임 입력 필드 추가
+              TextFormField(
+                controller: _nicknameController,
+                maxLength: 30, // 서버 스펙에 따른 최대 길이 제한
+                decoration: InputDecoration(
+                  hintText: '닉네임 (2-30자)',
+                  filled: true,
+                  fillColor: Colors.grey[100],
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide.none,
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide(
+                      color: colorScheme.primary,
+                      width: 2,
+                    ),
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide.none,
+                  ),
+                ),
+                style: const TextStyle(fontSize: 16),
+                validator: (value) {
+                  if (value == null || value.isEmpty) {
+                    return '닉네임을 입력해주세요.';
+                  }
+                  if (value.length < 2) {
+                    return '닉네임은 2자 이상 입력해주세요.';
+                  }
+                  if (value.length > 30) {
+                    return '닉네임은 30자 이하로 입력해주세요.';
                   }
                   return null;
                 },

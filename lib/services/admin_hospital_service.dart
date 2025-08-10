@@ -40,7 +40,7 @@ class HospitalInfo {
       hospitalCode: json['hospital_code'],
       isActive: json['is_active'] ?? false,
       approved: json['approved'] ?? false,
-      createdAt: DateTime.parse(json['created_time'] ?? json['created_at'] ?? DateTime.now().toIso8601String()),
+      createdAt: DateTime.tryParse(json['created_time'] ?? json['created_at'] ?? '') ?? DateTime.now(),
       managerName: json['manager_name'],
       donationCount: json['donation_count'] ?? 0,
     );

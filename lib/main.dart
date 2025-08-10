@@ -14,6 +14,9 @@ import 'dart:convert';
 import 'dart:io'; // Platform 확인을 위해 추가
 import 'package:flutter/foundation.dart';
 
+// 웹 전용 라우팅 및 레이아웃
+import 'package:connect/web/web_router.dart';
+
 // 로컬 알림 플러그인 인스턴스
 final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
     FlutterLocalNotificationsPlugin();
@@ -201,15 +204,19 @@ class MyApp extends StatelessWidget {
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.blueAccent),
         useMaterial3: true,
         // 앱 전체의 스캐폴드 배경색을 흰색으로 설정하여 깔끔함을 강조합니다.
-        scaffoldBackgroundColor: Colors.white,
+        scaffoldBackgroundColor: kIsWeb ? const Color(0xfff5f5f5) : Colors.white,
         appBarTheme: const AppBarTheme(
           backgroundColor: Colors.white, // AppBar 배경도 흰색으로 통일
-          elevation: 0, // AppBar 그림자 제거
+          elevation: kIsWeb ? 1 : 0, // 웹에서는 약간의 그림자, 모바일에서는 제거
           foregroundColor: Colors.black, // AppBar 아이콘 및 텍스트 색상
         ),
       ),
-      home: const WelcomeScreen(),
+      // 웹에서는 라우팅 기반 네비게이션 사용
+      initialRoute: kIsWeb ? WebRouter.getInitialRoute() : null,
+      onGenerateRoute: kIsWeb ? WebRouter.generateRoute : null,
+      home: kIsWeb ? null : const WelcomeScreen(),
       debugShowCheckedModeBanner: false, // 오른쪽 상단 디버그 배너 제거
+      navigatorKey: navigatorKey,
     );
   }
 }

@@ -1,146 +1,86 @@
-========================================
-프론트엔드 개발팀에게 전달 - 닉네임 필수 기능
-========================================
+ 📞 프론트엔드팀에게 전달:
 
-## ⚠️ 중요 변경사항 ⚠️
+  1. 서버 포트 변경 필요:
+  - 현재 사용 중: http://10.100.54.176:8002 ❌
+  - 변경해야 할 포트: http://10.100.54.176:8009 ✅
 
-### 1. 데이터베이스 변경사항
-- accounts 테이블의 'nickname' 칼럼이 **필수 필드(NOT NULL)**로 변경되었습니다
-- 기존 사용자들은 자동으로 "실명_계정번호" 형태의 닉네임이 설정되었습니다
-- 예: "홍길동_123", "김철수_456"
+  2. 서버 실행 정보:
+  - 서버 실행 명령어: PORT=8009 python3 main.py
+  - 실제 서버 포트: 8009
+  - 같은 PC에서 실행: 네, 같은 서버
 
-### 2. API 변경사항
+  3. CORS 설정 확인:
+  - ✅ access-control-allow-origin: 
+  - ✅ access-control-allow-methods: GET, POST, PUT, DELETE, PATCH, OPTIONS
+  - ✅ access-control-allow-headers: Content-Type, Authorization, X-Requested-With, Accept, Origin, X-CSRF-Token
+  - ✅ access-control-allow-credentials: true
 
-#### A. 회원가입 API (`POST /api/register`)
-**⚠️ 필수 변경: nickname은 이제 필수 입력 필드입니다**
-```json
+  4. Flutter Web에서 수정할 사항:
+  // 서버 URL 변경
+  const String baseUrl = 'http://10.100.54.176:8009';
+
+  5. WebSocket 연결 (실시간 알림용):
+  // WebSocket URL
+  const String websocketUrl = 'ws://10.100.54.176:8009/ws';
+
+  포트를 8009로 변경하면 Flutter Web에서 정상적으로 작동할 것입니다! 🚀
+
+---
+📝 회원가입 API 닉네임 필드 추가 요청
+
+1. 문제 상황:
+- 회원가입 시도 시 422 에러 발생
+- 서버 응답: "Field required", "loc":["body","nickname"]
+- accounts 테이블에 nickname 컬럼이 추가된 것으로 보임
+
+2. 에러 로그:
+```
 {
-  "email": "user@example.com",
-  "password": "password123",
-  "name": "홍길동",
-  "nickname": "길동이",  // ⚠️ 필수 필드로 변경
-  "phone_number": "010-1234-5678",
-  "address": "서울시 강남구...",
-  "account_type": 3,
-  "fcm_token": "fcm_token_here",
-  "latitude": 37.123,
-  "longitude": 127.456
+  "detail": [{
+    "type": "missing",
+    "loc": ["body", "nickname"],
+    "msg": "Field required",
+    "input": {
+      "email": "u2@naver.com",
+      "password": "qwer1234", 
+      "name": "수정",
+      "phone_number": "01033333331",
+      "address": "부산 동구 수정공원남로 1",
+      "fcm_token": "fagLMwN7Ra6yvAxLmrSPYY:APA91b...",
+      "latitude": 37.5665,
+      "longitude": 126.978
+    }
+  }]
 }
 ```
 
-#### B. 프로필 조회 API (`GET /api/auth/profile`)
-**응답 스키마:**
+3. 프론트엔드에서 수정한 내용:
+✅ 회원가입 화면에 닉네임 입력 필드 추가
+✅ API 요청 body에 nickname 필드 추가
+✅ 닉네임 유효성 검사 추가 (2자 이상 필수)
+
+4. 서버팀에 확인 요청사항:
+- accounts 테이블 구조 변경 확인 (nickname 컬럼 추가 여부)
+- /api/register API 스펙 업데이트 여부
+- nickname 필드의 제약사항 (길이 제한, 중복 체크 등)
+- 기존 사용자들의 nickname 필드 기본값 처리 방법
+
+5. 추가 API 요청 데이터:
 ```json
 {
-  "name": "홍길동",
-  "email": "user@example.com",
-  "nickname": "길동이",  // 항상 값이 있음
-  "phone_number": "010-1234-5678",
-  "address": "서울시 강남구...",
-  "account_type": 3,
-  "latitude": 37.123,
-  "longitude": 127.456
+  "email": "u2@naver.com",
+  "password": "qwer1234",
+  "name": "수정", 
+  "nickname": "사용자닉네임",  // 새로 추가된 필드
+  "phone_number": "01033333331",
+  "address": "부산 동구 수정공원남로 1",
+  "fcm_token": "...",
+  "latitude": 37.5665,
+  "longitude": 126.978
 }
 ```
 
-#### C. 프로필 수정 API (`PUT /api/auth/profile`)
-**⚠️ 중요 변경: 이메일 수정이 불가능합니다**
-```json
-{
-  "name": "홍길동",
-  // "email"은 제거됨 - 이메일 수정 불가
-  "nickname": "새로운닉네임",  // 필수 필드
-  "phone_number": "010-1234-5678",
-  "address": "서울시 강남구...",
-  "latitude": 37.123,
-  "longitude": 127.456
-}
-```
-
-## 프론트엔드 구현 필수 변경사항
-
-### 1. 회원가입 화면
-- ✅ **닉네임 입력 필드를 필수로 변경**
-- ✅ **빈 값 허용하지 않음**
-- ✅ 최대 30자 제한 안내
-- ✅ 중복 닉네임 체크 (선택적 구현)
-
-### 2. 프로필 관리 화면
-- ✅ **이메일 필드를 읽기 전용으로 변경** (수정 불가)
-- ✅ **닉네임 필드를 필수 입력으로 변경**
-- ✅ 현재 닉네임 항상 표시 (기존 사용자는 "실명_번호" 형태)
-- ✅ 닉네임 변경 시 빈 값 허용하지 않음
-- ✅ 최대 30자 제한 안내
-
-### 3. UI/UX 권장사항
-- **닉네임을 주요 식별자로 활용**
-  - 사용자 목록, 댓글 등에서 닉네임 우선 표시
-  - 예: "길동이" 또는 "길동이 (홍길동)"
-- **기존 사용자 안내**
-  - 처음 로그인하는 기존 사용자에게 닉네임 변경 안내 팝업
-  - "자동 생성된 닉네임을 개인화해보세요!"
-
-### 4. 검증 로직
-- ✅ **회원가입**: 닉네임 필수 입력 검증
-- ✅ **프로필 수정**: 닉네임 빈 값 체크
-- ✅ **길이 제한**: 최대 30자
-- ✅ **특수문자**: 허용 (프론트엔드에서 정책 결정)
-
-## API 테스트 방법
-
-### 회원가입 테스트:
-```bash
-curl -X POST \
-     -H "Content-Type: application/json" \
-     -d '{
-       "email": "test@example.com",
-       "password": "password123",
-       "name": "테스트사용자",
-       "nickname": "테스트닉네임",
-       "phone_number": "010-1234-5678",
-       "address": "테스트 주소"
-     }' \
-     http://10.100.54.176:8005/api/register
-```
-
-### 프로필 조회 테스트:
-```bash
-curl -H "Authorization: Bearer YOUR_JWT_TOKEN" \
-     http://10.100.54.176:8005/api/auth/profile
-```
-
-### 프로필 수정 테스트 (이메일 제외):
-```bash
-curl -X PUT \
-     -H "Authorization: Bearer YOUR_JWT_TOKEN" \
-     -H "Content-Type: application/json" \
-     -d '{
-       "name": "테스트사용자",
-       "nickname": "새닉네임",
-       "phone_number": "010-1234-5678",
-       "address": "테스트 주소"
-     }' \
-     http://10.100.54.176:8005/api/auth/profile
-```
-
-## 에러 처리
-
-### 닉네임 관련 에러:
-- **422 Validation Error**: 닉네임이 비어있거나 30자 초과
-- **400 Bad Request**: 기타 닉네임 관련 오류
-
-### 이메일 수정 시도:
-- 프로필 수정 API에서 이메일 필드를 보내도 무시됨 (오류 발생하지 않음)
-
-## 기존 사용자 처리
-
-1. **자동 닉네임 생성**: "실명_계정번호" (예: "홍길동_123")
-2. **사용자 안내**: 첫 로그인 시 닉네임 변경 권유
-3. **점진적 업데이트**: 사용자가 원할 때 언제든지 변경 가능
-
-## 주의사항
-
-1. ⚠️ **필수 변경**: 회원가입과 프로필 수정에서 닉네임은 필수
-2. ⚠️ **이메일 수정 불가**: 프로필에서 이메일 수정 UI 제거 필요
-3. ⚠️ **기존 사용자**: 자동 생성된 닉네임 확인 및 변경 안내 필요
-4. ⚠️ **데이터 검증**: 모든 입력에서 닉네임 빈 값 체크 필수
+6. 문의사항:
+- nickname 필드가 필수 필드인지 선택 필드인지?
+- nickname 중복 체크 로직이 있는지?
+- 기존 API 스펙 문서 업데이트가 필요한지?

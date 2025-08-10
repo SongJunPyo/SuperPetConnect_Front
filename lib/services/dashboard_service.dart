@@ -142,7 +142,6 @@ class DashboardService {
         headers: {
           'Content-Type': 'application/json',
           'Accept': 'application/json',
-          'Access-Control-Allow-Origin': '*',
         },
       ).timeout(const Duration(seconds: 10));
       
@@ -177,7 +176,6 @@ class DashboardService {
         headers: {
           'Content-Type': 'application/json',
           'Accept': 'application/json',
-          'Access-Control-Allow-Origin': '*',
         },
       ).timeout(const Duration(seconds: 10));
       

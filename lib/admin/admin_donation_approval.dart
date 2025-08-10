@@ -17,9 +17,7 @@ class AdminDonationApprovalScreen extends StatefulWidget {
   State<AdminDonationApprovalScreen> createState() => _AdminDonationApprovalScreenState();
 }
 
-class _AdminDonationApprovalScreenState extends State<AdminDonationApprovalScreen>
-    with SingleTickerProviderStateMixin {
-  late TabController _tabController;
+class _AdminDonationApprovalScreenState extends State<AdminDonationApprovalScreen> {
   List<AdminPendingDonation> pendingCompletions = [];
   List<AdminPendingDonation> pendingCancellations = [];
   bool isLoadingCompletions = true;
@@ -29,7 +27,6 @@ class _AdminDonationApprovalScreenState extends State<AdminDonationApprovalScree
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 2, vsync: this);
     _loadPendingApprovals();
   }
 
@@ -77,60 +74,49 @@ class _AdminDonationApprovalScreenState extends State<AdminDonationApprovalScree
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppSimpleAppBar(
-        title: '헌혈 승인 관리',
+        title: '헌혈 게시글 승인 관리',
       ),
       body: Column(
         children: [
-          _buildTabBar(),
           Expanded(
-            child: TabBarView(
-              controller: _tabController,
-              children: [
-                _buildCompletionApprovalTab(),
-                _buildCancellationApprovalTab(),
-              ],
-            ),
+            child: _buildAllApprovalsTab(),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildTabBar() {
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        border: Border(
-          bottom: BorderSide(color: AppTheme.lightGray, width: 1),
-        ),
-      ),
-      child: TabBar(
-        controller: _tabController,
-        indicatorColor: AppTheme.primaryBlue,
-        labelColor: AppTheme.primaryBlue,
-        unselectedLabelColor: AppTheme.textSecondary,
-        tabs: [
-          Tab(
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                const Icon(Icons.check_circle_outline, size: 18),
-                const SizedBox(width: 8),
-                Text('완료 승인 (${pendingCompletions.length})'),
-              ],
-            ),
-          ),
-          Tab(
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                const Icon(Icons.cancel_outlined, size: 18),
-                const SizedBox(width: 8),
-                Text('취소 승인 (${pendingCancellations.length})'),
-              ],
-            ),
-          ),
-        ],
+
+  Widget _buildAllApprovalsTab() {
+    if (isLoadingCompletions || isLoadingCancellations) {
+      return const Center(
+        child: CircularProgressIndicator(color: AppTheme.primaryBlue),
+      );
+    }
+
+    if (errorMessage != null) {
+      return _buildErrorState();
+    }
+
+    final allPendings = [...pendingCompletions, ...pendingCancellations];
+    
+    if (allPendings.isEmpty) {
+      return _buildEmptyState('승인 대기 중인 헌혈이 없습니다');
+    }
+
+    return RefreshIndicator(
+      onRefresh: _loadPendingApprovals,
+      child: ListView.builder(
+        padding: const EdgeInsets.all(AppTheme.spacing16),
+        itemCount: allPendings.length,
+        itemBuilder: (context, index) {
+          final pending = allPendings[index];
+          if (pending.status == 'pending_completion') {
+            return _buildCompletionApprovalCard(pending);
+          } else {
+            return _buildCancellationApprovalCard(pending);
+          }
+        },
       ),
     );
   }
@@ -837,11 +823,6 @@ class _AdminDonationApprovalScreenState extends State<AdminDonationApprovalScree
     }
   }
 
-  @override
-  void dispose() {
-    _tabController.dispose();
-    super.dispose();
-  }
 }
 
 // AdminPendingDonation 모델에 fromAppliedDonation 팩토리 메서드 추가를 위한 확장

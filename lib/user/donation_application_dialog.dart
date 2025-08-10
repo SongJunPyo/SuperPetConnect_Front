@@ -334,7 +334,7 @@ class _DonationApplicationDialogState extends State<DonationApplicationDialog> {
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 Text(
-                  time.formatTime12Hour,
+                  time.formatted12Hour,
                   style: AppTheme.bodyMediumStyle.copyWith(
                     fontWeight: FontWeight.w600,
                     color: isFullyBooked 

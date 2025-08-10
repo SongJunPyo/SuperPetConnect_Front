@@ -1,0 +1,443 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Super Pet Connect - 로그인</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Malgun Gothic', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #333;
+        }
+
+        .login-container {
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+            padding: 3rem;
+            width: 100%;
+            max-width: 400px;
+            backdrop-filter: blur(10px);
+        }
+
+        .logo {
+            text-align: center;
+            margin-bottom: 2rem;
+        }
+
+        .logo h1 {
+            color: #333;
+            font-size: 1.8rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .logo p {
+            color: #666;
+            font-size: 0.9rem;
+        }
+
+        .form-group {
+            margin-bottom: 1.5rem;
+        }
+
+        .form-label {
+            display: block;
+            font-weight: 600;
+            color: #374151;
+            margin-bottom: 0.5rem;
+        }
+
+        .form-input {
+            width: 100%;
+            padding: 0.75rem 1rem;
+            border: 2px solid #e5e7eb;
+            border-radius: 8px;
+            font-size: 1rem;
+            transition: all 0.2s ease;
+            background: #f9fafb;
+        }
+
+        .form-input:focus {
+            outline: none;
+            border-color: #3b82f6;
+            background: white;
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+        }
+
+        .login-button {
+            width: 100%;
+            background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            padding: 0.875rem;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            margin-bottom: 1rem;
+        }
+
+        .login-button:hover:not(:disabled) {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
+        }
+
+        .login-button:disabled {
+            background: #9ca3af;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .account-type-selector {
+            margin-bottom: 1.5rem;
+        }
+
+        .account-type-options {
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        .account-type-option {
+            flex: 1;
+            padding: 0.5rem;
+            border: 2px solid #e5e7eb;
+            border-radius: 6px;
+            background: #f9fafb;
+            cursor: pointer;
+            text-align: center;
+            font-size: 0.9rem;
+            font-weight: 500;
+            transition: all 0.2s ease;
+        }
+
+        .account-type-option.selected {
+            border-color: #3b82f6;
+            background: #eff6ff;
+            color: #1d4ed8;
+        }
+
+        .account-type-option:hover {
+            border-color: #d1d5db;
+        }
+
+        .error-message {
+            background: #fef2f2;
+            color: #dc2626;
+            padding: 0.75rem;
+            border-radius: 6px;
+            font-size: 0.9rem;
+            margin-bottom: 1rem;
+            border-left: 4px solid #dc2626;
+        }
+
+        .success-message {
+            background: #f0fdf4;
+            color: #16a34a;
+            padding: 0.75rem;
+            border-radius: 6px;
+            font-size: 0.9rem;
+            margin-bottom: 1rem;
+            border-left: 4px solid #16a34a;
+        }
+
+        .loading {
+            display: inline-block;
+            width: 16px;
+            height: 16px;
+            border: 2px solid #ffffff;
+            border-radius: 50%;
+            border-top-color: transparent;
+            animation: spin 1s ease-in-out infinite;
+            margin-right: 0.5rem;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .footer {
+            text-align: center;
+            margin-top: 2rem;
+            padding-top: 1rem;
+            border-top: 1px solid #e5e7eb;
+            color: #6b7280;
+            font-size: 0.8rem;
+        }
+
+        .remember-me {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            margin-bottom: 1rem;
+        }
+
+        .remember-me input[type="checkbox"] {
+            width: 1rem;
+            height: 1rem;
+        }
+
+        .remember-me label {
+            font-size: 0.9rem;
+            color: #6b7280;
+        }
+    </style>
+</head>
+<body>
+    <div class="login-container">
+        <div class="logo">
+            <h1>🩸 Super Pet Connect</h1>
+            <p>관리자 & 병원 로그인</p>
+        </div>
+
+        <div id="error-message" class="error-message" style="display: none;"></div>
+        <div id="success-message" class="success-message" style="display: none;"></div>
+
+        <form id="login-form">
+            <div class="form-group account-type-selector">
+                <label class="form-label">계정 타입</label>
+                <div class="account-type-options">
+                    <div class="account-type-option selected" data-type="1">
+                        관리자
+                    </div>
+                    <div class="account-type-option" data-type="2">
+                        병원
+                    </div>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label for="email" class="form-label">이메일</label>
+                <input 
+                    type="email" 
+                    id="email" 
+                    name="email" 
+                    class="form-input" 
+                    placeholder="이메일을 입력하세요"
+                    required
+                >
+            </div>
+
+            <div class="form-group">
+                <label for="password" class="form-label">비밀번호</label>
+                <input 
+                    type="password" 
+                    id="password" 
+                    name="password" 
+                    class="form-input" 
+                    placeholder="비밀번호를 입력하세요"
+                    required
+                >
+            </div>
+
+            <div class="remember-me">
+                <input type="checkbox" id="remember" name="remember">
+                <label for="remember">로그인 상태 유지</label>
+            </div>
+
+            <button type="submit" id="login-btn" class="login-button">
+                로그인
+            </button>
+        </form>
+
+        <div class="footer">
+            Super Pet Connect Web Admin v1.0
+        </div>
+    </div>
+
+    <script>
+        const SERVER_URL = 'http://10.100.54.176:8002';
+        let selectedAccountType = 1; // 기본값: 관리자
+
+        // 페이지 로드 시 자동 로그인 체크
+        document.addEventListener('DOMContentLoaded', function() {
+            checkAutoLogin();
+            setupEventListeners();
+        });
+
+        function setupEventListeners() {
+            // 계정 타입 선택
+            document.querySelectorAll('.account-type-option').forEach(option => {
+                option.addEventListener('click', function() {
+                    document.querySelectorAll('.account-type-option').forEach(opt => {
+                        opt.classList.remove('selected');
+                    });
+                    this.classList.add('selected');
+                    selectedAccountType = parseInt(this.dataset.type);
+                });
+            });
+
+            // 폼 제출
+            document.getElementById('login-form').addEventListener('submit', handleLogin);
+
+            // Enter 키 처리
+            document.addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    handleLogin(e);
+                }
+            });
+        }
+
+        async function checkAutoLogin() {
+            const token = localStorage.getItem('jwt_token');
+            const rememberLogin = localStorage.getItem('remember_login') === 'true';
+            
+            if (token && rememberLogin) {
+                showSuccess('저장된 로그인 정보로 자동 로그인 중...');
+                
+                // 토큰 유효성 확인
+                try {
+                    const response = await fetch(`${SERVER_URL}/api/admin/posts?status=0`, {
+                        headers: {
+                            'Authorization': `Bearer ${token}`,
+                            'Content-Type': 'application/json'
+                        }
+                    });
+                    
+                    if (response.ok) {
+                        // 토큰이 유효하면 대시보드로 이동
+                        setTimeout(() => {
+                            window.location.href = 'admin_dashboard.html';
+                        }, 1000);
+                        return;
+                    } else {
+                        // 토큰이 만료되었으면 제거
+                        localStorage.removeItem('jwt_token');
+                        localStorage.removeItem('remember_login');
+                    }
+                } catch (error) {
+                    console.error('자동 로그인 실패:', error);
+                    localStorage.removeItem('jwt_token');
+                    localStorage.removeItem('remember_login');
+                }
+            }
+        }
+
+        async function handleLogin(e) {
+            e.preventDefault();
+            
+            const email = document.getElementById('email').value.trim();
+            const password = document.getElementById('password').value.trim();
+            const remember = document.getElementById('remember').checked;
+            const loginBtn = document.getElementById('login-btn');
+
+            if (!email || !password) {
+                showError('이메일과 비밀번호를 모두 입력해주세요.');
+                return;
+            }
+
+            // 로딩 상태 시작
+            loginBtn.disabled = true;
+            loginBtn.innerHTML = '<span class="loading"></span>로그인 중...';
+            hideMessages();
+
+            try {
+                const response = await fetch(`${SERVER_URL}/api/login`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                    },
+                    body: `username=${encodeURIComponent(email)}&password=${encodeURIComponent(password)}&fcm_token=web_client`
+                });
+
+                const data = await response.json();
+
+                if (response.ok && data.access_token) {
+                    // 계정 타입 확인
+                    if (data.account_type !== selectedAccountType) {
+                        const accountTypeName = selectedAccountType === 1 ? '관리자' : '병원';
+                        throw new Error(`${accountTypeName} 계정이 아닙니다. 올바른 계정 타입을 선택해주세요.`);
+                    }
+
+                    // 승인 상태 확인
+                    if (!data.approved) {
+                        throw new Error('계정이 아직 승인되지 않았습니다. 관리자에게 문의하세요.');
+                    }
+
+                    // 토큰 저장
+                    localStorage.setItem('jwt_token', data.access_token);
+                    localStorage.setItem('user_info', JSON.stringify({
+                        account_idx: data.account_idx,
+                        account_type: data.account_type,
+                        email: data.email,
+                        name: data.name,
+                        approved: data.approved
+                    }));
+
+                    // 로그인 상태 유지 설정
+                    if (remember) {
+                        localStorage.setItem('remember_login', 'true');
+                    } else {
+                        localStorage.removeItem('remember_login');
+                    }
+
+                    showSuccess('로그인 성공! 관리자 대시보드로 이동합니다...');
+
+                    // 대시보드로 이동
+                    setTimeout(() => {
+                        window.location.href = 'admin_dashboard.html';
+                    }, 1500);
+
+                } else {
+                    throw new Error(data.detail || data.message || '로그인에 실패했습니다.');
+                }
+
+            } catch (error) {
+                console.error('로그인 오류:', error);
+                showError(error.message || '로그인 중 오류가 발생했습니다.');
+            } finally {
+                // 로딩 상태 종료
+                loginBtn.disabled = false;
+                loginBtn.innerHTML = '로그인';
+            }
+        }
+
+        function showError(message) {
+            const errorEl = document.getElementById('error-message');
+            const successEl = document.getElementById('success-message');
+            
+            successEl.style.display = 'none';
+            errorEl.textContent = message;
+            errorEl.style.display = 'block';
+            
+            // 5초 후 자동 숨김
+            setTimeout(() => {
+                errorEl.style.display = 'none';
+            }, 5000);
+        }
+
+        function showSuccess(message) {
+            const errorEl = document.getElementById('error-message');
+            const successEl = document.getElementById('success-message');
+            
+            errorEl.style.display = 'none';
+            successEl.textContent = message;
+            successEl.style.display = 'block';
+        }
+
+        function hideMessages() {
+            document.getElementById('error-message').style.display = 'none';
+            document.getElementById('success-message').style.display = 'none';
+        }
+
+        // 페이지 포커스 시 자동 로그인 재확인
+        window.addEventListener('focus', function() {
+            if (localStorage.getItem('jwt_token') && localStorage.getItem('remember_login') === 'true') {
+                checkAutoLogin();
+            }
+        });
+    </script>
+</body>
+</html>

@@ -75,7 +75,6 @@ class _LoginScreenState extends State<LoginScreen> {
           headers: {
             'Content-Type': 'application/x-www-form-urlencoded',
             'Accept': 'application/json',
-            if (kIsWeb) 'Access-Control-Allow-Origin': '*',
           },
           body: requestBody,
         ).timeout(const Duration(seconds: 15));
