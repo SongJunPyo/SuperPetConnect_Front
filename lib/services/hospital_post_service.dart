@@ -24,7 +24,7 @@ class HospitalPostService {
     print('  - hospital_code: ${prefs.getString('hospital_code') ?? 'null'}');
     print('  - user_email: ${prefs.getString('user_email') ?? 'null'}');
     print('  - user_name: ${prefs.getString('user_name') ?? 'null'}');
-    print('  - guardian_idx: ${prefs.getInt('guardian_idx') ?? 'null'}');
+    print('  - account_idx: ${prefs.getInt('account_idx') ?? 'null'}');
     
     return prefs.getString('hospital_code');
   }

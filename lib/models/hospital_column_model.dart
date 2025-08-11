@@ -1,4 +1,12 @@
 class HospitalColumn {
+  // 닉네임이 유효한지 확인하는 헬퍼 메서드
+  static bool _isValidNickname(dynamic nickname) {
+    if (nickname == null) return false;
+    final nicknameStr = nickname.toString();
+    if (nicknameStr.isEmpty) return false;
+    if (nicknameStr.toLowerCase() == 'null') return false;
+    return true;
+  }
   final int columnIdx;
   final String title;
   final String content;
@@ -7,6 +15,7 @@ class HospitalColumn {
   final DateTime updatedAt;
   final int hospitalIdx;
   final String hospitalName;
+  final String? authorNickname; // 작성자 닉네임
   final int viewCount;
 
   HospitalColumn({
@@ -18,6 +27,7 @@ class HospitalColumn {
     required this.updatedAt,
     required this.hospitalIdx,
     required this.hospitalName,
+    this.authorNickname,
     this.viewCount = 0,
   });
 
@@ -35,6 +45,9 @@ class HospitalColumn {
       ),
       hospitalIdx: json['hospital_idx'] ?? 0,
       hospitalName: json['hospital_name'] ?? '',
+      authorNickname: (json['hospital_nickname'] != null && json['hospital_nickname'].toString() != 'null' && json['hospital_nickname'].toString().isNotEmpty) 
+          ? json['hospital_nickname'] 
+          : '닉네임 없음',
       viewCount: json['view_count'] ?? 0,
     );
   }
@@ -49,6 +62,7 @@ class HospitalColumn {
       'updated_at': updatedAt.toIso8601String(),
       'hospital_idx': hospitalIdx,
       'hospital_name': hospitalName,
+      'author_nickname': authorNickname ?? '',
       'view_count': viewCount,
     };
   }

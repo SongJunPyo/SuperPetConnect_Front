@@ -1,4 +1,12 @@
 class Notice {
+  // 닉네임이 유효한지 확인하는 헬퍼 메서드
+  static bool _isValidNickname(dynamic nickname) {
+    if (nickname == null) return false;
+    final nicknameStr = nickname.toString();
+    if (nicknameStr.isEmpty) return false;
+    if (nicknameStr.toLowerCase() == 'null') return false;
+    return true;
+  }
   final int noticeIdx;
   final int accountIdx; // 작성자 계정 ID (FK)
   final String title;
@@ -9,6 +17,7 @@ class Notice {
   final DateTime updatedAt;
   final String authorEmail; // JOIN을 통해 제공
   final String authorName; // JOIN을 통해 제공
+  final String? authorNickname; // JOIN을 통해 제공 (nullable)
   final int? viewCount;
   final int targetAudience; // 0: all, 1: hospital, 2: user
 
@@ -23,6 +32,7 @@ class Notice {
     required this.updatedAt,
     required this.authorEmail,
     required this.authorName,
+    this.authorNickname,
     this.viewCount,
     required this.targetAudience,
   });
@@ -38,7 +48,10 @@ class Notice {
       createdAt: DateTime.parse(json['created_at']),
       updatedAt: DateTime.parse(json['updated_at']),
       authorEmail: json['author_email'] ?? '',
-      authorName: json['author_name'] ?? json['authorName'] ?? json['author_email']?.split('@')[0] ?? '관리자',
+      authorName: json['author_name'] ?? '작성자',
+      authorNickname: (json['author_nickname'] != null && json['author_nickname'].toString() != 'null' && json['author_nickname'].toString().isNotEmpty) 
+          ? json['author_nickname'] 
+          : '닉네임 없음',
       viewCount: json['view_count'] ?? json['viewCount'],
       targetAudience: json['target_audience'] ?? 0,
     );
@@ -49,10 +62,10 @@ class Notice {
     print('DEBUG: notice_important 값 타입: ${value.runtimeType}, 값: $value'); // 디버그 로그 추가
     if (value == null) return 1; // 기본값: 뱃지 숨김(1)
     if (value is int) return value;
-    if (value is bool) return value ? 0 : 1; // true=뱃지 표시(0), false=뱃지 숨김(1)  
+    if (value is bool) return value ? 1 : 0; // true=뱃지 숨김(1), false=뱃지 표시(0) - 서버 로직에 맞춤
     if (value is String) {
-      if (value.toLowerCase() == 'true') return 0;
-      if (value.toLowerCase() == 'false') return 1;
+      if (value.toLowerCase() == 'true') return 1;
+      if (value.toLowerCase() == 'false') return 0;
       return int.tryParse(value) ?? 1;
     }
     return 1; // fallback: 뱃지 숨김(1)
@@ -74,6 +87,7 @@ class Notice {
       'updated_at': updatedAt.toIso8601String(),
       'author_email': authorEmail,
       'author_name': authorName,
+      'author_nickname': authorNickname ?? '',
       'view_count': viewCount ?? 0,
       'target_audience': targetAudience,
     };

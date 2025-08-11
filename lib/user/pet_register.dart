@@ -108,7 +108,7 @@ class _PetRegisterScreenState extends State<PetRegisterScreen> {
 
     final prefs = await SharedPreferences.getInstance();
     final token = prefs.getString('auth_token');
-    final int? accountIdx = prefs.getInt('guardian_idx'); // account_idx로 사용
+    final int? accountIdx = prefs.getInt('account_idx'); // account_idx로 사용
 
     // 🚨 불러온 값 확인하는 디버그 로그 추가
     print('DEBUG: _savePet()에서 불러온 token: $token');

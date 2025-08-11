@@ -34,6 +34,7 @@ class AdminDashboard extends StatefulWidget {
 
 class _AdminDashboardState extends State<AdminDashboard> {
   String adminName = "관리자";
+  String adminNickname = "관리자";
   String currentDateTime = "";
   Timer? _timer;
   int pendingPostsCount = 0;
@@ -60,15 +61,17 @@ class _AdminDashboardState extends State<AdminDashboard> {
   Future<void> _loadAdminName() async {
     final prefs = await SharedPreferences.getInstance();
     final token = prefs.getString('auth_token');
-    
-    // 먼저 로컬에 저장된 이름 확인
+
+    // 먼저 로컬에 저장된 이름과 닉네임 확인
     final savedName = prefs.getString('admin_name');
+    final savedNickname = prefs.getString('admin_nickname');
     if (savedName != null && savedName.isNotEmpty) {
       setState(() {
         adminName = savedName;
+        adminNickname = savedNickname ?? savedName;
       });
     }
-    
+
     // 서버에서 최신 이름 가져오기
     if (token != null) {
       try {
@@ -83,13 +86,16 @@ class _AdminDashboardState extends State<AdminDashboard> {
         if (response.statusCode == 200) {
           final data = json.decode(utf8.decode(response.bodyBytes));
           final userName = data['name'] ?? '관리자';
-          
+          final userNickname = data['nickname'] ?? userName;
+
           setState(() {
             adminName = userName;
+            adminNickname = userNickname;
           });
-          
+
           // 로컬 저장소에도 업데이트
           await prefs.setString('admin_name', userName);
+          await prefs.setString('admin_nickname', userNickname);
         }
       } catch (e) {
         // 오류 발생 시 기본값 유지
@@ -118,7 +124,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
     try {
       final prefs = await SharedPreferences.getInstance();
       final token = prefs.getString('auth_token');
-      
+
       if (token == null) return;
 
       // 동시에 두 API 호출
@@ -178,7 +184,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
       // 에러 무시 (UI에 영향주지 않음)
     }
   }
-  
+
   Future<void> _fetchBlackListStats() async {
     try {
       final stats = await BlackListService.getBlackListStats();
@@ -217,10 +223,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  '안녕하세요, $adminName님!',
-                  style: AppTheme.h2Style,
-                ),
+                Text('안녕하세요, $adminNickname 님!', style: AppTheme.h2Style),
                 const SizedBox(height: AppTheme.spacing8),
                 Text(
                   currentDateTime,
@@ -234,10 +237,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
               ],
             ),
             const SizedBox(height: AppTheme.spacing32),
-            Text(
-              "게시글 관리",
-              style: AppTheme.h3Style,
-            ),
+            Text("게시글 관리", style: AppTheme.h3Style),
             const SizedBox(height: AppTheme.spacing16),
             Column(
               children: [
@@ -308,10 +308,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
             ),
             const SizedBox(height: AppTheme.spacing32),
 
-            Text(
-              "계정 관리",
-              style: AppTheme.h3Style,
-            ),
+            Text("계정 관리", style: AppTheme.h3Style),
             const SizedBox(height: AppTheme.spacing16),
             Column(
               children: [
@@ -373,7 +370,8 @@ class _AdminDashboardState extends State<AdminDashboard> {
                     Navigator.push(
                       context,
                       MaterialPageRoute(
-                        builder: (context) => const AdminDonationApprovalScreen(),
+                        builder:
+                            (context) => const AdminDonationApprovalScreen(),
                       ),
                     );
                   },
@@ -389,7 +387,8 @@ class _AdminDashboardState extends State<AdminDashboard> {
                     Navigator.push(
                       context,
                       MaterialPageRoute(
-                        builder: (context) => const AdminBlackListManagementScreen(),
+                        builder:
+                            (context) => const AdminBlackListManagementScreen(),
                       ),
                     );
                   },
@@ -405,7 +404,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
 
   List<Widget> _buildDynamicNotifications() {
     List<Widget> notifications = [];
-    
+
     if (pendingSignupsCount > 0) {
       notifications.add(
         SizedBox(
@@ -427,7 +426,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
       );
       notifications.add(const SizedBox(height: AppTheme.spacing12));
     }
-    
+
     if (pendingPostsCount > 0) {
       notifications.add(
         SizedBox(
@@ -441,9 +440,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
             onTap: () {
               Navigator.push(
                 context,
-                MaterialPageRoute(
-                  builder: (context) => const AdminPostCheck(),
-                ),
+                MaterialPageRoute(builder: (context) => const AdminPostCheck()),
               );
             },
           ),
@@ -451,7 +448,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
       );
       notifications.add(const SizedBox(height: AppTheme.spacing12));
     }
-    
+
     // 블랙리스트 통계 정보 (블랙리스트가 있을 때만 표시)
     if (blackListStats != null && blackListStats!.activeBlackUsers > 0) {
       notifications.add(
@@ -476,7 +473,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
       );
       notifications.add(const SizedBox(height: AppTheme.spacing12));
     }
-    
+
     // 알림이 없으면 빈 리스트 반환 (카드가 표시되지 않음)
     return notifications;
   }
@@ -499,10 +496,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
           padding: const EdgeInsets.all(AppTheme.spacing20),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(AppTheme.radius16),
-            border: Border.all(
-              color: iconColor.withOpacity(0.2),
-              width: 1.5,
-            ),
+            border: Border.all(color: iconColor.withOpacity(0.2), width: 1.5),
           ),
           child: Row(
             children: [
@@ -513,11 +507,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
                   color: backgroundColor,
                   borderRadius: BorderRadius.circular(AppTheme.radius12),
                 ),
-                child: Icon(
-                  icon,
-                  size: 28,
-                  color: iconColor,
-                ),
+                child: Icon(icon, size: 28, color: iconColor),
               ),
               const SizedBox(width: AppTheme.spacing16),
               Expanded(
@@ -561,5 +551,4 @@ class _AdminDashboardState extends State<AdminDashboard> {
       ),
     );
   }
-
 }

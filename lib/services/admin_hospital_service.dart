@@ -6,11 +6,13 @@ import '../utils/config.dart';
 class HospitalInfo {
   final int accountIdx;
   final String name;
+  final String? nickname;
   final String email;
   final String? address;
   final String? phoneNumber;
   final String? hospitalCode;
   final bool isActive;
+  final bool columnActive;
   final bool approved;
   final DateTime createdAt;
   final String? managerName;
@@ -19,11 +21,13 @@ class HospitalInfo {
   HospitalInfo({
     required this.accountIdx,
     required this.name,
+    this.nickname,
     required this.email,
     this.address,
     this.phoneNumber,
     this.hospitalCode,
     required this.isActive,
+    required this.columnActive,
     required this.approved,
     required this.createdAt,
     this.managerName,
@@ -34,11 +38,14 @@ class HospitalInfo {
     return HospitalInfo(
       accountIdx: json['account_idx'] ?? 0,
       name: json['name'] ?? '',
+      nickname: json['nickname'],
       email: json['email'] ?? '',
       address: json['address'],
       phoneNumber: json['phone_number'],
       hospitalCode: json['hospital_code'],
-      isActive: json['is_active'] ?? false,
+      // TODO: 서버에서 is_active와 approved 필드 구분 필요 - API 응답에서 is_active 필드 확인
+      isActive: json['is_active'] ?? json['approved'] ?? false,
+      columnActive: json['column_active'] ?? false,
       approved: json['approved'] ?? false,
       createdAt: DateTime.tryParse(json['created_time'] ?? json['created_at'] ?? '') ?? DateTime.now(),
       managerName: json['manager_name'],
@@ -50,11 +57,13 @@ class HospitalInfo {
     return {
       'account_idx': accountIdx,
       'name': name,
+      'nickname': nickname,
       'email': email,
       'address': address,
       'phone_number': phoneNumber,
       'hospital_code': hospitalCode,
       'is_active': isActive,
+      'column_active': columnActive,
       'approved': approved,
       'created_time': createdAt.toIso8601String(),
       'manager_name': managerName,
@@ -76,16 +85,34 @@ class HospitalListResponse {
     required this.pageSize,
   });
 
-  factory HospitalListResponse.fromJson(Map<String, dynamic> json) {
-    final hospitalsList = (json['hospitals'] as List? ?? [])
+  factory HospitalListResponse.fromJson(dynamic jsonData) {
+    // API 응답이 직접 배열인 경우와 객체 안에 배열이 있는 경우 모두 처리
+    List<dynamic> hospitalsData = [];
+    Map<String, dynamic> json = {};
+    
+    if (jsonData is List) {
+      // API가 직접 배열을 반환하는 경우
+      hospitalsData = jsonData;
+    } else if (jsonData is Map<String, dynamic>) {
+      json = jsonData;
+      if (json['hospitals'] != null) {
+        // API가 객체 안에 hospitals 배열을 반환하는 경우
+        hospitalsData = json['hospitals'] as List;
+      } else if (json['data'] != null) {
+        // API가 data 필드 안에 배열을 반환하는 경우
+        hospitalsData = json['data'] as List;
+      }
+    }
+    
+    final hospitalsList = hospitalsData
         .map((hospital) => HospitalInfo.fromJson(hospital as Map<String, dynamic>))
         .toList();
     
     return HospitalListResponse(
       hospitals: hospitalsList,
-      totalCount: hospitalsList.length,
-      page: 1,
-      pageSize: hospitalsList.length,
+      totalCount: json['total_count'] ?? json['totalCount'] ?? hospitalsList.length,
+      page: json['page'] ?? 1,
+      pageSize: json['page_size'] ?? json['pageSize'] ?? hospitalsList.length,
     );
   }
 }
@@ -93,16 +120,19 @@ class HospitalListResponse {
 class HospitalUpdateRequest {
   final String? hospitalCode;
   final bool? isActive;
+  final bool? columnActive;
 
   HospitalUpdateRequest({
     this.hospitalCode,
     this.isActive,
+    this.columnActive,
   });
 
   Map<String, dynamic> toJson() {
     final Map<String, dynamic> data = {};
     if (hospitalCode != null) data['hospital_code'] = hospitalCode;
     if (isActive != null) data['is_active'] = isActive;
+    if (columnActive != null) data['column_active'] = columnActive;
     return data;
   }
 }
@@ -190,7 +220,16 @@ class AdminHospitalService {
 
       if (response.statusCode == 200) {
         final data = jsonDecode(utf8.decode(response.bodyBytes));
-        return HospitalListResponse.fromJson(data);
+        print('DEBUG: 응답 데이터 타입: ${data.runtimeType}');
+        print('DEBUG: 응답 데이터 구조: $data');
+        
+        if (data is Map) {
+          print('DEBUG: Map 구조 - keys: ${data.keys.toList()}');
+        }
+        
+        final result = HospitalListResponse.fromJson(data);
+        print('DEBUG: 파싱된 병원 수: ${result.hospitals.length}');
+        return result;
       } else if (response.statusCode == 401) {
         throw Exception('권한이 없습니다. 관리자 계정으로 로그인해주세요.');
       } else if (response.statusCode == 403) {

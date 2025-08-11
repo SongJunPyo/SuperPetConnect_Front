@@ -15,6 +15,34 @@ class HospitalColumnService {
     return prefs.getString('auth_token') ?? '';
   }
 
+  // 병원의 칼럼 작성 권한 확인
+  static Future<bool> checkColumnPermission() async {
+    try {
+      final token = await _getAuthToken();
+      if (token.isEmpty) {
+        return false;
+      }
+
+      final response = await http.get(
+        Uri.parse('${Config.serverUrl}/api/auth/profile'),
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Content-Type': 'application/json; charset=UTF-8',
+        },
+      );
+
+      if (response.statusCode == 200) {
+        final data = json.decode(utf8.decode(response.bodyBytes));
+        return data['column_active'] == true;
+      }
+      
+      return false;
+    } catch (e) {
+      print('ERROR: 칼럼 권한 확인 중 오류: $e');
+      return false;
+    }
+  }
+
   // 칼럼 작성 (병원 전용)
   static Future<HospitalColumn> createColumn(
     HospitalColumnCreateRequest request,

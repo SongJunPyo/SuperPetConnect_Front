@@ -16,12 +16,50 @@ class _HospitalColumnCreateState extends State<HospitalColumnCreate> {
   final TextEditingController _contentController = TextEditingController();
   bool _isPublished = false; // 기본값을 미발행으로 변경
   bool _isLoading = false;
+  bool _hasPermission = false;
+  bool _isCheckingPermission = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _checkPermission();
+  }
 
   @override
   void dispose() {
     _titleController.dispose();
     _contentController.dispose();
     super.dispose();
+  }
+
+  Future<void> _checkPermission() async {
+    try {
+      final hasPermission = await HospitalColumnService.checkColumnPermission();
+      setState(() {
+        _hasPermission = hasPermission;
+        _isCheckingPermission = false;
+      });
+      
+      if (!hasPermission) {
+        // 권한이 없으면 2초 후 자동으로 뒤로가기
+        Future.delayed(const Duration(seconds: 2), () {
+          if (mounted) {
+            Navigator.of(context).pop();
+          }
+        });
+      }
+    } catch (e) {
+      setState(() {
+        _hasPermission = false;
+        _isCheckingPermission = false;
+      });
+      
+      Future.delayed(const Duration(seconds: 2), () {
+        if (mounted) {
+          Navigator.of(context).pop();
+        }
+      });
+    }
   }
 
   Future<void> _createColumn() async {
@@ -105,18 +143,68 @@ class _HospitalColumnCreateState extends State<HospitalColumnCreate> {
           ),
         ],
       ),
-      body: _isLoading
+      body: _isCheckingPermission
           ? const Center(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   CircularProgressIndicator(),
                   SizedBox(height: 16),
-                  Text('칼럼을 저장하고 있습니다...'),
+                  Text('권한을 확인하고 있습니다...'),
                 ],
               ),
             )
-          : Form(
+          : !_hasPermission
+              ? Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(
+                        Icons.block,
+                        size: 64,
+                        color: Colors.red[300],
+                      ),
+                      const SizedBox(height: 16),
+                      const Text(
+                        '관리자의 권한이 필요합니다.',
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.red,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        '칼럼 작성 권한이 없습니다.\n관리자에게 문의하세요.',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: Colors.grey[600],
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      const Text(
+                        '2초 후 자동으로 이전 페이지로 돌아갑니다.',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Colors.grey,
+                        ),
+                      ),
+                    ],
+                  ),
+                )
+              : _isLoading
+                  ? const Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          CircularProgressIndicator(),
+                          SizedBox(height: 16),
+                          Text('칼럼을 저장하고 있습니다...'),
+                        ],
+                      ),
+                    )
+                  : Form(
               key: _formKey,
               child: SingleChildScrollView(
                 padding: const EdgeInsets.all(16.0),

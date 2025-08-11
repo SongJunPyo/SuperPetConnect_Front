@@ -6,6 +6,15 @@ import 'donation_date_service.dart';
 
 class DashboardService {
   static String get baseUrl => Config.serverUrl;
+  
+  // 닉네임이 유효한지 확인하는 헬퍼 메서드
+  static bool _isValidNickname(dynamic nickname) {
+    if (nickname == null) return false;
+    final nicknameStr = nickname.toString();
+    if (nicknameStr.isEmpty) return false;
+    if (nicknameStr.toLowerCase() == 'null') return false;
+    return true;
+  }
 
   // 통합 메인 대시보드 API
   static Future<DashboardResponse> getDashboardData({
@@ -137,13 +146,43 @@ class DashboardService {
         },
       );
 
+      print('🌐 칼럼 API 요청:');
+      print('  URL: $uri');
+      print('  서버: $baseUrl');
+      print('  시간: ${DateTime.now()}');
+
       final response = await http.get(
         uri,
         headers: {
           'Content-Type': 'application/json',
           'Accept': 'application/json',
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+          'Pragma': 'no-cache',
+          'Expires': '0',
         },
-      ).timeout(const Duration(seconds: 10));
+      ).timeout(const Duration(seconds: 30));
+      
+      print('🌐 칼럼 API 응답:');
+      print('  상태코드: ${response.statusCode}');
+      print('  응답 헤더: ${response.headers}');
+      print('  실제 Raw 응답: ${response.body}');
+      
+      // 응답을 JSON으로 파싱하여 구조 확인
+      if (response.statusCode == 200) {
+        try {
+          final rawData = jsonDecode(utf8.decode(response.bodyBytes));
+          print('  파싱된 JSON: $rawData');
+          if (rawData is Map && rawData['columns'] is List) {
+            final firstColumn = (rawData['columns'] as List).isNotEmpty ? (rawData['columns'] as List).first : null;
+            if (firstColumn != null) {
+              print('  첫번째 칼럼 데이터: $firstColumn');
+              print('  hospital_nickname 필드: "${firstColumn['hospital_nickname']}" (타입: ${firstColumn['hospital_nickname'].runtimeType})');
+            }
+          }
+        } catch (e) {
+          print('  JSON 파싱 오류: $e');
+        }
+      }
       
       if (response.statusCode == 200) {
         final data = jsonDecode(utf8.decode(response.bodyBytes));
@@ -152,9 +191,11 @@ class DashboardService {
             .toList();
         return columns;
       } else {
+        print('ERROR: 칼럼 API HTTP 오류 - 상태코드: ${response.statusCode}');
         return [];
       }
     } catch (e) {
+      print('ERROR: 칼럼 API 예외 발생: $e');
       return [];
     }
   }
@@ -171,13 +212,49 @@ class DashboardService {
         queryParameters: {'limit': limit.toString()},
       );
 
+      print('🌐 공지사항 API 요청:');
+      print('  URL: $uri');
+      print('  서버: $baseUrl');
+      print('  시간: ${DateTime.now()}');
+
       final response = await http.get(
         uri,
         headers: {
           'Content-Type': 'application/json',
           'Accept': 'application/json',
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+          'Pragma': 'no-cache',
+          'Expires': '0',
         },
-      ).timeout(const Duration(seconds: 10));
+      ).timeout(const Duration(seconds: 30));
+      
+      print('🌐 공지사항 API 응답:');
+      print('  상태코드: ${response.statusCode}');
+      print('  응답 헤더: ${response.headers}');
+      print('  실제 Raw 응답: ${response.body}');
+      
+      // 응답을 JSON으로 파싱하여 구조 확인
+      if (response.statusCode == 200) {
+        try {
+          final rawData = jsonDecode(utf8.decode(response.bodyBytes));
+          print('  파싱된 JSON: $rawData');
+          List<dynamic> noticesData;
+          if (rawData is Map<String, dynamic>) {
+            noticesData = rawData['notices'] ?? rawData['data'] ?? [];
+          } else if (rawData is List) {
+            noticesData = rawData;
+          } else {
+            noticesData = [];
+          }
+          if (noticesData.isNotEmpty) {
+            final firstNotice = noticesData.first;
+            print('  첫번째 공지사항 데이터: $firstNotice');
+            print('  author_nickname 필드: "${firstNotice['author_nickname']}" (타입: ${firstNotice['author_nickname'].runtimeType})');
+          }
+        } catch (e) {
+          print('  JSON 파싱 오류: $e');
+        }
+      }
       
       if (response.statusCode == 200) {
         final data = jsonDecode(utf8.decode(response.bodyBytes));
@@ -458,6 +535,7 @@ class ColumnPost {
   final int columnIdx;
   final String title;
   final String authorName;
+  final String authorNickname;
   final int viewCount;
   final String contentPreview;
   final bool isImportant;
@@ -468,6 +546,7 @@ class ColumnPost {
     required this.columnIdx,
     required this.title,
     required this.authorName,
+    required this.authorNickname,
     required this.viewCount,
     required this.contentPreview,
     required this.isImportant,
@@ -476,12 +555,19 @@ class ColumnPost {
   });
 
   factory ColumnPost.fromJson(Map<String, dynamic> json) {
+    print('🎉 ColumnPost 닉네임 체크:');
+    print('  hospital_nickname: "${json['hospital_nickname']}"');
+    print('  최종 사용할 닉네임: "${(json['hospital_nickname'] != null && json['hospital_nickname'].toString() != 'null' && json['hospital_nickname'].toString().isNotEmpty) ? json['hospital_nickname'] : '닉네임 없음'}"');
+    
     return ColumnPost(
       columnIdx: json['column_idx'] ?? 0,
       title: json['title'] ?? '',
-      authorName: json['nickname'] ?? json['author_name'] ?? '',
+      authorName: json['hospital_name'] ?? '병원',
+      authorNickname: (json['hospital_nickname'] != null && json['hospital_nickname'].toString() != 'null' && json['hospital_nickname'].toString().isNotEmpty) 
+          ? json['hospital_nickname'] 
+          : '닉네임 없음',
       viewCount: json['view_count'] ?? 0,
-      contentPreview: json['content_preview'] ?? json['content'] ?? '',
+      contentPreview: json['content'] ?? '', // content_preview 제거됨, content 사용
       isImportant: json['is_important'] ?? false,
       createdAt: DateTime.tryParse(json['created_at'] ?? '') ?? DateTime.now(),
       updatedAt: DateTime.tryParse(json['updated_at'] ?? '') ?? DateTime.now(),
@@ -497,6 +583,7 @@ class NoticePost {
   final int targetAudience;
   final String authorEmail;
   final String authorName;
+  final String authorNickname;
   final int viewCount;
   final DateTime createdAt;
   final DateTime updatedAt;
@@ -509,20 +596,28 @@ class NoticePost {
     required this.targetAudience,
     required this.authorEmail,
     required this.authorName,
+    required this.authorNickname,
     required this.viewCount,
     required this.createdAt,
     required this.updatedAt,
   });
 
   factory NoticePost.fromJson(Map<String, dynamic> json) {
+    print('🎉 NoticePost 닉네임 체크:');
+    print('  author_nickname: "${json['author_nickname']}"');
+    print('  최종 사용할 닉네임: "${(json['author_nickname'] != null && json['author_nickname'].toString() != 'null' && json['author_nickname'].toString().isNotEmpty) ? json['author_nickname'] : '닉네임 없음'}"');
+    
     return NoticePost(
       noticeIdx: json['notice_idx'] ?? json['id'] ?? 0,
       title: json['title'] ?? '',
       noticeImportant: _parseNoticeImportant(json['notice_important']), // 0=긴급, 1=정기
-      contentPreview: json['content_preview'] ?? json['content'] ?? '',
+      contentPreview: json['content'] ?? '', // content_preview 제거됨, content 사용
       targetAudience: json['target_audience'] ?? json['targetAudience'] ?? 0,
       authorEmail: json['author_email'] ?? json['authorEmail'] ?? '',
-      authorName: json['nickname'] ?? json['author_name'] ?? json['authorName'] ?? '관리자',
+      authorName: json['author_name'] ?? '작성자',
+      authorNickname: (json['author_nickname'] != null && json['author_nickname'].toString() != 'null' && json['author_nickname'].toString().isNotEmpty) 
+          ? json['author_nickname'] 
+          : '닉네임 없음',
       viewCount: json['view_count'] ?? json['viewCount'] ?? 0,
       createdAt: DateTime.tryParse(json['created_at'] ?? json['createdAt'] ?? '') ?? DateTime.now(),
       updatedAt: DateTime.tryParse(json['updated_at'] ?? json['updatedAt'] ?? '') ?? DateTime.now(),

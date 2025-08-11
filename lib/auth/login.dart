@@ -96,9 +96,9 @@ class _LoginScreenState extends State<LoginScreen> {
           await prefs.setString('user_name', data['name'] ?? '');
 
           await prefs.setInt(
-            'guardian_idx',
+            'account_idx',
             data['account_idx'] ?? 0,
-          ); // guardian_idx 저장 확인
+          ); // account_idx 저장 확인
 
           // 병원 사용자인 경우 hospital_code 저장
           if (data['account_type'] == 2 && data['hospital_code'] != null) {
@@ -108,7 +108,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
           // 🚨 저장 후 바로 확인하는 디버그 로그 추가
           print(
-            'DEBUG: SharedPreferences에 저장된 guardian_idx: ${prefs.getInt('guardian_idx')}',
+            'DEBUG: SharedPreferences에 저장된 account_idx: ${prefs.getInt('account_idx')}',
           );
           print(
             'DEBUG: SharedPreferences에 저장된 auth_token: ${prefs.getString('auth_token')}',

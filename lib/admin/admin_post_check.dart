@@ -460,7 +460,7 @@ class _AdminPostCheckState extends State<AdminPostCheck>
                   // 슬라이딩 탭
                   Container(
                     color: Colors.white,
-                    padding: const EdgeInsets.symmetric(vertical: 8.0),
+                    padding: const EdgeInsets.symmetric(vertical: 16.0),
                     child: TabBar(
                       controller: _tabController,
                       tabs: const [
@@ -483,7 +483,7 @@ class _AdminPostCheckState extends State<AdminPostCheck>
                       labelStyle: const TextStyle(fontWeight: FontWeight.bold),
                       indicatorWeight: 3.0,
                       indicatorPadding: const EdgeInsets.symmetric(
-                        horizontal: 20.0,
+                        horizontal: 8.0,
                       ),
                     ),
                   ),
@@ -611,64 +611,67 @@ class _AdminPostCheckState extends State<AdminPostCheck>
       );
     }
 
-    return Column(
-      children: [
-        // 헤더
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
-          decoration: BoxDecoration(
-            color: Colors.grey.shade50,
-            border: Border(
-              bottom: BorderSide(color: Colors.grey.shade300, width: 1),
+    return ListView.builder(
+      padding: EdgeInsets.zero,
+      itemCount: filteredPosts.length + 1, // 헤더 포함
+      itemBuilder: (context, index) {
+        // 첫 번째 아이템은 헤더
+        if (index == 0) {
+          return Container(
+            padding: const EdgeInsets.symmetric(
+              horizontal: 16.0,
+              vertical: 12.0,
             ),
-          ),
-          child: Row(
-            children: [
-              SizedBox(
-                width: 70,
-                child: Text(
-                  '구분',
-                  style: AppTheme.bodyMediumStyle.copyWith(
-                    fontWeight: FontWeight.w600,
+            decoration: BoxDecoration(
+              color: Colors.grey.shade100,
+              border: Border(
+                bottom: BorderSide(color: Colors.grey.shade400, width: 2),
+              ),
+            ),
+            child: Row(
+              children: [
+                SizedBox(
+                  width: 70,
+                  child: Text(
+                    '구분',
+                    style: AppTheme.bodyMediumStyle.copyWith(
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
                 ),
-              ),
-              Expanded(
-                child: Text(
-                  '제목',
-                  style: AppTheme.bodyMediumStyle.copyWith(
-                    fontWeight: FontWeight.w600,
+                Expanded(
+                  child: Text(
+                    '제목',
+                    style: AppTheme.bodyMediumStyle.copyWith(
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
                 ),
-              ),
-              SizedBox(
-                width: 100,
-                child: Text(
-                  '등록날짜',
-                  style: AppTheme.bodyMediumStyle.copyWith(
-                    fontWeight: FontWeight.w600,
+                SizedBox(
+                  width: 100,
+                  child: Text(
+                    '등록날짜',
+                    style: AppTheme.bodyMediumStyle.copyWith(
+                      fontWeight: FontWeight.w600,
+                    ),
+                    textAlign: TextAlign.center,
                   ),
-                  textAlign: TextAlign.center,
                 ),
-              ),
-            ],
-          ),
-        ),
-        // 게시글 목록
-        Expanded(
-          child: ListView.builder(
-            padding: const EdgeInsets.symmetric(horizontal: 16.0),
-            itemCount: filteredPosts.length,
-            itemBuilder: (context, index) {
-              final post = filteredPosts[index];
-              String postStatus = _getPostStatus(post['status']);
-              String postType = post['types'] == 1 ? '긴급' : '정기';
+              ],
+            ),
+          );
+        }
 
-              return _buildPostListItem(post, index, postStatus, postType);
-            },
-          ),
-        ),
-      ],
+        // 나머지는 게시글 아이템
+        final post = filteredPosts[index - 1]; // 인덱스 조정
+        String postStatus = _getPostStatus(post['status']);
+        String postType = post['types'] == 1 ? '긴급' : '정기';
+
+        return Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16.0),
+          child: _buildPostListItem(post, index - 1, postStatus, postType),
+        );
+      },
     );
   }
 
@@ -681,8 +684,13 @@ class _AdminPostCheckState extends State<AdminPostCheck>
     return InkWell(
       onTap: () => _showPostDetail(post, postStatus, postType),
       child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 12.0, horizontal: 0),
+        padding: const EdgeInsets.symmetric(
+          vertical: 14.0,
+          horizontal: 0,
+        ), // 패딩 증가
+        margin: const EdgeInsets.symmetric(vertical: 1.0), // 마진 추가로 공간 확보
         decoration: BoxDecoration(
+          color: Colors.white, // 배경색 명시
           border: Border(
             bottom: BorderSide(color: Colors.grey.shade200, width: 1),
           ),

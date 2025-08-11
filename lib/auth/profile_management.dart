@@ -242,17 +242,20 @@ class _ProfileManagementState extends State<ProfileManagement> {
       );
 
       if (response.statusCode == 200) {
-        // 이름이 변경된 경우 사용자 타입에 따라 SharedPreferences에 저장
+        // 이름과 닉네임이 변경된 경우 사용자 타입에 따라 SharedPreferences에 저장
         final prefs = await SharedPreferences.getInstance();
         switch (userType) {
           case 1: // 관리자
             await prefs.setString('admin_name', nameController.text);
+            await prefs.setString('admin_nickname', nicknameController.text);
             break;
           case 2: // 병원
             await prefs.setString('hospital_name', nameController.text);
+            await prefs.setString('hospital_nickname', nicknameController.text);
             break;
           case 3: // 사용자
             await prefs.setString('user_name', nameController.text);
+            await prefs.setString('user_nickname', nicknameController.text);
             break;
         }
         
@@ -408,7 +411,9 @@ class _ProfileManagementState extends State<ProfileManagement> {
             ),
             const SizedBox(height: AppTheme.spacing16),
             Text(
-              nameController.text.isNotEmpty ? nameController.text : "사용자",
+              nicknameController.text.isNotEmpty ? nicknameController.text : (
+                nameController.text.isNotEmpty ? nameController.text : "사용자"
+              ),
               style: AppTheme.h2Style.copyWith(
                 fontWeight: FontWeight.bold,
                 color: AppTheme.textPrimary,

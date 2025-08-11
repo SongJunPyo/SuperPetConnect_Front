@@ -57,6 +57,7 @@ class _UserNoticeListScreenState extends State<UserNoticeListScreen> {
           updatedAt: noticePost.createdAt,
           authorEmail: noticePost.authorEmail,
           authorName: noticePost.authorName,
+          authorNickname: noticePost.authorName, // authorName을 nickname으로 사용
           viewCount: noticePost.viewCount,
           targetAudience: noticePost.targetAudience,
         );
@@ -163,6 +164,7 @@ class _UserNoticeListScreenState extends State<UserNoticeListScreen> {
             updatedAt: notices[index].updatedAt,
             authorEmail: notices[index].authorEmail,
             authorName: notices[index].authorName,
+            authorNickname: notices[index].authorNickname,
             viewCount: noticeDetail.viewCount, // 업데이트된 조회수 반영
             targetAudience: notices[index].targetAudience,
           );

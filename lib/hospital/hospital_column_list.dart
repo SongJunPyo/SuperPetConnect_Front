@@ -185,13 +185,23 @@ class _HospitalColumnListState extends State<HospitalColumnList> with TickerProv
           ),
           IconButton(
             icon: const Icon(Icons.add, color: Colors.black87),
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => const HospitalColumnCreate(),
-                ),
-              ).then((_) => _loadMyColumns());
+            onPressed: () async {
+              final hasPermission = await HospitalColumnService.checkColumnPermission();
+              if (hasPermission) {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const HospitalColumnCreate(),
+                  ),
+                ).then((_) => _loadMyColumns());
+              } else {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('관리자의 권한이 필요합니다.'),
+                    backgroundColor: Colors.orange,
+                  ),
+                );
+              }
             },
             tooltip: '칼럼 작성',
           ),
@@ -405,13 +415,23 @@ class _HospitalColumnListState extends State<HospitalColumnList> with TickerProv
                 ),
                 const SizedBox(height: 24),
                 ElevatedButton.icon(
-                  onPressed: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => const HospitalColumnCreate(),
-                      ),
-                    ).then((_) => _loadMyColumns());
+                  onPressed: () async {
+                    final hasPermission = await HospitalColumnService.checkColumnPermission();
+                    if (hasPermission) {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const HospitalColumnCreate(),
+                        ),
+                      ).then((_) => _loadMyColumns());
+                    } else {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('관리자의 권한이 필요합니다.'),
+                          backgroundColor: Colors.orange,
+                        ),
+                      );
+                    }
                   },
                   icon: const Icon(Icons.add),
                   label: const Text('칼럼 작성하기'),

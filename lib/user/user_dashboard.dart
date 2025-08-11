@@ -6,6 +6,7 @@ import '../widgets/app_app_bar.dart';
 import '../auth/profile_management.dart';
 import 'user_notice_list.dart';
 import 'user_donation_list.dart';
+import 'user_donation_posts_list.dart';
 import 'user_column_list.dart';
 import 'user_donation_applications.dart';
 import 'user_donation_history.dart';
@@ -23,6 +24,7 @@ import '../widgets/refreshable_screen.dart';
 import '../utils/config.dart';
 import '../widgets/region_selection_sheet.dart';
 import '../models/region_model.dart';
+import '../utils/text_personalization_util.dart';
 
 class UserDashboard extends StatefulWidget {
   const UserDashboard({super.key});
@@ -35,6 +37,7 @@ class _UserDashboardState extends State<UserDashboard>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
   String userName = "사용자"; // 실제 사용자 이름
+  String userNickname = "사용자"; // 사용자 닉네임
   String currentDateTime = "";
   Timer? _timer;
 
@@ -46,7 +49,7 @@ class _UserDashboardState extends State<UserDashboard>
   bool isLoadingNotices = false;
   bool isLoadingDonations = false;
   bool isLoadingDashboard = false;
-  
+
   // 지역 선택 관련 변수들
   Region? selectedLargeRegion;
   Region? selectedMediumRegion;
@@ -104,14 +107,18 @@ class _UserDashboardState extends State<UserDashboard>
         if (response.statusCode == 200) {
           final data = json.decode(utf8.decode(response.bodyBytes));
           final userRealName = data['name'] ?? '사용자';
+          final userRealNickname = data['nickname'] ?? userRealName;
 
           print('DEBUG: 서버에서 받은 사용자 이름: $userRealName');
+          print('DEBUG: 서버에서 받은 사용자 닉네임: $userRealNickname');
           setState(() {
             userName = userRealName;
+            userNickname = userRealNickname;
           });
 
           // 로컬 저장소에도 업데이트
           await prefs.setString('user_name', userRealName);
+          await prefs.setString('user_nickname', userRealNickname);
           return;
         }
       } catch (e) {
@@ -119,17 +126,21 @@ class _UserDashboardState extends State<UserDashboard>
       }
     }
 
-    // 서버 실패 시 로컬에 저장된 이름 사용
+    // 서버 실패 시 로컬에 저장된 이름과 닉네임 사용
     final savedName = prefs.getString('user_name');
+    final savedNickname = prefs.getString('user_nickname');
     if (savedName != null && savedName.isNotEmpty) {
       print('DEBUG: 로컬에서 받은 사용자 이름: $savedName');
+      print('DEBUG: 로컬에서 받은 사용자 닉네임: $savedNickname');
       setState(() {
         userName = savedName;
+        userNickname = savedNickname ?? savedName;
       });
     } else {
       print('DEBUG: 기본 사용자 이름 사용');
       setState(() {
         userName = '사용자';
+        userNickname = '사용자';
       });
     }
   }
@@ -181,12 +192,13 @@ class _UserDashboardState extends State<UserDashboard>
               columnIdx: column.columnIdx,
               title: column.title,
               content: column.contentPreview,
-              hospitalName: column.authorName,
+              hospitalName: column.authorName, // 병원 실명
               hospitalIdx: 0,
               isPublished: true,
               viewCount: column.viewCount,
               createdAt: column.createdAt,
               updatedAt: column.updatedAt,
+              authorNickname: column.authorNickname, // 병원 닉네임
             );
           }).toList();
 
@@ -201,23 +213,28 @@ class _UserDashboardState extends State<UserDashboard>
       // 공지사항 필터링 및 정렬 (청중 타겟이 전체(0) 또는 사용자(3)만)
       final sortedNotices =
           noticePosts
-              .where((notice) => notice.targetAudience == 0 || notice.targetAudience == 3)
+              .where(
+                (notice) =>
+                    notice.targetAudience == 0 || notice.targetAudience == 3,
+              )
               .map((notice) {
-            return Notice(
-              noticeIdx: notice.noticeIdx,
-              accountIdx: 0, // DashboardService에서 제공하지 않는 필드
-              title: notice.title,
-              content: notice.contentPreview,
-              noticeImportant: notice.noticeImportant, // 1=뱃지 표시, 0=뱃지 숨김
-              noticeActive: true,
-              createdAt: notice.createdAt,
-              updatedAt: notice.updatedAt,
-              authorEmail: notice.authorEmail,
-              authorName: notice.authorName,
-              viewCount: notice.viewCount,
-              targetAudience: notice.targetAudience,
-            );
-          }).toList();
+                return Notice(
+                  noticeIdx: notice.noticeIdx,
+                  accountIdx: 0, // DashboardService에서 제공하지 않는 필드
+                  title: notice.title,
+                  content: notice.contentPreview,
+                  noticeImportant: notice.noticeImportant, // 1=뱃지 표시, 0=뱃지 숨김
+                  noticeActive: true,
+                  createdAt: notice.createdAt,
+                  updatedAt: notice.updatedAt,
+                  authorEmail: notice.authorEmail,
+                  authorName: notice.authorName,
+                  authorNickname: notice.authorNickname, // 작성자 닉네임
+                  viewCount: notice.viewCount,
+                  targetAudience: notice.targetAudience,
+                );
+              })
+              .toList();
 
       sortedNotices.sort((a, b) {
         if (a.showBadge && !b.showBadge) return -1;
@@ -265,16 +282,17 @@ class _UserDashboardState extends State<UserDashboard>
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (context) => RegionSelectionSheet(
-        onRegionSelected: (largeRegion, mediumRegion, smallRegion) {
-          setState(() {
-            selectedLargeRegion = largeRegion;
-            selectedMediumRegion = mediumRegion;
-          });
-          // 지역이 변경되면 데이터 새로고침
-          _loadDashboardData();
-        },
-      ),
+      builder:
+          (context) => RegionSelectionSheet(
+            onRegionSelected: (largeRegion, mediumRegion, smallRegion) {
+              setState(() {
+                selectedLargeRegion = largeRegion;
+                selectedMediumRegion = mediumRegion;
+              });
+              // 지역이 변경되면 데이터 새로고침
+              _loadDashboardData();
+            },
+          ),
     );
   }
 
@@ -291,32 +309,34 @@ class _UserDashboardState extends State<UserDashboard>
       onWillPop: () async => false, // 뒤로가기 방지
       child: Scaffold(
         appBar: AppDashboardAppBar(
-        onProfilePressed: () async {
-          // 프로필 관리 페이지로 이동 후 돌아올 때 사용자 이름 새로고침
-          await Navigator.push(
-            context,
-            MaterialPageRoute(builder: (context) => const ProfileManagement()),
-          );
-          // 프로필 페이지에서 돌아온 후 사용자 정보 새로고침
-          _loadUserName();
-        },
-        onNotificationPressed: () {
-          ScaffoldMessenger.of(
-            context,
-          ).showSnackBar(const SnackBar(content: Text('알림 페이지로 이동 (준비 중)')));
-        },
-        additionalAction: IconButton(
-          icon: const Icon(Icons.pets, color: AppTheme.textPrimary),
-          onPressed: () {
-            Navigator.push(
+          onProfilePressed: () async {
+            // 프로필 관리 페이지로 이동 후 돌아올 때 사용자 이름 새로고침
+            await Navigator.push(
               context,
               MaterialPageRoute(
-                builder: (context) => const PetManagementScreen(),
+                builder: (context) => const ProfileManagement(),
               ),
             );
+            // 프로필 페이지에서 돌아온 후 사용자 정보 새로고침
+            _loadUserName();
           },
+          onNotificationPressed: () {
+            ScaffoldMessenger.of(
+              context,
+            ).showSnackBar(const SnackBar(content: Text('알림 페이지로 이동 (준비 중)')));
+          },
+          additionalAction: IconButton(
+            icon: const Icon(Icons.pets, color: AppTheme.textPrimary),
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const PetManagementScreen(),
+                ),
+              );
+            },
+          ),
         ),
-      ),
         body: RefreshIndicator(
           onRefresh: _refreshData,
           color: AppTheme.primaryBlue,
@@ -331,139 +351,138 @@ class _UserDashboardState extends State<UserDashboard>
     return SingleChildScrollView(
       physics: const AlwaysScrollableScrollPhysics(),
       child: Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        // 상단 고정 컨텐츠
-        Padding(
-          padding: AppTheme.pagePadding,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text('안녕하세요, $userName님!', style: AppTheme.h2Style),
-              const SizedBox(height: AppTheme.spacing8),
-              Text(
-                currentDateTime,
-                style: AppTheme.bodyLargeStyle.copyWith(
-                  color: AppTheme.textSecondary,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // 상단 고정 컨텐츠
+          Padding(
+            padding: AppTheme.pagePadding,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('안녕하세요, $userNickname 님!', style: AppTheme.h2Style),
+                const SizedBox(height: AppTheme.spacing8),
+                Text(
+                  currentDateTime,
+                  style: AppTheme.bodyLargeStyle.copyWith(
+                    color: AppTheme.textSecondary,
+                  ),
                 ),
-              ),
-              const SizedBox(height: AppTheme.spacing20),
-              SizedBox(
-                width: double.infinity,
-                child: AppInfoCard(
-                  icon: Icons.notifications,
-                  title: '새로운 헌혈 요청 5건이 도착했습니다!',
-                  description: '자세히 보기',
+                const SizedBox(height: AppTheme.spacing20),
+                SizedBox(
+                  width: double.infinity,
+                  child: AppInfoCard(
+                    icon: Icons.notifications,
+                    title: '새로운 헌혈 요청 5건이 도착했습니다!',
+                    description: '자세히 보기',
+                    onTap: () {
+                      // TODO: 헌혈 요청 목록으로 이동
+                    },
+                  ),
+                ),
+                const SizedBox(height: AppTheme.spacing20),
+
+                // 퀵 액세스 메뉴
+                Text('내 헌혈 관리', style: AppTheme.h3Style),
+                const SizedBox(height: AppTheme.spacing12),
+                _buildLongActionCard(
+                  icon: Icons.assignment,
+                  title: '신청 현황',
+                  subtitle: '헌혈 신청 내역',
+                  color: AppTheme.primaryBlue,
                   onTap: () {
-                    // TODO: 헌혈 요청 목록으로 이동
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder:
+                            (context) => const UserDonationApplicationsScreen(),
+                      ),
+                    );
                   },
                 ),
-              ),
-              const SizedBox(height: AppTheme.spacing20),
-              
-              // 퀵 액세스 메뉴
-              Text('내 헌혈 관리', style: AppTheme.h3Style),
-              const SizedBox(height: AppTheme.spacing12),
-              _buildLongActionCard(
-                icon: Icons.assignment,
-                title: '신청 현황',
-                subtitle: '헌혈 신청 내역',
-                color: AppTheme.primaryBlue,
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => const UserDonationApplicationsScreen(),
-                    ),
-                  );
-                },
-              ),
-              const SizedBox(height: AppTheme.spacing12),
-              _buildLongActionCard(
-                icon: Icons.bloodtype,
-                title: '헌혈 이력',
-                subtitle: '완료된 헌혈 기록',
-                color: Colors.red.shade600,
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => const UserDonationHistoryScreen(),
-                    ),
-                  );
-                },
-              ),
-            ],
-          ),
-        ),
-        // 탭바
-        Container(
-          margin: const EdgeInsets.symmetric(
-            horizontal: AppTheme.spacing16,
-          ),
-          child: TabBar(
-            controller: _tabController,
-            tabs: const [
-              Tab(
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(Icons.bloodtype, size: 20),
-                    SizedBox(width: 8),
-                    Text('헌혈 모집'),
-                  ],
+                const SizedBox(height: AppTheme.spacing12),
+                _buildLongActionCard(
+                  icon: Icons.bloodtype,
+                  title: '헌혈 이력',
+                  subtitle: '완료된 헌혈 기록',
+                  color: Colors.red.shade600,
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const UserDonationHistoryScreen(),
+                      ),
+                    );
+                  },
                 ),
-              ),
-              Tab(
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(Icons.article, size: 20),
-                    SizedBox(width: 8),
-                    Text('칼럼'),
-                  ],
+              ],
+            ),
+          ),
+          // 탭바
+          Container(
+            margin: const EdgeInsets.symmetric(horizontal: AppTheme.spacing16),
+            child: TabBar(
+              controller: _tabController,
+              tabs: const [
+                Tab(
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.bloodtype, size: 20),
+                      SizedBox(width: 8),
+                      Text('헌혈 모집'),
+                    ],
+                  ),
                 ),
-              ),
-              Tab(
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(Icons.announcement, size: 20),
-                    SizedBox(width: 8),
-                    Text('공지사항'),
-                  ],
+                Tab(
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.article, size: 20),
+                      SizedBox(width: 8),
+                      Text('칼럼'),
+                    ],
+                  ),
                 ),
-              ),
-            ],
-            labelColor: Colors.black87,
-            unselectedLabelColor: Colors.grey,
-            indicatorColor: Colors.black87,
-            dividerColor: Colors.transparent,
+                Tab(
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.announcement, size: 20),
+                      SizedBox(width: 8),
+                      Text('공지사항'),
+                    ],
+                  ),
+                ),
+              ],
+              labelColor: Colors.black87,
+              unselectedLabelColor: Colors.grey,
+              indicatorColor: Colors.black87,
+              dividerColor: Colors.transparent,
+            ),
           ),
-        ),
-        // 탭 뷰
-        Container(
-          margin: const EdgeInsets.only(
-            left: AppTheme.spacing16,
-            right: AppTheme.spacing16,
-            bottom: AppTheme.spacing16, // 하단 여백
+          // 탭 뷰
+          Container(
+            margin: const EdgeInsets.only(
+              left: AppTheme.spacing16,
+              right: AppTheme.spacing16,
+              bottom: AppTheme.spacing16, // 하단 여백
+            ),
+            height: 400, // 고정 높이
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: AppTheme.lightGray.withOpacity(0.3)),
+            ),
+            child: TabBarView(
+              controller: _tabController,
+              children: [
+                _buildBloodDonationBoard(), // 헌혈 모집 게시판 내용
+                _buildColumnBoard(), // 칼럼 게시판 내용
+                _buildNoticeBoard(), // 공지사항 게시판 내용
+              ],
+            ),
           ),
-          height: 400, // 고정 높이
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: AppTheme.lightGray.withOpacity(0.3)),
-          ),
-          child: TabBarView(
-            controller: _tabController,
-            children: [
-              _buildBloodDonationBoard(), // 헌혈 모집 게시판 내용
-              _buildColumnBoard(), // 칼럼 게시판 내용
-              _buildNoticeBoard(), // 공지사항 게시판 내용
-            ],
-          ),
-        ),
-      ],
+        ],
       ),
     );
   }
@@ -562,7 +581,7 @@ class _UserDashboardState extends State<UserDashboard>
                       Navigator.push(
                         context,
                         MaterialPageRoute(
-                          builder: (context) => const UserDonationListScreen(),
+                          builder: (context) => const UserDonationPostsListScreen(),
                         ),
                       );
                     },
@@ -583,7 +602,7 @@ class _UserDashboardState extends State<UserDashboard>
                     ),
                   );
                 }
-                
+
                 final donation = donations[index];
 
                 return InkWell(
@@ -664,8 +683,12 @@ class _UserDashboardState extends State<UserDashboard>
                                                 : FontWeight.w500,
                                         fontSize: 14,
                                       ),
-                                      animationDuration: const Duration(milliseconds: 4000),
-                                      pauseDuration: const Duration(milliseconds: 1000),
+                                      animationDuration: const Duration(
+                                        milliseconds: 4000,
+                                      ),
+                                      pauseDuration: const Duration(
+                                        milliseconds: 1000,
+                                      ),
                                     ),
                                   ),
                                 ],
@@ -747,7 +770,9 @@ class _UserDashboardState extends State<UserDashboard>
                                   ),
                                   const SizedBox(height: 1),
                                   Text(
-                                    NumberFormatUtil.formatViewCount(donation.viewCount),
+                                    NumberFormatUtil.formatViewCount(
+                                      donation.viewCount,
+                                    ),
                                     style: AppTheme.bodySmallStyle.copyWith(
                                       color: AppTheme.textTertiary,
                                       fontSize: 10,
@@ -837,7 +862,7 @@ class _UserDashboardState extends State<UserDashboard>
                     ),
                   );
                 }
-                
+
                 final column = columns[index];
                 final isImportant =
                     column.title.contains('[중요]') ||
@@ -909,14 +934,28 @@ class _UserDashboardState extends State<UserDashboard>
                                   ],
                                   Expanded(
                                     child: MarqueeText(
-                                      text: column.title,
+                                      text: TextPersonalizationUtil.personalizeTitle(
+                                        title: column.title,
+                                        userName: userName,
+                                        userNickname: userNickname,
+                                      ),
                                       style: AppTheme.bodyMediumStyle.copyWith(
-                                        color: isImportant ? AppTheme.error : AppTheme.textPrimary,
-                                        fontWeight: isImportant ? FontWeight.w600 : FontWeight.w500,
+                                        color:
+                                            isImportant
+                                                ? AppTheme.error
+                                                : AppTheme.textPrimary,
+                                        fontWeight:
+                                            isImportant
+                                                ? FontWeight.w600
+                                                : FontWeight.w500,
                                         fontSize: 14,
                                       ),
-                                      animationDuration: const Duration(milliseconds: 4000),
-                                      pauseDuration: const Duration(milliseconds: 1000),
+                                      animationDuration: const Duration(
+                                        milliseconds: 4000,
+                                      ),
+                                      pauseDuration: const Duration(
+                                        milliseconds: 1000,
+                                      ),
                                     ),
                                   ),
                                 ],
@@ -924,11 +963,13 @@ class _UserDashboardState extends State<UserDashboard>
                               const SizedBox(height: 6),
                               // 두 번째 줄: 작성자 이름
                               Padding(
-                                padding: const EdgeInsets.only(left: 28), // 숫자 너비만큼 들여쓰기
+                                padding: const EdgeInsets.only(
+                                  left: 28,
+                                ), // 숫자 너비만큼 들여쓰기
                                 child: Text(
-                                  column.hospitalName.length > 15
-                                      ? '${column.hospitalName.substring(0, 15)}..'
-                                      : column.hospitalName,
+                                  (column.authorNickname ?? column.hospitalName).length > 15
+                                      ? '${(column.authorNickname ?? column.hospitalName).substring(0, 15)}..'
+                                      : (column.authorNickname ?? column.hospitalName),
                                   style: AppTheme.bodySmallStyle.copyWith(
                                     color: AppTheme.textSecondary,
                                     fontSize: 12,
@@ -994,7 +1035,9 @@ class _UserDashboardState extends State<UserDashboard>
                                   ),
                                   const SizedBox(height: 1),
                                   Text(
-                                    NumberFormatUtil.formatViewCount(column.viewCount),
+                                    NumberFormatUtil.formatViewCount(
+                                      column.viewCount,
+                                    ),
                                     style: AppTheme.bodySmallStyle.copyWith(
                                       color: AppTheme.textTertiary,
                                       fontSize: 10,
@@ -1089,7 +1132,7 @@ class _UserDashboardState extends State<UserDashboard>
                     ),
                   );
                 }
-                
+
                 final notice = notices[index];
 
                 return InkWell(
@@ -1154,14 +1197,28 @@ class _UserDashboardState extends State<UserDashboard>
                                   ],
                                   Expanded(
                                     child: MarqueeText(
-                                      text: notice.title,
+                                      text: TextPersonalizationUtil.personalizeTitle(
+                                        title: notice.title,
+                                        userName: userName,
+                                        userNickname: userNickname,
+                                      ),
                                       style: AppTheme.bodyMediumStyle.copyWith(
-                                        color: notice.showBadge ? AppTheme.error : AppTheme.textPrimary,
-                                        fontWeight: notice.showBadge ? FontWeight.w600 : FontWeight.w500,
+                                        color:
+                                            notice.showBadge
+                                                ? AppTheme.error
+                                                : AppTheme.textPrimary,
+                                        fontWeight:
+                                            notice.showBadge
+                                                ? FontWeight.w600
+                                                : FontWeight.w500,
                                         fontSize: 14,
                                       ),
-                                      animationDuration: const Duration(milliseconds: 4000),
-                                      pauseDuration: const Duration(milliseconds: 1000),
+                                      animationDuration: const Duration(
+                                        milliseconds: 4000,
+                                      ),
+                                      pauseDuration: const Duration(
+                                        milliseconds: 1000,
+                                      ),
                                     ),
                                   ),
                                 ],
@@ -1172,9 +1229,9 @@ class _UserDashboardState extends State<UserDashboard>
                                 children: [
                                   Expanded(
                                     child: Text(
-                                      notice.authorName.length > 15
-                                          ? '${notice.authorName.substring(0, 15)}..'
-                                          : notice.authorName,
+                                      (notice.authorNickname ?? notice.authorName).length > 15
+                                          ? '${(notice.authorNickname ?? notice.authorName).substring(0, 15)}..'
+                                          : (notice.authorNickname ?? notice.authorName),
                                       style: AppTheme.bodySmallStyle.copyWith(
                                         color: AppTheme.textSecondary,
                                         fontSize: 12,
@@ -1242,7 +1299,9 @@ class _UserDashboardState extends State<UserDashboard>
                                   ),
                                   const SizedBox(height: 1),
                                   Text(
-                                    NumberFormatUtil.formatViewCount(notice.viewCount ?? 0),
+                                    NumberFormatUtil.formatViewCount(
+                                      notice.viewCount ?? 0,
+                                    ),
                                     style: AppTheme.bodySmallStyle.copyWith(
                                       color: AppTheme.textTertiary,
                                       fontSize: 10,
@@ -1328,11 +1387,7 @@ class _UserDashboardState extends State<UserDashboard>
                   color: color.withOpacity(0.1),
                   borderRadius: BorderRadius.circular(AppTheme.radius8),
                 ),
-                child: Icon(
-                  Icons.arrow_forward_ios,
-                  size: 16,
-                  color: color,
-                ),
+                child: Icon(Icons.arrow_forward_ios, size: 16, color: color),
               ),
             ],
           ),
@@ -1398,18 +1453,18 @@ class _UserDashboardState extends State<UserDashboard>
   // 공지사항 바텀시트 표시
   void _showNoticeBottomSheet(BuildContext context, Notice notice) async {
     // 상세 조회 API 호출 (조회수 자동 증가)
-    final noticeDetail = await DashboardService.getNoticeDetail(notice.noticeIdx);
-    
+    final noticeDetail = await DashboardService.getNoticeDetail(
+      notice.noticeIdx,
+    );
+
     if (!mounted) return;
-    
+
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.white,
       shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(
-          top: Radius.circular(20),
-        ),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
       builder: (BuildContext context) {
         return DraggableScrollableSheet(
@@ -1421,9 +1476,7 @@ class _UserDashboardState extends State<UserDashboard>
             return Container(
               decoration: const BoxDecoration(
                 color: Colors.white,
-                borderRadius: BorderRadius.vertical(
-                  top: Radius.circular(20),
-                ),
+                borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
               ),
               child: Column(
                 children: [
@@ -1464,9 +1517,16 @@ class _UserDashboardState extends State<UserDashboard>
                         ],
                         Expanded(
                           child: Text(
-                            noticeDetail?.title ?? notice.title,
+                            TextPersonalizationUtil.personalizeTitle(
+                              title: noticeDetail?.title ?? notice.title,
+                              userName: userName,
+                              userNickname: userNickname,
+                            ),
                             style: AppTheme.h3Style.copyWith(
-                              color: notice.showBadge ? AppTheme.error : AppTheme.textPrimary,
+                              color:
+                                  notice.showBadge
+                                      ? AppTheme.error
+                                      : AppTheme.textPrimary,
                               fontWeight: FontWeight.bold,
                             ),
                           ),
@@ -1485,13 +1545,15 @@ class _UserDashboardState extends State<UserDashboard>
                     child: Row(
                       children: [
                         Text(
-                          '${notice.authorName} • ',
+                          '${notice.authorNickname ?? notice.authorName} • ',
                           style: AppTheme.bodySmallStyle.copyWith(
                             color: AppTheme.textSecondary,
                           ),
                         ),
                         Text(
-                          DateFormat('yyyy년 MM월 dd일').format(noticeDetail?.createdAt ?? notice.createdAt),
+                          DateFormat(
+                            'yyyy년 MM월 dd일',
+                          ).format(noticeDetail?.createdAt ?? notice.createdAt),
                           style: AppTheme.bodySmallStyle.copyWith(
                             color: AppTheme.textSecondary,
                           ),
@@ -1504,7 +1566,9 @@ class _UserDashboardState extends State<UserDashboard>
                         ),
                         const SizedBox(width: 4),
                         Text(
-                          NumberFormatUtil.formatViewCount(noticeDetail?.viewCount ?? notice.viewCount ?? 0),
+                          NumberFormatUtil.formatViewCount(
+                            noticeDetail?.viewCount ?? notice.viewCount ?? 0,
+                          ),
                           style: AppTheme.bodySmallStyle.copyWith(
                             color: AppTheme.textSecondary,
                           ),
@@ -1518,10 +1582,12 @@ class _UserDashboardState extends State<UserDashboard>
                       controller: scrollController,
                       padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
                       child: Text(
-                        noticeDetail?.contentPreview ?? notice.content,
-                        style: AppTheme.bodyMediumStyle.copyWith(
-                          height: 1.6,
+                        TextPersonalizationUtil.personalizeContent(
+                          content: noticeDetail?.contentPreview ?? notice.content,
+                          userName: userName,
+                          userNickname: userNickname,
                         ),
+                        style: AppTheme.bodyMediumStyle.copyWith(height: 1.6),
                       ),
                     ),
                   ),

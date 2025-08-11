@@ -65,12 +65,13 @@ class _WelcomeScreenState extends State<WelcomeScreen>
           columnIdx: column.columnIdx,
           title: column.title,
           content: column.contentPreview,
-          hospitalName: column.authorName,
+          hospitalName: column.authorName, // 병원 실명
           hospitalIdx: 0,
           isPublished: true,
           viewCount: column.viewCount,
           createdAt: column.createdAt,
           updatedAt: column.updatedAt,
+          authorNickname: column.authorNickname, // 병원 닉네임
         );
       }).toList();
 
@@ -98,6 +99,7 @@ class _WelcomeScreenState extends State<WelcomeScreen>
           updatedAt: notice.updatedAt,
           authorEmail: notice.authorEmail,
           authorName: notice.authorName,
+          authorNickname: notice.authorNickname, // 작성자 닉네임
           viewCount: notice.viewCount,
           targetAudience: notice.targetAudience,
         );
@@ -426,9 +428,9 @@ class _WelcomeScreenState extends State<WelcomeScreen>
                               Padding(
                                 padding: const EdgeInsets.only(left: 28), // 숫자 너비만큼 들여쓰기
                                 child: Text(
-                                  notice.authorName.length > 15
-                                      ? '${notice.authorName.substring(0, 15)}..'
-                                      : notice.authorName,
+                                  (notice.authorNickname ?? notice.authorName).length > 15
+                                      ? '${(notice.authorNickname ?? notice.authorName).substring(0, 15)}..'
+                                      : (notice.authorNickname ?? notice.authorName),
                                   style: AppTheme.bodySmallStyle.copyWith(
                                     color: AppTheme.textSecondary,
                                     fontSize: 12,
@@ -690,9 +692,9 @@ class _WelcomeScreenState extends State<WelcomeScreen>
                               Padding(
                                 padding: const EdgeInsets.only(left: 28), // 숫자 너비만큼 들여쓰기
                                 child: Text(
-                                  column.hospitalName.length > 15
-                                      ? '${column.hospitalName.substring(0, 15)}..'
-                                      : column.hospitalName,
+                                  (column.authorNickname ?? column.hospitalName).length > 15
+                                      ? '${(column.authorNickname ?? column.hospitalName).substring(0, 15)}..'
+                                      : (column.authorNickname ?? column.hospitalName),
                                   style: AppTheme.bodySmallStyle.copyWith(
                                     color: AppTheme.textSecondary,
                                     fontSize: 12,
@@ -873,7 +875,7 @@ class _WelcomeScreenState extends State<WelcomeScreen>
                     child: Row(
                       children: [
                         Text(
-                          '${notice.authorName} • ',
+                          '${notice.authorNickname ?? notice.authorName} • ',
                           style: AppTheme.bodySmallStyle.copyWith(
                             color: AppTheme.textSecondary,
                           ),
