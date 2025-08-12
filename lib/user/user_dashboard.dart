@@ -8,8 +8,7 @@ import 'user_notice_list.dart';
 import 'user_donation_list.dart';
 import 'user_donation_posts_list.dart';
 import 'user_column_list.dart';
-import 'user_donation_applications.dart';
-import 'user_donation_history.dart';
+import 'donation_history_screen.dart';
 import '../services/dashboard_service.dart';
 import '../models/hospital_column_model.dart';
 import '../models/notice_model.dart';
@@ -50,13 +49,31 @@ class _UserDashboardState extends State<UserDashboard>
   bool isLoadingDonations = false;
   bool isLoadingDashboard = false;
 
-  // 지역 선택 관련 변수들
-  Region? selectedLargeRegion;
-  Region? selectedMediumRegion;
+  // 지역 선택 관련 변수들 - 다중 선택 지원
+  List<Region> selectedLargeRegions = []; // 선택된 시/도 목록
+  Map<Region, List<Region>> selectedMediumRegions = {}; // 시/도별 선택된 시/군/구 목록
+  
   String get selectedRegionText {
-    if (selectedLargeRegion == null) return '전체 지역';
-    if (selectedMediumRegion == null) return selectedLargeRegion!.name;
-    return '${selectedLargeRegion!.name} ${selectedMediumRegion!.name}';
+    if (selectedLargeRegions.isEmpty) return '전체 지역';
+    
+    if (selectedLargeRegions.length == 1) {
+      final largeRegion = selectedLargeRegions.first;
+      final mediumRegions = selectedMediumRegions[largeRegion] ?? [];
+      
+      if (mediumRegions.isEmpty) {
+        return '${largeRegion.name} 전체';
+      } else if (mediumRegions.length == 1) {
+        return '${largeRegion.name} ${mediumRegions.first.name}';
+      } else {
+        return '${largeRegion.name} ${mediumRegions.first.name} 외 ${mediumRegions.length - 1}곳';
+      }
+    } else {
+      if (selectedLargeRegions.length <= 3) {
+        return selectedLargeRegions.map((r) => r.name).join(', ');
+      } else {
+        return '${selectedLargeRegions.take(2).map((r) => r.name).join(', ')} 외 ${selectedLargeRegions.length - 2}곳';
+      }
+    }
   }
 
   @override
@@ -151,6 +168,106 @@ class _UserDashboardState extends State<UserDashboard>
     await _loadDashboardData();
   }
 
+  // 정식명칭을 간단명칭으로 변환하는 헬퍼 함수 (서버 권장사항)
+  String _getSimpleRegionName(String fullName) {
+    const regionMapping = {
+      '서울특별시': '서울',
+      '부산광역시': '부산', 
+      '대구광역시': '대구',
+      '인천광역시': '인천',
+      '광주광역시': '광주',
+      '대전광역시': '대전',
+      '울산광역시': '울산',
+      '세종특별자치시': '세종',
+      '경기도': '경기',
+      '강원도': '강원',
+      '강원특별자치도': '강원',
+      '충청북도': '충북',
+      '충청남도': '충남',
+      '전라북도': '전북',
+      '전북특별자치도': '전북',
+      '전라남도': '전남',
+      '경상북도': '경북',
+      '경상남도': '경남',
+      '제주특별자치도': '제주',
+    };
+    
+    final mapped = regionMapping[fullName];
+    print('DEBUG: 지역 매핑 - $fullName → $mapped');
+    return mapped ?? fullName;
+  }
+
+  // 헌혈 모집 데이터만 새로고침 (지역 필터링용)
+  Future<void> _refreshDonationPosts() async {
+    setState(() {
+      isLoadingDonations = true;
+    });
+
+    try {
+      List<DonationPost> allDonationPosts = [];
+      
+      if (selectedLargeRegions.isEmpty) {
+        // 전체 지역 선택인 경우
+        final posts = await DashboardService.getPublicPosts(limit: 50);
+        allDonationPosts.addAll(posts);
+      } else {
+        // 선택된 지역들에서 데이터 가져오기
+        for (final largeRegion in selectedLargeRegions) {
+          final mediumRegions = selectedMediumRegions[largeRegion] ?? [];
+          
+          if (mediumRegions.isEmpty) {
+            // 시/도 전체 선택인 경우 - 서버 권장 간단명칭 사용
+            final posts = await DashboardService.getPublicPosts(
+              limit: 20,
+              region: _getSimpleRegionName(largeRegion.name),
+            );
+            allDonationPosts.addAll(posts);
+          } else {
+            // 구체적인 시/군/구 선택인 경우 - 서버 권장 간단명칭 사용
+            for (final mediumRegion in mediumRegions) {
+              final posts = await DashboardService.getPublicPosts(
+                limit: 20,
+                region: _getSimpleRegionName(largeRegion.name),
+                subRegion: mediumRegion.name,
+              );
+              allDonationPosts.addAll(posts);
+            }
+          }
+        }
+      }
+
+      // 중복 제거 (postIdx 기준)
+      final uniquePosts = <int, DonationPost>{};
+      for (final post in allDonationPosts) {
+        uniquePosts[post.postIdx] = post;
+      }
+      final donationPosts = uniquePosts.values.toList();
+
+      print('DEBUG: 다중 지역 필터링 헌혈 모집글 로드 결과:');
+      print('  - 선택 지역: ${selectedRegionText}');
+      print('  - 총 API 호출 결과: ${allDonationPosts.length}건');
+      print('  - 중복 제거 후: ${donationPosts.length}건');
+
+      // 헌혈 모집글 정렬 (긴급 우선, 그 다음 최신순)
+      final sortedDonations = List<DonationPost>.from(donationPosts);
+      sortedDonations.sort((a, b) {
+        if (a.isUrgent && !b.isUrgent) return -1;
+        if (!a.isUrgent && b.isUrgent) return 1;
+        return b.createdAt.compareTo(a.createdAt);
+      });
+
+      setState(() {
+        donations = sortedDonations.take(10).toList();
+        isLoadingDonations = false;
+      });
+    } catch (e) {
+      print('헌혈 모집글 새로고침 실패: $e');
+      setState(() {
+        isLoadingDonations = false;
+      });
+    }
+  }
+
   // 통합 대시보드 데이터 로드
   Future<void> _loadDashboardData() async {
     setState(() {
@@ -161,16 +278,52 @@ class _UserDashboardState extends State<UserDashboard>
     });
 
     try {
-      // 개별 API들을 직접 사용 (제목 형식 통일을 위해)
+      // 다중 지역 선택에 따른 헌혈 모집글 로딩
+      List<DonationPost> allDonationPosts = [];
+      
+      if (selectedLargeRegions.isEmpty) {
+        // 전체 지역 선택인 경우
+        final posts = await DashboardService.getPublicPosts(limit: 10);
+        allDonationPosts.addAll(posts);
+      } else {
+        // 선택된 지역들에서 데이터 가져오기 (초기 로딩이므로 제한적으로)
+        for (final largeRegion in selectedLargeRegions.take(3)) { // 처음 3개 지역만
+          final mediumRegions = selectedMediumRegions[largeRegion] ?? [];
+          
+          if (mediumRegions.isEmpty) {
+            // 시/도 전체 선택인 경우 - 서버 권장 간단명칭 사용
+            final posts = await DashboardService.getPublicPosts(
+              limit: 5,
+              region: _getSimpleRegionName(largeRegion.name),
+            );
+            allDonationPosts.addAll(posts);
+          } else {
+            // 구체적인 시/군/구 선택인 경우 (첫 번째만) - 서버 권장 간단명칭 사용
+            final posts = await DashboardService.getPublicPosts(
+              limit: 5,
+              region: _getSimpleRegionName(largeRegion.name),
+              subRegion: mediumRegions.first.name,
+            );
+            allDonationPosts.addAll(posts);
+          }
+        }
+      }
+
+      // 중복 제거
+      final uniquePosts = <int, DonationPost>{};
+      for (final post in allDonationPosts) {
+        uniquePosts[post.postIdx] = post;
+      }
+      final donationPosts = uniquePosts.values.take(10).toList();
+
+      // 칼럼과 공지사항은 별도로 로딩
       final futures = await Future.wait([
-        DashboardService.getPublicPosts(limit: 10),
         DashboardService.getPublicColumns(limit: 10),
         DashboardService.getPublicNotices(limit: 10),
       ]);
 
-      final donationPosts = futures[0] as List<DonationPost>;
-      final columnPosts = futures[1] as List<ColumnPost>;
-      final noticePosts = futures[2] as List<NoticePost>;
+      final columnPosts = futures[0] as List<ColumnPost>;
+      final noticePosts = futures[1] as List<NoticePost>;
 
       print('DEBUG: 대시보드 데이터 로드 결과:');
       print('  - 헌혈 모집글: ${donationPosts.length}건');
@@ -282,17 +435,18 @@ class _UserDashboardState extends State<UserDashboard>
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder:
-          (context) => RegionSelectionSheet(
-            onRegionSelected: (largeRegion, mediumRegion, smallRegion) {
-              setState(() {
-                selectedLargeRegion = largeRegion;
-                selectedMediumRegion = mediumRegion;
-              });
-              // 지역이 변경되면 데이터 새로고침
-              _loadDashboardData();
-            },
-          ),
+      builder: (context) => RegionSelectionSheet(
+        initialSelectedLargeRegions: List.from(selectedLargeRegions),
+        initialSelectedMediumRegions: Map.from(selectedMediumRegions),
+        onRegionSelected: (selectedLarges, selectedMediums) {
+          setState(() {
+            selectedLargeRegions = selectedLarges;
+            selectedMediumRegions = selectedMediums;
+          });
+          // 지역이 변경되면 헌혈 모집 데이터만 새로고침
+          _refreshDonationPosts();
+        },
+      ),
     );
   }
 
@@ -368,48 +522,20 @@ class _UserDashboardState extends State<UserDashboard>
                   ),
                 ),
                 const SizedBox(height: AppTheme.spacing20),
-                SizedBox(
-                  width: double.infinity,
-                  child: AppInfoCard(
-                    icon: Icons.notifications,
-                    title: '새로운 헌혈 요청 5건이 도착했습니다!',
-                    description: '자세히 보기',
-                    onTap: () {
-                      // TODO: 헌혈 요청 목록으로 이동
-                    },
-                  ),
-                ),
-                const SizedBox(height: AppTheme.spacing20),
 
                 // 퀵 액세스 메뉴
                 Text('내 헌혈 관리', style: AppTheme.h3Style),
                 const SizedBox(height: AppTheme.spacing12),
                 _buildLongActionCard(
-                  icon: Icons.assignment,
-                  title: '신청 현황',
-                  subtitle: '헌혈 신청 내역',
-                  color: AppTheme.primaryBlue,
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder:
-                            (context) => const UserDonationApplicationsScreen(),
-                      ),
-                    );
-                  },
-                ),
-                const SizedBox(height: AppTheme.spacing12),
-                _buildLongActionCard(
                   icon: Icons.bloodtype,
                   title: '헌혈 이력',
-                  subtitle: '완료된 헌혈 기록',
+                  subtitle: '헌혈 신청 및 완료 내역',
                   color: Colors.red.shade600,
                   onTap: () {
                     Navigator.push(
                       context,
                       MaterialPageRoute(
-                        builder: (context) => const UserDonationHistoryScreen(),
+                        builder: (context) => const DonationHistoryScreen(),
                       ),
                     );
                   },
@@ -493,22 +619,7 @@ class _UserDashboardState extends State<UserDashboard>
       return const Center(child: CircularProgressIndicator());
     }
 
-    if (donations.isEmpty) {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              Icons.bloodtype_outlined,
-              size: 64,
-              color: AppTheme.mediumGray,
-            ),
-            const SizedBox(height: 16),
-            Text('헌혈 모집 게시글이 없습니다', style: AppTheme.h4Style),
-          ],
-        ),
-      );
-    }
+    // 게시글이 없어도 지역 선택 버튼은 항상 표시
 
     return Container(
       decoration: BoxDecoration(
@@ -564,54 +675,90 @@ class _UserDashboardState extends State<UserDashboard>
           ),
           // 헌혈 모집 목록
           Expanded(
-            child: ListView.separated(
-              padding: EdgeInsets.zero,
-              itemCount: donations.length + 1, // ... 아이템 추가를 위해 +1
-              separatorBuilder:
-                  (context, index) => Container(
-                    height: 1,
-                    color: AppTheme.lightGray.withOpacity(0.2),
-                    margin: const EdgeInsets.symmetric(horizontal: 16),
-                  ),
-              itemBuilder: (context, index) {
-                // 마지막 아이템은 ... 버튼
-                if (index == donations.length) {
-                  return InkWell(
-                    onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => const UserDonationPostsListScreen(),
-                        ),
-                      );
-                    },
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 16,
-                      ),
-                      child: Center(
-                        child: Text(
-                          '...',
-                          style: AppTheme.h3Style.copyWith(
-                            color: AppTheme.textTertiary,
-                            fontWeight: FontWeight.bold,
+            child: donations.isEmpty
+                ? Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.bloodtype_outlined, size: 48, color: AppTheme.mediumGray),
+                        const SizedBox(height: 12),
+                        Text(
+                          '선택한 지역에 헌혈 모집이 없습니다',
+                          style: AppTheme.bodyMediumStyle.copyWith(
+                            color: AppTheme.textSecondary,
                           ),
                         ),
-                      ),
+                        const SizedBox(height: 8),
+                        TextButton(
+                          onPressed: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => const UserDonationPostsListScreen(),
+                              ),
+                            );
+                          },
+                          child: Text(
+                            '전체 헌혈 모집 보기',
+                            style: AppTheme.bodySmallStyle.copyWith(
+                              color: AppTheme.primaryBlue,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
-                  );
-                }
+                  )
+                : ListView.separated(
+                    padding: EdgeInsets.zero,
+                    itemCount: donations.length + 1, // ... 아이템 추가를 위해 +1
+                    separatorBuilder:
+                        (context, index) => Container(
+                          height: 1,
+                          color: AppTheme.lightGray.withOpacity(0.2),
+                          margin: const EdgeInsets.symmetric(horizontal: 16),
+                        ),
+                    itemBuilder: (context, index) {
+                      // 마지막 아이템은 ... 버튼
+                      if (index == donations.length) {
+                        return InkWell(
+                          onTap: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => const UserDonationPostsListScreen(),
+                              ),
+                            );
+                          },
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 16,
+                            ),
+                            child: Center(
+                              child: Text(
+                                '...',
+                                style: AppTheme.h3Style.copyWith(
+                                  color: AppTheme.textTertiary,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
+                          ),
+                        );
+                      }
 
                 final donation = donations[index];
 
                 return InkWell(
                   onTap: () {
-                    // TODO: 헌혈 모집글 상세 페이지로 이동
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text(
-                          '헌혈 모집글 ${donation.postIdx} 상세 페이지 (준비 중)',
+                    // 헌혈 모집 게시글 페이지로 이동하고 해당 게시글의 바텀 시트 표시
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => UserDonationPostsListScreen(
+                          initialPost: donation,
+                          autoShowBottomSheet: true,
                         ),
                       ),
                     );

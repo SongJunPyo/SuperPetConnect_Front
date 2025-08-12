@@ -3,11 +3,15 @@ import '../models/region_model.dart';
 import '../utils/app_theme.dart';
 
 class RegionSelectionSheet extends StatefulWidget {
-  final Function(Region, Region, Region?) onRegionSelected;
+  final List<Region> initialSelectedLargeRegions;
+  final Map<Region, List<Region>> initialSelectedMediumRegions;
+  final Function(List<Region>, Map<Region, List<Region>>) onRegionSelected;
 
   const RegionSelectionSheet({
     super.key,
     required this.onRegionSelected,
+    this.initialSelectedLargeRegions = const [],
+    this.initialSelectedMediumRegions = const {},
   });
 
   @override
@@ -15,26 +19,35 @@ class RegionSelectionSheet extends StatefulWidget {
 }
 
 class _RegionSelectionSheetState extends State<RegionSelectionSheet> {
-  Region? selectedLargeRegion; // 큰 단위 (시/도)
-  Region? selectedMediumRegion; // 중간 단위 (시/군/구)
-  Region? selectedSmallRegion; // 작은 단위 (동/면/읍)
+  List<Region> selectedLargeRegions = []; // 선택된 시/도 목록
+  Map<Region, List<Region>> selectedMediumRegions = {}; // 시/도별 선택된 시/군/구 목록
+  Region? currentViewingRegion; // 현재 보고 있는 시/도 (오른쪽 패널용)
 
   List<Region> get largeRegions => RegionData.regions;
-  List<Region> get mediumRegions => selectedLargeRegion?.children ?? [];
+  List<Region> get mediumRegions => currentViewingRegion?.children ?? [];
+
+  @override
+  void initState() {
+    super.initState();
+    selectedLargeRegions = List.from(widget.initialSelectedLargeRegions);
+    selectedMediumRegions = Map.from(widget.initialSelectedMediumRegions);
+    // 첫 번째 선택된 지역을 현재 보고 있는 지역으로 설정
+    if (selectedLargeRegions.isNotEmpty) {
+      currentViewingRegion = selectedLargeRegions.first;
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     return DraggableScrollableSheet(
-      initialChildSize: 0.7,
-      minChildSize: 0.3,
-      maxChildSize: 0.9,
+      initialChildSize: 0.8,
+      minChildSize: 0.5,
+      maxChildSize: 0.95,
       builder: (context, scrollController) {
         return Container(
           decoration: const BoxDecoration(
             color: Colors.white,
-            borderRadius: BorderRadius.vertical(
-              top: Radius.circular(20),
-            ),
+            borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
           ),
           child: Column(
             children: [
@@ -57,23 +70,104 @@ class _RegionSelectionSheetState extends State<RegionSelectionSheet> {
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text(
-                      '지역 선택',
-                      style: AppTheme.h3Style,
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('지역 선택', style: AppTheme.h3Style),
+                        const SizedBox(height: 4),
+                        Text(
+                          '다중 선택 가능 (최대 5개)',
+                          style: AppTheme.bodySmallStyle.copyWith(
+                            color: AppTheme.textSecondary,
+                          ),
+                        ),
+                      ],
                     ),
-                    IconButton(
-                      onPressed: () => Navigator.pop(context),
-                      icon: const Icon(Icons.close),
+                    Row(
+                      children: [
+                        if (selectedLargeRegions.isNotEmpty)
+                          TextButton(
+                            onPressed: () {
+                              setState(() {
+                                selectedLargeRegions.clear();
+                                selectedMediumRegions.clear();
+                                currentViewingRegion = null;
+                              });
+                            },
+                            child: Text(
+                              '전체 해제',
+                              style: AppTheme.bodySmallStyle.copyWith(
+                                color: AppTheme.error,
+                              ),
+                            ),
+                          ),
+                        IconButton(
+                          onPressed: () => Navigator.pop(context),
+                          icon: const Icon(Icons.close),
+                        ),
+                      ],
                     ),
                   ],
                 ),
               ),
               const Divider(height: 1),
+              
+              // 현재 선택된 지역 표시
+              if (selectedLargeRegions.isNotEmpty)
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        '선택된 지역:',
+                        style: AppTheme.bodySmallStyle.copyWith(
+                          color: AppTheme.textSecondary,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 4,
+                        children: selectedLargeRegions.map((region) {
+                          final mediums = selectedMediumRegions[region] ?? [];
+                          final displayText = mediums.isEmpty 
+                              ? '${region.name} 전체'
+                              : '${region.name} ${mediums.length}곳';
+                          
+                          return Chip(
+                            label: Text(
+                              displayText,
+                              style: AppTheme.bodySmallStyle.copyWith(
+                                fontSize: 12,
+                              ),
+                            ),
+                            backgroundColor: AppTheme.primaryBlue.withOpacity(0.1),
+                            deleteIcon: const Icon(Icons.close, size: 16),
+                            onDeleted: () {
+                              setState(() {
+                                selectedLargeRegions.remove(region);
+                                selectedMediumRegions.remove(region);
+                                if (currentViewingRegion == region) {
+                                  currentViewingRegion = selectedLargeRegions.isNotEmpty 
+                                      ? selectedLargeRegions.first 
+                                      : null;
+                                }
+                              });
+                            },
+                          );
+                        }).toList(),
+                      ),
+                    ],
+                  ),
+                ),
+              
               // 컨텐츠
               Expanded(
                 child: Row(
                   children: [
-                    // 큰 단위 (시/도)
+                    // 큰 단위 (시/도) - 왼쪽
                     Expanded(
                       flex: 1,
                       child: Column(
@@ -90,18 +184,85 @@ class _RegionSelectionSheetState extends State<RegionSelectionSheet> {
                           ),
                           Expanded(
                             child: ListView.builder(
-                              controller: scrollController,
-                              itemCount: largeRegions.length,
+                              itemCount: largeRegions.length + 1, // "전체" 옵션을 위해 +1
                               itemBuilder: (context, index) {
-                                final region = largeRegions[index];
-                                final isSelected = selectedLargeRegion == region;
+                                // 첫 번째 아이템은 "전체" 옵션
+                                if (index == 0) {
+                                  final isSelected = selectedLargeRegions.isEmpty;
+                                  
+                                  return InkWell(
+                                    onTap: () {
+                                      setState(() {
+                                        selectedLargeRegions.clear();
+                                        selectedMediumRegions.clear();
+                                        currentViewingRegion = null;
+                                      });
+                                    },
+                                    child: Container(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 16,
+                                        vertical: 12,
+                                      ),
+                                      margin: const EdgeInsets.symmetric(
+                                        horizontal: 8,
+                                        vertical: 2,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color: isSelected 
+                                            ? AppTheme.primaryBlue.withOpacity(0.1)
+                                            : Colors.transparent,
+                                        borderRadius: BorderRadius.circular(8),
+                                      ),
+                                      child: Text(
+                                        '전체',
+                                        style: AppTheme.bodyMediumStyle.copyWith(
+                                          color: isSelected 
+                                              ? AppTheme.primaryBlue 
+                                              : AppTheme.textPrimary,
+                                          fontWeight: isSelected 
+                                              ? FontWeight.w600 
+                                              : FontWeight.normal,
+                                        ),
+                                      ),
+                                    ),
+                                  );
+                                }
                                 
+                                // 나머지는 기존 지역 데이터
+                                final region = largeRegions[index - 1];
+                                final isSelected = selectedLargeRegions.contains(region);
+                                final isViewing = currentViewingRegion == region;
+
                                 return InkWell(
                                   onTap: () {
                                     setState(() {
-                                      selectedLargeRegion = region;
-                                      selectedMediumRegion = null;
-                                      selectedSmallRegion = null;
+                                      if (selectedLargeRegions.length >= 5 && !isSelected) {
+                                        ScaffoldMessenger.of(context).showSnackBar(
+                                          const SnackBar(
+                                            content: Text('최대 5개 지역까지만 선택할 수 있습니다.'),
+                                            duration: Duration(seconds: 2),
+                                          ),
+                                        );
+                                        return;
+                                      }
+                                      
+                                      if (isSelected) {
+                                        // 이미 선택된 지역이면 해제
+                                        selectedLargeRegions.remove(region);
+                                        selectedMediumRegions.remove(region);
+                                        if (currentViewingRegion == region) {
+                                          currentViewingRegion = selectedLargeRegions.isNotEmpty 
+                                              ? selectedLargeRegions.first 
+                                              : null;
+                                        }
+                                      } else {
+                                        // 새로운 지역 선택
+                                        selectedLargeRegions.add(region);
+                                        selectedMediumRegions[region] = [];
+                                      }
+                                      
+                                      // 오른쪽 패널에 표시할 지역 설정
+                                      currentViewingRegion = region;
                                     });
                                   },
                                   child: Container(
@@ -109,32 +270,50 @@ class _RegionSelectionSheetState extends State<RegionSelectionSheet> {
                                       horizontal: 16,
                                       vertical: 12,
                                     ),
-                                    color: isSelected
-                                        ? AppTheme.primaryBlue.withOpacity(0.1)
-                                        : Colors.transparent,
+                                    margin: const EdgeInsets.symmetric(
+                                      horizontal: 8,
+                                      vertical: 2,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: isViewing
+                                          ? AppTheme.lightGray.withOpacity(0.3)
+                                          : isSelected
+                                              ? AppTheme.primaryBlue.withOpacity(0.1)
+                                              : Colors.transparent,
+                                      borderRadius: BorderRadius.circular(8),
+                                      border: isSelected
+                                          ? Border.all(color: AppTheme.primaryBlue, width: 1)
+                                          : null,
+                                    ),
                                     child: Row(
                                       children: [
+                                        if (isSelected)
+                                          Container(
+                                            margin: const EdgeInsets.only(right: 8),
+                                            child: Icon(
+                                              Icons.check_circle,
+                                              size: 16,
+                                              color: AppTheme.primaryBlue,
+                                            ),
+                                          ),
                                         Expanded(
                                           child: Text(
                                             region.name,
                                             style: AppTheme.bodyMediumStyle.copyWith(
-                                              color: isSelected
-                                                  ? AppTheme.primaryBlue
+                                              color: isSelected 
+                                                  ? AppTheme.primaryBlue 
                                                   : AppTheme.textPrimary,
-                                              fontWeight: isSelected
-                                                  ? FontWeight.w600
+                                              fontWeight: isSelected 
+                                                  ? FontWeight.w600 
                                                   : FontWeight.normal,
                                             ),
                                           ),
                                         ),
-                                        if (region.children != null && region.children!.isNotEmpty)
-                                          Icon(
-                                            Icons.arrow_forward_ios,
-                                            size: 12,
-                                            color: isSelected
-                                                ? AppTheme.primaryBlue
-                                                : AppTheme.textTertiary,
-                                          ),
+                                        Icon(
+                                          Icons.chevron_right,
+                                          size: 16,
+                                          color: AppTheme.textTertiary,
+                                        ),
                                       ],
                                     ),
                                   ),
@@ -145,8 +324,10 @@ class _RegionSelectionSheetState extends State<RegionSelectionSheet> {
                         ],
                       ),
                     ),
-                    const VerticalDivider(width: 1),
-                    // 중간 단위 (시/군/구)
+                    
+                    Container(width: 1, color: AppTheme.lightGray),
+                    
+                    // 중간 단위 (시/군/구) - 오른쪽
                     Expanded(
                       flex: 1,
                       child: Column(
@@ -155,141 +336,183 @@ class _RegionSelectionSheetState extends State<RegionSelectionSheet> {
                           Padding(
                             padding: const EdgeInsets.all(16),
                             child: Text(
-                              '시/군/구',
+                              currentViewingRegion?.name ?? '시/군/구',
                               style: AppTheme.bodyLargeStyle.copyWith(
                                 fontWeight: FontWeight.w600,
                               ),
                             ),
                           ),
-                          Expanded(
-                            child: mediumRegions.isEmpty
-                                ? const Center(
-                                    child: Text(
-                                      '시/도를 먼저\n선택해주세요',
-                                      textAlign: TextAlign.center,
-                                      style: TextStyle(
-                                        color: AppTheme.textTertiary,
-                                      ),
-                                    ),
-                                  )
-                                : ListView.builder(
-                                    itemCount: mediumRegions.length,
-                                    itemBuilder: (context, index) {
-                                      final region = mediumRegions[index];
-                                      final isSelected = selectedMediumRegion == region;
-                                      
-                                      return InkWell(
-                                        onTap: () {
-                                          setState(() {
-                                            selectedMediumRegion = region;
-                                            selectedSmallRegion = null;
-                                          });
-                                        },
-                                        child: Container(
-                                          padding: const EdgeInsets.symmetric(
-                                            horizontal: 16,
-                                            vertical: 12,
-                                          ),
-                                          color: isSelected
-                                              ? AppTheme.primaryBlue.withOpacity(0.1)
-                                              : Colors.transparent,
-                                          child: Text(
-                                            region.name,
-                                            style: AppTheme.bodyMediumStyle.copyWith(
-                                              color: isSelected
-                                                  ? AppTheme.primaryBlue
-                                                  : AppTheme.textPrimary,
-                                              fontWeight: isSelected
-                                                  ? FontWeight.w600
-                                                  : FontWeight.normal,
-                                            ),
-                                          ),
-                                        ),
-                                      );
-                                    },
+                          if (currentViewingRegion == null)
+                            Expanded(
+                              child: Center(
+                                child: Text(
+                                  '시/도를 먼저 선택해주세요',
+                                  style: AppTheme.bodyMediumStyle.copyWith(
+                                    color: AppTheme.textSecondary,
                                   ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const VerticalDivider(width: 1),
-                    // 작은 단위 (동/면/읍) - 현재는 구현하지 않음
-                    Expanded(
-                      flex: 1,
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Padding(
-                            padding: const EdgeInsets.all(16),
-                            child: Text(
-                              '동/면/읍',
-                              style: AppTheme.bodyLargeStyle.copyWith(
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                          ),
-                          const Expanded(
-                            child: Center(
-                              child: Text(
-                                '시/군/구까지만\n선택 가능합니다',
-                                textAlign: TextAlign.center,
-                                style: TextStyle(
-                                  color: AppTheme.textTertiary,
                                 ),
                               ),
+                            )
+                          else
+                            Expanded(
+                              child: ListView.builder(
+                                itemCount: mediumRegions.length + 1, // "전체" 옵션을 위해 +1
+                                itemBuilder: (context, index) {
+                                  // 첫 번째 아이템은 "전체" 옵션
+                                  if (index == 0) {
+                                    final selectedMediums = selectedMediumRegions[currentViewingRegion!] ?? [];
+                                    final isAllSelected = selectedMediums.isEmpty && selectedLargeRegions.contains(currentViewingRegion!);
+                                    
+                                    return InkWell(
+                                      onTap: () {
+                                        setState(() {
+                                          if (selectedLargeRegions.contains(currentViewingRegion!)) {
+                                            selectedMediumRegions[currentViewingRegion!] = [];
+                                          }
+                                        });
+                                      },
+                                      child: Container(
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 16,
+                                          vertical: 12,
+                                        ),
+                                        margin: const EdgeInsets.symmetric(
+                                          horizontal: 8,
+                                          vertical: 2,
+                                        ),
+                                        decoration: BoxDecoration(
+                                          color: isAllSelected
+                                              ? AppTheme.primaryBlue.withOpacity(0.1)
+                                              : Colors.transparent,
+                                          borderRadius: BorderRadius.circular(8),
+                                        ),
+                                        child: Row(
+                                          children: [
+                                            if (isAllSelected)
+                                              Container(
+                                                margin: const EdgeInsets.only(right: 8),
+                                                child: Icon(
+                                                  Icons.check_circle,
+                                                  size: 16,
+                                                  color: AppTheme.primaryBlue,
+                                                ),
+                                              ),
+                                            Text(
+                                              '전체',
+                                              style: AppTheme.bodyMediumStyle.copyWith(
+                                                color: isAllSelected 
+                                                    ? AppTheme.primaryBlue 
+                                                    : AppTheme.textPrimary,
+                                                fontWeight: isAllSelected 
+                                                    ? FontWeight.w600 
+                                                    : FontWeight.normal,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    );
+                                  }
+                                  
+                                  final mediumRegion = mediumRegions[index - 1];
+                                  final selectedMediums = selectedMediumRegions[currentViewingRegion!] ?? [];
+                                  final isSelected = selectedMediums.contains(mediumRegion);
+                                  
+                                  return InkWell(
+                                    onTap: () {
+                                      setState(() {
+                                        if (selectedLargeRegions.contains(currentViewingRegion!)) {
+                                          final currentMediums = selectedMediumRegions[currentViewingRegion!] ?? [];
+                                          if (isSelected) {
+                                            currentMediums.remove(mediumRegion);
+                                          } else {
+                                            currentMediums.add(mediumRegion);
+                                          }
+                                          selectedMediumRegions[currentViewingRegion!] = currentMediums;
+                                        }
+                                      });
+                                    },
+                                    child: Container(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 16,
+                                        vertical: 12,
+                                      ),
+                                      margin: const EdgeInsets.symmetric(
+                                        horizontal: 8,
+                                        vertical: 2,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color: isSelected
+                                            ? AppTheme.primaryBlue.withOpacity(0.1)
+                                            : Colors.transparent,
+                                        borderRadius: BorderRadius.circular(8),
+                                      ),
+                                      child: Row(
+                                        children: [
+                                          if (isSelected)
+                                            Container(
+                                              margin: const EdgeInsets.only(right: 8),
+                                              child: Icon(
+                                                Icons.check_circle,
+                                                size: 16,
+                                                color: AppTheme.primaryBlue,
+                                              ),
+                                            ),
+                                          Expanded(
+                                            child: Text(
+                                              mediumRegion.name,
+                                              style: AppTheme.bodyMediumStyle.copyWith(
+                                                color: isSelected 
+                                                    ? AppTheme.primaryBlue 
+                                                    : AppTheme.textPrimary,
+                                                fontWeight: isSelected 
+                                                    ? FontWeight.w600 
+                                                    : FontWeight.normal,
+                                              ),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  );
+                                },
+                              ),
                             ),
-                          ),
                         ],
                       ),
                     ),
                   ],
                 ),
               ),
-              // 선택된 지역 표시
+              
+              // 하단 버튼
               Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: AppTheme.veryLightGray,
-                  border: const Border(
-                    top: BorderSide(color: AppTheme.lightGray),
-                  ),
-                ),
+                padding: const EdgeInsets.all(20),
                 child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      '선택된 지역',
-                      style: AppTheme.bodyLargeStyle.copyWith(
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
                     Text(
                       _getSelectedRegionText(),
                       style: AppTheme.bodyMediumStyle.copyWith(
                         color: AppTheme.textSecondary,
                       ),
+                      textAlign: TextAlign.center,
                     ),
                     const SizedBox(height: 16),
                     SizedBox(
                       width: double.infinity,
                       child: ElevatedButton(
-                        onPressed: selectedLargeRegion != null && selectedMediumRegion != null
-                            ? () {
-                                widget.onRegionSelected(
-                                  selectedLargeRegion!,
-                                  selectedMediumRegion!,
-                                  selectedSmallRegion,
-                                );
-                                Navigator.pop(context);
-                              }
-                            : null,
+                        onPressed: () {
+                          widget.onRegionSelected(selectedLargeRegions, selectedMediumRegions);
+                          Navigator.pop(context);
+                        },
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: AppTheme.primaryBlue,
+                          backgroundColor: AppTheme.black,
                           foregroundColor: Colors.white,
                           padding: const EdgeInsets.symmetric(vertical: 16),
                           shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(AppTheme.radius12),
+                            borderRadius: BorderRadius.circular(
+                              AppTheme.radius12,
+                            ),
                           ),
                         ),
                         child: Text(
@@ -312,14 +535,23 @@ class _RegionSelectionSheetState extends State<RegionSelectionSheet> {
   }
 
   String _getSelectedRegionText() {
-    if (selectedLargeRegion == null) {
-      return '지역을 선택해주세요';
+    if (selectedLargeRegions.isEmpty) {
+      return '전체 지역';
     }
     
-    if (selectedMediumRegion == null) {
-      return selectedLargeRegion!.name;
+    if (selectedLargeRegions.length == 1) {
+      final region = selectedLargeRegions.first;
+      final mediums = selectedMediumRegions[region] ?? [];
+      
+      if (mediums.isEmpty) {
+        return '${region.name} 전체';
+      } else if (mediums.length == 1) {
+        return '${region.name} ${mediums.first.name}';
+      } else {
+        return '${region.name} ${mediums.first.name} 외 ${mediums.length - 1}곳';
+      }
+    } else {
+      return selectedLargeRegions.map((r) => r.name).join(', ');
     }
-    
-    return '${selectedLargeRegion!.name} ${selectedMediumRegion!.name}';
   }
 }

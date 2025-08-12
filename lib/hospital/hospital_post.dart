@@ -32,6 +32,7 @@ class _HospitalPostState extends State<HospitalPost> {
   String selectedBlood = "전체"; // 기본값을 전체로 변경
   String additionalDescription = ""; // nullable 제거, 빈 문자열로 초기화
   String hospitalName = "병원"; // 병원 이름을 저장할 변수
+  String hospitalNickname = "병원"; // 병원 닉네임을 저장할 변수
   List<Map<String, dynamic>> timeEntries = []; // 시간대 목록
 
   // 토큰 가져오는 함수 수정 - 디버깅 정보 추가
@@ -76,15 +77,18 @@ class _HospitalPostState extends State<HospitalPost> {
         final data = jsonDecode(response.body);
         final address = data['address'] ?? '';
         final name = data['name'] ?? '';
+        final nickname = data['nickname'] ?? name; // 닉네임이 없으면 이름 사용
         print('프로필에서 주소 가져오기 성공: $address');
         print('프로필에서 병원 이름 가져오기 성공: $name');
+        print('프로필에서 병원 닉네임 가져오기 성공: $nickname');
 
-        // 병원 이름도 함께 저장
+        // 병원 이름과 닉네임을 함께 저장
         if (name.isNotEmpty) {
           setState(() {
             hospitalName = name;
+            hospitalNickname = nickname;
           });
-          _updateTitleText(); // 병원 이름이 업데이트되면 제목도 업데이트
+          _updateTitleText(); // 병원 정보가 업데이트되면 제목도 업데이트
         }
 
         return address;
@@ -291,8 +295,8 @@ class _HospitalPostState extends State<HospitalPost> {
     // 동물 종류 변환
     String animalTypeKorean = selectedAnimalType == "dog" ? "강아지" : "고양이";
 
-    // 기본 제목 구성
-    String title = '[$hospitalName] $animalTypeKorean $selectedType 헌혈';
+    // 기본 제목 구성 (닉네임 사용)
+    String title = '[$hospitalNickname] $animalTypeKorean $selectedType 헌혈';
 
     // 긴급 타입이고 혈액형이 "전체"가 아닌 경우 혈액형 정보 추가
     if (selectedType == "긴급" && selectedBlood != "전체") {
