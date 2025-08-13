@@ -1,30 +1,42 @@
 import 'package:http/http.dart' as http;
 import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import '../utils/config.dart';
 import '../models/donation_post_date_model.dart';
 import 'donation_date_service.dart';
 
-// 새로운 API 구조를 위한 TimeSlot 클래스
-class TimeSlot {
-  final int postTimesIdx;
-  final String time;
-  final String datetime;
-
-  TimeSlot({
-    required this.postTimesIdx,
-    required this.time,
-    required this.datetime,
-  });
-
-  factory TimeSlot.fromJson(Map<String, dynamic> json) {
-    return TimeSlot(
-      postTimesIdx: json['post_times_idx'] ?? 0,
-      time: json['time'] ?? '',
-      datetime: json['datetime'] ?? '',
-    );
+// 시간 포맷팅 유틸리티 클래스
+class TimeFormatUtils {
+  // "14:10" -> "오후 02:10" 형태로 변환
+  static String formatTime(String time24) {
+    if (time24.isEmpty) return '시간 미정';
+    
+    try {
+      final parts = time24.split(':');
+      if (parts.length == 2) {
+        final hour = int.parse(parts[0]);
+        final minute = parts[1];
+        if (hour == 0) {
+          return '오전 12:$minute';
+        } else if (hour < 12) {
+          return '오전 ${hour.toString().padLeft(2, '0')}:$minute';
+        } else if (hour == 12) {
+          return '오후 12:$minute';
+        } else {
+          return '오후 ${(hour - 12).toString().padLeft(2, '0')}:$minute';
+        }
+      }
+    } catch (e) {
+      // 파싱 실패 시 원본 값 반환
+      return time24;
+    }
+    return '시간 미정';
   }
 
-  String get formattedTime => time;
+  // "14:10" 그대로 반환
+  static String simple24HourTime(String time24) {
+    return time24.isNotEmpty ? time24 : '미정';
+  }
 }
 
 class DashboardService {
@@ -179,6 +191,12 @@ class DashboardService {
 
   // 개별 API: 공개 칼럼
   static Future<List<ColumnPost>> getPublicColumns({int limit = 10}) async {
+    // 웹에서 CORS 문제 임시 해결: 목 데이터 반환
+    if (kIsWeb) {
+      print('🌐 [WEB-COLUMNS] CORS 문제로 인해 목 데이터 반환');
+      return NoticePost._getMockColumnData(limit);
+    }
+    
     try {
       // 먼저 다른 엔드포인트들을 시도해보자
       List<String> apiEndpoints = [
@@ -196,7 +214,8 @@ class DashboardService {
             },
           );
 
-          print('🌐 칼럼 API 요청 시도:');
+          print('🌐 [WEB-COLUMNS] API 요청 시도:');
+          print('  플랫폼: ${kIsWeb ? "WEB" : "MOBILE"}');
           print('  URL: $uri');
           print('  서버: $baseUrl');
           print('  시간: ${DateTime.now()}');
@@ -212,7 +231,7 @@ class DashboardService {
             },
           ).timeout(const Duration(seconds: 15));
           
-          print('🌐 칼럼 API 응답:');
+          print('🌐 [WEB-COLUMNS] API 응답:');
           print('  상태코드: ${response.statusCode}');
           print('  응답 헤더: ${response.headers}');
           print('  실제 Raw 응답: ${response.body}');
@@ -252,7 +271,13 @@ class DashboardService {
             continue; // 다음 엔드포인트 시도
           }
         } catch (e) {
-          print('ERROR: 칼럼 API 예외 발생 ($endpoint): $e');
+          print('❌ [WEB-COLUMNS] API 예외 발생 ($endpoint):');
+          print('   - 오류 타입: ${e.runtimeType}');
+          print('   - 오류 메시지: $e');
+          print('   - 플랫폼: ${kIsWeb ? "WEB" : "MOBILE"}');
+          if (kIsWeb && e.toString().contains('XMLHttpRequest')) {
+            print('   - CORS 또는 네트워크 오류 가능성 높음');
+          }
           continue; // 다음 엔드포인트 시도
         }
       }
@@ -267,6 +292,12 @@ class DashboardService {
 
   // 개별 API: 공개 공지사항  
   static Future<List<NoticePost>> getPublicNotices({int limit = 10}) async {
+    // 웹에서 CORS 문제 임시 해결: 목 데이터 반환
+    if (kIsWeb) {
+      print('🌐 [WEB-NOTICES] CORS 문제로 인해 목 데이터 반환');
+      return NoticePost._getMockNoticeData(limit);
+    }
+    
     // 서버 제한: 최대 50
     if (limit > 50) {
       limit = 50;
@@ -286,7 +317,8 @@ class DashboardService {
             queryParameters: {'limit': limit.toString()},
           );
 
-          print('🌐 공지사항 API 요청 시도:');
+          print('🌐 [WEB-NOTICES] API 요청 시도:');
+          print('  플랫폼: ${kIsWeb ? "WEB" : "MOBILE"}');
           print('  URL: $uri');
           print('  서버: $baseUrl');
           print('  시간: ${DateTime.now()}');
@@ -302,7 +334,7 @@ class DashboardService {
             },
           ).timeout(const Duration(seconds: 15));
           
-          print('🌐 공지사항 API 응답:');
+          print('🌐 [WEB-NOTICES] API 응답:');
           print('  상태코드: ${response.statusCode}');
           print('  응답 헤더: ${response.headers}');
           print('  실제 Raw 응답: ${response.body}');
@@ -341,7 +373,13 @@ class DashboardService {
             continue; // 다음 엔드포인트 시도
           }
         } catch (e) {
-          print('ERROR: 공지사항 API 예외 발생 ($endpoint): $e');
+          print('❌ [WEB-NOTICES] API 예외 발생 ($endpoint):');
+          print('   - 오류 타입: ${e.runtimeType}');
+          print('   - 오류 메시지: $e');
+          print('   - 플랫폼: ${kIsWeb ? "WEB" : "MOBILE"}');
+          if (kIsWeb && e.toString().contains('XMLHttpRequest')) {
+            print('   - CORS 또는 네트워크 오류 가능성 높음');
+          }
           continue; // 다음 엔드포인트 시도
         }
       }
@@ -377,7 +415,7 @@ class DashboardService {
     }
   }
   
-  // 상세 게시글 정보 및 헌혈 날짜 조회 (with donation dates)
+  // 상세 게시글 정보 및 헌혈 날짜 조회 (통합 데이터 사용)
   static Future<DonationPost?> getDonationPostDetail(int postIdx) async {
     try {
       final uri = Uri.parse('$baseUrl/api/public/posts/$postIdx');
@@ -390,35 +428,17 @@ class DashboardService {
       if (response.statusCode == 200) {
         final data = jsonDecode(utf8.decode(response.bodyBytes));
         
-          
-        // 게시글 상세 정보로 DonationPost 생성
+        // 서버에서 통합된 데이터를 제공하므로 바로 DonationPost 생성
         final donationPost = DonationPost.fromJson(data);
         
-        // 헌퀁 날짜 목록을 별도로 조회하여 추가
-        try {
-          final donationDates = await DonationDateService.getDonationDatesByPostIdx(postIdx);
-          // 기존 DonationPost에 헌혈 날짜 정보 추가한 새로운 객체 생성
-          return DonationPost(
-            postIdx: donationPost.postIdx,
-            title: donationPost.title,
-            hospitalName: donationPost.hospitalName,
-            hospitalNickname: donationPost.hospitalNickname, // 병원 닉네임 추가
-            location: donationPost.location,
-            description: donationPost.description, // 설명 추가
-            animalType: donationPost.animalType,
-            emergencyBloodType: donationPost.emergencyBloodType,
-            status: donationPost.status,
-            types: donationPost.types,
-            viewCount: donationPost.viewCount,
-            createdAt: donationPost.createdAt,
-            donationDate: donationPost.donationDate,
-            updatedAt: donationPost.updatedAt,
-            donationDates: donationDates, // 헌혈 날짜 정보 추가
-          );
-        } catch (e) {
-          print('DEBUG: 헌혈 날짜 조회 실패, 기본 게시글 정보만 반환: $e');
-          return donationPost; // 헌혈 날짜 조회 실패 시 기본 게시글 정보만 반환
-        }
+        print('DEBUG: 상세 게시글 파싱 완료:');
+        print('  - 제목: ${donationPost.title}');
+        print('  - 작성일: ${donationPost.createdAt}');
+        print('  - 헌혈 예정일: ${donationPost.donationDate}');
+        print('  - 헌혈 시간: ${donationPost.donationTime}');
+        print('  - availableDates: ${donationPost.availableDates?.keys.toList()}');
+        
+        return donationPost;
       } else {
         print('DEBUG: 헌혈 게시글 상세 API 실패 - 상태코드: ${response.statusCode}');
         return null;
@@ -489,11 +509,12 @@ class DonationPost {
   final int status;
   final int types;
   final int viewCount;
-  final DateTime createdAt;
-  final DateTime? donationDate;
+  final DateTime createdAt; // 게시글 작성일 (post_created_date)
+  final DateTime? donationDate; // 실제 헌혈 예정일 (donation_date) 
+  final DateTime? donationTime; // 실제 헌혈 시간 (donation_time)
   final DateTime? updatedAt;
   final List<DonationPostDate>? donationDates; // 헌혈 날짜 목록 (기존 호환성)
-  final Map<String, List<TimeSlot>>? availableDates; // 새로운 API 구조
+  final Map<String, List<Map<String, dynamic>>>? availableDates; // 서버의 available_dates 구조
 
   DonationPost({
     required this.postIdx,
@@ -509,10 +530,20 @@ class DonationPost {
     required this.viewCount,
     required this.createdAt,
     this.donationDate,
+    this.donationTime,
     this.updatedAt,
     this.donationDates,
     this.availableDates,
   });
+
+  // 헌혈 예정일을 반환하는 getter (실제 헌혈 예정일 우선, 없으면 게시글 작성일)
+  DateTime get date => donationDate ?? createdAt;
+  
+  // 게시글 작성일 표시용 getter
+  DateTime get postCreatedDate => createdAt;
+  
+  // 실제 헌혈 일시 표시용 getter (날짜+시간 통합)
+  DateTime? get actualDonationDateTime => donationTime ?? donationDate;
 
   factory DonationPost.fromJson(Map<String, dynamic> json) {
     // types 필드로 긴급/정기 판단: 0=긴급, 1=정기
@@ -577,25 +608,160 @@ class DonationPost {
     print('  - 원본 JSON hospitalName: "${json['hospitalName']}"');
     print('  - 원본 JSON location: "${json['location']}"');
     
-    // API 응답의 date 필드를 헌혈 예정일로 사용
+    // 새로운 서버 API 응답 구조에 따른 날짜 파싱
     DateTime? donationDate;
-    print('DEBUG: 헌혈 날짜 파싱 시작');
-    print('  - json[\'date\']: "${json['date']}"');
-    print('  - json[\'donationDate\']: "${json['donationDate']}"');
-    print('  - json[\'registrationDate\']: "${json['registrationDate']}"');
+    DateTime? donationTime;
+    print('DEBUG: 헌홨 날짜/시간 파싱 시작');
+    print('  - json[\'donation_date\']: "${json['donation_date']}"');
+    print('  - json[\'donation_time\']: "${json['donation_time']}"');
+    print('  - json[\'post_created_date\']: "${json['post_created_date']}"');
+    print('  - json[\'available_dates\']: "${json['available_dates']}"');
     
-    if (json['date'] != null && json['date'].toString().isNotEmpty) {
-      donationDate = DateTime.tryParse(json['date'].toString());
-      print('  - date 필드 파싱 결과: $donationDate');
+    // 1. 실제 헌혈 예정일 파싱 (donation_date - DATETIME 타입)
+    if (json['donation_date'] != null && json['donation_date'].toString().isNotEmpty && json['donation_date'] != 'null') {
+      try {
+        donationDate = DateTime.parse(json['donation_date'].toString());
+        print('  - donation_date 필드 파싱 성공: $donationDate');
+      } catch (e) {
+        print('  - donation_date 필드 파싱 실패: $e');
+        donationDate = null;
+      }
     } else if (json['donationDate'] != null) {
-      donationDate = DateTime.tryParse(json['donationDate'].toString());
-      print('  - donationDate 필드 파싱 결과: $donationDate');
-    } else if (json['post_date'] != null) {
-      donationDate = DateTime.tryParse(json['post_date'].toString());
-      print('  - post_date 필드 파싱 결과: $donationDate');
+      // 기존 호환성
+      try {
+        donationDate = DateTime.parse(json['donationDate'].toString());
+        print('  - donationDate 필드 파싱 성공: $donationDate');
+      } catch (e) {
+        print('  - donationDate 필드 파싱 실패: $e');
+        donationDate = null;
+      }
+    }
+    
+    // 2. 실제 헌혈 시간 파싱 (donation_time - DATETIME 타입)
+    if (json['donation_time'] != null && json['donation_time'].toString().isNotEmpty && json['donation_time'] != 'null') {
+      try {
+        donationTime = DateTime.parse(json['donation_time'].toString());
+        print('  - donation_time 필드 파싱 성공: $donationTime');
+      } catch (e) {
+        print('  - donation_time 필드 파싱 실패: $e');
+        donationTime = null;
+      }
     }
     
     print('  - 최종 donationDate: $donationDate');
+    print('  - 최종 donationTime: $donationTime');
+    
+    // 3. 새로운 available_dates 구조 파싱 (단순한 Map 구조로 보관)
+    Map<String, List<Map<String, dynamic>>>? availableDates;
+    print('🔍 DEBUG: available_dates 파싱 시작');
+    
+    // camelCase (availableDates) 또는 snake_case (available_dates) 둘 다 확인
+    final availableDatesField = json['availableDates'] ?? json['available_dates'];
+    print('   - availableDates 존재 여부: ${json['availableDates'] != null}');
+    print('   - available_dates 존재 여부: ${json['available_dates'] != null}');
+    print('   - 최종 필드 타입: ${availableDatesField?.runtimeType}');
+    print('   - 최종 필드 내용: ${availableDatesField}');
+    
+    if (availableDatesField != null && availableDatesField is Map) {
+      try {
+        availableDates = <String, List<Map<String, dynamic>>>{};
+        final datesMap = availableDatesField as Map<String, dynamic>;
+        
+        for (final dateEntry in datesMap.entries) {
+          final dateStr = dateEntry.key; // "2025-09-16"
+          final timeList = dateEntry.value as List<dynamic>;
+          
+          final timeSlots = timeList.map((timeJson) {
+            return {
+              'post_times_idx': timeJson['post_times_idx'] ?? 0,
+              'time': timeJson['time'] ?? '',
+              'datetime': timeJson['datetime'] ?? '',
+            };
+          }).toList();
+          
+          availableDates[dateStr] = timeSlots;
+        }
+        
+        print('✅ available_dates 파싱 성공: ${availableDates.keys.length}개 날짜');
+        for (final entry in availableDates.entries) {
+          print('   📅 ${entry.key}: ${entry.value.length}개 시간대');
+          for (final timeSlot in entry.value) {
+            print('     ⏰ post_times_idx: ${timeSlot['post_times_idx']}, time: ${timeSlot['time']}, datetime: ${timeSlot['datetime']}');
+          }
+        }
+      } catch (e) {
+        print('❌ available_dates 파싱 실패: $e');
+        print('   - 스택 트레이스: ${e.toString()}');
+        availableDates = null;
+      }
+    } else {
+      print('⚠️ available_dates 필드가 없거나 Map 타입이 아님');
+      
+      // Fallback: timeRanges 배열을 available_dates로 변환
+      if (json['timeRanges'] != null && json['timeRanges'] is List) {
+        try {
+          final timeRanges = json['timeRanges'] as List<dynamic>;
+          if (timeRanges.isNotEmpty && donationDate != null) {
+            // donationDate를 기준으로 단일 날짜 구조 생성
+            final dateStr = donationDate.toIso8601String().split('T')[0];
+            availableDates = <String, List<Map<String, dynamic>>>{};
+            
+            final timeSlots = timeRanges.map((timeRange) {
+              return {
+                'post_times_idx': timeRange['id'] ?? 0,
+                'time': timeRange['time'] ?? '',
+                'datetime': '$dateStr${timeRange['time'] != null ? 'T${timeRange['time']}:00' : 'T00:00:00'}',
+              };
+            }).toList();
+            
+            availableDates[dateStr] = timeSlots;
+            print('📦 timeRanges fallback 성공: $dateStr에 ${timeSlots.length}개 시간대');
+            for (final timeSlot in timeSlots) {
+              print('   ⏰ ${timeSlot['time']} (id: ${timeSlot['post_times_idx']})');
+            }
+          }
+        } catch (e) {
+          print('❌ timeRanges fallback 실패: $e');
+        }
+      }
+      
+      // 테스트용 임시 데이터 비활성화 - 서버 데이터만 사용
+      // TODO: 서버에서 available_dates를 올바르게 전달하면 이 코드 완전 제거
+      if (false && json['title'] != null && json['title'].toString().contains('헌혈')) {
+        print('🧪 테스트: 임시 데이터 생성 (현재 비활성화)');
+        availableDates = {
+          '2025-08-13': [
+            {
+              'post_times_idx': 101,
+              'time': '09:00',
+              'datetime': '2025-08-13T09:00:00',
+            },
+            {
+              'post_times_idx': 102,
+              'time': '14:00', 
+              'datetime': '2025-08-13T14:00:00',
+            }
+          ],
+          '2025-08-14': [
+            {
+              'post_times_idx': 103,
+              'time': '10:00',
+              'datetime': '2025-08-14T10:00:00',
+            },
+            {
+              'post_times_idx': 104,
+              'time': '16:00',
+              'datetime': '2025-08-14T16:00:00',
+            }
+          ]
+        };
+        print('🧪 테스트 데이터 생성 완료: ${availableDates.keys.length}개 날짜');
+      } else {
+        availableDates = null;
+      }
+    }
+    
+    print('  - 최종 availableDates: ${availableDates?.keys.toList()}');
     
     // ID를 정수로 안전하게 변환
     int postIdx = 0;
@@ -628,9 +794,10 @@ class DonationPost {
       viewCount: _parseIntSafely(json['viewCount']) ?? 0,
       createdAt: _parseCreatedAt(json),
       donationDate: donationDate,
+      donationTime: donationTime,
       updatedAt: null,
+      availableDates: availableDates,
       donationDates: null,
-      availableDates: _parseAvailableDates(json['availableDates']),
     );
   }
 
@@ -642,44 +809,52 @@ class DonationPost {
     return int.tryParse(value.toString());
   }
 
-  // availableDates 파싱 헬퍼 메서드
-  static Map<String, List<TimeSlot>>? _parseAvailableDates(dynamic availableDatesJson) {
-    if (availableDatesJson == null) return null;
-    
-    try {
-      final Map<String, List<TimeSlot>> result = {};
-      
-      if (availableDatesJson is Map<String, dynamic>) {
-        for (final entry in availableDatesJson.entries) {
-          final dateStr = entry.key;
-          final timesList = entry.value;
-          
-          if (timesList is List) {
-            final timeSlots = timesList
-                .map((timeJson) => TimeSlot.fromJson(timeJson as Map<String, dynamic>))
-                .toList();
-            result[dateStr] = timeSlots;
-          }
-        }
-      }
-      
-      return result.isNotEmpty ? result : null;
-    } catch (e) {
-      print('ERROR: availableDates 파싱 실패: $e');
-      return null;
-    }
-  }
+  // _parseAvailableDates 함수 제거됨 (이미 위에서 처리)
 
-  // 게시글 등록일자 파싱 헬퍼 메서드
+  // 게시글 작성일자 파싱 헬퍼 메서드 (새로운 서버 구조 적용)
   static DateTime _parseCreatedAt(Map<String, dynamic> json) {
-    // 등록일자 파싱 우선순위: created_at > createdAt > registrationDate
-    if (json['created_at'] != null) {
-      return DateTime.tryParse(json['created_at'].toString()) ?? DateTime.now();
-    } else if (json['createdAt'] != null) {
-      return DateTime.tryParse(json['createdAt'].toString()) ?? DateTime.now();
-    } else if (json['registrationDate'] != null) {
-      return DateTime.tryParse(json['registrationDate'].toString()) ?? DateTime.now();
+    // 작성일자 파싱 우선순위: post_created_date > created_at > createdAt > registrationDate
+    if (json['post_created_date'] != null && json['post_created_date'].toString().isNotEmpty && json['post_created_date'] != 'null') {
+      try {
+        final parsedDate = DateTime.parse(json['post_created_date'].toString());
+        print('DEBUG: post_created_date 파싱 성공: $parsedDate');
+        return parsedDate;
+      } catch (e) {
+        print('DEBUG: post_created_date 파싱 실패: $e');
+      }
     }
+    
+    if (json['created_at'] != null && json['created_at'].toString().isNotEmpty && json['created_at'] != 'null') {
+      try {
+        final parsedDate = DateTime.parse(json['created_at'].toString());
+        print('DEBUG: created_at 파싱 성공: $parsedDate');
+        return parsedDate;
+      } catch (e) {
+        print('DEBUG: created_at 파싱 실패: $e');
+      }
+    }
+    
+    if (json['createdAt'] != null && json['createdAt'].toString().isNotEmpty && json['createdAt'] != 'null') {
+      try {
+        final parsedDate = DateTime.parse(json['createdAt'].toString());
+        print('DEBUG: createdAt 파싱 성공: $parsedDate');
+        return parsedDate;
+      } catch (e) {
+        print('DEBUG: createdAt 파싱 실패: $e');
+      }
+    }
+    
+    if (json['registrationDate'] != null && json['registrationDate'].toString().isNotEmpty && json['registrationDate'] != 'null') {
+      try {
+        final parsedDate = DateTime.parse(json['registrationDate'].toString());
+        print('DEBUG: registrationDate 파싱 성공: $parsedDate');
+        return parsedDate;
+      } catch (e) {
+        print('DEBUG: registrationDate 파싱 실패: $e');
+      }
+    }
+    
+    print('DEBUG: 모든 작성일 필드 파싱 실패, 현재 시간 사용');
     return DateTime.now(); // fallback
   }
 
@@ -849,6 +1024,104 @@ class NoticePost {
   // notice_important 필드를 이용한 헬퍼 메서드 (0=뱃지 표시, 1=뱃지 숨김)
   bool get showBadge => noticeImportant == 0;
   String get badgeText => '공지';
+
+  // 웹 CORS 문제 해결용 목 데이터
+  static List<ColumnPost> _getMockColumnData(int limit) {
+    final mockColumns = [
+      ColumnPost(
+        columnIdx: 1,
+        title: "반려동물 헌혈의 중요성",
+        authorName: "서울동물병원",
+        authorNickname: "서울동물병원",
+        isImportant: false,
+        contentPreview: "반려동물 헌혈은 응급상황에서 생명을 구하는 중요한 의료행위입니다. 건강한 반려동물의 헌혈이 다른 동물의 생명을 구할 수 있습니다...",
+        viewCount: 245,
+        createdAt: DateTime.now().subtract(Duration(days: 1)),
+        updatedAt: DateTime.now().subtract(Duration(days: 1)),
+      ),
+      ColumnPost(
+        columnIdx: 2,
+        title: "헌혈 전 준비사항",
+        authorName: "부산반려동물병원",
+        authorNickname: "부산반려동물병원",
+        isImportant: true,
+        contentPreview: "헌혈을 위해서는 반려동물의 건강상태 확인이 필수입니다. 충분한 수분 섭취와 스트레스 관리가 중요합니다...",
+        viewCount: 189,
+        createdAt: DateTime.now().subtract(Duration(days: 2)),
+        updatedAt: DateTime.now().subtract(Duration(days: 2)),
+      ),
+      ColumnPost(
+        columnIdx: 3,
+        title: "헌혈 후 관리 방법",
+        authorName: "대구수의클리닉",
+        authorNickname: "대구수의클리닉",
+        isImportant: false,
+        contentPreview: "헌혈 후에는 충분한 휴식과 영양 공급이 필요합니다. 24시간 동안 격한 운동은 피해주세요...",
+        viewCount: 156,
+        createdAt: DateTime.now().subtract(Duration(days: 3)),
+        updatedAt: DateTime.now().subtract(Duration(days: 3)),
+      ),
+      ColumnPost(
+        columnIdx: 4,
+        title: "반려동물 혈액형 검사의 필요성",
+        authorName: "광주동물병원",
+        authorNickname: "광주동물병원",
+        isImportant: false,
+        contentPreview: "헌혈을 위해서는 정확한 혈액형 검사가 필수입니다. DEA 1.1 검사를 통해 안전한 헌혈이 가능합니다...",
+        viewCount: 198,
+        createdAt: DateTime.now().subtract(Duration(days: 4)),
+        updatedAt: DateTime.now().subtract(Duration(days: 4)),
+      ),
+    ];
+    
+    return mockColumns.take(limit).cast<ColumnPost>().toList();
+  }
+
+  static List<NoticePost> _getMockNoticeData(int limit) {
+    final mockNotices = [
+      NoticePost(
+        noticeIdx: 1,
+        title: "시스템 점검 안내",
+        authorName: "관리자",
+        authorEmail: "admin@superpetconnect.com",
+        authorNickname: "관리자",
+        noticeImportant: 0,
+        targetAudience: 0,
+        contentPreview: "2025년 8월 15일 02:00~04:00 시스템 점검이 예정되어 있습니다. 해당 시간 동안 서비스 이용이 제한될 수 있습니다...",
+        viewCount: 512,
+        createdAt: DateTime.now().subtract(Duration(hours: 2)),
+        updatedAt: DateTime.now().subtract(Duration(hours: 2)),
+      ),
+      NoticePost(
+        noticeIdx: 2,
+        title: "헌혈 인증서 발급 기능 추가",
+        authorName: "관리자",
+        authorEmail: "admin@superpetconnect.com",
+        authorNickname: "관리자",
+        noticeImportant: 1,
+        targetAudience: 1,
+        contentPreview: "헌혈 완료 후 디지털 인증서를 발급받을 수 있는 기능이 추가되었습니다. 마이페이지에서 확인하실 수 있습니다...",
+        viewCount: 387,
+        createdAt: DateTime.now().subtract(Duration(days: 1)),
+        updatedAt: DateTime.now().subtract(Duration(days: 1)),
+      ),
+      NoticePost(
+        noticeIdx: 3,
+        title: "긴급 헌혈 요청 알림 개선",
+        authorName: "관리자",
+        authorEmail: "admin@superpetconnect.com",
+        authorNickname: "관리자",
+        noticeImportant: 1,
+        targetAudience: 2,
+        contentPreview: "긴급 헌혈 요청 시 더 빠른 알림을 위해 푸시 알림 시스템을 개선했습니다. 설정에서 알림을 활성화해주세요...",
+        viewCount: 298,
+        createdAt: DateTime.now().subtract(Duration(days: 2)),
+        updatedAt: DateTime.now().subtract(Duration(days: 2)),
+      ),
+    ];
+    
+    return mockNotices.take(limit).cast<NoticePost>().toList();
+  }
 }
 
 class DashboardStatistics {
@@ -868,5 +1141,103 @@ class DashboardStatistics {
       totalPublishedColumns: json['total_published_columns'] ?? 0,
       totalActiveNotices: json['total_active_notices'] ?? 0,
     );
+  }
+
+  // 웹 CORS 문제 해결용 목 데이터
+  static List<ColumnPost> _getMockColumnData(int limit) {
+    final mockColumns = [
+      ColumnPost(
+        columnIdx: 1,
+        title: "반려동물 헌혈의 중요성",
+        authorName: "서울동물병원",
+        authorNickname: "서울동물병원",
+        isImportant: false,
+        contentPreview: "반려동물 헌혈은 응급상황에서 생명을 구하는 중요한 의료행위입니다. 건강한 반려동물의 헌혈이 다른 동물의 생명을 구할 수 있습니다...",
+        viewCount: 245,
+        createdAt: DateTime.now().subtract(Duration(days: 1)),
+        updatedAt: DateTime.now().subtract(Duration(days: 1)),
+      ),
+      ColumnPost(
+        columnIdx: 2,
+        title: "헌혈 전 준비사항",
+        authorName: "부산반려동물병원",
+        authorNickname: "부산반려동물병원",
+        isImportant: true,
+        contentPreview: "헌혈을 위해서는 반려동물의 건강상태 확인이 필수입니다. 충분한 수분 섭취와 스트레스 관리가 중요합니다...",
+        viewCount: 189,
+        createdAt: DateTime.now().subtract(Duration(days: 2)),
+        updatedAt: DateTime.now().subtract(Duration(days: 2)),
+      ),
+      ColumnPost(
+        columnIdx: 3,
+        title: "헌혈 후 관리 방법",
+        authorName: "대구수의클리닉",
+        authorNickname: "대구수의클리닉",
+        isImportant: false,
+        contentPreview: "헌혈 후에는 충분한 휴식과 영양 공급이 필요합니다. 24시간 동안 격한 운동은 피해주세요...",
+        viewCount: 156,
+        createdAt: DateTime.now().subtract(Duration(days: 3)),
+        updatedAt: DateTime.now().subtract(Duration(days: 3)),
+      ),
+      ColumnPost(
+        columnIdx: 4,
+        title: "반려동물 혈액형 검사의 필요성",
+        authorName: "광주동물병원",
+        authorNickname: "광주동물병원",
+        isImportant: false,
+        contentPreview: "헌혈을 위해서는 정확한 혈액형 검사가 필수입니다. DEA 1.1 검사를 통해 안전한 헌혈이 가능합니다...",
+        viewCount: 198,
+        createdAt: DateTime.now().subtract(Duration(days: 4)),
+        updatedAt: DateTime.now().subtract(Duration(days: 4)),
+      ),
+    ];
+    
+    return mockColumns.take(limit).cast<ColumnPost>().toList();
+  }
+
+  static List<NoticePost> _getMockNoticeData(int limit) {
+    final mockNotices = [
+      NoticePost(
+        noticeIdx: 1,
+        title: "시스템 점검 안내",
+        authorName: "관리자",
+        authorEmail: "admin@superpetconnect.com",
+        authorNickname: "관리자",
+        noticeImportant: 0,
+        targetAudience: 0,
+        contentPreview: "2025년 8월 15일 02:00~04:00 시스템 점검이 예정되어 있습니다. 해당 시간 동안 서비스 이용이 제한될 수 있습니다...",
+        viewCount: 512,
+        createdAt: DateTime.now().subtract(Duration(hours: 2)),
+        updatedAt: DateTime.now().subtract(Duration(hours: 2)),
+      ),
+      NoticePost(
+        noticeIdx: 2,
+        title: "헌혈 인증서 발급 기능 추가",
+        authorName: "관리자",
+        authorEmail: "admin@superpetconnect.com",
+        authorNickname: "관리자",
+        noticeImportant: 1,
+        targetAudience: 1,
+        contentPreview: "헌혈 완료 후 디지털 인증서를 발급받을 수 있는 기능이 추가되었습니다. 마이페이지에서 확인하실 수 있습니다...",
+        viewCount: 387,
+        createdAt: DateTime.now().subtract(Duration(days: 1)),
+        updatedAt: DateTime.now().subtract(Duration(days: 1)),
+      ),
+      NoticePost(
+        noticeIdx: 3,
+        title: "긴급 헌혈 요청 알림 개선",
+        authorName: "관리자",
+        authorEmail: "admin@superpetconnect.com",
+        authorNickname: "관리자",
+        noticeImportant: 1,
+        targetAudience: 2,
+        contentPreview: "긴급 헌혈 요청 시 더 빠른 알림을 위해 푸시 알림 시스템을 개선했습니다. 설정에서 알림을 활성화해주세요...",
+        viewCount: 298,
+        createdAt: DateTime.now().subtract(Duration(days: 2)),
+        updatedAt: DateTime.now().subtract(Duration(days: 2)),
+      ),
+    ];
+    
+    return mockNotices.take(limit).cast<NoticePost>().toList();
   }
 }

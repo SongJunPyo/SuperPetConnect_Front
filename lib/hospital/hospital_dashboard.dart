@@ -22,7 +22,18 @@ import '../utils/number_format_util.dart';
 import '../utils/text_personalization_util.dart';
 
 class HospitalDashboard extends StatefulWidget {
-  const HospitalDashboard({super.key});
+  final String? highlightPostId;
+  final String? highlightColumnId;
+  final String? initialTab;
+  final bool showPostDetail;
+  
+  const HospitalDashboard({
+    super.key,
+    this.highlightPostId,
+    this.highlightColumnId,
+    this.initialTab,
+    this.showPostDetail = false,
+  });
 
   @override
   State<HospitalDashboard> createState() => _HospitalDashboardState();
@@ -778,32 +789,32 @@ class _HospitalDashboardState extends State<HospitalDashboard>
                     child: Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
+                        // 왼쪽: 순서 번호 (1.5번째 줄 위치)
+                        Container(
+                          width: 20,
+                          height: 50, // 전체 높이에 맞춤
+                          child: Center(
+                            child: Text(
+                              '${index + 1}',
+                              style: AppTheme.bodySmallStyle.copyWith(
+                                color: AppTheme.textTertiary,
+                                fontWeight: FontWeight.w500,
+                                fontSize: 13,
+                              ),
+                              textAlign: TextAlign.center,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
                         // 중앙: 메인 콘텐츠
                         Expanded(
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              // 첫 번째 줄: 숫자 + 뱃지 + 제목
+                              // 첫 번째 줄: 뱃지 + 제목
                               Row(
-                                crossAxisAlignment: CrossAxisAlignment.center,
+                                crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  // 순서 번호 (1.5줄 위치)
-                                  Container(
-                                    width: 20,
-                                    height: 30,
-                                    child: Center(
-                                      child: Text(
-                                        '${index + 1}',
-                                        style: AppTheme.bodySmallStyle.copyWith(
-                                          color: AppTheme.textTertiary,
-                                          fontWeight: FontWeight.w500,
-                                          fontSize: 13,
-                                        ),
-                                        textAlign: TextAlign.center,
-                                      ),
-                                    ),
-                                  ),
-                                  const SizedBox(width: 8),
                                   if (isImportant) ...[
                                     Container(
                                       padding: const EdgeInsets.symmetric(
@@ -845,19 +856,16 @@ class _HospitalDashboardState extends State<HospitalDashboard>
                               ),
                               const SizedBox(height: 6),
                               // 두 번째 줄: 작성자 닉네임
-                              Padding(
-                                padding: const EdgeInsets.only(left: 28), // 숫자 너비만큼 들여쓰기
-                                child: Text(
-                                  (column.authorNickname ?? column.hospitalName).length > 15
-                                      ? '${(column.authorNickname ?? column.hospitalName).substring(0, 15)}..'
-                                      : (column.authorNickname ?? column.hospitalName),
-                                  style: AppTheme.bodySmallStyle.copyWith(
-                                    color: AppTheme.textSecondary,
-                                    fontSize: 12,
-                                  ),
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
+                              Text(
+                                (column.authorNickname ?? column.hospitalName).length > 15
+                                    ? '${(column.authorNickname ?? column.hospitalName).substring(0, 15)}..'
+                                    : (column.authorNickname ?? column.hospitalName),
+                                style: AppTheme.bodySmallStyle.copyWith(
+                                  color: AppTheme.textSecondary,
+                                  fontSize: 12,
                                 ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
                               ),
                             ],
                           ),

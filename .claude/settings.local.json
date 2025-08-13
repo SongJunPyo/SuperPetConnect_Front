@@ -9,7 +9,9 @@
       "Bash(curl:*)",
       "Bash(dart:*)",
       "Bash(sed:*)",
-      "Bash(taskkill:*)"
+      "Bash(taskkill:*)",
+      "Bash(grep:*)",
+      "Bash(git checkout:*)"
     ],
     "deny": []
   }

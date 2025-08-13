@@ -14,6 +14,7 @@ import '../widgets/app_input_field.dart';
 import '../widgets/app_app_bar.dart';
 import 'package:connect/auth/fcm_token_screen.dart';
 import 'package:flutter/foundation.dart';
+import '../services/notification_service.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -113,6 +114,14 @@ class _LoginScreenState extends State<LoginScreen> {
           print(
             'DEBUG: SharedPreferences에 저장된 auth_token: ${prefs.getString('auth_token')}',
           );
+          
+          // 로그인 성공 후 FCM 토큰 서버 업데이트
+          try {
+            await NotificationService.updateTokenAfterLogin();
+            print('DEBUG: FCM 토큰 서버 업데이트 완료');
+          } catch (e) {
+            print('DEBUG: FCM 토큰 서버 업데이트 실패: $e');
+          }
           // 승인 여부 확인
           if (data['approved'] == false) {
             _showAlertDialog(

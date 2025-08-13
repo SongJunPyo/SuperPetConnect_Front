@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../services/hospital_column_service.dart';
 import '../models/hospital_column_model.dart';
 import '../utils/app_theme.dart';
+import '../widgets/app_app_bar.dart';
 import 'hospital_column_create.dart';
 import 'hospital_column_detail.dart';
 import 'package:intl/intl.dart';
@@ -157,15 +158,9 @@ class _HospitalColumnListState extends State<HospitalColumnList> with TickerProv
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text(
-          '칼럼 목록',
-          style: TextStyle(
-            fontWeight: FontWeight.bold,
-            color: Colors.black87,
-          ),
-        ),
-        centerTitle: false,
+      appBar: AppAppBar(
+        title: '칼럼 목록',
+        showBackButton: true,
         actions: [
           IconButton(
             icon: const Icon(Icons.date_range),
@@ -184,7 +179,7 @@ class _HospitalColumnListState extends State<HospitalColumnList> with TickerProv
             tooltip: '새로고침',
           ),
           IconButton(
-            icon: const Icon(Icons.add, color: Colors.black87),
+            icon: const Icon(Icons.add),
             onPressed: () async {
               final hasPermission = await HospitalColumnService.checkColumnPermission();
               if (hasPermission) {
@@ -206,47 +201,20 @@ class _HospitalColumnListState extends State<HospitalColumnList> with TickerProv
             tooltip: '칼럼 작성',
           ),
         ],
-        bottom: TabBar(
-          controller: _tabController,
-          tabs: const [
-            Tab(
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(Icons.list_alt, size: 20),
-                  SizedBox(width: 8),
-                  Text('전체'),
-                ],
-              ),
-            ),
-            Tab(
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(Icons.pending_actions, size: 20),
-                  SizedBox(width: 8),
-                  Text('공개안함'),
-                ],
-              ),
-            ),
-            Tab(
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(Icons.check_circle, size: 20),
-                  SizedBox(width: 8),
-                  Text('공개'),
-                ],
-              ),
-            ),
-          ],
-          labelColor: AppTheme.primaryBlue,
-          unselectedLabelColor: Colors.grey,
-          indicatorColor: AppTheme.primaryBlue,
-        ),
       ),
       body: Column(
         children: [
+          TabBar(
+            controller: _tabController,
+            labelColor: AppTheme.primaryBlue,
+            unselectedLabelColor: AppTheme.textSecondary,
+            indicatorColor: AppTheme.primaryBlue,
+            tabs: const [
+              Tab(text: '전체'),
+              Tab(text: '공개안함'),
+              Tab(text: '공개'),
+            ],
+          ),
           // 검색창
           Container(
             padding: const EdgeInsets.all(16.0),
@@ -255,17 +223,15 @@ class _HospitalColumnListState extends State<HospitalColumnList> with TickerProv
               onChanged: _onSearchChanged,
               decoration: InputDecoration(
                 hintText: '칼럼 제목, 내용으로 검색...',
-                prefixIcon: const Icon(Icons.search, color: AppTheme.primaryBlue),
+                prefixIcon: const Icon(Icons.search),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide(color: Colors.grey.shade300),
+                  borderSide: BorderSide(color: AppTheme.lightGray),
                 ),
                 focusedBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
-                  borderSide: const BorderSide(color: AppTheme.primaryBlue, width: 2),
+                  borderSide: BorderSide(color: AppTheme.primaryBlue),
                 ),
-                filled: true,
-                fillColor: Colors.grey.shade50,
                 suffixIcon: searchQuery.isNotEmpty
                     ? IconButton(
                         icon: const Icon(Icons.clear),
@@ -288,7 +254,7 @@ class _HospitalColumnListState extends State<HospitalColumnList> with TickerProv
                 decoration: BoxDecoration(
                   color: AppTheme.lightBlue,
                   borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: AppTheme.primaryBlue.withOpacity(0.3)),
+                  border: Border.all(color: AppTheme.primaryBlue.withValues(alpha: 0.3)),
                 ),
                 child: Row(
                   children: [
@@ -451,156 +417,163 @@ class _HospitalColumnListState extends State<HospitalColumnList> with TickerProv
       );
     }
 
-    return RefreshIndicator(
-      onRefresh: _loadMyColumns,
-      child: ListView.builder(
-        padding: const EdgeInsets.symmetric(horizontal: 16.0),
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+      ),
+      child: ListView.separated(
+        padding: EdgeInsets.zero,
         itemCount: columns.length,
+        separatorBuilder: (context, index) => Container(
+          height: 1,
+          color: AppTheme.lightGray.withValues(alpha: 0.2),
+          margin: const EdgeInsets.symmetric(horizontal: 16),
+        ),
         itemBuilder: (context, index) {
           final column = columns[index];
-          return _buildColumnCard(column);
+          return _buildColumnItem(column, index);
         },
       ),
     );
   }
 
-  Widget _buildColumnCard(HospitalColumn column) {
-    final index = columns.indexOf(column) + 1;
-    
-    return Card(
-      color: Colors.white,
-      elevation: 2,
-      margin: const EdgeInsets.only(bottom: 12),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-        side: BorderSide(
-          color: column.isPublished ? Colors.green.shade300 : Colors.orange.shade300,
-          width: 2,
-        ),
-      ),
-      child: InkWell(
-        onTap: () {
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) => HospitalColumnDetail(
-                columnIdx: column.columnIdx,
+  Widget _buildColumnItem(HospitalColumn column, int index) {
+    return InkWell(
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => HospitalColumnDetail(
+              columnIdx: column.columnIdx,
+            ),
+          ),
+        ).then((_) => _loadMyColumns());
+      },
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // 왼쪽: 순서 번호
+            Container(
+              width: 20,
+              height: 50,
+              child: Center(
+                child: Text(
+                  '${index + 1}',
+                  style: AppTheme.bodySmallStyle.copyWith(
+                    color: AppTheme.textTertiary,
+                    fontWeight: FontWeight.w500,
+                    fontSize: 13,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
               ),
             ),
-          ).then((_) => _loadMyColumns());
-        },
-        borderRadius: BorderRadius.circular(12),
-        child: Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // 번호 표시 행
-              Row(
+            const SizedBox(width: 8),
+            // 중앙: 메인 콘텐츠
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // 세련된 번호 표시
-                  Container(
-                    width: 32,
-                    height: 24,
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        colors: [
-                          column.isPublished ? Colors.green : Colors.orange,
-                          (column.isPublished ? Colors.green : Colors.orange).withOpacity(0.8),
-                        ],
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                      ),
-                      borderRadius: BorderRadius.circular(6),
-                      boxShadow: [
-                        BoxShadow(
-                          color: (column.isPublished ? Colors.green : Colors.orange).withOpacity(0.3),
-                          offset: const Offset(0, 2),
-                          blurRadius: 4,
-                        ),
-                      ],
-                    ),
-                    child: Center(
-                      child: Text(
-                        '#$index',
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 11,
-                          fontWeight: FontWeight.bold,
-                          letterSpacing: 0.5,
-                        ),
-                      ),
-                    ),
-                  ),
-                  const Spacer(),
-                ],
-              ),
-              const SizedBox(height: 12),
-              Text(
-                column.title,
-                style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.bold,
-                  color: Colors.black87,
-                ),
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-              ),
-              const SizedBox(height: 8),
-              Text(
-                column.content,
-                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: Colors.grey[600],
-                  height: 1.4,
-                ),
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-              ),
-              const SizedBox(height: 12),
-              Row(
-                children: [
-                  Icon(
-                    Icons.business,
-                    size: 16,
-                    color: Colors.grey[600],
-                  ),
-                  const SizedBox(width: 4),
+                  // 첫 번째 줄: 제목
                   Text(
-                    column.hospitalName,
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: Colors.grey[600],
+                    column.title,
+                    style: AppTheme.bodyMediumStyle.copyWith(
+                      color: AppTheme.textPrimary,
                       fontWeight: FontWeight.w500,
+                      fontSize: 14,
                     ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                   ),
-                  const SizedBox(width: 16),
-                  Icon(
-                    Icons.calendar_today,
-                    size: 16,
-                    color: Colors.grey[600],
-                  ),
-                  const SizedBox(width: 4),
+                  const SizedBox(height: 6),
+                  // 두 번째 줄: 병원명
                   Text(
-                    DateFormat('yyyy-MM-dd').format(column.createdAt),
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: Colors.grey[600],
+                    column.hospitalName.length > 15
+                        ? '${column.hospitalName.substring(0, 15)}..' 
+                        : column.hospitalName,
+                    style: AppTheme.bodySmallStyle.copyWith(
+                      color: AppTheme.textSecondary,
+                      fontSize: 12,
                     ),
-                  ),
-                  const SizedBox(width: 16),
-                  Icon(
-                    Icons.visibility_outlined,
-                    size: 16,
-                    color: Colors.grey[600],
-                  ),
-                  const SizedBox(width: 4),
-                  Text(
-                    '${column.viewCount}',
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: Colors.grey[600],
-                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                   ),
                 ],
               ),
-            ],
-          ),
+            ),
+            const SizedBox(width: 12),
+            // 오른쪽: 날짜들 + 상태 표시
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // 날짜 컬럼 (작성/수정일 세로 배치)
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    Text(
+                      '작성: ${DateFormat('yy.MM.dd').format(column.createdAt)}',
+                      style: AppTheme.bodySmallStyle.copyWith(
+                        color: AppTheme.textTertiary,
+                        fontSize: 11,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      '수정: ${DateFormat('yy.MM.dd').format(column.updatedAt)}',
+                      style: AppTheme.bodySmallStyle.copyWith(
+                        color: AppTheme.textTertiary,
+                        fontSize: 11,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(width: 8),
+                // 상태 표시 (공개/대기)
+                Container(
+                  height: 36,
+                  width: 40,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 2,
+                    vertical: 2,
+                  ),
+                  decoration: BoxDecoration(
+                    color: column.isPublished
+                        ? AppTheme.success.withValues(alpha: 0.2)
+                        : AppTheme.warning.withValues(alpha: 0.2),
+                    borderRadius: BorderRadius.circular(6),
+                    border: Border.all(
+                      color: column.isPublished
+                          ? AppTheme.success.withValues(alpha: 0.3)
+                          : AppTheme.warning.withValues(alpha: 0.3),
+                      width: 1,
+                    ),
+                  ),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        column.isPublished ? Icons.check_circle : Icons.pending,
+                        size: 10,
+                        color: column.isPublished ? AppTheme.success : AppTheme.warning,
+                      ),
+                      Text(
+                        column.isPublished ? '공개' : '대기',
+                        style: AppTheme.bodySmallStyle.copyWith(
+                          color: column.isPublished ? AppTheme.success : AppTheme.warning,
+                          fontSize: 8,
+                          fontWeight: FontWeight.w500,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ],
         ),
       ),
     );

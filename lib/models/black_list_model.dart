@@ -114,38 +114,6 @@ class BlackListUpdateRequest {
   }
 }
 
-// 블랙리스트 통계 모델
-class BlackListStats {
-  final int totalBlackUsers;
-  final int activeBlackUsers;
-  final int releasedBlackUsers;
-  final double avgSuspensionDays;
-
-  BlackListStats({
-    required this.totalBlackUsers,
-    required this.activeBlackUsers,
-    required this.releasedBlackUsers,
-    required this.avgSuspensionDays,
-  });
-
-  factory BlackListStats.fromJson(Map<String, dynamic> json) {
-    return BlackListStats(
-      totalBlackUsers: json['total_black_users'] ?? 0,
-      activeBlackUsers: json['active_black_users'] ?? 0,
-      releasedBlackUsers: json['released_black_users'] ?? 0,
-      avgSuspensionDays: (json['avg_suspension_days'] ?? 0.0).toDouble(),
-    );
-  }
-
-  Map<String, dynamic> toJson() {
-    return {
-      'total_black_users': totalBlackUsers,
-      'active_black_users': activeBlackUsers,
-      'released_black_users': releasedBlackUsers,
-      'avg_suspension_days': avgSuspensionDays,
-    };
-  }
-}
 
 // 사용자 블랙리스트 상태 확인 모델
 class UserBlackListStatus {

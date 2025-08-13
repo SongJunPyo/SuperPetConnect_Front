@@ -21,7 +21,7 @@ class _AdminNoticeCreateScreenState extends State<AdminNoticeCreateScreen> {
   int _isImportant = 1; // 0=뱃지 표시, 1=뱃지 숨김, 기본값은 숨김
   bool _isActive = true;
   bool _isLoading = false;
-  int _targetAudience = 0; // 0: all, 1: hospital, 2: user
+  int _targetAudience = 0; // 0: 전체, 1: 관리자, 2: 병원, 3: 사용자
 
   bool get isEditMode => widget.editNotice != null;
 
@@ -233,8 +233,8 @@ class _AdminNoticeCreateScreenState extends State<AdminNoticeCreateScreen> {
                       contentPadding: EdgeInsets.zero,
                     ),
                     RadioListTile<int>(
-                      title: const Text('병원'),
-                      subtitle: const Text('병원 사용자에게만 표시'),
+                      title: const Text('관리자'),
+                      subtitle: const Text('관리자에게만 표시'),
                       value: 1,
                       groupValue: _targetAudience,
                       onChanged: (value) {
@@ -246,9 +246,22 @@ class _AdminNoticeCreateScreenState extends State<AdminNoticeCreateScreen> {
                       contentPadding: EdgeInsets.zero,
                     ),
                     RadioListTile<int>(
-                      title: const Text('반려동물 소유자'),
-                      subtitle: const Text('일반 사용자에게만 표시'),
+                      title: const Text('병원'),
+                      subtitle: const Text('병원 사용자에게만 표시'),
                       value: 2,
+                      groupValue: _targetAudience,
+                      onChanged: (value) {
+                        setState(() {
+                          _targetAudience = value!;
+                        });
+                      },
+                      activeColor: AppTheme.primaryBlue,
+                      contentPadding: EdgeInsets.zero,
+                    ),
+                    RadioListTile<int>(
+                      title: const Text('사용자'),
+                      subtitle: const Text('일반 사용자에게만 표시'),
+                      value: 3,
                       groupValue: _targetAudience,
                       onChanged: (value) {
                         setState(() {

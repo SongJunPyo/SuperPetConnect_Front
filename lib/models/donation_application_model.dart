@@ -1,73 +1,76 @@
 // 헌혈 신청 관련 모델 클래스들
 
 class DonationApplication {
-  final int applicationId;
-  final int postId;
-  final String applicantEmail;
-  final String applicantName;
-  final String applicantPhone;
+  final int appliedDonationIdx;  // applied_donation_idx
+  final int petIdx;              // pet_idx
+  final int postTimesIdx;        // post_times_idx
+  final int status;              // status (0=대기, 1=승인, 2=거절)
   final DonationPet pet;
-  final ApplicationStatus status;
-  final DateTime appliedDate;
-  final DateTime? updatedDate;
-  final String? hospitalNotes;
-  final int donationCount;
-  final String? lastDonationDate;
+  final DateTime donationTime;   // donation_time
+  final String donationDate;     // donation_date
+  final String postTitle;        // post_title
+  final String statusKr;         // status_kr
+  // 서버에서 추가 제공되는 시간대 정보
+  final String? selectedDate;    // selected_date
+  final String? selectedTime;    // selected_time
+  final String? selectedTeam;    // selected_team
+  final String? appliedDate;     // applied_date
 
   DonationApplication({
-    required this.applicationId,
-    required this.postId,
-    required this.applicantEmail,
-    required this.applicantName,
-    required this.applicantPhone,
-    required this.pet,
+    required this.appliedDonationIdx,
+    required this.petIdx,
+    required this.postTimesIdx,
     required this.status,
-    required this.appliedDate,
-    this.updatedDate,
-    this.hospitalNotes,
-    required this.donationCount,
-    this.lastDonationDate,
+    required this.pet,
+    required this.donationTime,
+    required this.donationDate,
+    required this.postTitle,
+    required this.statusKr,
+    this.selectedDate,
+    this.selectedTime,
+    this.selectedTeam,
+    this.appliedDate,
   });
 
   factory DonationApplication.fromJson(Map<String, dynamic> json) {
     return DonationApplication(
-      applicationId: json['application_id'],
-      postId: json['post_id'] ?? 0,
-      applicantEmail: json['applicant_email'] ?? '',
-      applicantName: json['applicant_name'] ?? '',
-      applicantPhone: json['applicant_phone'] ?? '',
+      appliedDonationIdx: json['applied_donation_idx'] ?? 0,
+      petIdx: json['pet_idx'] ?? 0,
+      postTimesIdx: json['post_times_idx'] ?? 0,
+      status: json['status'] ?? 0,
       pet: DonationPet.fromJson(json['pet'] ?? {}),
-      status: ApplicationStatus.fromString(json['status'] ?? 'pending'),
-      appliedDate: DateTime.parse(json['applied_date']),
-      updatedDate: json['updated_date'] != null 
-          ? DateTime.parse(json['updated_date']) 
-          : null,
-      hospitalNotes: json['hospital_notes'],
-      donationCount: json['donation_count'] ?? 0,
-      lastDonationDate: json['last_donation_date'],
+      donationTime: DateTime.parse(json['donation_time'] ?? DateTime.now().toIso8601String()),
+      donationDate: json['donation_date'] ?? '',
+      postTitle: json['post_title'] ?? '',
+      statusKr: json['status_kr'] ?? '',
+      selectedDate: json['selected_date'],
+      selectedTime: json['selected_time'],
+      selectedTeam: json['selected_team'],
+      appliedDate: json['applied_date'],
     );
   }
 
   Map<String, dynamic> toJson() {
     return {
-      'application_id': applicationId,
-      'post_id': postId,
-      'applicant_email': applicantEmail,
-      'applicant_name': applicantName,
-      'applicant_phone': applicantPhone,
+      'applied_donation_idx': appliedDonationIdx,
+      'pet_idx': petIdx,
+      'post_times_idx': postTimesIdx,
+      'status': status,
       'pet': pet.toJson(),
-      'status': status.value,
-      'applied_date': appliedDate.toIso8601String(),
-      'updated_date': updatedDate?.toIso8601String(),
-      'hospital_notes': hospitalNotes,
-      'donation_count': donationCount,
-      'last_donation_date': lastDonationDate,
+      'donation_time': donationTime.toIso8601String(),
+      'donation_date': donationDate,
+      'post_title': postTitle,
+      'status_kr': statusKr,
+      'selected_date': selectedDate,
+      'selected_time': selectedTime,
+      'selected_team': selectedTeam,
+      'applied_date': appliedDate,
     };
   }
 }
 
 class DonationPet {
-  final int petId;
+  final int petIdx;     // pet_idx
   final String name;
   final String species;
   final String? breed;
@@ -76,7 +79,7 @@ class DonationPet {
   final int ageNumber;
 
   DonationPet({
-    required this.petId,
+    required this.petIdx,
     required this.name,
     required this.species,
     this.breed,
@@ -87,19 +90,19 @@ class DonationPet {
 
   factory DonationPet.fromJson(Map<String, dynamic> json) {
     return DonationPet(
-      petId: json['pet_id'] ?? 0,
+      petIdx: int.tryParse((json['pet_idx'] ?? 0).toString()) ?? 0,
       name: json['name'] ?? '',
       species: json['species'] ?? '',
       breed: json['breed'],
       bloodType: json['blood_type'],
-      weightKg: (json['weight_kg'] ?? 0.0).toDouble(),
-      ageNumber: json['age_number'] ?? 0,
+      weightKg: double.tryParse((json['weight_kg'] ?? 0.0).toString()) ?? 0.0,
+      ageNumber: int.tryParse((json['age_number'] ?? 0).toString()) ?? 0,
     );
   }
 
   Map<String, dynamic> toJson() {
     return {
-      'pet_id': petId,
+      'pet_idx': petIdx,  // pet_idx로 변경
       'name': name,
       'species': species,
       'breed': breed,
@@ -145,7 +148,7 @@ class CreateApplicationRequest {
 
   Map<String, dynamic> toJson() {
     return {
-      'post_id': postId,
+      'post_idx': postId,
       'pet_id': petId,
     };
   }
@@ -169,23 +172,38 @@ class UpdateApplicationRequest {
   }
 }
 
-// 신청자 목록 응답 모델
+// 신청자 목록 응답 모델 - 새로운 API 구조
 class ApplicationListResponse {
+  final int postIdx;
+  final String postTitle;
+  final int totalApplications;
   final List<DonationApplication> applications;
-  final int totalCount;
 
   ApplicationListResponse({
+    required this.postIdx,
+    required this.postTitle,
+    required this.totalApplications,
     required this.applications,
-    required this.totalCount,
   });
 
   factory ApplicationListResponse.fromJson(Map<String, dynamic> json) {
     return ApplicationListResponse(
-      applications: (json['applications'] as List)
+      postIdx: json['post_idx'] ?? 0,
+      postTitle: json['post_title'] ?? '',
+      totalApplications: json['total_applications'] ?? 0,
+      applications: (json['applications'] as List? ?? [])
           .map((app) => DonationApplication.fromJson(app))
           .toList(),
-      totalCount: json['total_count'] ?? 0,
     );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'post_idx': postIdx,
+      'post_title': postTitle,
+      'total_applications': totalApplications,
+      'applications': applications.map((app) => app.toJson()).toList(),
+    };
   }
 }
 

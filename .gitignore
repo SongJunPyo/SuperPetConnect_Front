@@ -47,4 +47,4 @@ app.*.map.json
 # Environment variables (보안상 중요)
 .env
 
-SPC_DB.sql
+SPC.sql

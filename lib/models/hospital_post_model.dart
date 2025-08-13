@@ -12,6 +12,10 @@ class HospitalPost {
   final String? descriptions;
   final int animalType; // 0: 강아지, 1: 고양이
   final int? viewCount;
+  // 새로운 필드들 추가
+  final String? hospitalNickname;
+  final String? hospitalName;
+  final String? content;
 
   HospitalPost({
     required this.postIdx,
@@ -27,6 +31,9 @@ class HospitalPost {
     this.descriptions,
     required this.animalType,
     this.viewCount,
+    this.hospitalNickname,
+    this.hospitalName,
+    this.content,
   });
 
   factory HospitalPost.fromJson(Map<String, dynamic> json) {
@@ -51,12 +58,24 @@ class HospitalPost {
               .toList()
           : <TimeRange>[];
       
-      final types = json['types'] ?? 1; // 기본값을 정기(1)로 변경
+      final typesRaw = json['types'] ?? 1; // 기본값을 정기(1)로 변경
+      final types = typesRaw is int ? typesRaw : int.tryParse(typesRaw.toString()) ?? 1;
       print('types: $types (type: ${types.runtimeType})');
       
-      final status = json['status'] ?? 0; // 기본값 대기(0)
-      final animalType = json['animalType'] ?? json['animal_type'] ?? 0;
-      final applicantCount = json['applicantCount'] ?? 0;
+      final statusRaw = json['status'] ?? 0; // 기본값 대기(0)
+      final status = statusRaw is int ? statusRaw : int.tryParse(statusRaw.toString()) ?? 0;
+      // animal_type이 문자열로 올 수 있으므로 변환 처리
+      final animalTypeRaw = json['animalType'] ?? json['animal_type'] ?? 0;
+      int animalType;
+      if (animalTypeRaw is String) {
+        animalType = (animalTypeRaw == 'dog') ? 0 : 1;
+      } else if (animalTypeRaw is int) {
+        animalType = animalTypeRaw;
+      } else {
+        animalType = 0; // 기본값: 강아지
+      }
+      final applicantCountRaw = json['applicantCount'] ?? json['applicant_count'] ?? 0;
+      final applicantCount = applicantCountRaw is int ? applicantCountRaw : int.tryParse(applicantCountRaw.toString()) ?? 0;
       print('applicantCount: $applicantCount (type: ${applicantCount.runtimeType})');
       
       return HospitalPost(
@@ -65,14 +84,17 @@ class HospitalPost {
         createdDate: createdDate,
         timeRanges: timeRanges,
         types: types,
-        emergencyBloodType: json['emergencyBloodType'] ?? json['bloodType'],
+        emergencyBloodType: json['emergencyBloodType'] ?? json['emergency_blood_type'] ?? json['bloodType'],
         location: json['location'] ?? '',
-        status: status is int ? status : (status == '승인' ? 1 : 0),
+        status: status,
         registrationDate: json['registrationDate'] ?? '',
         applicantCount: applicantCount,
         descriptions: json['descriptions'] ?? json['description'],
         animalType: animalType,
         viewCount: json['viewCount'] ?? json['view_count'],
+        hospitalNickname: json['hospital_nickname'],
+        hospitalName: json['hospital_name'],
+        content: json['content'],
       );
     } catch (e, stackTrace) {
       print('Error parsing HospitalPost: $e');
@@ -97,6 +119,9 @@ class HospitalPost {
   
   String get animalTypeText => animalType == 0 ? '강아지' : '고양이';
   
+  // API에서 사용하는 문자열 형태로 반환
+  String get animalTypeString => animalType == 0 ? 'dog' : 'cat';
+  
   String get displayBloodType {
     if (types == 0 && emergencyBloodType != null) {
       return emergencyBloodType!;
@@ -108,12 +133,14 @@ class HospitalPost {
 class TimeRange {
   final String? id;
   final String time;
-  final int team;
+  final String team; // 팀 필드를 String으로 변경 (A, B 형태)
+  final String? date; // 날짜 필드 추가
 
   TimeRange({
     this.id,
     required this.time,
     required this.team,
+    this.date,
   });
 
   factory TimeRange.fromJson(Map<String, dynamic> json) {
@@ -126,13 +153,18 @@ class TimeRange {
       final time = json['time'] ?? '';
       print('TimeRange time: $time (type: ${time.runtimeType})');
       
-      final team = json['team'] ?? 0;
+      final teamRaw = json['team'];
+      final team = teamRaw != null ? teamRaw.toString() : 'A';
       print('TimeRange team: $team (type: ${team.runtimeType})');
       
+      final date = json['date'];
+      print('TimeRange date: $date (type: ${date?.runtimeType})');
+      
       return TimeRange(
-        id: id,
+        id: id?.toString(),
         time: time,
         team: team,
+        date: date,
       );
     } catch (e, stackTrace) {
       print('Error parsing TimeRange: $e');

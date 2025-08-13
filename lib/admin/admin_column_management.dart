@@ -710,17 +710,19 @@ class _AdminColumnManagementState extends State<AdminColumnManagement> with Tick
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // 왼쪽: 번호
+            // 왼쪽: 순서 번호 (1.5번째 줄 위치)
             Container(
-              width: 28,
-              height: 28,
-              alignment: Alignment.center,
-              child: Text(
-                '${index + 1}',
-                style: AppTheme.bodySmallStyle.copyWith(
-                  color: AppTheme.textTertiary,
-                  fontWeight: FontWeight.w500,
-                  fontSize: 11,
+              width: 20,
+              height: 50, // 전체 높이에 맞춤
+              child: Center(
+                child: Text(
+                  '${index + 1}',
+                  style: AppTheme.bodySmallStyle.copyWith(
+                    color: AppTheme.textTertiary,
+                    fontWeight: FontWeight.w500,
+                    fontSize: 13,
+                  ),
+                  textAlign: TextAlign.center,
                 ),
               ),
             ),
@@ -730,44 +732,29 @@ class _AdminColumnManagementState extends State<AdminColumnManagement> with Tick
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // 첫 번째 줄: [제목][작성 날짜]
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // 제목
-                      Expanded(
-                        child: Text(
-                          column.title,
-                          style: AppTheme.bodyMediumStyle.copyWith(
-                            color: AppTheme.textPrimary,
-                            fontWeight: FontWeight.w500,
-                            fontSize: 14,
-                          ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                    ],
+                  // 첫 번째 줄: 제목
+                  Text(
+                    column.title,
+                    style: AppTheme.bodyMediumStyle.copyWith(
+                      color: AppTheme.textPrimary,
+                      fontWeight: FontWeight.w500,
+                      fontSize: 14,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                   ),
                   const SizedBox(height: 6),
-                  // 두 번째 줄: [닉네임][수정 날짜]
-                  Row(
-                    children: [
-                      // 닉네임 (작성자 닉네임)
-                      Expanded(
-                        child: Text(
-                          (column.authorNickname ?? column.hospitalName).length > 15
-                              ? '${(column.authorNickname ?? column.hospitalName).substring(0, 15)}..'
-                              : (column.authorNickname ?? column.hospitalName),
-                          style: AppTheme.bodySmallStyle.copyWith(
-                            color: AppTheme.textSecondary,
-                            fontSize: 12,
-                          ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                    ],
+                  // 두 번째 줄: 닉네임
+                  Text(
+                    (column.authorNickname ?? column.hospitalName).length > 15
+                        ? '${(column.authorNickname ?? column.hospitalName).substring(0, 15)}..'
+                        : (column.authorNickname ?? column.hospitalName),
+                    style: AppTheme.bodySmallStyle.copyWith(
+                      color: AppTheme.textSecondary,
+                      fontSize: 12,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                   ),
                 ],
               ),

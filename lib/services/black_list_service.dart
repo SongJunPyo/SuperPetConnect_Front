@@ -259,73 +259,9 @@ class BlackListService {
     }
   }
 
-  // 7. 블랙리스트 통계 (관리자)
-  static Future<BlackListStats> getBlackListStats() async {
-    try {
-      final headers = await _getHeaders();
-      
-      print('DEBUG: 블랙리스트 통계 조회 - URL: $baseUrl/stats');
 
-      final response = await http.get(
-        Uri.parse('$baseUrl/stats'),
-        headers: headers,
-      );
 
-      print('DEBUG: 통계 응답 상태코드: ${response.statusCode}');
-      print('DEBUG: 통계 응답 본문: ${response.body}');
-
-      if (response.statusCode == 200) {
-        final data = json.decode(utf8.decode(response.bodyBytes));
-        return BlackListStats.fromJson(data);
-      } else if (response.statusCode == 401) {
-        throw Exception('권한이 없습니다. 관리자 계정으로 로그인해주세요.');
-      } else if (response.statusCode == 403) {
-        throw Exception('관리자 권한이 필요합니다.');
-      } else {
-        final error = json.decode(utf8.decode(response.bodyBytes));
-        throw Exception(
-          '통계 조회 실패: ${error['detail'] ?? error['message'] ?? response.body}',
-        );
-      }
-    } catch (e) {
-      print('ERROR: 블랙리스트 통계 조회 중 오류: $e');
-      throw Exception('블랙리스트 통계 조회 중 오류 발생: $e');
-    }
-  }
-
-  // 8. D-Day 수동 업데이트 (관리자)
-  static Future<Map<String, dynamic>> updateDDay() async {
-    try {
-      final headers = await _getHeaders();
-      
-      print('DEBUG: D-Day 수동 업데이트 요청 - URL: $baseUrl/update-d-day');
-
-      final response = await http.patch(
-        Uri.parse('$baseUrl/update-d-day'),
-        headers: headers,
-      );
-
-      print('DEBUG: D-Day 업데이트 응답 상태코드: ${response.statusCode}');
-      print('DEBUG: D-Day 업데이트 응답 본문: ${response.body}');
-
-      if (response.statusCode == 200) {
-        final data = json.decode(utf8.decode(response.bodyBytes));
-        return data;
-      } else if (response.statusCode == 401) {
-        throw Exception('권한이 없습니다. 관리자 계정으로 로그인해주세요.');
-      } else if (response.statusCode == 403) {
-        throw Exception('관리자 권한이 필요합니다.');
-      } else {
-        final error = json.decode(utf8.decode(response.bodyBytes));
-        throw Exception('D-Day 업데이트 실패: ${error['detail'] ?? error['message'] ?? response.body}');
-      }
-    } catch (e) {
-      print('ERROR: D-Day 업데이트 중 오류: $e');
-      throw Exception('D-Day 업데이트 중 오류 발생: $e');
-    }
-  }
-
-  // 9. 사용자 정지 상태 확인 (본인 또는 관리자)
+  // 7. 사용자 정지 상태 확인 (본인 또는 관리자)
   static Future<UserBlackListStatus> getUserBlackListStatus(int accountIdx) async {
     try {
       final headers = await _getHeaders();
@@ -362,7 +298,7 @@ class BlackListService {
 
   // ===== 편의 메서드 =====
 
-  // 10. 현재 활성화된 블랙리스트만 조회
+  // 8. 현재 활성화된 블랙리스트만 조회
   static Future<List<BlackList>> getActiveBlackLists({
     int page = 1,
     int pageSize = 10,
@@ -377,7 +313,7 @@ class BlackListService {
     return response.blackLists;
   }
 
-  // 11. 해제된 블랙리스트만 조회
+  // 9. 해제된 블랙리스트만 조회
   static Future<List<BlackList>> getReleasedBlackLists({
     int page = 1,
     int pageSize = 10,
@@ -392,7 +328,7 @@ class BlackListService {
     return response.blackLists;
   }
 
-  // 12. 사용자가 현재 정지 중인지 확인
+  // 10. 사용자가 현재 정지 중인지 확인
   static Future<bool> isUserSuspended(int accountIdx) async {
     try {
       final status = await getUserBlackListStatus(accountIdx);
@@ -403,7 +339,7 @@ class BlackListService {
     }
   }
 
-  // 13. 특정 사용자의 현재 블랙리스트 정보 조회
+  // 11. 특정 사용자의 현재 블랙리스트 정보 조회
   static Future<BlackList?> getUserCurrentBlackList(int accountIdx) async {
     try {
       final blackLists = await getActiveBlackLists(pageSize: 100); // 충분히 큰 페이지 크기
@@ -421,7 +357,7 @@ class BlackListService {
     }
   }
 
-  // 14. 블랙리스트 검색 (이메일, 이름, 전화번호로 검색)
+  // 12. 블랙리스트 검색 (이메일, 이름, 전화번호로 검색)
   static Future<List<BlackList>> searchBlackLists(String query) async {
     final response = await getBlackLists(
       page: 1,

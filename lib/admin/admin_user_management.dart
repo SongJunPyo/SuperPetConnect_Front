@@ -4,16 +4,16 @@ import '../widgets/app_app_bar.dart';
 import '../models/user_model.dart';
 import '../services/user_management_service.dart';
 import 'package:intl/intl.dart';
-import 'admin_user_check_bottom_sheets.dart';
 
-class AdminUserCheck extends StatefulWidget {
-  const AdminUserCheck({super.key});
+class AdminUserManagementScreen extends StatefulWidget {
+  const AdminUserManagementScreen({super.key});
 
   @override
-  State<AdminUserCheck> createState() => _AdminUserCheckState();
+  State<AdminUserManagementScreen> createState() =>
+      _AdminUserManagementScreenState();
 }
 
-class _AdminUserCheckState extends State<AdminUserCheck>
+class _AdminUserManagementScreenState extends State<AdminUserManagementScreen>
     with TickerProviderStateMixin {
   late TabController _tabController;
 
@@ -100,6 +100,7 @@ class _AdminUserCheckState extends State<AdminUserCheck>
     }
   }
 
+
   void _onSearchChanged(String query) {
     setState(() {
       searchQuery = query;
@@ -139,25 +140,11 @@ class _AdminUserCheckState extends State<AdminUserCheck>
     }
   }
 
-  Future<void> _showUserBottomSheet(User user) async {
-    final result = await showModalBottomSheet<bool>(
+  Future<void> _showUserDetailDialog(User user) async {
+    await showDialog(
       context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (context) => user.isActive 
-          ? ActiveUserBottomSheet(
-              user: user,
-              onBlacklistPressed: () {
-                Navigator.of(context).pop();
-                _showBlacklistDialog(user);
-              },
-            )
-          : SuspendedUserBottomSheet(user: user),
+      builder: (context) => _UserDetailDialog(user: user),
     );
-    
-    if (result == true) {
-      _loadData();
-    }
   }
 
   @override
@@ -178,30 +165,12 @@ class _AdminUserCheckState extends State<AdminUserCheck>
           _buildSearchBar(),
           TabBar(
             controller: _tabController,
-            labelColor: Colors.black87,
-            unselectedLabelColor: Colors.grey,
-            indicatorColor: Colors.black87,
+            labelColor: AppTheme.primaryBlue,
+            unselectedLabelColor: AppTheme.textSecondary,
+            indicatorColor: AppTheme.primaryBlue,
             tabs: [
-              Tab(
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(Icons.check_circle, size: 20),
-                    SizedBox(width: 8),
-                    Text('활동'),
-                  ],
-                ),
-              ),
-              Tab(
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(Icons.block, size: 20),
-                    SizedBox(width: 8),
-                    Text('정지'),
-                  ],
-                ),
-              ),
+              Tab(text: '활동'),
+              Tab(text: '정지'),
             ],
           ),
           Expanded(
@@ -218,6 +187,7 @@ class _AdminUserCheckState extends State<AdminUserCheck>
       ),
     );
   }
+
 
   Widget _buildSearchBar() {
     return Container(
@@ -294,138 +264,146 @@ class _AdminUserCheckState extends State<AdminUserCheck>
       );
     }
 
-    return Column(
-      children: [
-        // 헤더 추가
-        Container(
-          padding: const EdgeInsets.symmetric(
-            horizontal: 20.0,
-            vertical: 8.0,
-          ),
-          decoration: BoxDecoration(
-            color: Colors.grey.shade100,
-            border: Border(
-              bottom: BorderSide(color: Colors.grey.shade300, width: 1),
-            ),
-          ),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              // 번호 헤더
-              Container(
-                width: 50,
-                alignment: Alignment.centerLeft,
-                child: Text(
-                  '번호',
-                  style: AppTheme.bodyMediumStyle.copyWith(
-                    fontWeight: FontWeight.bold,
-                    color: Colors.grey[700],
-                    fontSize: 13,
-                  ),
-                ),
-              ),
-              // 닉네임 헤더
-              Expanded(
-                child: Container(
-                  padding: const EdgeInsets.only(left: 8.0, right: 8.0),
-                  alignment: Alignment.centerLeft,
-                  child: Text(
-                    '닉네임',
-                    style: AppTheme.bodyMediumStyle.copyWith(
-                      fontWeight: FontWeight.bold,
-                      color: Colors.grey[700],
-                      fontSize: 13,
-                    ),
-                  ),
-                ),
-              ),
-              // 전화번호 헤더
-              Container(
-                width: 120,
-                alignment: Alignment.centerLeft,
-                child: Text(
-                  '전화번호',
-                  style: AppTheme.bodyMediumStyle.copyWith(
-                    fontWeight: FontWeight.bold,
-                    color: Colors.grey[700],
-                    fontSize: 13,
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-        // 사용자 목록
-        Expanded(
-          child: ListView.builder(
-            padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 0),
-            itemCount: users.length,
-            itemBuilder: (context, index) {
-              final user = users[index];
-              return _buildUserListItem(user, index);
-            },
-          ),
-        ),
-      ],
+    return ListView.builder(
+      padding: const EdgeInsets.all(16),
+      itemCount: users.length,
+      itemBuilder: (context, index) {
+        final user = users[index];
+        return _buildUserCard(user);
+      },
     );
   }
 
-  Widget _buildUserListItem(User user, int index) {
-    return InkWell(
-      onTap: () => _showUserBottomSheet(user),
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 12.0, horizontal: 0),
-        decoration: BoxDecoration(
-          border: Border(
-            bottom: BorderSide(color: Colors.grey.shade200, width: 1),
-          ),
+  Widget _buildUserCard(User user) {
+    final isActive = user.isActive;
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: isActive
+              ? AppTheme.success.withOpacity(0.3)
+              : AppTheme.error.withOpacity(0.3),
+          width: isActive ? 1 : 2,
         ),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.center,
-          children: [
-            // 번호 (리스트 인덱스 + 1)
-            Container(
-              width: 50,
-              alignment: Alignment.centerLeft,
-              child: Text(
-                '${index + 1}',
-                style: AppTheme.bodyMediumStyle.copyWith(
-                  fontWeight: FontWeight.w600,
-                  color: Colors.grey[600],
-                ),
-              ),
-            ),
-            // 닉네임
-            Expanded(
-              child: Container(
-                padding: const EdgeInsets.only(left: 8.0, right: 8.0),
-                alignment: Alignment.centerLeft,
-                child: Text(
-                  user.nickname?.isNotEmpty == true ? user.nickname! : user.name,
-                  style: AppTheme.bodyMediumStyle.copyWith(
-                    fontWeight: FontWeight.w600,
-                    color: AppTheme.textPrimary,
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 5,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(12),
+        onTap: () => _showUserDetailDialog(user),
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          user.name,
+                          style: AppTheme.h4Style.copyWith(
+                            color:
+                                isActive ? AppTheme.textPrimary : AppTheme.error,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          user.email,
+                          style: AppTheme.bodySmallStyle.copyWith(
+                            color: AppTheme.textSecondary,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
+                  Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: isActive
+                          ? AppTheme.success.withOpacity(0.1)
+                          : AppTheme.error.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Text(
+                      user.statusText,
+                      style: AppTheme.bodySmallStyle.copyWith(
+                        color: isActive ? AppTheme.success : AppTheme.error,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: AppTheme.primaryBlue.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Text(
+                      user.userTypeText,
+                      style: AppTheme.bodySmallStyle.copyWith(
+                        color: AppTheme.primaryBlue,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ],
               ),
-            ),
-            // 전화번호
-            Container(
-              width: 120,
-              alignment: Alignment.centerLeft,
-              child: Text(
-                user.phoneNumber,
-                style: AppTheme.bodyMediumStyle.copyWith(
-                  fontWeight: FontWeight.w500,
-                  color: AppTheme.textSecondary,
-                ),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  Icon(Icons.phone, size: 16, color: AppTheme.textTertiary),
+                  const SizedBox(width: 4),
+                  Text(
+                    user.phoneNumber,
+                    style: AppTheme.bodySmallStyle.copyWith(
+                      color: AppTheme.textTertiary,
+                    ),
+                  ),
+                  const Spacer(),
+                  if (user.createdAt != null)
+                    Text(
+                      DateFormat('yy.MM.dd').format(user.createdAt!),
+                      style: AppTheme.bodySmallStyle.copyWith(
+                        color: AppTheme.textTertiary,
+                      ),
+                    ),
+                ],
               ),
-            ),
-          ],
+              if (isActive) ...[
+                const SizedBox(height: 12),
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    onPressed: () => _showBlacklistDialog(user),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.black,
+                      foregroundColor: Colors.white,
+                      elevation: 0,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                    ),
+                    child: const Text('블랙리스트 지정'),
+                  ),
+                ),
+              ],
+            ],
+          ),
         ),
       ),
     );
@@ -438,7 +416,7 @@ class _AdminUserCheckState extends State<AdminUserCheck>
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           Text(
-            '총 $totalCount개 ($currentPage/${((totalCount - 1) / pageSize).ceil() + 1}페이지)',
+            '총 ${totalCount}개 (${currentPage}/${((totalCount - 1) / pageSize).ceil() + 1}페이지)',
             style: AppTheme.bodySmallStyle,
           ),
           Row(
@@ -652,3 +630,61 @@ class _BlacklistBottomSheetState extends State<_BlacklistBottomSheet> {
   }
 }
 
+class _UserDetailDialog extends StatelessWidget {
+  final User user;
+
+  const _UserDetailDialog({required this.user});
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: Text(user.name),
+      content: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _buildInfoRow('이메일', user.email),
+            _buildInfoRow('전화번호', user.phoneNumber),
+            _buildInfoRow('주소', user.address),
+            _buildInfoRow('사용자 유형', user.userTypeText),
+            _buildInfoRow('상태', user.statusText),
+            if (user.createdAt != null)
+              _buildInfoRow(
+                '가입일',
+                DateFormat('yyyy-MM-dd HH:mm:ss').format(user.createdAt!),
+              ),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: const Text('닫기'),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildInfoRow(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: 80,
+            child: Text(
+              label,
+              style: const TextStyle(
+                fontWeight: FontWeight.w500,
+                color: Colors.grey,
+              ),
+            ),
+          ),
+          Expanded(child: Text(value)),
+        ],
+      ),
+    );
+  }
+}

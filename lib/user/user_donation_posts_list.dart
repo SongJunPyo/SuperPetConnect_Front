@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'dart:convert';
+import 'dart:math' as math;
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import '../utils/app_theme.dart';
@@ -8,6 +9,9 @@ import '../services/dashboard_service.dart';
 import '../widgets/marquee_text.dart';
 import '../utils/number_format_util.dart';
 import 'package:intl/intl.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+import '../models/pet_model.dart';
+import 'pet_register.dart';
 
 class UserDonationPostsListScreen extends StatefulWidget {
   final DonationPost? initialPost; // 초기에 표시할 게시글
@@ -35,6 +39,53 @@ class _UserDonationPostsListScreenState extends State<UserDonationPostsListScree
   // 탭 컨트롤러
   late TabController _tabController;
   int _currentTabIndex = 0;
+  
+  // 시간 포맷팅 메서드
+  String _formatTime(String time24) {
+    if (time24.isEmpty) return '시간 미정';
+    
+    try {
+      final parts = time24.split(':');
+      if (parts.length == 2) {
+        final hour = int.parse(parts[0]);
+        final minute = parts[1];
+        if (hour == 0) {
+          return '오전 12:$minute';
+        } else if (hour < 12) {
+          return '오전 ${hour.toString().padLeft(2, '0')}:$minute';
+        } else if (hour == 12) {
+          return '오후 12:$minute';
+        } else {
+          return '오후 ${(hour - 12).toString().padLeft(2, '0')}:$minute';
+        }
+      }
+    } catch (e) {
+      return time24;
+    }
+    return '시간 미정';
+  }
+
+  // 날짜를 요일로 변환하는 함수
+  String _getWeekday(String dateStr) {
+    try {
+      final date = DateTime.parse(dateStr);
+      const weekdays = ['월', '화', '수', '목', '금', '토', '일'];
+      return weekdays[date.weekday - 1];
+    } catch (e) {
+      return '';
+    }
+  }
+
+  // 날짜를 "YYYY년 MM월 DD일 O요일" 형태로 포맷팅
+  String _formatDateWithWeekday(String dateStr) {
+    try {
+      final date = DateTime.parse(dateStr);
+      final weekday = _getWeekday(dateStr);
+      return '${date.year}년 ${date.month}월 ${date.day}일 ${weekday}요일';
+    } catch (e) {
+      return dateStr;
+    }
+  }
 
   @override
   void initState() {
@@ -74,23 +125,9 @@ class _UserDonationPostsListScreenState extends State<UserDonationPostsListScree
     });
 
     try {
-      print('DEBUG: 헌혈 게시글 로딩 시작');
       // 모든 헌혈 모집글을 가져옵니다 (limit을 크게 설정)
       final posts = await DashboardService.getPublicPosts(limit: 100);
-      print('DEBUG: API 응답 - 로딩된 헌혈 게시글 수: ${posts.length}');
       
-      if (posts.isNotEmpty) {
-        print('DEBUG: 첫 번째 게시글 샘플:');
-        print('  - 제목: ${posts.first.title}');
-        print('  - 병원명: ${posts.first.hospitalName}');
-        print('  - 병원닉네임: ${posts.first.hospitalNickname}');
-        print('  - 위치: ${posts.first.location}');
-        print('  - 타입: ${posts.first.typeText}');
-        print('  - 상태: ${posts.first.status}');
-        print('  - postIdx: ${posts.first.postIdx}');
-      } else {
-        print('WARNING: API에서 헌혈 게시글이 없습니다.');
-      }
       
       setState(() {
         allPosts = posts;
@@ -111,17 +148,14 @@ class _UserDonationPostsListScreenState extends State<UserDonationPostsListScree
 
   void _filterPosts() {
     List<DonationPost> filtered = allPosts;
-    print('DEBUG: _filterPosts 시작 - 전체 게시글: ${allPosts.length}개');
 
     // 탭에 따른 필터링
     if (_currentTabIndex == 0) {
       // 긴급 탭: 긴급 게시글만 표시 (types == 0)
       filtered = filtered.where((post) => post.types == 0).toList();
-      print('DEBUG: 긴급 탭 필터링 후: ${filtered.length}개');
     } else {
       // 정기 탭: 정기 게시글만 표시 (types == 1)
       filtered = filtered.where((post) => post.types == 1).toList();
-      print('DEBUG: 정기 탭 필터링 후: ${filtered.length}개');
     }
 
     // 검색어 필터링
@@ -132,7 +166,6 @@ class _UserDonationPostsListScreenState extends State<UserDonationPostsListScree
             post.hospitalName.toLowerCase().contains(searchQuery.toLowerCase()) ||
             post.location.toLowerCase().contains(searchQuery.toLowerCase());
       }).toList();
-      print('DEBUG: 검색 필터링 ("$searchQuery") - $beforeSearch개 → ${filtered.length}개');
     }
 
     // 긴급 게시글을 상단에, 그 다음 최신 순으로 정렬
@@ -159,7 +192,11 @@ class _UserDonationPostsListScreenState extends State<UserDonationPostsListScree
   // 시간 선택 다이얼로그 표시 (새로운 API 구조용)
   void _showTimeSelectionDialog(BuildContext context, DonationPost post, String selectedDate) {
     // 새로운 availableDates 구조 사용
-    final List<TimeSlot>? timeSlots = post.availableDates?[selectedDate];
+    final List<Map<String, dynamic>>? timeSlots = post.availableDates?[selectedDate];
+    
+    for (int i = 0; i < (timeSlots?.length ?? 0); i++) {
+      final timeSlot = timeSlots![i];
+    }
     
     if (timeSlots == null || timeSlots.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -238,12 +275,15 @@ class _UserDonationPostsListScreenState extends State<UserDonationPostsListScree
                 child: InkWell(
                   onTap: () {
                     Navigator.of(context).pop();
-                    _showDonationApplicationDialog(context, post, selectedDate, timeSlot);
+                    final postTimesIdx = timeSlot['post_times_idx'] ?? 0;
+                    final time = timeSlot['time'] ?? '';
+                    final datetime = timeSlot['datetime'] ?? '';
+                    _showDonationApplicationDialog(context, post, selectedDate, postTimesIdx, time, datetime);
                   },
                   child: Padding(
                     padding: const EdgeInsets.symmetric(vertical: 8),
                     child: Text(
-                      timeSlot.formattedTime,
+                      _formatTime(timeSlot['time'] ?? ''),
                       style: AppTheme.bodyMediumStyle.copyWith(
                         fontWeight: FontWeight.w500,
                       ),
@@ -252,28 +292,37 @@ class _UserDonationPostsListScreenState extends State<UserDonationPostsListScree
                   ),
                 ),
               )).toList(),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () {
-                Navigator.of(context).pop();
-              },
-              child: Text(
-                '취소',
-                style: AppTheme.bodyMediumStyle.copyWith(
-                  color: AppTheme.textSecondary,
+              const SizedBox(height: 16),
+              SizedBox(
+                width: double.infinity,
+                child: TextButton(
+                  onPressed: () {
+                    Navigator.of(context).pop();
+                  },
+                  style: TextButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                  ),
+                  child: Text(
+                    '취소',
+                    style: AppTheme.bodyMediumStyle.copyWith(
+                      color: AppTheme.textSecondary,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
                 ),
               ),
-            ),
-          ],
+            ],
+          ),
         );
       },
     );
   }
 
-  // 헌혈 신청 다이얼로그 표시 (새로운 API 구조용)
-  void _showDonationApplicationDialog(BuildContext context, DonationPost post, String selectedDate, TimeSlot selectedTimeSlot) {
+  // 헌혈 신청 다이얼로그 표시 (시간대 선택 버전)
+  void _showDonationApplicationDialog(BuildContext context, DonationPost post, String selectedDate, int postTimesIdx, String time, String datetime) {
     showDialog(
       context: context,
       builder: (BuildContext context) {
@@ -315,7 +364,7 @@ class _UserDonationPostsListScreenState extends State<UserDonationPostsListScree
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      '$selectedDate ${selectedTimeSlot.formattedTime}',
+                      '$selectedDate ${_formatTime(time)}',
                       style: AppTheme.bodyLargeStyle.copyWith(
                         fontWeight: FontWeight.w600,
                         color: AppTheme.primaryBlue,
@@ -353,7 +402,7 @@ class _UserDonationPostsListScreenState extends State<UserDonationPostsListScree
             ElevatedButton(
               onPressed: () {
                 Navigator.of(context).pop();
-                _submitDonationApplication(post, selectedDate, selectedTimeSlot);
+                _submitDonationApplication(post, selectedDate, postTimesIdx, time, datetime);
               },
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppTheme.primaryBlue,
@@ -376,14 +425,13 @@ class _UserDonationPostsListScreenState extends State<UserDonationPostsListScree
   }
 
 
-  // 헌혈 신청 제출 (실제 API 호출)
-  Future<void> _submitDonationApplication(DonationPost post, String selectedDate, TimeSlot selectedTimeSlot) async {
+  // 일반 헌혈 신청 제출 (단일 날짜/시간 버전)
+  Future<void> _submitGeneralDonationApplication(DonationPost post) async {
     try {
-      print('헌혈 신청 시작: post_times_idx=${selectedTimeSlot.postTimesIdx}, 날짜=$selectedDate, 시간=${selectedTimeSlot.formattedTime}');
       
       // SharedPreferences에서 JWT 토큰 가져오기
       final prefs = await SharedPreferences.getInstance();
-      final token = prefs.getString('access_token');
+      final token = prefs.getString('auth_token');
       
       if (token == null) {
         throw Exception('로그인이 필요합니다. 다시 로그인해주세요.');
@@ -394,13 +442,13 @@ class _UserDonationPostsListScreenState extends State<UserDonationPostsListScree
       final petIdx = 14; // 나중에 반려동물 선택 다이얼로그에서 가져올 값
       
       final response = await http.post(
-        Uri.parse('${Config.serverUrl}/api/donation/apply'),
+        Uri.parse('${Config.serverUrl}/api/donation/apply/general'),
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': 'Bearer $token', // 실제 JWT 토큰 사용
+          'Authorization': 'Bearer $token',
         },
         body: jsonEncode({
-          'post_times_idx': selectedTimeSlot.postTimesIdx,
+          'post_idx': post.postIdx,
           'pet_idx': petIdx,
           'applicant_message': '우리 반려동물이 건강하게 헌혈에 참여하고 싶습니다.',
         }),
@@ -428,7 +476,6 @@ class _UserDonationPostsListScreenState extends State<UserDonationPostsListScree
       }
       
     } catch (e) {
-      print('ERROR: 헌혈 신청 실패: $e');
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('신청 중 오류가 발생했습니다: ${e.toString()}'),
@@ -442,7 +489,71 @@ class _UserDonationPostsListScreenState extends State<UserDonationPostsListScree
     }
   }
 
-  // 일반 헌혈 신청 다이얼로그 (availableDates가 없는 경우)
+  // 시간대 별 헌혈 신청 제출 (실제 API 호출)
+  Future<void> _submitDonationApplication(DonationPost post, String selectedDate, int postTimesIdx, String time, String datetime) async {
+    try {
+      
+      // SharedPreferences에서 JWT 토큰 가져오기
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString('auth_token');
+      
+      if (token == null) {
+        throw Exception('로그인이 필요합니다. 다시 로그인해주세요.');
+      }
+      
+      // TODO: 실제 반려동물 선택 UI 구현 필요
+      // 현재는 임시로 하드코딩된 값 사용
+      final petIdx = 14; // 나중에 반려동물 선택 다이얼로그에서 가져올 값
+      
+      final response = await http.post(
+        Uri.parse('${Config.serverUrl}/api/donation/apply'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token', // 실제 JWT 토큰 사용
+        },
+        body: jsonEncode({
+          'post_times_idx': postTimesIdx,
+          'pet_idx': petIdx,
+          'applicant_message': '우리 반려동물이 건강하게 헌혈에 참여하고 싶습니다.',
+        }),
+      );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(utf8.decode(response.bodyBytes));
+        
+        if (data['success'] == true) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(data['message'] ?? '헌혈 신청이 완료되었습니다. 검토 후 결과를 알려드리겠습니다.'),
+              backgroundColor: AppTheme.success,
+              behavior: SnackBarBehavior.floating,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+            ),
+          );
+        } else {
+          throw Exception(data['message'] ?? '신청 처리 중 오류가 발생했습니다.');
+        }
+      } else {
+        throw Exception('서버 연결 오류 (상태코드: ${response.statusCode})');
+      }
+      
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('신청 중 오류가 발생했습니다: ${e.toString()}'),
+          backgroundColor: AppTheme.error,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(8),
+          ),
+        ),
+      );
+    }
+  }
+
+  // 일반 헌혈 신청 다이얼로그 (단일 날짜/시간 버전)
   void _showGeneralDonationApplicationDialog(BuildContext context, DonationPost post) {
     showDialog(
       context: context,
@@ -456,7 +567,7 @@ class _UserDonationPostsListScreenState extends State<UserDonationPostsListScree
               Icon(Icons.volunteer_activism, color: AppTheme.primaryBlue),
               const SizedBox(width: 8),
               Text(
-                '헌혈 신청',
+                '헌혈 신청 확인',
                 style: AppTheme.h3Style.copyWith(
                   color: AppTheme.primaryBlue,
                   fontWeight: FontWeight.bold,
@@ -468,15 +579,70 @@ class _UserDonationPostsListScreenState extends State<UserDonationPostsListScree
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                '이 게시글은 구체적인 시간대가 설정되지 않았습니다.\n병원에서 별도로 연락드릴 예정입니다.',
-                style: AppTheme.bodyMediumStyle,
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: AppTheme.lightBlue.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: AppTheme.primaryBlue.withOpacity(0.2)),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Icon(Icons.calendar_today, size: 18, color: Colors.black),
+                        const SizedBox(width: 8),
+                        Text(
+                          '헌혈 예정일시',
+                          style: AppTheme.bodySmallStyle.copyWith(
+                            color: AppTheme.primaryBlue,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    if (post.donationDate != null) ...[
+                      Text(
+                        DateFormat('yyyy년 MM월 dd일 (EEEE)', 'ko').format(post.donationDate!),
+                        style: AppTheme.bodyMediumStyle.copyWith(
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      if (post.donationTime != null) ...[
+                        const SizedBox(height: 4),
+                        Text(
+                          '예정 시간: ${DateFormat('HH:mm').format(post.donationTime!)}',
+                          style: AppTheme.bodyMediumStyle.copyWith(
+                            color: AppTheme.textSecondary,
+                          ),
+                        ),
+                      ],
+                    ] else ...[
+                      Text(
+                        '헌혈 날짜가 아직 확정되지 않았습니다.',
+                        style: AppTheme.bodyMediumStyle.copyWith(
+                          color: AppTheme.warning,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
               ),
               const SizedBox(height: 16),
               Text(
-                '신청하시겠습니까?',
+                '이 일정에 맞춰 헌혈 신청하시겠습니까?',
                 style: AppTheme.bodyMediumStyle.copyWith(
-                  fontWeight: FontWeight.w600,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                '신청 후 병원에서 상세 일정을 안내해드립니다.',
+                style: AppTheme.bodySmallStyle.copyWith(
+                  color: AppTheme.textSecondary,
                 ),
               ),
             ],
@@ -496,16 +662,7 @@ class _UserDonationPostsListScreenState extends State<UserDonationPostsListScree
             ElevatedButton(
               onPressed: () {
                 Navigator.of(context).pop();
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text('검토 후 결과를 알려드리겠습니다.'),
-                    backgroundColor: AppTheme.success,
-                    behavior: SnackBarBehavior.floating,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                  ),
-                );
+                _submitGeneralDonationApplication(post);
               },
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppTheme.primaryBlue,
@@ -625,7 +782,7 @@ class _UserDonationPostsListScreenState extends State<UserDonationPostsListScree
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        // 닉네임과 등록일
+                        // 닉네임과 작성일
                         Row(
                           children: [
                             Icon(Icons.business, size: 16, color: AppTheme.textSecondary),
@@ -723,81 +880,100 @@ class _UserDonationPostsListScreenState extends State<UserDonationPostsListScree
                           Text('헌혈 예정일', style: AppTheme.h4Style),
                           const SizedBox(height: 12),
                           if (displayPost.availableDates != null && displayPost.availableDates!.isNotEmpty) ...[
-                            ...displayPost.availableDates!.entries.map((entry) {
-                              final dateStr = entry.key;
-                              final timeSlots = entry.value;
-                              return Container(
-                                width: double.infinity,
-                                margin: const EdgeInsets.only(bottom: 8),
-                                child: Material(
-                                  color: Colors.transparent,
-                                  child: InkWell(
-                                    onTap: () {
-                                      _showTimeSelectionDialog(context, displayPost, dateStr);
-                                    },
-                                    borderRadius: BorderRadius.circular(8),
-                                    child: Container(
-                                      padding: const EdgeInsets.all(16),
-                                      decoration: BoxDecoration(
-                                        color: Colors.grey.shade50,
-                                        borderRadius: BorderRadius.circular(8),
-                                        border: Border.all(color: Colors.grey.shade200),
-                                      ),
-                                      child: Row(
-                                        children: [
-                                          Expanded(
-                                            child: Text(
-                                              dateStr,
-                                              style: AppTheme.bodyLargeStyle.copyWith(
-                                                fontWeight: FontWeight.w600,
+                            // 디버그: availableDates 구조 확인
+                            Builder(builder: (context) {
+                              
+                              if (displayPost.availableDates != null) {
+                                for (final entry in displayPost.availableDates!.entries) {
+                                  for (int i = 0; i < entry.value.length; i++) {
+                                    final timeSlot = entry.value[i];
+                                  }
+                                }
+                              } else {
+                              }
+                              
+                              return Container(); // 빈 위젯
+                            }),
+                            
+                            // 새로운 드롭다운 형태의 날짜/시간 선택 UI
+                            _buildDateTimeDropdown(displayPost),
+                          ] else if (displayPost.donationDate != null) ...[
+                            // 단일 날짜인 경우에도 클릭 가능하게 만들기
+                            Container(
+                              width: double.infinity,
+                              margin: const EdgeInsets.only(bottom: 8),
+                              child: Material(
+                                color: Colors.transparent,
+                                child: InkWell(
+                                  onTap: () {
+                                    // 단일 날짜의 경우 바로 일반 신청 다이얼로그 표시
+                                    _showGeneralDonationApplicationDialog(context, displayPost);
+                                  },
+                                  borderRadius: BorderRadius.circular(8),
+                                  child: Container(
+                                    padding: const EdgeInsets.all(16),
+                                    decoration: BoxDecoration(
+                                      color: Colors.grey.shade50,
+                                      borderRadius: BorderRadius.circular(8),
+                                      border: Border.all(color: Colors.grey.shade200),
+                                    ),
+                                    child: Row(
+                                      children: [
+                                        Icon(
+                                          Icons.calendar_today,
+                                          size: 20,
+                                          color: Colors.black,
+                                        ),
+                                        const SizedBox(width: 12),
+                                        Expanded(
+                                          child: Column(
+                                            crossAxisAlignment: CrossAxisAlignment.start,
+                                            children: [
+                                              Text(
+                                                DateFormat('yyyy년 MM월 dd일 EEEE', 'ko').format(displayPost.donationDate!),
+                                                style: AppTheme.bodyLargeStyle.copyWith(
+                                                  fontWeight: FontWeight.w600,
+                                                ),
                                               ),
-                                              textAlign: TextAlign.center,
+                                              if (displayPost.donationTime != null) ...[
+                                                const SizedBox(height: 4),
+                                                Text(
+                                                  '예정 시간: ${DateFormat('HH:mm').format(displayPost.donationTime!)}',
+                                                  style: AppTheme.bodyMediumStyle.copyWith(
+                                                    color: AppTheme.textSecondary,
+                                                  ),
+                                                ),
+                                              ],
+                                            ],
+                                          ),
+                                        ),
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 8,
+                                            vertical: 4,
+                                          ),
+                                          decoration: BoxDecoration(
+                                            color: AppTheme.success.withOpacity(0.1),
+                                            borderRadius: BorderRadius.circular(12),
+                                          ),
+                                          child: Text(
+                                            '신청 가능',
+                                            style: AppTheme.bodySmallStyle.copyWith(
+                                              color: AppTheme.success,
+                                              fontSize: 11,
+                                              fontWeight: FontWeight.w600,
                                             ),
                                           ),
-                                          Container(
-                                            padding: const EdgeInsets.symmetric(
-                                              horizontal: 8,
-                                              vertical: 4,
-                                            ),
-                                            decoration: BoxDecoration(
-                                              color: AppTheme.primaryBlue.withOpacity(0.1),
-                                              borderRadius: BorderRadius.circular(12),
-                                            ),
-                                            child: Text(
-                                              '${timeSlots.length}개 시간대',
-                                              style: AppTheme.bodySmallStyle.copyWith(
-                                                color: AppTheme.primaryBlue,
-                                                fontSize: 11,
-                                              ),
-                                            ),
-                                          ),
-                                          const SizedBox(width: 8),
-                                          Icon(
-                                            Icons.keyboard_arrow_right,
-                                            color: AppTheme.textSecondary,
-                                          ),
-                                        ],
-                                      ),
+                                        ),
+                                        const SizedBox(width: 8),
+                                        Icon(
+                                          Icons.keyboard_arrow_right,
+                                          color: AppTheme.textSecondary,
+                                        ),
+                                      ],
                                     ),
                                   ),
                                 ),
-                              );
-                            }).toList(),
-                          ] else if (displayPost.donationDate != null) ...[
-                            Container(
-                              width: double.infinity,
-                              padding: const EdgeInsets.all(16),
-                              decoration: BoxDecoration(
-                                color: Colors.grey.shade50,
-                                borderRadius: BorderRadius.circular(8),
-                                border: Border.all(color: Colors.grey.shade200),
-                              ),
-                              child: Text(
-                                DateFormat('yyyy년 MM월 dd일 EEEE', 'ko').format(displayPost.donationDate!),
-                                style: AppTheme.bodyLargeStyle.copyWith(
-                                  fontWeight: FontWeight.w600,
-                                ),
-                                textAlign: TextAlign.center,
                               ),
                             ),
                           ] else ...[
@@ -821,37 +997,6 @@ class _UserDonationPostsListScreenState extends State<UserDonationPostsListScree
                           ],
                           
                           const SizedBox(height: 24),
-                          
-                          // 헌혈 신청 버튼 (검은색)
-                          Container(
-                            width: double.infinity,
-                            margin: const EdgeInsets.symmetric(vertical: 16),
-                            child: ElevatedButton(
-                              onPressed: () {
-                                // 일반적인 헌혈 신청 (시간대별 신청이 아닌 경우)
-                                _showGeneralDonationApplicationDialog(context, displayPost);
-                              },
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: Colors.black,
-                                foregroundColor: Colors.white,
-                                padding: const EdgeInsets.symmetric(
-                                  vertical: 18,
-                                  horizontal: 24,
-                                ),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                                elevation: 0,
-                              ),
-                              child: Text(
-                                '헌혈 신청하기',
-                                style: AppTheme.bodyLargeStyle.copyWith(
-                                  color: Colors.white,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                            ),
-                          ),
                         ],
                       ),
                     ),
@@ -1070,7 +1215,7 @@ class _UserDonationPostsListScreenState extends State<UserDonationPostsListScree
                 SizedBox(
                   width: 70,
                   child: Text(
-                    '등록일',
+                    '작성일',
                     style: AppTheme.bodyMediumStyle.copyWith(
                       fontWeight: FontWeight.w600,
                     ),
@@ -1163,7 +1308,7 @@ class _UserDonationPostsListScreenState extends State<UserDonationPostsListScree
               ),
             ),
             
-            // 등록날짜
+            // 작성날짜
             Container(
               width: 70,
               alignment: Alignment.center,
@@ -1180,6 +1325,1206 @@ class _UserDonationPostsListScreenState extends State<UserDonationPostsListScree
         ),
       ),
     );
+  }
+
+  // 날짜별 그룹화된 확장 가능한 드롭다운 UI
+  Widget _buildDateTimeDropdown(DonationPost post) {
+    if (post.availableDates == null || post.availableDates!.isEmpty) {
+      return const SizedBox.shrink();
+    }
+
+    return Column(
+      children: post.availableDates!.entries.map((entry) {
+        final dateStr = entry.key;
+        final timeSlots = entry.value;
+        
+        return Container(
+          margin: const EdgeInsets.only(bottom: 12),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: Colors.grey.shade200, width: 1.5),
+          ),
+          child: Theme(
+            data: Theme.of(context).copyWith(
+              dividerColor: Colors.transparent,
+            ),
+            child: ExpansionTile(
+              tilePadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+              childrenPadding: const EdgeInsets.only(bottom: 12),
+              leading: Icon(
+                Icons.calendar_month,
+                color: Colors.black,
+                size: 24,
+              ),
+              title: Text(
+                _formatDateWithWeekday(dateStr),
+                style: AppTheme.h4Style.copyWith(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                  color: AppTheme.textPrimary,
+                ),
+              ),
+              trailing: Icon(
+                Icons.keyboard_arrow_down,
+                color: Colors.black,
+                size: 24,
+              ),
+              children: timeSlots.map<Widget>((timeSlot) {
+                return Container(
+                  margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
+                  child: Material(
+                    color: Colors.transparent,
+                    child: InkWell(
+                      onTap: () {
+                        final displayText = '${_formatDateWithWeekday(dateStr)} ${_formatTime(timeSlot['time'] ?? '')}';
+                        _showDonationApplicationPage(dateStr, timeSlot, displayText, post);
+                      },
+                      borderRadius: BorderRadius.circular(8),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                        decoration: BoxDecoration(
+                          color: Colors.grey.shade50,
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: Colors.black, width: 1.0),
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(
+                              Icons.access_time,
+                              color: Colors.black,
+                              size: 20,
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Text(
+                                _formatTime(timeSlot['time'] ?? ''),
+                                style: AppTheme.bodyLargeStyle.copyWith(
+                                  fontWeight: FontWeight.w600,
+                                  color: Colors.black,
+                                ),
+                              ),
+                            ),
+                            Icon(
+                              Icons.keyboard_arrow_right,
+                              color: Colors.black,
+                              size: 20,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                );
+              }).toList(),
+            ),
+          ),
+        );
+      }).toList(),
+    );
+  }
+
+  // 새로운 헌혈 신청 페이지 모달 (전체 화면)
+  void _showDonationApplicationPage(
+    String dateStr,
+    Map<String, dynamic> timeSlot,
+    String displayText,
+    DonationPost post,
+  ) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => DonationApplicationPage(
+        post: post,
+        selectedDate: dateStr,
+        selectedTimeSlot: timeSlot,
+        displayText: displayText,
+      ),
+    );
+  }
+
+  // 헌혈 신청 처리
+  void _processDonationApplication(DonationPost post, Map<String, dynamic> timeSlot) {
+    // TODO: 실제 API 호출 구현
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('헌혈 신청이 완료되었습니다.'),
+        backgroundColor: AppTheme.success,
+      ),
+    );
+  }
+
+}
+
+// 새로운 헌혈 신청 페이지 위젯
+class DonationApplicationPage extends StatefulWidget {
+  final DonationPost post;
+  final String selectedDate;
+  final Map<String, dynamic> selectedTimeSlot;
+  final String displayText;
+
+  const DonationApplicationPage({
+    super.key,
+    required this.post,
+    required this.selectedDate,
+    required this.selectedTimeSlot,
+    required this.displayText,
+  });
+
+  @override
+  State<DonationApplicationPage> createState() => _DonationApplicationPageState();
+}
+
+class _DonationApplicationPageState extends State<DonationApplicationPage> {
+  Map<String, dynamic>? selectedPet;
+  List<Map<String, dynamic>> userPets = [];
+  Map<String, dynamic>? userInfo;
+  bool isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadUserDataAndPets();
+  }
+
+  Future<void> _loadUserDataAndPets() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString('auth_token');
+      
+      if (token == null) {
+        throw Exception('로그인이 필요합니다.');
+      }
+
+      // 사용자 정보 API 호출
+      final userResponse = await http.get(
+        Uri.parse('${Config.serverUrl}/api/user/profile'),
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Content-Type': 'application/json; charset=UTF-8',
+        },
+      );
+
+      // 반려동물 목록 API 호출
+      final petsResponse = await http.get(
+        Uri.parse('${Config.serverUrl}/api/user/pets'),
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Content-Type': 'application/json; charset=UTF-8',
+        },
+      );
+
+      if (userResponse.statusCode == 200) {
+        final userData = jsonDecode(utf8.decode(userResponse.bodyBytes));
+        final prefs = await SharedPreferences.getInstance();
+        
+        setState(() {
+          // 사용자 정보 매핑 (DB 스키마 기준)
+          userInfo = {
+            'name': userData['data']['name'] ?? '',
+            'nickname': prefs.getString('user_nickname') ?? '닉네임 없음',
+            'phone': userData['data']['phone_number'] ?? '',
+            'address': userData['data']['address'] ?? '',
+            'email': userData['data']['email'] ?? '',
+          };
+          
+          // 반려동물 정보는 API 성공 시에만 처리
+          if (petsResponse.statusCode == 200) {
+            final petsData = jsonDecode(utf8.decode(petsResponse.bodyBytes));
+            
+            print('🐕 반려동물 데이터 확인: $petsData'); // 디버깅용
+            
+            // 반려동물 정보 매핑 (DB 스키마 기준 - NOT NULL 필드들)
+            userPets = (petsData['data'] as List<dynamic>).map((pet) => {
+              // NOT NULL 필드들 (DB 스키마 기준)
+              'pet_idx': pet['pet_idx'], // NOT NULL
+              'name': pet['name'], // NOT NULL
+              'species': pet['species'], // NOT NULL
+              'breed': pet['breed'], // NOT NULL
+              'age': pet['age_number'], // NOT NULL
+              'weight': '${pet['weight_kg']}kg', // NOT NULL (decimal)
+              'bloodType': pet['blood_type'], // NOT NULL
+              
+              // NULLABLE 필드들 (기본값 처리)
+              'pregnant': pet['pregnant'] ?? false,
+              'vaccinated': pet['vaccinated'] ?? false,
+              'has_disease': pet['has_disease'] ?? false,
+              'has_birth_experience': pet['has_birth_experience'] ?? false,
+              'prev_donation_date': pet['prev_donation_date'], // nullable datetime
+            }).toList();
+          } else {
+            // 반려동물 API 실패 시 빈 리스트
+            userPets = [];
+          }
+          
+          isLoading = false;
+        });
+      } else {
+        String errorMessage = 'API 호출 실패: User ${userResponse.statusCode}, Pets ${petsResponse.statusCode}';
+        if (userResponse.statusCode != 200) {
+          try {
+            final userData = jsonDecode(utf8.decode(userResponse.bodyBytes));
+            errorMessage = userData['detail'] ?? errorMessage;
+          } catch (e) {}
+        }
+        if (petsResponse.statusCode != 200) {
+          try {
+            final petsData = jsonDecode(utf8.decode(petsResponse.bodyBytes));
+            errorMessage = petsData['detail'] ?? errorMessage;
+          } catch (e) {}
+        }
+        throw Exception(errorMessage);
+      }
+    } catch (e) {
+      setState(() {
+        // 오류 시 기본값 설정
+        userInfo = {
+          'name': '사용자',
+          'phone': '',
+          'address': '',
+          'email': '',
+        };
+        userPets = [];
+        isLoading = false;
+      });
+      
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('사용자 정보를 불러올 수 없습니다: ${e.toString()}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: MediaQuery.of(context).size.height * 0.9,
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.only(
+          topLeft: Radius.circular(20),
+          topRight: Radius.circular(20),
+        ),
+      ),
+      child: Column(
+        children: [
+          // 핸들 바
+          Container(
+            width: 40,
+            height: 4,
+            margin: const EdgeInsets.symmetric(vertical: 12),
+            decoration: BoxDecoration(
+              color: Colors.grey.shade300,
+              borderRadius: BorderRadius.circular(2),
+            ),
+          ),
+          
+          // 앱바
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+            decoration: BoxDecoration(
+              border: Border(
+                bottom: BorderSide(color: Colors.grey.shade200),
+              ),
+            ),
+            child: Row(
+              children: [
+                IconButton(
+                  onPressed: () => Navigator.pop(context),
+                  icon: const Icon(Icons.close),
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Text(
+                    '헌혈 신청',
+                    style: AppTheme.h3Style.copyWith(
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          // 메인 콘텐츠
+          Expanded(
+            child: isLoading
+                ? const Center(child: CircularProgressIndicator())
+                : SingleChildScrollView(
+                    padding: const EdgeInsets.all(20),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // 선택한 일정 정보
+                        _buildSelectedScheduleInfo(),
+                        const SizedBox(height: 24),
+                        
+                        // 반려동물 선택
+                        _buildPetSelection(),
+                        const SizedBox(height: 24),
+                        
+                        // 선택된 반려동물 정보 표시 (위로 이동)
+                        if (selectedPet != null) _buildSelectedPetInfo(),
+                        if (selectedPet != null) const SizedBox(height: 24),
+                        
+                        // 신청자 정보 표시 (아래로 이동)
+                        _buildUserInfo(),
+                        const SizedBox(height: 40),
+                      ],
+                    ),
+                  ),
+          ),
+          
+          // 하단 버튼
+          Container(
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              border: Border(top: BorderSide(color: Colors.grey.shade200)),
+            ),
+            child: SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                onPressed: selectedPet != null ? _showTermsBottomSheet : null,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.black,
+                  disabledBackgroundColor: Colors.grey.shade300,
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+                child: Text(
+                  '헌혈 신청하기',
+                  style: AppTheme.h4Style.copyWith(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSelectedScheduleInfo() {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.grey.shade50,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.black, width: 1.0),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            '선택한 헌혈 일정',
+            style: AppTheme.bodySmallStyle.copyWith(
+              color: AppTheme.textSecondary,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              Icon(Icons.calendar_month, color: Colors.black, size: 20),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  widget.displayText,
+                  style: AppTheme.h4Style.copyWith(
+                    fontWeight: FontWeight.bold,
+                    color: Colors.black,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPetSelection() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          '반려동물 선택',
+          style: AppTheme.h4Style.copyWith(
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        const SizedBox(height: 12),
+        ...userPets.map((pet) => Container(
+          margin: const EdgeInsets.only(bottom: 12),
+          child: Material(
+            color: Colors.transparent,
+            child: InkWell(
+              onTap: () {
+                setState(() {
+                  selectedPet = pet;
+                });
+              },
+              borderRadius: BorderRadius.circular(12),
+              child: Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: selectedPet?['pet_idx'] == pet['pet_idx'] 
+                        ? Colors.red 
+                        : Colors.grey.shade400,
+                    width: selectedPet?['pet_idx'] == pet['pet_idx'] ? 2 : 1,
+                  ),
+                  color: Colors.grey.shade100,
+                ),
+                child: Row(
+                  children: [
+                    // 동물 종류별 아이콘
+                    FaIcon(
+                      pet['species'] == "개"
+                          ? FontAwesomeIcons.dog
+                          : FontAwesomeIcons.cat,
+                      color: selectedPet?['pet_idx'] == pet['pet_idx'] 
+                          ? Colors.red 
+                          : Colors.grey.shade600,
+                      size: 20,
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            pet['name']?.toString() ?? '알 수 없음',
+                            style: AppTheme.bodyLargeStyle.copyWith(
+                              fontWeight: FontWeight.bold,
+                              color: selectedPet?['pet_idx'] == pet['pet_idx'] 
+                                  ? Colors.red 
+                                  : AppTheme.textPrimary,
+                            ),
+                          ),
+                          Text(
+                            '${pet['age']?.toString() ?? '0'}세 • ${pet['weight']?.toString() ?? '0kg'} • ${pet['bloodType']?.toString() ?? ''}',
+                            style: AppTheme.bodyMediumStyle.copyWith(
+                              color: AppTheme.textSecondary,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    // 수정 아이콘을 오른쪽 끝으로 이동
+                    GestureDetector(
+                      onTap: () {
+                        _navigateToPetEditPage(pet);
+                      },
+                      child: Icon(
+                        Icons.edit,
+                        color: Colors.grey.shade600,
+                        size: 20,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    if (selectedPet?['pet_idx'] == pet['pet_idx'])
+                      Icon(
+                        Icons.check_circle,
+                        color: Colors.red,
+                      ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        )).toList(),
+      ],
+    );
+  }
+
+  Widget _buildUserInfo() {
+    if (userInfo == null) return const SizedBox.shrink();
+    
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Text(
+              '신청자 정보',
+              style: AppTheme.h4Style.copyWith(
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const Spacer(),
+            IconButton(
+              icon: const Icon(Icons.edit, size: 20, color: Colors.grey),
+              onPressed: _navigateToProfilePage,
+              tooltip: '프로필 관리',
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: Colors.grey.shade50,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: Colors.grey.shade200),
+          ),
+          child: Column(
+            children: [
+              _buildInfoRow('이름', userInfo!['name']),
+              _buildInfoRow('닉네임', userInfo!['nickname']),
+              _buildInfoRow('연락처', userInfo!['phone']),
+              _buildInfoRow('주소', userInfo!['address']),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildSelectedPetInfo() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Text(
+              '선택된 반려동물 정보',
+              style: AppTheme.h4Style.copyWith(
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: Colors.grey.shade50,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: Colors.grey.shade200),
+          ),
+          child: Column(
+            children: [
+              _buildInfoRow('이름', selectedPet!['name']?.toString() ?? '알 수 없음'),
+              _buildInfoRow('종', selectedPet!['species']?.toString() ?? '알 수 없음'),
+              _buildInfoRow('품종', selectedPet!['breed']?.toString() ?? '알 수 없음'),
+              _buildInfoRow('나이', '${selectedPet!['age']?.toString() ?? '0'}세'),
+              _buildInfoRow('체중', selectedPet!['weight']?.toString() ?? '0kg'),
+              _buildInfoRow('혈액형', selectedPet!['bloodType']?.toString() ?? '알 수 없음'),
+              _buildInfoRow('예방접종', (selectedPet!['vaccinated'] == true) ? '완료' : '미완료'),
+              _buildInfoRow('질병 유무', (selectedPet!['has_disease'] == true) ? '있음' : '없음'),
+              if (selectedPet!['prev_donation_date'] != null)
+                _buildInfoRow('이전 헌혈일', selectedPet!['prev_donation_date'].toString().split(' ')[0]),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildInfoRow(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        children: [
+          SizedBox(
+            width: 80,
+            child: Text(
+              label,
+              style: AppTheme.bodyMediumStyle.copyWith(
+                color: AppTheme.textSecondary,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ),
+          Expanded(
+            child: Text(
+              value,
+              style: AppTheme.bodyMediumStyle.copyWith(
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showTermsBottomSheet() {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => TermsAgreementBottomSheet(
+        onConfirm: _submitApplication,
+      ),
+    );
+  }
+
+  void _submitApplication() async {
+    try {
+      if (selectedPet == null) {
+        throw Exception('반려동물을 선택해주세요.');
+      }
+
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString('auth_token');
+      
+      if (token == null) {
+        throw Exception('로그인이 필요합니다.');
+      }
+
+      final response = await http.post(
+        Uri.parse('${Config.serverUrl}/api/donation/apply'),
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Content-Type': 'application/json; charset=UTF-8',
+        },
+        body: jsonEncode({
+          'post_times_idx': widget.selectedTimeSlot['post_times_idx'],
+          'pet_idx': selectedPet!['pet_idx'],
+        }),
+      );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(utf8.decode(response.bodyBytes));
+        
+        Navigator.pop(context); // 동의 바텀시트 닫기
+        Navigator.pop(context); // 신청 페이지 닫기
+        Navigator.pop(context); // 헌혈 게시글 바텀시트 닫기
+        
+        // 성공 메시지 표시
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(data['message'] ?? '헌혈 신청이 완료되었습니다. 검토 후 결과를 알려드리겠습니다.'),
+            backgroundColor: AppTheme.success,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(8),
+            ),
+          ),
+        );
+      } else {
+        final errorData = jsonDecode(utf8.decode(response.bodyBytes));
+        throw Exception(errorData['detail'] ?? errorData['message'] ?? '신청 처리 중 오류가 발생했습니다.');
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('신청 실패: ${e.toString()}'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+}
+
+// 주의사항 및 동의 바텀시트
+class TermsAgreementBottomSheet extends StatefulWidget {
+  final VoidCallback onConfirm;
+
+  const TermsAgreementBottomSheet({
+    super.key,
+    required this.onConfirm,
+  });
+
+  @override
+  State<TermsAgreementBottomSheet> createState() => _TermsAgreementBottomSheetState();
+}
+
+class _TermsAgreementBottomSheetState extends State<TermsAgreementBottomSheet> {
+  bool isAgreed = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: MediaQuery.of(context).size.height * 0.7,
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.only(
+          topLeft: Radius.circular(20),
+          topRight: Radius.circular(20),
+        ),
+      ),
+      child: Column(
+        children: [
+          // 핸들 바
+          Container(
+            width: 40,
+            height: 4,
+            margin: const EdgeInsets.symmetric(vertical: 12),
+            decoration: BoxDecoration(
+              color: Colors.grey.shade300,
+              borderRadius: BorderRadius.circular(2),
+            ),
+          ),
+
+          // 헤더
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+            decoration: BoxDecoration(
+              border: Border(bottom: BorderSide(color: Colors.grey.shade200)),
+            ),
+            child: Row(
+              children: [
+                Icon(Icons.warning_amber, color: Colors.red, size: 24),
+                const SizedBox(width: 8),
+                Text(
+                  '헌혈 주의사항 및 동의',
+                  style: AppTheme.h3Style.copyWith(
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          // 주의사항 내용
+          Expanded(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(20),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    '헌혈 전 주의사항',
+                    style: AppTheme.h4Style.copyWith(
+                      fontWeight: FontWeight.bold,
+                      color: Colors.red,
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  _buildNoticeItem('• 헌혈 전 8시간 이상 금식이 필요합니다.'),
+                  _buildNoticeItem('• 건강한 상태의 반려동물만 헌혈 가능합니다.'),
+                  _buildNoticeItem('• 헌혈 후 충분한 휴식이 필요합니다.'),
+                  _buildNoticeItem('• 예방접종이 완료된 반려동물만 참여 가능합니다.'),
+                  _buildNoticeItem('• 헌혈량은 체중에 따라 결정됩니다.'),
+                  
+                  const SizedBox(height: 24),
+                  
+                  Text(
+                    '개인정보 처리 동의',
+                    style: AppTheme.h4Style.copyWith(
+                      fontWeight: FontWeight.bold,
+                      color: Colors.green,
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  _buildNoticeItem('• 헌혈 신청을 위한 개인정보 수집에 동의합니다.'),
+                  _buildNoticeItem('• 수집된 정보는 헌혈 관련 목적으로만 사용됩니다.'),
+                  _buildNoticeItem('• 개인정보는 안전하게 보관되며 목적 달성 후 파기됩니다.'),
+                ],
+              ),
+            ),
+          ),
+
+          // 동의 체크박스 및 버튼
+          Container(
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              border: Border(top: BorderSide(color: Colors.grey.shade200)),
+            ),
+            child: Column(
+              children: [
+                Row(
+                  children: [
+                    Checkbox(
+                      value: isAgreed,
+                      onChanged: (value) {
+                        setState(() {
+                          isAgreed = value ?? false;
+                        });
+                      },
+                      activeColor: AppTheme.primaryBlue,
+                    ),
+                    Expanded(
+                      child: Text(
+                        '위의 주의사항을 숙지 및 개인정보 처리에 동의합니다.',
+                        style: AppTheme.bodyMediumStyle.copyWith(
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton(
+                        onPressed: () => Navigator.pop(context),
+                        style: OutlinedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                          side: BorderSide(color: Colors.grey.shade400),
+                        ),
+                        child: Text(
+                          '취소',
+                          style: AppTheme.bodyLargeStyle.copyWith(
+                            color: AppTheme.textSecondary,
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: ElevatedButton(
+                        onPressed: isAgreed ? () {
+                          Navigator.pop(context);
+                          widget.onConfirm();
+                        } : null,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.black,
+                          disabledBackgroundColor: Colors.grey.shade300,
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                        ),
+                        child: Text(
+                          '확인',
+                          style: AppTheme.bodyLargeStyle.copyWith(
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildNoticeItem(String text) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Text(
+        text,
+        style: AppTheme.bodyMediumStyle.copyWith(
+          height: 1.5,
+        ),
+      ),
+    );
+  }
+}
+
+// DonationApplicationPage 클래스의 추가 메서드들
+extension DonationApplicationPageMethods on _DonationApplicationPageState {
+  // 사용자 정보 수정 다이얼로그
+  void _showEditUserInfoDialog() {
+    final nameController = TextEditingController(text: userInfo!['name']);
+    final phoneController = TextEditingController(text: userInfo!['phone']);
+    final addressController = TextEditingController(text: userInfo!['address']);
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('사용자 정보 수정'),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextFormField(
+                controller: nameController,
+                decoration: const InputDecoration(
+                  labelText: '이름',
+                  border: OutlineInputBorder(),
+                ),
+              ),
+              const SizedBox(height: 16),
+              TextFormField(
+                controller: phoneController,
+                decoration: const InputDecoration(
+                  labelText: '연락처',
+                  border: OutlineInputBorder(),
+                ),
+              ),
+              const SizedBox(height: 16),
+              TextFormField(
+                controller: addressController,
+                decoration: const InputDecoration(
+                  labelText: '주소',
+                  border: OutlineInputBorder(),
+                ),
+                maxLines: 2,
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('취소'),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              await _updateUserInfo(
+                nameController.text,
+                phoneController.text,
+                addressController.text,
+              );
+              Navigator.pop(context);
+            },
+            child: const Text('저장'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // 반려동물 정보 수정 다이얼로그
+  void _showEditPetInfoDialog(Map<String, dynamic> pet) {
+    final nameController = TextEditingController(text: pet['name']);
+    final breedController = TextEditingController(text: pet['breed']);
+    final ageController = TextEditingController(text: pet['age'].toString());
+    final weightController = TextEditingController(text: pet['weight'].toString().replaceAll('kg', ''));
+    final bloodTypeController = TextEditingController(text: pet['bloodType']);
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('반려동물 정보 수정'),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextFormField(
+                controller: nameController,
+                decoration: const InputDecoration(
+                  labelText: '이름',
+                  border: OutlineInputBorder(),
+                ),
+              ),
+              const SizedBox(height: 16),
+              TextFormField(
+                controller: breedController,
+                decoration: const InputDecoration(
+                  labelText: '품종',
+                  border: OutlineInputBorder(),
+                ),
+              ),
+              const SizedBox(height: 16),
+              TextFormField(
+                controller: ageController,
+                decoration: const InputDecoration(
+                  labelText: '나이 (세)',
+                  border: OutlineInputBorder(),
+                ),
+                keyboardType: TextInputType.number,
+              ),
+              const SizedBox(height: 16),
+              TextFormField(
+                controller: weightController,
+                decoration: const InputDecoration(
+                  labelText: '체중 (kg)',
+                  border: OutlineInputBorder(),
+                ),
+                keyboardType: TextInputType.number,
+              ),
+              const SizedBox(height: 16),
+              TextFormField(
+                controller: bloodTypeController,
+                decoration: const InputDecoration(
+                  labelText: '혈액형',
+                  border: OutlineInputBorder(),
+                ),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('취소'),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              await _updatePetInfo(
+                pet['pet_idx'],
+                nameController.text,
+                breedController.text,
+                int.tryParse(ageController.text) ?? 0,
+                double.tryParse(weightController.text) ?? 0.0,
+                bloodTypeController.text,
+              );
+              Navigator.pop(context);
+            },
+            child: const Text('저장'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // 사용자 정보 업데이트 API
+  Future<void> _updateUserInfo(String name, String phone, String address) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString('auth_token');
+      
+      if (token == null) {
+        throw Exception('로그인이 필요합니다.');
+      }
+
+      final response = await http.put(
+        Uri.parse('${Config.serverUrl}/api/user/profile'),
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Content-Type': 'application/json; charset=UTF-8',
+        },
+        body: jsonEncode({
+          'name': name,
+          'phone_number': phone,
+          'address': address,
+        }),
+      );
+
+      if (response.statusCode == 200) {
+        setState(() {
+          userInfo!['name'] = name;
+          userInfo!['phone'] = phone;
+          userInfo!['address'] = address;
+        });
+        
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('사용자 정보가 수정되었습니다.'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      } else {
+        final errorData = jsonDecode(utf8.decode(response.bodyBytes));
+        throw Exception(errorData['detail'] ?? '수정 실패: ${response.statusCode}');
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('수정 실패: ${e.toString()}'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
+  // 반려동물 정보 업데이트 API
+  Future<void> _updatePetInfo(int petIdx, String name, String breed, int age, double weight, String bloodType) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString('auth_token');
+      
+      if (token == null) {
+        throw Exception('로그인이 필요합니다.');
+      }
+
+      final response = await http.put(
+        Uri.parse('${Config.serverUrl}/api/user/pets/$petIdx'),
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Content-Type': 'application/json; charset=UTF-8',
+        },
+        body: jsonEncode({
+          'name': name,
+          'breed': breed,
+          'age_number': age,
+          'weight_kg': weight,
+          'blood_type': bloodType,
+        }),
+      );
+
+      if (response.statusCode == 200) {
+        // 로컬 데이터 업데이트
+        for (int i = 0; i < userPets.length; i++) {
+          if (userPets[i]['pet_idx'] == petIdx) {
+            setState(() {
+              userPets[i]['name'] = name;
+              userPets[i]['breed'] = breed;
+              userPets[i]['age'] = age;
+              userPets[i]['weight'] = '${weight}kg';
+              userPets[i]['bloodType'] = bloodType;
+              
+              // 선택된 반려동물이 수정된 경우 업데이트
+              if (selectedPet != null && selectedPet!['pet_idx'] == petIdx) {
+                selectedPet = userPets[i];
+              }
+            });
+            break;
+          }
+        }
+        
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('반려동물 정보가 수정되었습니다.'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      } else {
+        final errorData = jsonDecode(utf8.decode(response.bodyBytes));
+        throw Exception(errorData['detail'] ?? '수정 실패: ${response.statusCode}');
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('수정 실패: ${e.toString()}'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
+  // 반려동물 수정 페이지로 이동
+  void _navigateToPetEditPage(Map<String, dynamic> petData) async {
+    // Pet 모델로 변환
+    final pet = Pet(
+      petIdx: petData['pet_idx'],
+      accountIdx: 0, // 현재 사용자의 account_idx
+      ownerEmail: userInfo?['email'] ?? '', // 사용자 이메일 추가
+      name: petData['name']?.toString() ?? '',
+      species: petData['species']?.toString() ?? '',
+      breed: petData['breed']?.toString() ?? '',
+      ageNumber: petData['age'] ?? 0,
+      bloodType: petData['bloodType']?.toString() ?? '',
+      weightKg: double.tryParse(petData['weight']?.toString().replaceAll('kg', '') ?? '0') ?? 0.0,
+      pregnant: petData['pregnant'] ?? false,
+      vaccinated: petData['vaccinated'] ?? false,
+      hasDisease: petData['has_disease'] ?? false,
+      hasBirthExperience: petData['has_birth_experience'] ?? false,
+      prevDonationDate: petData['prev_donation_date'] != null ? DateTime.tryParse(petData['prev_donation_date'].toString()) : null,
+    );
+
+    final result = await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => PetRegisterScreen(petToEdit: pet),
+      ),
+    );
+    
+    if (result == true) {
+      // 수정 완료 후 다시 데이터 로드
+      _loadUserDataAndPets();
+    }
+  }
+
+  // 신청자 정보 수정 페이지로 이동
+  void _navigateToProfilePage() {
+    Navigator.pushNamed(
+      context,
+      '/profile_management',
+    ).then((_) {
+      // 수정 완료 후 다시 데이터 로드
+      _loadUserDataAndPets();
+    });
   }
 
 }

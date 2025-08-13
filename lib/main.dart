@@ -16,6 +16,14 @@ import 'package:flutter/foundation.dart';
 
 // 웹 전용 라우팅 및 레이아웃
 import 'package:connect/web/web_router.dart';
+// 알림 서비스
+import 'package:connect/services/notification_service.dart';
+// 관리자 페이지
+import 'package:connect/admin/admin_post_management_page.dart';
+// 병원 페이지
+import 'package:connect/hospital/hospital_dashboard.dart';
+// 프로필 관리
+import 'package:connect/auth/profile_management.dart';
 
 // 로컬 알림 플러그인 인스턴스
 final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
@@ -33,28 +41,48 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
 }
 
 Future<void> _showLocalNotification(RemoteMessage message) async {
-  const AndroidNotificationDetails androidPlatformChannelSpecifics =
-      AndroidNotificationDetails(
-        'high_importance_channel',
-        'High Importance Notifications',
-        channelDescription: 'This channel is used for important notifications.',
-        importance: Importance.max,
-        priority: Priority.high,
-        ticker: 'ticker',
-        icon: '@mipmap/ic_launcher',
-      );
-  const NotificationDetails platformChannelSpecifics = NotificationDetails(
-    android: androidPlatformChannelSpecifics,
-  );
+  print(">>> MAIN.DART 로컬 알림 표시 시작: ${message.notification?.title}");
+  print(">>> MAIN.DART 알림 제목: ${message.notification?.title}");
+  print(">>> MAIN.DART 알림 내용: ${message.notification?.body}");
+  print(">>> MAIN.DART 알림 데이터: ${message.data}");
+  
+  try {
+    const AndroidNotificationDetails androidPlatformChannelSpecifics =
+        AndroidNotificationDetails(
+          'high_importance_channel',
+          'High Importance Notifications',
+          channelDescription: 'This channel is used for important notifications.',
+          importance: Importance.max,
+          priority: Priority.high,
+          ticker: 'ticker',
+          icon: '@mipmap/ic_launcher',
+          enableVibration: true,
+          playSound: true,
+        );
+    const NotificationDetails platformChannelSpecifics = NotificationDetails(
+      android: androidPlatformChannelSpecifics,
+    );
 
-  await flutterLocalNotificationsPlugin.show(
-    message.hashCode,
-    message.notification?.title,
-    message.notification?.body,
-    platformChannelSpecifics,
-    payload: jsonEncode(message.data),
-  );
-  print("로컬 알림 표시 시도 완료: ${message.notification?.title}");
+    print(">>> MAIN.DART 알림 플러그인 show 호출 시작");
+    await flutterLocalNotificationsPlugin.show(
+      message.hashCode,
+      message.notification?.title,
+      message.notification?.body,
+      platformChannelSpecifics,
+      payload: jsonEncode(message.data),
+    );
+    print(">>> MAIN.DART 로컬 알림 표시 완료: ${message.notification?.title}");
+  } catch (e) {
+    print(">>> MAIN.DART 로컬 알림 표시 오류: $e");
+    print(">>> MAIN.DART 오류 스택트레이스: ${StackTrace.current}");
+  }
+}
+
+// 전역적으로 사용할 수 있도록 함수 노출
+Future<void> showGlobalLocalNotification(RemoteMessage message) async {
+  print(">>> MAIN.DART showGlobalLocalNotification 호출됨: ${message.notification?.title}");
+  await _showLocalNotification(message);
+  print(">>> MAIN.DART showGlobalLocalNotification 완료: ${message.notification?.title}");
 }
 
 void main() async {
@@ -127,9 +155,28 @@ void main() async {
         NotificationResponse notificationResponse,
       ) async {
         print('알림 탭! Payload: ${notificationResponse.payload}');
-        // TODO: payload를 파싱하여 해당 화면으로 이동하는 로직 추가
+        // NotificationService의 핸들러 호출
+        NotificationService.handleLocalNotificationTap(notificationResponse.payload);
       },
     );
+    
+    // Android 알림 채널 생성 (API 26+ 에서 필요)
+    if (!kIsWeb && Platform.isAndroid) {
+      const AndroidNotificationChannel channel = AndroidNotificationChannel(
+        'high_importance_channel',
+        'High Importance Notifications',
+        description: 'Super Pet Connect 중요 알림',
+        importance: Importance.max,
+        enableVibration: true,
+        playSound: true,
+      );
+
+      final AndroidFlutterLocalNotificationsPlugin? androidPlugin =
+          flutterLocalNotificationsPlugin.resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>();
+
+      await androidPlugin?.createNotificationChannel(channel);
+      print('Android 알림 채널 생성 완료');
+    }
   }
 
   // 5. 알림 권한 요청 (Firebase 초기화 및 로컬 알림 초기화 후, 모바일에서만)
@@ -162,29 +209,8 @@ void main() async {
     print('웹 환경에서는 FCM 권한 요청을 스킵합니다.');
   }
 
-  // 6. FCM 메시지 리스너 등록 (Firebase 초기화 후, 모바일에서만)
-  if (!kIsWeb) {
-    FirebaseMessaging.onMessage.listen((RemoteMessage message) {
-      print("포그라운드 메시지 수신: ${message.messageId}");
-      if (message.notification != null) {
-        _showLocalNotification(message);
-      }
-    });
-
-    FirebaseMessaging.instance.getInitialMessage().then((RemoteMessage? message) {
-      if (message != null) {
-        print("종료 상태에서 앱 시작 메시지: ${message.messageId}");
-        // TODO: 알림을 통해 앱이 열렸을 때 특정 화면으로 이동하는 로직 추가
-      }
-    });
-
-    FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) {
-      print("백그라운드에서 앱 열림 메시지: ${message.messageId}");
-      // TODO: 알림을 탭했을 때 특정 화면으로 이동하는 로직 추가
-    });
-  } else {
-    print('웹 환경에서는 FCM 메시지 리스너를 스킵합니다.');
-  }
+  // 6. 알림 서비스 초기화 (FCM 메시지 리스너 포함)
+  await NotificationService.initialize();
 
   runApp(const MyApp());
 }
@@ -214,9 +240,35 @@ class MyApp extends StatelessWidget {
       // 웹에서는 라우팅 기반 네비게이션 사용
       initialRoute: kIsWeb ? WebRouter.getInitialRoute() : null,
       onGenerateRoute: kIsWeb ? WebRouter.generateRoute : null,
+      routes: kIsWeb ? {} : {
+        '/admin/post-management': (context) {
+          final args = ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>?;
+          return AdminPostManagementPage(
+            postId: args?['postId'],
+            initialTab: args?['initialTab'],
+            highlightPostId: args?['highlightPost'],
+          );
+        },
+        '/hospital/dashboard': (context) {
+          final args = ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>?;
+          return HospitalDashboard(
+            highlightPostId: args?['highlightPostId'],
+            showPostDetail: args?['showPostDetail'] ?? false,
+          );
+        },
+        '/hospital/columns': (context) {
+          final args = ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>?;
+          // 병원 대시보드에 칼럼 탭으로 이동
+          return HospitalDashboard(
+            highlightColumnId: args?['highlightColumnId'],
+            initialTab: 'columns',
+          );
+        },
+        '/profile_management': (context) => const ProfileManagement(),
+      },
       home: kIsWeb ? null : const WelcomeScreen(),
       debugShowCheckedModeBanner: false, // 오른쪽 상단 디버그 배너 제거
-      navigatorKey: navigatorKey,
+      navigatorKey: NotificationService.navigatorKey,
     );
   }
 }

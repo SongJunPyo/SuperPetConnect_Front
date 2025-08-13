@@ -8,10 +8,7 @@ import 'package:connect/admin/admin_signup_management.dart';
 import 'package:connect/admin/admin_approved_posts.dart';
 import 'package:connect/admin/admin_notice_list.dart';
 import 'package:connect/admin/admin_column_management.dart';
-import 'admin_donation_approval.dart';
 import 'admin_black_list_management.dart';
-import '../services/black_list_service.dart';
-import '../models/black_list_model.dart';
 import '../utils/app_theme.dart';
 import '../widgets/app_card.dart';
 import '../widgets/app_app_bar.dart';
@@ -39,7 +36,6 @@ class _AdminDashboardState extends State<AdminDashboard> {
   Timer? _timer;
   int pendingPostsCount = 0;
   int pendingSignupsCount = 0;
-  BlackListStats? blackListStats;
   bool isLoadingData = true;
 
   @override
@@ -49,7 +45,6 @@ class _AdminDashboardState extends State<AdminDashboard> {
     _updateDateTime();
     _startTimer();
     _fetchPendingCounts();
-    _fetchBlackListStats();
   }
 
   @override
@@ -116,7 +111,6 @@ class _AdminDashboardState extends State<AdminDashboard> {
     _timer = Timer.periodic(const Duration(minutes: 1), (timer) {
       _updateDateTime();
       _fetchPendingCounts(); // 1분마다 새로운 요청사항 확인
-      _fetchBlackListStats(); // 블랙리스트 통계도 업데이트
     });
   }
 
@@ -185,17 +179,6 @@ class _AdminDashboardState extends State<AdminDashboard> {
     }
   }
 
-  Future<void> _fetchBlackListStats() async {
-    try {
-      final stats = await BlackListService.getBlackListStats();
-      setState(() {
-        blackListStats = stats;
-      });
-    } catch (e) {
-      // 에러 무시 (UI에 영향주지 않음)
-      print('블랙리스트 통계 로드 실패: $e');
-    }
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -242,32 +225,16 @@ class _AdminDashboardState extends State<AdminDashboard> {
             Column(
               children: [
                 _buildPremiumFeatureCard(
-                  icon: Icons.post_add_outlined,
-                  title: "게시글 신청 관리",
-                  subtitle: "새로운 게시글 승인 및 검토",
-                  iconColor: AppTheme.primaryBlue,
-                  backgroundColor: AppTheme.lightBlue,
+                  icon: Icons.bloodtype_outlined,
+                  title: "헌혈 게시글 관리",
+                  subtitle: "게시글 승인 및 현황 통합 관리",
+                  iconColor: Colors.red.shade600,
+                  backgroundColor: Colors.red.shade50,
                   onTap: () {
                     Navigator.push(
                       context,
                       MaterialPageRoute(
                         builder: (context) => const AdminPostCheck(),
-                      ),
-                    );
-                  },
-                ),
-                const SizedBox(height: AppTheme.spacing16),
-                _buildPremiumFeatureCard(
-                  icon: Icons.article_outlined,
-                  title: "게시글 현황 관리",
-                  subtitle: "승인된 게시글 현황 및 관리",
-                  iconColor: AppTheme.success,
-                  backgroundColor: AppTheme.success.withOpacity(0.1),
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => const AdminApprovedPostsScreen(),
                       ),
                     );
                   },
@@ -359,40 +326,6 @@ class _AdminDashboardState extends State<AdminDashboard> {
                     );
                   },
                 ),
-                const SizedBox(height: AppTheme.spacing16),
-                _buildPremiumFeatureCard(
-                  icon: Icons.bloodtype_outlined,
-                  title: "헌혈 승인 관리",
-                  subtitle: "헌혈 완료/취소 최종 승인 처리",
-                  iconColor: Colors.red.shade600,
-                  backgroundColor: Colors.red.shade50,
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder:
-                            (context) => const AdminDonationApprovalScreen(),
-                      ),
-                    );
-                  },
-                ),
-                const SizedBox(height: AppTheme.spacing16),
-                _buildPremiumFeatureCard(
-                  icon: Icons.block_outlined,
-                  title: "블랙리스트 관리",
-                  subtitle: "사용자 정지 및 블랙리스트 관리",
-                  iconColor: Colors.black,
-                  backgroundColor: Colors.black.withOpacity(0.1),
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder:
-                            (context) => const AdminBlackListManagementScreen(),
-                      ),
-                    );
-                  },
-                ),
               ],
             ),
             const SizedBox(height: AppTheme.spacing20),
@@ -449,30 +382,6 @@ class _AdminDashboardState extends State<AdminDashboard> {
       notifications.add(const SizedBox(height: AppTheme.spacing12));
     }
 
-    // 블랙리스트 통계 정보 (블랙리스트가 있을 때만 표시)
-    if (blackListStats != null && blackListStats!.activeBlackUsers > 0) {
-      notifications.add(
-        SizedBox(
-          width: double.infinity,
-          child: AppInfoCard(
-            icon: Icons.block_outlined,
-            title: '현재 정지 중인 사용자 ${blackListStats!.activeBlackUsers}명이 있습니다',
-            description: '블랙리스트 관리로 이동',
-            iconColor: Colors.black,
-            backgroundColor: Colors.black.withOpacity(0.1),
-            onTap: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => const AdminBlackListManagementScreen(),
-                ),
-              );
-            },
-          ),
-        ),
-      );
-      notifications.add(const SizedBox(height: AppTheme.spacing12));
-    }
 
     // 알림이 없으면 빈 리스트 반환 (카드가 표시되지 않음)
     return notifications;

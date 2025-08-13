@@ -15,8 +15,8 @@ class DonationApplicationService {
   }
 
   /// 특정 게시글의 신청자 목록 조회 (병원용)
-  /// GET /api/hospital/posts/{post_id}/applicants
-  static Future<ApplicationListResponse> getApplications(int postId) async {
+  /// GET /api/hospital/posts/{post_idx}/applicants
+  static Future<ApplicationListResponse> getApplications(int postIdx) async {
     try {
       final token = await _getAuthToken();
       if (token.isEmpty) {
@@ -24,7 +24,7 @@ class DonationApplicationService {
       }
 
       final response = await http.get(
-        Uri.parse('$baseUrl/api/hospital/posts/$postId/applicants'),
+        Uri.parse('$baseUrl/api/hospital/posts/$postIdx/applicants'),
         headers: {
           'Authorization': 'Bearer $token',
           'Content-Type': 'application/json; charset=UTF-8',
@@ -40,8 +40,10 @@ class DonationApplicationService {
         // 서버가 직접 배열을 반환하는 경우
         if (data is List) {
           return ApplicationListResponse(
+            postIdx: 0,
+            postTitle: '',
+            totalApplications: data.length,
             applications: data.map((app) => DonationApplication.fromJson(app)).toList(),
-            totalCount: data.length,
           );
         }
         // 기존 형태로 반환하는 경우
@@ -65,9 +67,9 @@ class DonationApplicationService {
   }
 
   /// 신청 상태 업데이트 (승인/거절) (병원용)
-  /// PUT /api/hospital/posts/{post_id}/applicants/{applicant_id}
+  /// PUT /api/hospital/posts/{post_idx}/applicants/{applicant_id}
   static Future<bool> updateApplicationStatus(
-    int postId,
+    int postIdx,
     int applicationId,
     ApplicationStatus status, {
     String? hospitalNotes,
@@ -84,7 +86,7 @@ class DonationApplicationService {
       );
 
       final response = await http.put(
-        Uri.parse('$baseUrl/api/hospital/posts/$postId/applicants/$applicationId'),
+        Uri.parse('$baseUrl/api/hospital/posts/$postIdx/applicants/$applicationId'),
         headers: {
           'Authorization': 'Bearer $token',
           'Content-Type': 'application/json; charset=UTF-8',
@@ -111,8 +113,8 @@ class DonationApplicationService {
   }
 
   /// 신청 삭제 (병원용 - 필요시)
-  /// DELETE /api/hospital/posts/{post_id}/applicants/{applicant_id}
-  static Future<bool> deleteApplication(int postId, int applicationId) async {
+  /// DELETE /api/hospital/posts/{post_idx}/applicants/{applicant_id}
+  static Future<bool> deleteApplication(int postIdx, int applicationId) async {
     try {
       final token = await _getAuthToken();
       if (token.isEmpty) {
@@ -120,7 +122,7 @@ class DonationApplicationService {
       }
 
       final response = await http.delete(
-        Uri.parse('$baseUrl/api/hospital/posts/$postId/applicants/$applicationId'),
+        Uri.parse('$baseUrl/api/hospital/posts/$postIdx/applicants/$applicationId'),
         headers: {
           'Authorization': 'Bearer $token',
           'Content-Type': 'application/json; charset=UTF-8',
@@ -157,9 +159,9 @@ class UserApplicationService {
   }
 
   /// 헌혈 신청하기 (사용자용)
-  /// POST /api/hospital/posts/{post_id}/applications
+  /// POST /api/hospital/posts/{post_idx}/applications
   static Future<DonationApplication> createApplication(
-    int postId,
+    int postIdx,
     int petId,
   ) async {
     try {
@@ -169,12 +171,12 @@ class UserApplicationService {
       }
 
       final request = CreateApplicationRequest(
-        postId: postId,
+        postId: postIdx,
         petId: petId,
       );
 
       final response = await http.post(
-        Uri.parse('$baseUrl/api/hospital/posts/$postId/applications'),
+        Uri.parse('$baseUrl/api/hospital/posts/$postIdx/applications'),
         headers: {
           'Authorization': 'Bearer $token',
           'Content-Type': 'application/json; charset=UTF-8',
@@ -265,8 +267,8 @@ class UserApplicationService {
   }
 
   /// 신청 취소 (사용자용)
-  /// DELETE /api/hospital/posts/{post_id}/applicants/{applicant_id}
-  static Future<bool> cancelApplication(int postId, int applicationId) async {
+  /// DELETE /api/hospital/posts/{post_idx}/applicants/{applicant_id}
+  static Future<bool> cancelApplication(int postIdx, int applicationId) async {
     try {
       final token = await _getAuthToken();
       if (token.isEmpty) {
@@ -274,7 +276,7 @@ class UserApplicationService {
       }
 
       final response = await http.delete(
-        Uri.parse('$baseUrl/api/hospital/posts/$postId/applicants/$applicationId'),
+        Uri.parse('$baseUrl/api/hospital/posts/$postIdx/applicants/$applicationId'),
         headers: {
           'Authorization': 'Bearer $token',
           'Content-Type': 'application/json; charset=UTF-8',

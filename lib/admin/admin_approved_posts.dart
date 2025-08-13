@@ -232,7 +232,7 @@ class _AdminApprovedPostsScreenState extends State<AdminApprovedPostsScreen>
     fetchPosts();
   }
 
-  void _showApplicantList(int? timeRangeId, String donationDateTime) {
+  void _showApplicantList(int? postTimesIdx, String donationDateTime) {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -293,7 +293,7 @@ class _AdminApprovedPostsScreenState extends State<AdminApprovedPostsScreen>
 
               // 신청자 목록
               Expanded(
-                child: timeRangeId == null
+                child: postTimesIdx == null
                     ? Center(
                         child: Column(
                           mainAxisAlignment: MainAxisAlignment.center,
@@ -315,7 +315,7 @@ class _AdminApprovedPostsScreenState extends State<AdminApprovedPostsScreen>
                         ),
                       )
                     : FutureBuilder<List<dynamic>>(
-                        future: _fetchApplicants(timeRangeId),
+                        future: _fetchApplicants(postTimesIdx),
                         builder: (context, snapshot) {
                           if (snapshot.connectionState == ConnectionState.waiting) {
                             return const Center(child: CircularProgressIndicator());
@@ -416,23 +416,27 @@ class _AdminApprovedPostsScreenState extends State<AdminApprovedPostsScreen>
     );
   }
 
-  Future<List<dynamic>> _fetchApplicants(int timeRangeId) async {
+  Future<List<dynamic>> _fetchApplicants(int postTimesIdx) async {
     try {
       final response = await http.get(
-        Uri.parse('${Config.serverUrl}/api/admin/time-ranges/$timeRangeId/applicants'),
+        Uri.parse('${Config.serverUrl}/api/applied_donation/time-slot/$postTimesIdx/applications'),
         headers: {
           'Authorization': 'Bearer $token',
           'Content-Type': 'application/json',
         },
       );
 
-      print('신청자 목록 API 요청 URL: ${Config.serverUrl}/api/admin/time-ranges/$timeRangeId/applicants');
+      print('신청자 목록 API 요청 URL: ${Config.serverUrl}/api/applied_donation/time-slot/$postTimesIdx/applications');
       print('신청자 목록 API 응답 상태: ${response.statusCode}');
       print('신청자 목록 API 응답 내용: ${response.body}');
 
       if (response.statusCode == 200) {
         final data = json.decode(utf8.decode(response.bodyBytes));
-        return data is List ? data : [];
+        // 새로운 API 응답 구조에 맞게 수정 - applications 배열 반환
+        if (data is Map && data.containsKey('applications')) {
+          return data['applications'] is List ? data['applications'] : [];
+        }
+        return [];
       } else if (response.statusCode == 404) {
         throw Exception('해당 시간대에 신청자가 없습니다.');
       } else {
@@ -1055,11 +1059,11 @@ class _AdminApprovedPostsScreenState extends State<AdminApprovedPostsScreen>
                                     timeRange['donation_date'] ??
                                     timeRange['time'] ??
                                     'N/A';
-                                final timeRangeId = timeRange['id'];
+                                final postTimesIdx = timeRange['id'];
 
                                 return InkWell(
                                   onTap: () {
-                                    _showApplicantList(timeRangeId, donationDate.toString());
+                                    _showApplicantList(postTimesIdx, donationDate.toString());
                                   },
                                   child: Container(
                                     margin: const EdgeInsets.only(bottom: 8.0),

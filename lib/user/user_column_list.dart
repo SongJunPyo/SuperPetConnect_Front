@@ -368,29 +368,32 @@ class _UserColumnListScreenState extends State<UserColumnListScreen> {
                       child: Row(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
+                          // 왼쪽: 순서 번호 (1.5번째 줄 위치)
+                          Container(
+                            width: 20,
+                            height: 50, // 전체 높이에 맞춤
+                            child: Center(
+                              child: Text(
+                                '${index + 1}',
+                                style: AppTheme.bodySmallStyle.copyWith(
+                                  color: AppTheme.textTertiary,
+                                  fontWeight: FontWeight.w500,
+                                  fontSize: 13,
+                                ),
+                                textAlign: TextAlign.center,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
                           // 중앙: 메인 콘텐츠
                           Expanded(
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                // 첫 번째 줄: 순서 번호 + 뱃지 + 제목
+                                // 첫 번째 줄: 뱃지 + 제목
                                 Row(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    // 순서 번호
-                                    Container(
-                                      width: 20,
-                                      child: Text(
-                                        '${index + 1}',
-                                        style: AppTheme.bodySmallStyle.copyWith(
-                                          color: AppTheme.textTertiary,
-                                          fontWeight: FontWeight.w500,
-                                          fontSize: 13,
-                                        ),
-                                        textAlign: TextAlign.center,
-                                      ),
-                                    ),
-                                    const SizedBox(width: 8),
                                     if (isImportant) ...[
                                       Container(
                                         padding: const EdgeInsets.symmetric(
@@ -428,19 +431,16 @@ class _UserColumnListScreenState extends State<UserColumnListScreen> {
                                 ),
                                 const SizedBox(height: 6),
                                 // 두 번째 줄: 작성자 이름
-                                Padding(
-                                  padding: const EdgeInsets.only(left: 28), // 순서 번호만큼 들여쓰기
-                                  child: Text(
-                                    column.authorName.length > 15
-                                        ? '${column.authorName.substring(0, 15)}..'
-                                        : column.authorName,
-                                    style: AppTheme.bodySmallStyle.copyWith(
-                                      color: AppTheme.textSecondary,
-                                      fontSize: 12,
-                                    ),
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
+                                Text(
+                                  column.authorName.length > 15
+                                      ? '${column.authorName.substring(0, 15)}..'
+                                      : column.authorName,
+                                  style: AppTheme.bodySmallStyle.copyWith(
+                                    color: AppTheme.textSecondary,
+                                    fontSize: 12,
                                   ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
                                 ),
                               ],
                             ),

@@ -36,7 +36,7 @@ class HospitalColumn {
       columnIdx: json['column_idx'] ?? 0,
       title: json['title'] ?? '',
       content: json['content'] ?? '',
-      isPublished: json['is_published'] ?? false,
+      isPublished: json['columns_active'] ?? false,
       createdAt: DateTime.parse(
         json['created_at'] ?? json['created_time'] ?? DateTime.now().toIso8601String(),
       ),

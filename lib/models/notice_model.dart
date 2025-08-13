@@ -19,7 +19,7 @@ class Notice {
   final String authorName; // JOIN을 통해 제공
   final String? authorNickname; // JOIN을 통해 제공 (nullable)
   final int? viewCount;
-  final int targetAudience; // 0: all, 1: hospital, 2: user
+  final int targetAudience; // 0: 전체, 1: 관리자, 2: 병원, 3: 사용자
 
   Notice({
     required this.noticeIdx,

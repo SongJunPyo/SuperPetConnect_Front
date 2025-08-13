@@ -20,7 +20,6 @@ class _AdminBlackListManagementScreenState
   late TabController _tabController;
   
   List<BlackList> blackLists = [];
-  BlackListStats? stats;
   bool isLoading = true;
   String? errorMessage;
   
@@ -77,10 +76,7 @@ class _AdminBlackListManagementScreenState
   }
 
   Future<void> _loadData() async {
-    await Future.wait([
-      _loadBlackLists(),
-      _loadStats(),
-    ]);
+    await _loadBlackLists();
   }
 
   Future<void> _loadBlackLists() async {
@@ -112,16 +108,6 @@ class _AdminBlackListManagementScreenState
     }
   }
 
-  Future<void> _loadStats() async {
-    try {
-      final loadedStats = await BlackListService.getBlackListStats();
-      setState(() {
-        stats = loadedStats;
-      });
-    } catch (e) {
-      print('통계 로드 실패: $e');
-    }
-  }
 
   void _onSearchChanged(String query) {
     setState(() {
@@ -296,9 +282,6 @@ class _AdminBlackListManagementScreenState
       ),
       body: Column(
         children: [
-          // 통계 정보
-          if (stats != null) _buildStatsCard(),
-          
           // 검색창
           _buildSearchBar(),
           
@@ -309,9 +292,9 @@ class _AdminBlackListManagementScreenState
             unselectedLabelColor: AppTheme.textSecondary,
             indicatorColor: AppTheme.primaryBlue,
             tabs: [
-              Tab(text: '전체 (${stats?.totalBlackUsers ?? 0})'),
-              Tab(text: '정지 중 (${stats?.activeBlackUsers ?? 0})'),
-              Tab(text: '해제됨 (${stats?.releasedBlackUsers ?? 0})'),
+              Tab(text: '전체'),
+              Tab(text: '정지 중'),
+              Tab(text: '해제됨'),
             ],
           ),
           
@@ -334,71 +317,6 @@ class _AdminBlackListManagementScreenState
     );
   }
 
-  Widget _buildStatsCard() {
-    return Container(
-      margin: const EdgeInsets.all(16),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 10,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Row(
-        children: [
-          Expanded(
-            child: Column(
-              children: [
-                Text(
-                  '${stats!.totalBlackUsers}',
-                  style: AppTheme.h3Style.copyWith(color: AppTheme.primaryBlue),
-                ),
-                const Text('총 블랙리스트', style: AppTheme.bodySmallStyle),
-              ],
-            ),
-          ),
-          Expanded(
-            child: Column(
-              children: [
-                Text(
-                  '${stats!.activeBlackUsers}',
-                  style: AppTheme.h3Style.copyWith(color: AppTheme.error),
-                ),
-                const Text('정지 중', style: AppTheme.bodySmallStyle),
-              ],
-            ),
-          ),
-          Expanded(
-            child: Column(
-              children: [
-                Text(
-                  '${stats!.releasedBlackUsers}',
-                  style: AppTheme.h3Style.copyWith(color: AppTheme.success),
-                ),
-                const Text('해제됨', style: AppTheme.bodySmallStyle),
-              ],
-            ),
-          ),
-          Expanded(
-            child: Column(
-              children: [
-                Text(
-                  '${stats!.avgSuspensionDays.toStringAsFixed(1)}일',
-                  style: AppTheme.h3Style.copyWith(color: AppTheme.warning),
-                ),
-                const Text('평균 정지', style: AppTheme.bodySmallStyle),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
 
   Widget _buildSearchBar() {
     return Container(
@@ -991,7 +909,7 @@ class _DetailBlackListDialog extends StatelessWidget {
             const SizedBox(height: 16),
             if (blackList.createdAt != null)
               _buildInfoRow(
-                '등록일',
+                '작성일',
                 DateFormat('yyyy-MM-dd HH:mm:ss').format(blackList.createdAt!),
               ),
             if (blackList.updatedAt != null && blackList.updatedAt != blackList.createdAt)

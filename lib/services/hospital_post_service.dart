@@ -173,8 +173,8 @@ class HospitalPostService {
     }
   }
 
-  // 특정 게시글의 신청자 목록 조회 (새로운 API 사용)
-  static Future<List<DonationApplication>> getApplicants(String postId) async {
+  // 특정 게시글의 신청자 목록 조회 (수정된 API 사용)
+  static Future<ApplicationListResponse> getApplicants(String postId) async {
     try {
       final token = await _getAuthToken();
       if (token.isEmpty) {
@@ -182,45 +182,44 @@ class HospitalPostService {
       }
 
       final postIdInt = int.tryParse(postId) ?? 0;
+      print('🔍 [getApplicants] API 호출: $baseUrl/api/applied_donation/post/$postIdInt/applications');
+      
       final response = await http.get(
-        Uri.parse('$baseUrl/api/hospital/posts/$postIdInt/applicants'),
+        Uri.parse('$baseUrl/api/applied_donation/post/$postIdInt/applications'),
         headers: {
           'Authorization': 'Bearer $token',
           'Content-Type': 'application/json; charset=UTF-8',
         },
       );
 
+      print('🔍 [getApplicants] API 응답 상태코드: ${response.statusCode}');
+      print('🔍 [getApplicants] API 응답 내용: ${response.body}');
+
       if (response.statusCode == 200) {
         final data = json.decode(utf8.decode(response.bodyBytes));
+        print('🔍 [getApplicants] 파싱된 데이터: $data');
         
-        // 서버가 직접 배열을 반환하는 경우
-        if (data is List) {
-          return data.map((app) => DonationApplication.fromJson(app)).toList();
-        }
-        // 기존 구조로 반환하는 경우
-        else if (data is Map && data['applications'] != null) {
-          final applications = (data['applications'] as List)
-              .map((app) => DonationApplication.fromJson(app))
-              .toList();
-          return applications;
-        }
-        return [];
+        // 새로운 API 응답 구조에 따른 파싱
+        return ApplicationListResponse.fromJson(data);
       } else if (response.statusCode == 401) {
         throw Exception('인증이 만료되었습니다. 다시 로그인해주세요.');
+      } else if (response.statusCode == 403) {
+        throw Exception('권한이 없습니다. 해당 게시글의 작성자만 신청자를 확인할 수 있습니다.');
       } else {
-        throw Exception('신청자 목록을 불러오는데 실패했습니다.');
+        final errorData = json.decode(response.body);
+        final errorMessage = errorData['detail'] ?? '신청자 목록을 불러오는데 실패했습니다.';
+        throw Exception('API 오류 (${response.statusCode}): $errorMessage');
       }
     } catch (e) {
-      print('Error fetching applicants: $e');
+      print('❌ [getApplicants] 오류: $e');
       throw e;
     }
   }
 
-  // 신청자 승인/거절 (새로운 API 사용)
+  // 신청자 승인/거절 (수정된 API 사용)
   static Future<bool> updateApplicantStatus(
-    String postId,
-    String applicantId,
-    String status, {
+    int appliedDonationIdx,
+    int statusCode, {
     String? hospitalNotes,
   }) async {
     try {
@@ -229,41 +228,30 @@ class HospitalPostService {
         throw Exception('인증 토큰이 없습니다.');
       }
 
-      final postIdInt = int.tryParse(postId) ?? 0;
-      final applicantIdInt = int.tryParse(applicantId) ?? 0;
+      print('🔍 [updateApplicantStatus] API 호출: $baseUrl/api/applied_donation/$appliedDonationIdx/status');
+      print('🔍 [updateApplicantStatus] Status Code: $statusCode (0=대기, 1=승인, 2=거절)');
       
-      // status 값을 새로운 enum 값으로 변환
-      String newStatus;
-      switch (status) {
-        case '승인':
-          newStatus = 'approved';
-          break;
-        case '거절':
-          newStatus = 'rejected';
-          break;
-        case '완료':
-          newStatus = 'completed';
-          break;
-        default:
-          newStatus = 'pending';
-      }
-
       final response = await http.put(
-        Uri.parse('$baseUrl/api/hospital/posts/$postIdInt/applicants/$applicantIdInt'),
+        Uri.parse('$baseUrl/api/applied_donation/$appliedDonationIdx/status'),
         headers: {
           'Authorization': 'Bearer $token',
           'Content-Type': 'application/json; charset=UTF-8',
         },
         body: json.encode({
-          'status': newStatus,
+          'status': statusCode,
           if (hospitalNotes != null) 'hospital_notes': hospitalNotes,
         }),
       );
+
+      print('🔍 [updateApplicantStatus] API 응답 상태코드: ${response.statusCode}');
+      print('🔍 [updateApplicantStatus] API 응답 내용: ${response.body}');
 
       if (response.statusCode == 200) {
         return true;
       } else if (response.statusCode == 401) {
         throw Exception('인증이 만료되었습니다. 다시 로그인해주세요.');
+      } else if (response.statusCode == 403) {
+        throw Exception('권한이 없습니다. 해당 신청에 대한 권한이 없습니다.');
       } else {
         final error = json.decode(utf8.decode(response.bodyBytes));
         throw Exception(error['detail'] ?? '상태 업데이트에 실패했습니다.');
@@ -275,7 +263,7 @@ class HospitalPostService {
   }
 
   // 게시글 상태 변경
-  static Future<bool> updatePostStatus(String postId, String status) async {
+  static Future<bool> updatePostStatus(String postIdx, String status) async {
     try {
       final token = await _getAuthToken();
       if (token.isEmpty) {
@@ -283,7 +271,7 @@ class HospitalPostService {
       }
 
       final response = await http.put(
-        Uri.parse('$baseUrl/api/hospital/posts/$postId/status'),
+        Uri.parse('$baseUrl/api/hospital/posts/$postIdx/status'),
         headers: {
           'Authorization': 'Bearer $token',
           'Content-Type': 'application/json; charset=UTF-8',

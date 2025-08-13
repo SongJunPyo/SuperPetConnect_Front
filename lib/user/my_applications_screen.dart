@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../models/donation_application_model.dart';
 import '../services/donation_application_service.dart';
+import '../services/hospital_post_service.dart';
 import '../utils/app_theme.dart';
 
 /// 내 헌혈 신청 내역 화면 (사용자용)
@@ -15,7 +16,7 @@ class _MyApplicationsScreenState extends State<MyApplicationsScreen> {
   List<DonationApplication> applications = [];
   bool isLoading = true;
   String? errorMessage;
-  ApplicationStatus? selectedStatus;
+  String? selectedStatus; // 상태를 String으로 변경
 
   @override
   void initState() {
@@ -30,9 +31,9 @@ class _MyApplicationsScreenState extends State<MyApplicationsScreen> {
         errorMessage = null;
       });
 
-      final loadedApplications = await UserApplicationService.getMyApplications(
-        status: selectedStatus,
-      );
+      // TODO: UserApplicationService 대신 새로운 API 구조 사용 필요
+      // 임시로 빈 리스트 반환
+      final loadedApplications = <DonationApplication>[];
 
       setState(() {
         applications = loadedApplications;
@@ -55,7 +56,7 @@ class _MyApplicationsScreenState extends State<MyApplicationsScreen> {
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              RadioListTile<ApplicationStatus?>(
+              RadioListTile<String?>(
                 title: const Text('전체'),
                 value: null,
                 groupValue: selectedStatus,
@@ -67,8 +68,8 @@ class _MyApplicationsScreenState extends State<MyApplicationsScreen> {
                   _loadApplications();
                 },
               ),
-              ...ApplicationStatus.values.map((status) => RadioListTile<ApplicationStatus?>(
-                    title: Text(status.displayName),
+              ...['대기중', '승인됨', '거절됨', '완료됨'].map((status) => RadioListTile<String?>(
+                    title: Text(status),
                     value: status,
                     groupValue: selectedStatus,
                     onChanged: (value) {
@@ -120,9 +121,10 @@ class _MyApplicationsScreenState extends State<MyApplicationsScreen> {
     if (confirmed != true) return;
 
     try {
-      final success = await UserApplicationService.cancelApplication(
-        application.postId,
-        application.applicationId,
+      // TODO: 새로운 API 구조에 맞춰 취소 로직 수정 필요
+      final success = await HospitalPostService.updateApplicantStatus(
+        application.appliedDonationIdx,
+        2, // 2=거절/취소
       );
 
       if (success) {
@@ -162,37 +164,26 @@ class _MyApplicationsScreenState extends State<MyApplicationsScreen> {
                   ),
                 ),
                 const SizedBox(height: 8),
-                Text('종류: ${application.pet.speciesKorean}'),
-                Text('나이: ${application.pet.age}'),
+                Text('종류: ${application.pet.species}'),
+                Text('나이: ${application.pet.ageNumber}살'),
                 Text('체중: ${application.pet.weightKg}kg'),
                 if (application.pet.bloodType != null)
                   Text('혈액형: ${application.pet.bloodType}'),
                 const SizedBox(height: 16),
                 Text(
-                  '상태: ${application.status.displayName}',
+                  '상태: ${application.statusKr}',
                   style: TextStyle(
-                    color: _getStatusColor(application.status),
+                    color: _getStatusColorFromString(application.statusKr),
                     fontWeight: FontWeight.w600,
                   ),
                 ),
-                Text('신청일: ${_formatDate(application.appliedDate)}'),
-                if (application.updatedDate != null)
-                  Text('업데이트: ${_formatDate(application.updatedDate!)}'),
-                if (application.hospitalNotes != null && application.hospitalNotes!.isNotEmpty)
-                  Padding(
-                    padding: const EdgeInsets.only(top: 8.0),
-                    child: Text(
-                      '병원 메모: ${application.hospitalNotes}',
-                      style: AppTheme.bodyMediumStyle.copyWith(
-                        fontStyle: FontStyle.italic,
-                      ),
-                    ),
-                  ),
+                Text('헌혈 일시: ${_formatDateTime(application.donationTime)}'),
+                Text('게시글: ${application.postTitle}'),
               ],
             ),
           ),
           actions: [
-            if (application.status == ApplicationStatus.pending)
+            if (application.status == 0) // 0=대기중
               TextButton(
                 onPressed: () {
                   Navigator.of(context).pop();
@@ -213,21 +204,44 @@ class _MyApplicationsScreenState extends State<MyApplicationsScreen> {
     );
   }
 
-  Color _getStatusColor(ApplicationStatus status) {
-    switch (status) {
-      case ApplicationStatus.pending:
+  Color _getStatusColorFromString(String statusKr) {
+    switch (statusKr) {
+      case '대기중':
+      case '대기':
         return AppTheme.warning;
-      case ApplicationStatus.approved:
+      case '승인됨':
+      case '승인':
         return AppTheme.success;
-      case ApplicationStatus.rejected:
+      case '거절됨':
+      case '거절':
         return AppTheme.error;
-      case ApplicationStatus.completed:
+      case '완료됨':
+      case '완료':
         return AppTheme.primaryBlue;
+      default:
+        return AppTheme.mediumGray;
+    }
+  }
+
+  Color _getStatusColor(int status) {
+    switch (status) {
+      case 0:
+        return AppTheme.warning; // 대기
+      case 1:
+        return AppTheme.success; // 승인
+      case 2:
+        return AppTheme.error; // 거절
+      default:
+        return AppTheme.mediumGray;
     }
   }
 
   String _formatDate(DateTime date) {
     return '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
+  }
+
+  String _formatDateTime(DateTime dateTime) {
+    return '${dateTime.year}-${dateTime.month.toString().padLeft(2, '0')}-${dateTime.day.toString().padLeft(2, '0')} ${dateTime.hour.toString().padLeft(2, '0')}:${dateTime.minute.toString().padLeft(2, '0')}';
   }
 
   @override
@@ -311,7 +325,7 @@ class _MyApplicationsScreenState extends State<MyApplicationsScreen> {
                           const SizedBox(height: 16),
                           Text(
                             selectedStatus != null
-                                ? '${selectedStatus!.displayName} 상태의 신청이 없습니다'
+                                ? '$selectedStatus 상태의 신청이 없습니다'
                                 : '신청 내역이 없습니다',
                             style: AppTheme.h4Style,
                           ),
@@ -340,7 +354,7 @@ class _MyApplicationsScreenState extends State<MyApplicationsScreen> {
                                 ),
                                 const SizedBox(width: 8),
                                 Text(
-                                  '필터: ${selectedStatus!.displayName}',
+                                  '필터: $selectedStatus',
                                   style: AppTheme.bodyMediumStyle.copyWith(
                                     color: AppTheme.textSecondary,
                                   ),
@@ -408,7 +422,7 @@ class _MyApplicationsScreenState extends State<MyApplicationsScreen> {
                                                   borderRadius: BorderRadius.circular(8.0),
                                                 ),
                                                 child: Text(
-                                                  application.status.displayName,
+                                                  application.statusKr,
                                                   style: AppTheme.bodySmallStyle.copyWith(
                                                     fontWeight: FontWeight.w600,
                                                     color: _getStatusColor(application.status),
@@ -427,7 +441,7 @@ class _MyApplicationsScreenState extends State<MyApplicationsScreen> {
                                               ),
                                               const SizedBox(width: 4),
                                               Text(
-                                                '${application.pet.speciesKorean} • ${application.pet.age}',
+                                                '${application.pet.species} • ${application.pet.ageNumber}살',
                                                 style: AppTheme.bodyMediumStyle,
                                               ),
                                               if (application.pet.bloodType != null) ...[
@@ -452,32 +466,12 @@ class _MyApplicationsScreenState extends State<MyApplicationsScreen> {
                                               ),
                                               const SizedBox(width: 4),
                                               Text(
-                                                '신청일: ${_formatDate(application.appliedDate)}',
+                                                '헌혈 일시: ${_formatDateTime(application.donationTime)}',
                                                 style: AppTheme.bodyMediumStyle,
                                               ),
                                             ],
                                           ),
-                                          if (application.donationCount > 0)
-                                            Padding(
-                                              padding: const EdgeInsets.only(top: 4.0),
-                                              child: Row(
-                                                children: [
-                                                  Icon(
-                                                    Icons.volunteer_activism_outlined,
-                                                    size: 16,
-                                                    color: AppTheme.textTertiary,
-                                                  ),
-                                                  const SizedBox(width: 4),
-                                                  Text(
-                                                    '총 헌혈 횟수: ${application.donationCount}회',
-                                                    style: AppTheme.bodyMediumStyle.copyWith(
-                                                      color: AppTheme.success,
-                                                      fontWeight: FontWeight.w500,
-                                                    ),
-                                                  ),
-                                                ],
-                                              ),
-                                            ),
+                                          // TODO: 헌혈 횟수 정보는 새 API에서 제거됨
                                         ],
                                       ),
                                     ),

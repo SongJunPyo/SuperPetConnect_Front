@@ -335,6 +335,27 @@ class _AdminNoticeListScreenState extends State<AdminNoticeListScreen>
                     ),
                   ),
                   const SizedBox(height: 16),
+                  // 수정 버튼
+                  Container(
+                    width: double.infinity,
+                    child: ElevatedButton.icon(
+                      onPressed: () {
+                        Navigator.pop(context); // 바텀시트 닫기
+                        _navigateToEditNotice(notice); // 수정 페이지로 이동
+                      },
+                      icon: const Icon(Icons.edit),
+                      label: const Text('수정하기'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppTheme.primaryBlue,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
                   // 하단 정보
                   Container(
                     padding: const EdgeInsets.all(12),
@@ -372,6 +393,20 @@ class _AdminNoticeListScreenState extends State<AdminNoticeListScreen>
         );
       },
     );
+  }
+
+  // 공지사항 수정 페이지로 이동
+  void _navigateToEditNotice(Notice notice) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => AdminNoticeCreateScreen(
+          editNotice: notice, // 수정할 공지사항 전달
+        ),
+      ),
+    ).then((_) {
+      _loadNotices(); // 수정 후 목록 새로고침
+    });
   }
 
   String _getTargetAudienceText(int targetAudience) {
@@ -631,6 +666,14 @@ class _AdminNoticeListScreenState extends State<AdminNoticeListScreen>
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
+                      ListTile(
+                        leading: const Icon(Icons.edit),
+                        title: const Text('수정'),
+                        onTap: () {
+                          Navigator.pop(context);
+                          _navigateToEditNotice(notice);
+                        },
+                      ),
                       ListTile(
                         leading: Icon(
                           notice.noticeActive ? Icons.visibility_off : Icons.visibility,

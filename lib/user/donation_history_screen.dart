@@ -53,7 +53,7 @@ class _DonationHistoryScreenState extends State<DonationHistoryScreen>
     
     try {
       final prefs = await SharedPreferences.getInstance();
-      final token = prefs.getString('access_token');
+      final token = prefs.getString('auth_token');
       
       if (token == null) {
         throw Exception('로그인이 필요합니다.');
