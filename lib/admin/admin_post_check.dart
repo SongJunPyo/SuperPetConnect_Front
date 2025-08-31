@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'dart:math' as math;
+
 import '../utils/config.dart';
 import '../utils/app_theme.dart';
 import '../widgets/marquee_text.dart';
@@ -365,25 +365,78 @@ class _AdminPostCheckState extends State<AdminPostCheck>
     }
   }
 
-  Color _getStatusColor(String status) {
-    switch (status) {
-      case '승인 대기':
-        return Colors.orange;
-      case '모집중':
-        return Colors.green;
-      case '거절됨':
-        return Colors.red;
-      case '모집마감':
-        return Colors.grey;
-      default:
-        return Colors.orange; // 기본값
+  // 시간대별 신청자 목록을 가져오는 메소드
+  Future<List<Map<String, dynamic>>> _fetchTimeSlotApplicants(
+    int postId,
+    int timeSlotId,
+    String date,
+  ) async {
+    try {
+      final response = await http.get(
+        Uri.parse(
+          '${Config.serverUrl}/api/admin/time-slots/$timeSlotId/applicants',
+        ),
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Content-Type': 'application/json',
+        },
+      );
+
+      if (response.statusCode == 200) {
+        final List<dynamic> data = json.decode(utf8.decode(response.bodyBytes));
+        return data.map((item) => item as Map<String, dynamic>).toList();
+      } else {
+        throw Exception('Failed to load applicants');
+      }
+    } catch (e) {
+      throw Exception('Error: $e');
+    }
+  }
+
+  // 신청자 상태 업데이트 메소드
+  Future<void> _updateApplicantStatus(
+    int timeSlotId,
+    int appliedDonationIdx,
+    bool approved,
+  ) async {
+    try {
+      final response = await http.patch(
+        Uri.parse(
+          '${Config.serverUrl}/api/admin/applied-donations/$appliedDonationIdx/${approved ? "approve" : "reject"}',
+        ),
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Content-Type': 'application/json',
+        },
+      );
+
+      if (response.statusCode == 200) {
+        setState(() {
+          // UI 업데이트
+        });
+        Navigator.of(context).pop(); // 모달 닫기
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(approved ? '신청이 승인되었습니다.' : '신청이 거절되었습니다.'),
+            backgroundColor: approved ? Colors.green : Colors.red,
+          ),
+        );
+      } else {
+        throw Exception('Failed to update status');
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('처리 중 오류가 발생했습니다: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
     }
   }
 
   @override
   Widget build(BuildContext context) {
     final TextTheme textTheme = Theme.of(context).textTheme;
-    final ColorScheme colorScheme = Theme.of(context).colorScheme;
 
     return Scaffold(
       appBar: AppBar(
@@ -1164,32 +1217,6 @@ class _AdminPostCheckState extends State<AdminPostCheck>
     );
   }
 
-  String _formatDateTime(String dateTime) {
-    try {
-      if (dateTime == 'N/A' || dateTime.isEmpty) return dateTime;
-
-      // YYYY-MM-DD HH:mm:ss 형식으로 가정
-      final parts = dateTime.split(' ');
-      if (parts.length >= 2) {
-        final dateParts = parts[0].split('-');
-        final timePart = parts[1].split(':');
-        if (dateParts.length == 3 && timePart.length >= 2) {
-          return '${dateParts[0]}.${dateParts[1]}.${dateParts[2]} : ${timePart[0]}:${timePart[1]}';
-        }
-      }
-
-      // 단순 시간 형식 (HH:mm)
-      if (dateTime.contains(':') && !dateTime.contains('-')) {
-        return '시간: $dateTime';
-      }
-
-      // 파싱에 실패하면 원본 반환
-      return dateTime;
-    } catch (e) {
-      return dateTime;
-    }
-  }
-
   String _formatDate(String dateTime) {
     try {
       if (dateTime.isEmpty) return '-';
@@ -1301,6 +1328,7 @@ class _AdminPostCheckState extends State<AdminPostCheck>
 
   Widget _buildDateTimeDropdown(Map<String, dynamic> post) {
     final timeRanges = post['timeRanges'] as List<dynamic>? ?? [];
+    final isActive = post['status'] == 1; // 모집 진행중인 게시글인지 확인
 
     if (timeRanges.isEmpty) {
       return Container(
@@ -1349,67 +1377,78 @@ class _AdminPostCheckState extends State<AdminPostCheck>
                   context,
                 ).copyWith(dividerColor: Colors.transparent),
                 child: ExpansionTile(
-                  tilePadding: const EdgeInsets.symmetric(
-                    horizontal: 20,
-                    vertical: 8,
-                  ),
-                  childrenPadding: const EdgeInsets.only(bottom: 12),
-                  leading: Icon(
-                    Icons.calendar_month,
-                    color: Colors.black,
-                    size: 24,
-                  ),
                   title: Text(
                     _formatDateWithWeekday(dateStr),
-                    style: AppTheme.h4Style.copyWith(
-                      fontSize: 16,
+                    style: AppTheme.bodyLargeStyle.copyWith(
                       fontWeight: FontWeight.w600,
-                      color: AppTheme.textPrimary,
                     ),
                   ),
-                  trailing: Icon(
-                    Icons.keyboard_arrow_down,
-                    color: Colors.black,
-                    size: 24,
-                  ),
                   children:
-                      timeSlots.map<Widget>((timeSlot) {
-                        final timeStr =
-                            timeSlot['time'] ??
-                            timeSlot['donation_time'] ??
-                            'N/A';
-                        return Container(
-                          margin: const EdgeInsets.symmetric(
-                            horizontal: 20,
-                            vertical: 4,
-                          ),
+                      timeSlots.map((timeSlot) {
+                        final time = timeSlot['time'] ?? '';
+
+                        return InkWell(
+                          onTap:
+                              isActive
+                                  ? () => _showTimeSlotApplicants(
+                                    post['postIdx'],
+                                    timeSlot['post_times_idx'],
+                                    dateStr,
+                                    time,
+                                  )
+                                  : null,
                           child: Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 16,
-                              vertical: 14,
-                            ),
+                            padding: const EdgeInsets.all(12),
                             decoration: BoxDecoration(
-                              color: Colors.grey.shade50,
-                              borderRadius: BorderRadius.circular(8),
-                              border: Border.all(color: Colors.grey.shade200),
+                              color:
+                                  isActive
+                                      ? Colors.blue.shade50
+                                      : Colors.grey.shade100,
+                              border: Border(
+                                top: BorderSide(color: Colors.grey.shade200),
+                              ),
                             ),
                             child: Row(
                               children: [
                                 Icon(
                                   Icons.access_time,
-                                  color: Colors.black,
-                                  size: 20,
+                                  size: 16,
+                                  color: isActive ? Colors.blue : Colors.grey,
                                 ),
-                                const SizedBox(width: 12),
-                                Expanded(
-                                  child: Text(
-                                    _formatTime(timeStr),
-                                    style: AppTheme.bodyLargeStyle.copyWith(
-                                      fontWeight: FontWeight.w600,
-                                      color: Colors.black,
-                                    ),
+                                const SizedBox(width: 8),
+                                Text(
+                                  _formatTime(time),
+                                  style: AppTheme.bodyMediumStyle.copyWith(
+                                    color:
+                                        isActive
+                                            ? Colors.blue.shade700
+                                            : Colors.grey,
+                                    fontWeight: FontWeight.w500,
                                   ),
                                 ),
+                                const Spacer(),
+                                if (isActive)
+                                  TextButton.icon(
+                                    onPressed:
+                                        () => _showTimeSlotApplicants(
+                                          post['id'],
+                                          timeSlot['id'],
+                                          dateStr,
+                                          time,
+                                        ),
+                                    icon: const Icon(
+                                      Icons.people_outline,
+                                      size: 18,
+                                    ),
+                                    label: const Text('신청자 관리'),
+                                    style: TextButton.styleFrom(
+                                      foregroundColor: Colors.blue,
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 12,
+                                        vertical: 8,
+                                      ),
+                                    ),
+                                  ),
                               ],
                             ),
                           ),
@@ -1419,6 +1458,197 @@ class _AdminPostCheckState extends State<AdminPostCheck>
               ),
             );
           }).toList(),
+    );
+  }
+
+  void _showTimeSlotApplicants(
+    dynamic postId,
+    dynamic timeSlotId,
+    String date,
+    String time,
+  ) {
+    // ID 값들을 정수형으로 변환
+    final postIdInt =
+        postId is int ? postId : int.tryParse(postId.toString()) ?? 0;
+    final timeSlotIdInt =
+        timeSlotId is int
+            ? timeSlotId
+            : int.tryParse(timeSlotId.toString()) ?? 0;
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (BuildContext context) {
+        return DraggableScrollableSheet(
+          initialChildSize: 0.6,
+          minChildSize: 0.4,
+          maxChildSize: 0.95,
+          expand: false,
+          builder: (BuildContext context, ScrollController scrollController) {
+            return Container(
+              decoration: const BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+              ),
+              child: Column(
+                children: [
+                  // 핸들 바
+                  Container(
+                    width: 40,
+                    height: 4,
+                    margin: const EdgeInsets.symmetric(vertical: 12),
+                    decoration: BoxDecoration(
+                      color: Colors.grey[300],
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                  // 헤더
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(20, 8, 20, 16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          '신청자 목록',
+                          style: AppTheme.h3Style.copyWith(
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          '${_formatDateWithWeekday(date)} ${_formatTime(time)}',
+                          style: AppTheme.bodyMediumStyle.copyWith(
+                            color: Colors.grey[600],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const Divider(height: 1),
+                  // 신청자 목록
+                  Expanded(
+                    child: FutureBuilder<List<Map<String, dynamic>>>(
+                      future: _fetchTimeSlotApplicants(
+                        postIdInt,
+                        timeSlotIdInt,
+                        time,
+                      ),
+                      builder: (context, snapshot) {
+                        if (snapshot.connectionState ==
+                            ConnectionState.waiting) {
+                          return const Center(
+                            child: CircularProgressIndicator(),
+                          );
+                        }
+
+                        if (snapshot.hasError) {
+                          return Center(
+                            child: Text(
+                              '신청자 정보를 불러오는데 실패했습니다.\n${snapshot.error}',
+                              textAlign: TextAlign.center,
+                              style: AppTheme.bodyMediumStyle.copyWith(
+                                color: Colors.red,
+                              ),
+                            ),
+                          );
+                        }
+
+                        final applicants = snapshot.data ?? [];
+                        if (applicants.isEmpty) {
+                          return Center(
+                            child: Text(
+                              '아직 신청자가 없습니다.',
+                              style: AppTheme.bodyMediumStyle.copyWith(
+                                color: Colors.grey[600],
+                              ),
+                            ),
+                          );
+                        }
+
+                        return ListView.separated(
+                          controller: scrollController,
+                          padding: const EdgeInsets.all(16),
+                          itemCount: applicants.length,
+                          separatorBuilder: (context, index) => const Divider(),
+                          itemBuilder: (context, index) {
+                            final applicant = applicants[index];
+                            return ListTile(
+                              title: Text(
+                                '${applicant['name'] ?? '이름 없음'} (${applicant['contact'] ?? '연락처 없음'})',
+                                style: AppTheme.bodyLargeStyle.copyWith(
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                              subtitle: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    '반려동물: ${(applicant['pet_info'] as Map<String, dynamic>)['name'] ?? '이름 없음'} (${(applicant['pet_info'] as Map<String, dynamic>)['breed'] ?? '품종 정보 없음'})',
+                                    style: AppTheme.bodySmallStyle,
+                                  ),
+                                  Text(
+                                    '나이: ${(applicant['pet_info'] as Map<String, dynamic>)['age'] ?? '?'}세, 혈액형: ${(applicant['pet_info'] as Map<String, dynamic>)['blood_type'] ?? '정보 없음'}',
+                                    style: AppTheme.bodySmallStyle,
+                                  ),
+                                ],
+                              ),
+                              trailing: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  if (applicant['status'] == 0) ...[
+                                    TextButton(
+                                      onPressed:
+                                          () => _updateApplicantStatus(
+                                            timeSlotIdInt,
+                                            applicant['id'],
+                                            true,
+                                          ),
+                                      child: const Text('승인'),
+                                      style: TextButton.styleFrom(
+                                        foregroundColor: Colors.green,
+                                      ),
+                                    ),
+                                    TextButton(
+                                      onPressed:
+                                          () => _updateApplicantStatus(
+                                            timeSlotIdInt,
+                                            applicant['id'],
+                                            false,
+                                          ),
+                                      child: const Text('거절'),
+                                      style: TextButton.styleFrom(
+                                        foregroundColor: Colors.red,
+                                      ),
+                                    ),
+                                  ] else ...[
+                                    Text(
+                                      applicant['status'] == 1 ? '승인됨' : '거절됨',
+                                      style: AppTheme.bodySmallStyle.copyWith(
+                                        color:
+                                            applicant['status'] == 1
+                                                ? Colors.green
+                                                : Colors.red,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                  ],
+                                ],
+                              ),
+                            );
+                          },
+                        );
+                      },
+                    ),
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
     );
   }
 }
