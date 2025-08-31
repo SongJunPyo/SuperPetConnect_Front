@@ -47,7 +47,9 @@ class HospitalInfo {
       isActive: json['is_active'] ?? json['approved'] ?? false,
       columnActive: json['column_active'] ?? false,
       approved: json['approved'] ?? false,
-      createdAt: DateTime.tryParse(json['created_time'] ?? json['created_at'] ?? '') ?? DateTime.now(),
+      createdAt:
+          DateTime.tryParse(json['created_time'] ?? json['created_at'] ?? '') ??
+          DateTime.now(),
       managerName: json['manager_name'],
       donationCount: json['donation_count'] ?? 0,
     );
@@ -89,7 +91,7 @@ class HospitalListResponse {
     // API 응답이 직접 배열인 경우와 객체 안에 배열이 있는 경우 모두 처리
     List<dynamic> hospitalsData = [];
     Map<String, dynamic> json = {};
-    
+
     if (jsonData is List) {
       // API가 직접 배열을 반환하는 경우
       hospitalsData = jsonData;
@@ -103,14 +105,19 @@ class HospitalListResponse {
         hospitalsData = json['data'] as List;
       }
     }
-    
-    final hospitalsList = hospitalsData
-        .map((hospital) => HospitalInfo.fromJson(hospital as Map<String, dynamic>))
-        .toList();
-    
+
+    final hospitalsList =
+        hospitalsData
+            .map(
+              (hospital) =>
+                  HospitalInfo.fromJson(hospital as Map<String, dynamic>),
+            )
+            .toList();
+
     return HospitalListResponse(
       hospitals: hospitalsList,
-      totalCount: json['total_count'] ?? json['totalCount'] ?? hospitalsList.length,
+      totalCount:
+          json['total_count'] ?? json['totalCount'] ?? hospitalsList.length,
       page: json['page'] ?? 1,
       pageSize: json['page_size'] ?? json['pageSize'] ?? hospitalsList.length,
     );
@@ -122,11 +129,7 @@ class HospitalUpdateRequest {
   final bool? isActive;
   final bool? columnActive;
 
-  HospitalUpdateRequest({
-    this.hospitalCode,
-    this.isActive,
-    this.columnActive,
-  });
+  HospitalUpdateRequest({this.hospitalCode, this.isActive, this.columnActive});
 
   Map<String, dynamic> toJson() {
     final Map<String, dynamic> data = {};
@@ -201,11 +204,9 @@ class AdminHospitalService {
         queryParams['approved'] = approved.toString();
       }
 
-      final uri = Uri.parse('$baseUrl/list').replace(
-        queryParameters: queryParams,
-      );
-
-      print('DEBUG: 병원 목록 조회 - URL: $uri');
+      final uri = Uri.parse(
+        '$baseUrl/list',
+      ).replace(queryParameters: queryParams);
 
       final response = await http.get(
         uri,
@@ -215,21 +216,9 @@ class AdminHospitalService {
         },
       );
 
-      print('DEBUG: 병원 목록 응답 상태코드: ${response.statusCode}');
-      print('DEBUG: 병원 목록 응답 본문: ${response.body}');
-
       if (response.statusCode == 200) {
         final data = jsonDecode(utf8.decode(response.bodyBytes));
-        print('DEBUG: 응답 데이터 타입: ${data.runtimeType}');
-        print('DEBUG: 응답 데이터 구조: $data');
-        
-        if (data is Map) {
-          print('DEBUG: Map 구조 - keys: ${data.keys.toList()}');
-        }
-        
-        final result = HospitalListResponse.fromJson(data);
-        print('DEBUG: 파싱된 병원 수: ${result.hospitals.length}');
-        return result;
+        return HospitalListResponse.fromJson(data);
       } else if (response.statusCode == 401) {
         throw Exception('권한이 없습니다. 관리자 계정으로 로그인해주세요.');
       } else if (response.statusCode == 403) {
@@ -241,7 +230,6 @@ class AdminHospitalService {
         );
       }
     } catch (e) {
-      print('ERROR: 병원 목록 조회 중 오류: $e');
       throw Exception('병원 목록 조회 중 오류 발생: $e');
     }
   }
@@ -256,9 +244,6 @@ class AdminHospitalService {
         throw Exception('인증 토큰이 없습니다. 다시 로그인해주세요.');
       }
 
-      print('DEBUG: 병원 검색 요청 - URL: $baseUrl/search');
-      print('DEBUG: 검색 요청 본문: ${jsonEncode(request.toJson())}');
-
       final response = await http.post(
         Uri.parse('$baseUrl/search'),
         headers: {
@@ -267,9 +252,6 @@ class AdminHospitalService {
         },
         body: jsonEncode(request.toJson()),
       );
-
-      print('DEBUG: 검색 응답 상태코드: ${response.statusCode}');
-      print('DEBUG: 검색 응답 본문: ${response.body}');
 
       if (response.statusCode == 200) {
         final data = jsonDecode(utf8.decode(response.bodyBytes));
@@ -298,8 +280,6 @@ class AdminHospitalService {
         throw Exception('인증 토큰이 없습니다. 다시 로그인해주세요.');
       }
 
-      print('DEBUG: 병원 상세 조회 - URL: $baseUrl/$accountIdx');
-
       final response = await http.get(
         Uri.parse('$baseUrl/$accountIdx'),
         headers: {
@@ -307,9 +287,6 @@ class AdminHospitalService {
           'Authorization': 'Bearer $token',
         },
       );
-
-      print('DEBUG: 병원 상세 응답 상태코드: ${response.statusCode}');
-      print('DEBUG: 병원 상세 응답 본문: ${response.body}');
 
       if (response.statusCode == 200) {
         final data = jsonDecode(utf8.decode(response.bodyBytes));
@@ -343,9 +320,6 @@ class AdminHospitalService {
         throw Exception('인증 토큰이 없습니다. 다시 로그인해주세요.');
       }
 
-      print('DEBUG: 병원 정보 수정 요청 - URL: $baseUrl/$accountIdx');
-      print('DEBUG: 수정 요청 본문: ${jsonEncode(request.toJson())}');
-
       final response = await http.put(
         Uri.parse('$baseUrl/$accountIdx'),
         headers: {
@@ -355,17 +329,14 @@ class AdminHospitalService {
         body: jsonEncode(request.toJson()),
       );
 
-      print('DEBUG: 수정 응답 상태코드: ${response.statusCode}');
-      print('DEBUG: 수정 응답 본문: ${response.body}');
-
       if (response.statusCode == 200) {
         final data = jsonDecode(utf8.decode(response.bodyBytes));
-        
+
         // API가 메시지만 반환하는 경우, 현재 병원 정보를 다시 조회
         if (data.containsKey('message') && !data.containsKey('account_idx')) {
           return await getHospitalDetail(accountIdx);
         }
-        
+
         return HospitalInfo.fromJson(data);
       } else if (response.statusCode == 404) {
         throw Exception('병원을 찾을 수 없습니다.');
@@ -393,8 +364,6 @@ class AdminHospitalService {
         throw Exception('인증 토큰이 없습니다. 다시 로그인해주세요.');
       }
 
-      print('DEBUG: 병원 삭제 요청 - URL: $baseUrl/$accountIdx');
-
       final response = await http.delete(
         Uri.parse('$baseUrl/$accountIdx'),
         headers: {
@@ -402,9 +371,6 @@ class AdminHospitalService {
           'Authorization': 'Bearer $token',
         },
       );
-
-      print('DEBUG: 삭제 응답 상태코드: ${response.statusCode}');
-      print('DEBUG: 삭제 응답 본문: ${response.body}');
 
       if (response.statusCode == 204 || response.statusCode == 200) {
         return; // 성공적으로 삭제됨
@@ -434,8 +400,6 @@ class AdminHospitalService {
         throw Exception('인증 토큰이 없습니다. 다시 로그인해주세요.');
       }
 
-      print('DEBUG: 병원 통계 조회 - URL: $baseUrl/statistics/summary');
-
       final response = await http.get(
         Uri.parse('$baseUrl/statistics/summary'),
         headers: {
@@ -443,9 +407,6 @@ class AdminHospitalService {
           'Authorization': 'Bearer $token',
         },
       );
-
-      print('DEBUG: 통계 응답 상태코드: ${response.statusCode}');
-      print('DEBUG: 통계 응답 본문: ${response.body}');
 
       if (response.statusCode == 200) {
         return jsonDecode(utf8.decode(response.bodyBytes));

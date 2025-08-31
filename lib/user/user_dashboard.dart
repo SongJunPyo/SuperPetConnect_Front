@@ -52,14 +52,14 @@ class _UserDashboardState extends State<UserDashboard>
   // 지역 선택 관련 변수들 - 다중 선택 지원
   List<Region> selectedLargeRegions = []; // 선택된 시/도 목록
   Map<Region, List<Region>> selectedMediumRegions = {}; // 시/도별 선택된 시/군/구 목록
-  
+
   String get selectedRegionText {
     if (selectedLargeRegions.isEmpty) return '전체 지역';
-    
+
     if (selectedLargeRegions.length == 1) {
       final largeRegion = selectedLargeRegions.first;
       final mediumRegions = selectedMediumRegions[largeRegion] ?? [];
-      
+
       if (mediumRegions.isEmpty) {
         return '${largeRegion.name} 전체';
       } else if (mediumRegions.length == 1) {
@@ -93,6 +93,7 @@ class _UserDashboardState extends State<UserDashboard>
   }
 
   void _updateDateTime() {
+    if (!mounted) return;
     final now = DateTime.now();
     final formatter = DateFormat('yyyy년 M월 d일 (EEEE) HH:mm', 'ko_KR');
     setState(() {
@@ -128,6 +129,7 @@ class _UserDashboardState extends State<UserDashboard>
 
           print('DEBUG: 서버에서 받은 사용자 이름: $userRealName');
           print('DEBUG: 서버에서 받은 사용자 닉네임: $userRealNickname');
+          if (!mounted) return;
           setState(() {
             userName = userRealName;
             userNickname = userRealNickname;
@@ -139,7 +141,8 @@ class _UserDashboardState extends State<UserDashboard>
           return;
         }
       } catch (e) {
-        print('서버에서 사용자 이름 로드 실패: $e');
+        // 웹 환경에서는 CORS 문제로 인해 로컬 데이터 사용
+        print('DEBUG: 로컬 사용자 정보 사용 (서버 연결 실패)');
       }
     }
 
@@ -149,12 +152,14 @@ class _UserDashboardState extends State<UserDashboard>
     if (savedName != null && savedName.isNotEmpty) {
       print('DEBUG: 로컬에서 받은 사용자 이름: $savedName');
       print('DEBUG: 로컬에서 받은 사용자 닉네임: $savedNickname');
+      if (!mounted) return;
       setState(() {
         userName = savedName;
         userNickname = savedNickname ?? savedName;
       });
     } else {
       print('DEBUG: 기본 사용자 이름 사용');
+      if (!mounted) return;
       setState(() {
         userName = '사용자';
         userNickname = '사용자';
@@ -172,7 +177,7 @@ class _UserDashboardState extends State<UserDashboard>
   String _getSimpleRegionName(String fullName) {
     const regionMapping = {
       '서울특별시': '서울',
-      '부산광역시': '부산', 
+      '부산광역시': '부산',
       '대구광역시': '대구',
       '인천광역시': '인천',
       '광주광역시': '광주',
@@ -191,7 +196,7 @@ class _UserDashboardState extends State<UserDashboard>
       '경상남도': '경남',
       '제주특별자치도': '제주',
     };
-    
+
     final mapped = regionMapping[fullName];
     print('DEBUG: 지역 매핑 - $fullName → $mapped');
     return mapped ?? fullName;
@@ -205,7 +210,7 @@ class _UserDashboardState extends State<UserDashboard>
 
     try {
       List<DonationPost> allDonationPosts = [];
-      
+
       if (selectedLargeRegions.isEmpty) {
         // 전체 지역 선택인 경우
         final posts = await DashboardService.getPublicPosts(limit: 50);
@@ -214,7 +219,7 @@ class _UserDashboardState extends State<UserDashboard>
         // 선택된 지역들에서 데이터 가져오기
         for (final largeRegion in selectedLargeRegions) {
           final mediumRegions = selectedMediumRegions[largeRegion] ?? [];
-          
+
           if (mediumRegions.isEmpty) {
             // 시/도 전체 선택인 경우 - 서버 권장 간단명칭 사용
             final posts = await DashboardService.getPublicPosts(
@@ -256,12 +261,14 @@ class _UserDashboardState extends State<UserDashboard>
         return b.createdAt.compareTo(a.createdAt);
       });
 
+      if (!mounted) return;
       setState(() {
         donations = sortedDonations.take(10).toList();
         isLoadingDonations = false;
       });
     } catch (e) {
       print('헌혈 모집글 새로고침 실패: $e');
+      if (!mounted) return;
       setState(() {
         isLoadingDonations = false;
       });
@@ -280,16 +287,17 @@ class _UserDashboardState extends State<UserDashboard>
     try {
       // 다중 지역 선택에 따른 헌혈 모집글 로딩
       List<DonationPost> allDonationPosts = [];
-      
+
       if (selectedLargeRegions.isEmpty) {
         // 전체 지역 선택인 경우
         final posts = await DashboardService.getPublicPosts(limit: 10);
         allDonationPosts.addAll(posts);
       } else {
         // 선택된 지역들에서 데이터 가져오기 (초기 로딩이므로 제한적으로)
-        for (final largeRegion in selectedLargeRegions.take(3)) { // 처음 3개 지역만
+        for (final largeRegion in selectedLargeRegions.take(3)) {
+          // 처음 3개 지역만
           final mediumRegions = selectedMediumRegions[largeRegion] ?? [];
-          
+
           if (mediumRegions.isEmpty) {
             // 시/도 전체 선택인 경우 - 서버 권장 간단명칭 사용
             final posts = await DashboardService.getPublicPosts(
@@ -395,6 +403,7 @@ class _UserDashboardState extends State<UserDashboard>
         return b.createdAt.compareTo(a.createdAt);
       });
 
+      if (!mounted) return;
       setState(() {
         donations = sortedDonations.take(10).toList();
         columns = sortedColumns.take(10).toList();
@@ -406,6 +415,7 @@ class _UserDashboardState extends State<UserDashboard>
       });
     } catch (e) {
       print('대시보드 데이터 로드 실패: $e');
+      if (!mounted) return;
       setState(() {
         isLoadingDashboard = false;
         isLoadingDonations = false;
@@ -435,18 +445,19 @@ class _UserDashboardState extends State<UserDashboard>
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (context) => RegionSelectionSheet(
-        initialSelectedLargeRegions: List.from(selectedLargeRegions),
-        initialSelectedMediumRegions: Map.from(selectedMediumRegions),
-        onRegionSelected: (selectedLarges, selectedMediums) {
-          setState(() {
-            selectedLargeRegions = selectedLarges;
-            selectedMediumRegions = selectedMediums;
-          });
-          // 지역이 변경되면 헌혈 모집 데이터만 새로고침
-          _refreshDonationPosts();
-        },
-      ),
+      builder:
+          (context) => RegionSelectionSheet(
+            initialSelectedLargeRegions: List.from(selectedLargeRegions),
+            initialSelectedMediumRegions: Map.from(selectedMediumRegions),
+            onRegionSelected: (selectedLarges, selectedMediums) {
+              setState(() {
+                selectedLargeRegions = selectedLarges;
+                selectedMediumRegions = selectedMediums;
+              });
+              // 지역이 변경되면 헌혈 모집 데이터만 새로고침
+              _refreshDonationPosts();
+            },
+          ),
     );
   }
 
@@ -675,268 +686,295 @@ class _UserDashboardState extends State<UserDashboard>
           ),
           // 헌혈 모집 목록
           Expanded(
-            child: donations.isEmpty
-                ? Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(Icons.bloodtype_outlined, size: 48, color: AppTheme.mediumGray),
-                        const SizedBox(height: 12),
-                        Text(
-                          '선택한 지역에 헌혈 모집이 없습니다',
-                          style: AppTheme.bodyMediumStyle.copyWith(
-                            color: AppTheme.textSecondary,
+            child:
+                donations.isEmpty
+                    ? Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(
+                            Icons.bloodtype_outlined,
+                            size: 48,
+                            color: AppTheme.mediumGray,
                           ),
-                        ),
-                        const SizedBox(height: 8),
-                        TextButton(
-                          onPressed: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) => const UserDonationPostsListScreen(),
-                              ),
-                            );
-                          },
-                          child: Text(
-                            '전체 헌혈 모집 보기',
-                            style: AppTheme.bodySmallStyle.copyWith(
-                              color: AppTheme.primaryBlue,
-                              fontWeight: FontWeight.w600,
+                          const SizedBox(height: 12),
+                          Text(
+                            '선택한 지역에 헌혈 모집이 없습니다',
+                            style: AppTheme.bodyMediumStyle.copyWith(
+                              color: AppTheme.textSecondary,
                             ),
                           ),
-                        ),
-                      ],
-                    ),
-                  )
-                : ListView.separated(
-                    padding: EdgeInsets.zero,
-                    itemCount: donations.length + 1, // ... 아이템 추가를 위해 +1
-                    separatorBuilder:
-                        (context, index) => Container(
-                          height: 1,
-                          color: AppTheme.lightGray.withOpacity(0.2),
-                          margin: const EdgeInsets.symmetric(horizontal: 16),
-                        ),
-                    itemBuilder: (context, index) {
-                      // 마지막 아이템은 ... 버튼
-                      if (index == donations.length) {
+                          const SizedBox(height: 8),
+                          TextButton(
+                            onPressed: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder:
+                                      (context) =>
+                                          const UserDonationPostsListScreen(),
+                                ),
+                              );
+                            },
+                            child: Text(
+                              '전체 헌혈 모집 보기',
+                              style: AppTheme.bodySmallStyle.copyWith(
+                                color: AppTheme.primaryBlue,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    )
+                    : ListView.separated(
+                      padding: EdgeInsets.zero,
+                      itemCount: donations.length + 1, // ... 아이템 추가를 위해 +1
+                      separatorBuilder:
+                          (context, index) => Container(
+                            height: 1,
+                            color: AppTheme.lightGray.withOpacity(0.2),
+                            margin: const EdgeInsets.symmetric(horizontal: 16),
+                          ),
+                      itemBuilder: (context, index) {
+                        // 마지막 아이템은 ... 버튼
+                        if (index == donations.length) {
+                          return InkWell(
+                            onTap: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder:
+                                      (context) =>
+                                          const UserDonationPostsListScreen(),
+                                ),
+                              );
+                            },
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 12,
+                                vertical: 16,
+                              ),
+                              child: Center(
+                                child: Text(
+                                  '...',
+                                  style: AppTheme.h3Style.copyWith(
+                                    color: AppTheme.textTertiary,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          );
+                        }
+
+                        final donation = donations[index];
+
                         return InkWell(
                           onTap: () {
+                            // 헌혈 모집 게시글 페이지로 이동하고 해당 게시글의 바텀 시트 표시
                             Navigator.push(
                               context,
                               MaterialPageRoute(
-                                builder: (context) => const UserDonationPostsListScreen(),
+                                builder:
+                                    (context) => UserDonationPostsListScreen(
+                                      initialPost: donation,
+                                      autoShowBottomSheet: true,
+                                    ),
                               ),
                             );
                           },
                           child: Container(
                             padding: const EdgeInsets.symmetric(
                               horizontal: 12,
-                              vertical: 16,
+                              vertical: 12,
                             ),
-                            child: Center(
-                              child: Text(
-                                '...',
-                                style: AppTheme.h3Style.copyWith(
-                                  color: AppTheme.textTertiary,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                            ),
-                          ),
-                        );
-                      }
-
-                final donation = donations[index];
-
-                return InkWell(
-                  onTap: () {
-                    // 헌혈 모집 게시글 페이지로 이동하고 해당 게시글의 바텀 시트 표시
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => UserDonationPostsListScreen(
-                          initialPost: donation,
-                          autoShowBottomSheet: true,
-                        ),
-                      ),
-                    );
-                  },
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 12,
-                    ),
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.center,
-                      children: [
-                        // 왼쪽: 순서 (카드 중앙 높이)
-                        Container(
-                          width: 28,
-                          child: Text(
-                            '${index + 1}',
-                            style: AppTheme.bodySmallStyle.copyWith(
-                              color: AppTheme.textTertiary,
-                              fontWeight: FontWeight.w500,
-                              fontSize: 13,
-                            ),
-                            textAlign: TextAlign.center,
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        // 중앙: 메인 콘텐츠
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              // 첫 번째 줄: 뱃지 + 제목
-                              Row(
-                                crossAxisAlignment: CrossAxisAlignment.center,
-                                children: [
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 6,
-                                      vertical: 3,
-                                    ),
-                                    decoration: BoxDecoration(
-                                      color:
-                                          donation.isUrgent
-                                              ? AppTheme.error
-                                              : AppTheme.success,
-                                      borderRadius: BorderRadius.circular(4),
-                                    ),
-                                    child: Text(
-                                      donation.isUrgent ? '긴급' : '정기',
-                                      style: AppTheme.bodySmallStyle.copyWith(
-                                        color: Colors.white,
-                                        fontWeight: FontWeight.bold,
-                                        fontSize: 10,
-                                      ),
-                                    ),
-                                  ),
-                                  const SizedBox(width: 8),
-                                  Expanded(
-                                    child: MarqueeText(
-                                      text: donation.title,
-                                      style: AppTheme.bodyMediumStyle.copyWith(
-                                        color:
-                                            donation.isUrgent
-                                                ? AppTheme.error
-                                                : AppTheme.textPrimary,
-                                        fontWeight:
-                                            donation.isUrgent
-                                                ? FontWeight.w600
-                                                : FontWeight.w500,
-                                        fontSize: 14,
-                                      ),
-                                      animationDuration: const Duration(
-                                        milliseconds: 4000,
-                                      ),
-                                      pauseDuration: const Duration(
-                                        milliseconds: 1000,
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                              const SizedBox(height: 6),
-                              // 두 번째 줄: 병원 주소
-                              Row(
-                                children: [
-                                  // 병원 주소 (전체 표시)
-                                  Expanded(
-                                    child: Text(
-                                      donation.location.isNotEmpty
-                                          ? donation.location
-                                          : '주소 정보 없음',
-                                      style: AppTheme.bodySmallStyle.copyWith(
-                                        color: AppTheme.textSecondary,
-                                        fontSize: 12,
-                                      ),
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        // 오른쪽: 날짜들 + 2줄 높이의 조회수 박스
-                        Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            // 날짜 컬럼 (등록/헌혈 날짜 세로 배치)
-                            Column(
-                              crossAxisAlignment: CrossAxisAlignment.end,
+                            child: Row(
+                              crossAxisAlignment: CrossAxisAlignment.center,
                               children: [
-                                Text(
-                                  '작성: ${DateFormat('yy.MM.dd').format(donation.createdAt)}',
-                                  style: AppTheme.bodySmallStyle.copyWith(
-                                    color: AppTheme.textTertiary,
-                                    fontSize: 11,
+                                // 왼쪽: 순서 (카드 중앙 높이)
+                                Container(
+                                  width: 28,
+                                  child: Text(
+                                    '${index + 1}',
+                                    style: AppTheme.bodySmallStyle.copyWith(
+                                      color: AppTheme.textTertiary,
+                                      fontWeight: FontWeight.w500,
+                                      fontSize: 13,
+                                    ),
+                                    textAlign: TextAlign.center,
                                   ),
                                 ),
-                                const SizedBox(height: 2),
-                                Text(
-                                  '헌혈: ${donation.donationDate != null ? DateFormat('yy.MM.dd').format(donation.donationDate!) : '미정'}',
-                                  style: AppTheme.bodySmallStyle.copyWith(
-                                    color: AppTheme.textTertiary,
-                                    fontSize: 11,
+                                const SizedBox(width: 8),
+                                // 중앙: 메인 콘텐츠
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      // 첫 번째 줄: 뱃지 + 제목
+                                      Row(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.center,
+                                        children: [
+                                          Container(
+                                            padding: const EdgeInsets.symmetric(
+                                              horizontal: 6,
+                                              vertical: 3,
+                                            ),
+                                            decoration: BoxDecoration(
+                                              color:
+                                                  donation.isUrgent
+                                                      ? AppTheme.error
+                                                      : AppTheme.success,
+                                              borderRadius:
+                                                  BorderRadius.circular(4),
+                                            ),
+                                            child: Text(
+                                              donation.isUrgent ? '긴급' : '정기',
+                                              style: AppTheme.bodySmallStyle
+                                                  .copyWith(
+                                                    color: Colors.white,
+                                                    fontWeight: FontWeight.bold,
+                                                    fontSize: 10,
+                                                  ),
+                                            ),
+                                          ),
+                                          const SizedBox(width: 8),
+                                          Expanded(
+                                            child: MarqueeText(
+                                              text: donation.title,
+                                              style: AppTheme.bodyMediumStyle
+                                                  .copyWith(
+                                                    color:
+                                                        donation.isUrgent
+                                                            ? AppTheme.error
+                                                            : AppTheme
+                                                                .textPrimary,
+                                                    fontWeight:
+                                                        donation.isUrgent
+                                                            ? FontWeight.w600
+                                                            : FontWeight.w500,
+                                                    fontSize: 14,
+                                                  ),
+                                              animationDuration: const Duration(
+                                                milliseconds: 4000,
+                                              ),
+                                              pauseDuration: const Duration(
+                                                milliseconds: 1000,
+                                              ),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                      const SizedBox(height: 6),
+                                      // 두 번째 줄: 병원 주소
+                                      Row(
+                                        children: [
+                                          // 병원 주소 (전체 표시)
+                                          Expanded(
+                                            child: Text(
+                                              donation.location.isNotEmpty
+                                                  ? donation.location
+                                                  : '주소 정보 없음',
+                                              style: AppTheme.bodySmallStyle
+                                                  .copyWith(
+                                                    color:
+                                                        AppTheme.textSecondary,
+                                                    fontSize: 12,
+                                                  ),
+                                              maxLines: 1,
+                                              overflow: TextOverflow.ellipsis,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ],
                                   ),
+                                ),
+                                const SizedBox(width: 12),
+                                // 오른쪽: 날짜들 + 2줄 높이의 조회수 박스
+                                Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    // 날짜 컬럼 (등록/헌혈 날짜 세로 배치)
+                                    Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.end,
+                                      children: [
+                                        Text(
+                                          '작성: ${DateFormat('yy.MM.dd').format(donation.createdAt)}',
+                                          style: AppTheme.bodySmallStyle
+                                              .copyWith(
+                                                color: AppTheme.textTertiary,
+                                                fontSize: 11,
+                                              ),
+                                        ),
+                                        const SizedBox(height: 2),
+                                        Text(
+                                          '헌혈: ${donation.donationDate != null ? DateFormat('yy.MM.dd').format(donation.donationDate!) : '미정'}',
+                                          style: AppTheme.bodySmallStyle
+                                              .copyWith(
+                                                color: AppTheme.textTertiary,
+                                                fontSize: 11,
+                                              ),
+                                        ),
+                                      ],
+                                    ),
+                                    const SizedBox(width: 8),
+                                    // 2줄 높이의 조회수 박스
+                                    Container(
+                                      height: 36, // 높이 늘림
+                                      width: 40, // 너비 늘림
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 4,
+                                        vertical: 4,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color: AppTheme.mediumGray.withOpacity(
+                                          0.2,
+                                        ),
+                                        borderRadius: BorderRadius.circular(6),
+                                        border: Border.all(
+                                          color: AppTheme.lightGray.withOpacity(
+                                            0.3,
+                                          ),
+                                          width: 1,
+                                        ),
+                                      ),
+                                      child: Column(
+                                        mainAxisAlignment:
+                                            MainAxisAlignment.center,
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          Icon(
+                                            Icons.visibility_outlined,
+                                            size: 10,
+                                            color: AppTheme.textTertiary,
+                                          ),
+                                          const SizedBox(height: 1),
+                                          Text(
+                                            NumberFormatUtil.formatViewCount(
+                                              donation.viewCount,
+                                            ),
+                                            style: AppTheme.bodySmallStyle
+                                                .copyWith(
+                                                  color: AppTheme.textTertiary,
+                                                  fontSize: 10,
+                                                  fontWeight: FontWeight.w500,
+                                                ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ],
                                 ),
                               ],
                             ),
-                            const SizedBox(width: 8),
-                            // 2줄 높이의 조회수 박스
-                            Container(
-                              height: 36, // 높이 늘림
-                              width: 40, // 너비 늘림
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 4,
-                                vertical: 4,
-                              ),
-                              decoration: BoxDecoration(
-                                color: AppTheme.mediumGray.withOpacity(0.2),
-                                borderRadius: BorderRadius.circular(6),
-                                border: Border.all(
-                                  color: AppTheme.lightGray.withOpacity(0.3),
-                                  width: 1,
-                                ),
-                              ),
-                              child: Column(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Icon(
-                                    Icons.visibility_outlined,
-                                    size: 10,
-                                    color: AppTheme.textTertiary,
-                                  ),
-                                  const SizedBox(height: 1),
-                                  Text(
-                                    NumberFormatUtil.formatViewCount(
-                                      donation.viewCount,
-                                    ),
-                                    style: AppTheme.bodySmallStyle.copyWith(
-                                      color: AppTheme.textTertiary,
-                                      fontSize: 10,
-                                      fontWeight: FontWeight.w500,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
+                          ),
+                        );
+                      },
                     ),
-                  ),
-                );
-              },
-            ),
           ),
         ],
       ),
@@ -1081,11 +1119,12 @@ class _UserDashboardState extends State<UserDashboard>
                                   ],
                                   Expanded(
                                     child: MarqueeText(
-                                      text: TextPersonalizationUtil.personalizeTitle(
-                                        title: column.title,
-                                        userName: userName,
-                                        userNickname: userNickname,
-                                      ),
+                                      text:
+                                          TextPersonalizationUtil.personalizeTitle(
+                                            title: column.title,
+                                            userName: userName,
+                                            userNickname: userNickname,
+                                          ),
                                       style: AppTheme.bodyMediumStyle.copyWith(
                                         color:
                                             isImportant
@@ -1110,9 +1149,12 @@ class _UserDashboardState extends State<UserDashboard>
                               const SizedBox(height: 6),
                               // 두 번째 줄: 작성자 이름
                               Text(
-                                (column.authorNickname ?? column.hospitalName).length > 15
+                                (column.authorNickname ?? column.hospitalName)
+                                            .length >
+                                        15
                                     ? '${(column.authorNickname ?? column.hospitalName).substring(0, 15)}..'
-                                    : (column.authorNickname ?? column.hospitalName),
+                                    : (column.authorNickname ??
+                                        column.hospitalName),
                                 style: AppTheme.bodySmallStyle.copyWith(
                                   color: AppTheme.textSecondary,
                                   fontSize: 12,
@@ -1339,11 +1381,12 @@ class _UserDashboardState extends State<UserDashboard>
                                   ],
                                   Expanded(
                                     child: MarqueeText(
-                                      text: TextPersonalizationUtil.personalizeTitle(
-                                        title: notice.title,
-                                        userName: userName,
-                                        userNickname: userNickname,
-                                      ),
+                                      text:
+                                          TextPersonalizationUtil.personalizeTitle(
+                                            title: notice.title,
+                                            userName: userName,
+                                            userNickname: userNickname,
+                                          ),
                                       style: AppTheme.bodyMediumStyle.copyWith(
                                         color:
                                             notice.showBadge
@@ -1371,9 +1414,13 @@ class _UserDashboardState extends State<UserDashboard>
                                 children: [
                                   Expanded(
                                     child: Text(
-                                      (notice.authorNickname ?? notice.authorName).length > 15
+                                      (notice.authorNickname ??
+                                                      notice.authorName)
+                                                  .length >
+                                              15
                                           ? '${(notice.authorNickname ?? notice.authorName).substring(0, 15)}..'
-                                          : (notice.authorNickname ?? notice.authorName),
+                                          : (notice.authorNickname ??
+                                              notice.authorName),
                                       style: AppTheme.bodySmallStyle.copyWith(
                                         color: AppTheme.textSecondary,
                                         fontSize: 12,
@@ -1725,7 +1772,8 @@ class _UserDashboardState extends State<UserDashboard>
                       padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
                       child: Text(
                         TextPersonalizationUtil.personalizeContent(
-                          content: noticeDetail?.contentPreview ?? notice.content,
+                          content:
+                              noticeDetail?.contentPreview ?? notice.content,
                           userName: userName,
                           userNickname: userNickname,
                         ),

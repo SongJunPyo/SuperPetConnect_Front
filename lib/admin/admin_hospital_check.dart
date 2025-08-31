@@ -41,8 +41,7 @@ class _AdminHospitalCheckState extends State<AdminHospitalCheck>
         _tabController!.index != _currentTabIndex) {
       setState(() {
         _currentTabIndex = _tabController!.index;
-        print('DEBUG: 탭이 변경됨 - 새 인덱스: $_currentTabIndex');
-        _updateFilteredHospitals(); // 탭 변경 시 필터링 업데이트
+        _updateFilteredHospitals();
       });
     }
   }
@@ -61,22 +60,19 @@ class _AdminHospitalCheckState extends State<AdminHospitalCheck>
     });
 
     try {
-      print('DEBUG: 병원 목록 로드 시작');
       final response = await AdminHospitalService.getHospitalList(
         page: currentPage,
-        pageSize: 100, // 페이지 크기 증가
+        pageSize: 100,
         search: searchQuery.isNotEmpty ? searchQuery : null,
         isActive: null,
-        approved: true, // 승인된 병원만 조회
+        approved: true,
       );
-      print('DEBUG: API 응답 받음 - 병원 수: ${response.hospitals.length}');
 
       setState(() {
         hospitals = response.hospitals;
         _updateFilteredHospitals();
         totalCount = response.totalCount;
         isLoading = false;
-        hasError = false;
       });
     } catch (e) {
       setState(() {
@@ -89,8 +85,7 @@ class _AdminHospitalCheckState extends State<AdminHospitalCheck>
 
   Future<void> _searchHospitals(String query) async {
     if (query.isEmpty) {
-      await _loadHospitals();
-      return;
+      return _loadHospitals();
     }
 
     setState(() {
@@ -99,23 +94,20 @@ class _AdminHospitalCheckState extends State<AdminHospitalCheck>
     });
 
     try {
-      final searchRequest = HospitalSearchRequest(
-        searchQuery: query,
-        isActive: null,
-        approved: null,
-        page: 1,
-        pageSize: 50,
-      );
-
       final response = await AdminHospitalService.searchHospitals(
-        searchRequest,
+        HospitalSearchRequest(
+          searchQuery: query,
+          isActive: null,
+          approved: null,
+          page: 1,
+          pageSize: 50,
+        ),
       );
 
       setState(() {
         hospitals = response.hospitals;
         _updateFilteredHospitals();
         isSearching = false;
-        hasError = false;
       });
     } catch (e) {
       setState(() {
@@ -140,30 +132,15 @@ class _AdminHospitalCheckState extends State<AdminHospitalCheck>
 
   // 필터링된 병원 목록 가져오기
   void _updateFilteredHospitals() {
-    print(
-      'DEBUG: 필터링 업데이트 - 현재 탭: $_currentTabIndex, 전체 병원 수: ${hospitals.length}',
-    );
-
-    // 각 병원의 column_active 상태 로그
-    for (int i = 0; i < hospitals.length; i++) {
-      print(
-        'DEBUG: 병원 ${i + 1} - ${hospitals[i].name}, column_active: ${hospitals[i].columnActive}',
-      );
-    }
-
-    List<HospitalInfo> filtered;
-    if (_currentTabIndex == 0) {
-      // 비활성화 탭: columnActive가 false인 병원만 표시
-      filtered = hospitals.where((hospital) => !hospital.columnActive).toList();
-      print('DEBUG: 비활성화 탭 필터링 결과: ${filtered.length}개');
-    } else {
-      // 활성화 탭: columnActive가 true인 병원만 표시
-      filtered = hospitals.where((hospital) => hospital.columnActive).toList();
-      print('DEBUG: 활성화 탭 필터링 결과: ${filtered.length}개');
-    }
-
-    filteredHospitals = filtered;
-    print('DEBUG: filteredHospitals 설정 완료 - 길이: ${filteredHospitals.length}');
+    filteredHospitals =
+        hospitals
+            .where(
+              (hospital) =>
+                  _currentTabIndex == 0
+                      ? !hospital.columnActive
+                      : hospital.columnActive,
+            )
+            .toList();
   }
 
   @override

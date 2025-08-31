@@ -5,15 +5,12 @@ import 'package:connect/admin/admin_post_check.dart';
 import 'package:connect/admin/admin_user_check.dart';
 import 'package:connect/admin/admin_hospital_check.dart';
 import 'package:connect/admin/admin_signup_management.dart';
-import 'package:connect/admin/admin_approved_posts.dart';
 import 'package:connect/admin/admin_notice_list.dart';
 import 'package:connect/admin/admin_column_management.dart';
-import 'admin_black_list_management.dart';
 import '../utils/app_theme.dart';
 import '../widgets/app_card.dart';
 import '../widgets/app_app_bar.dart';
 import '../auth/profile_management.dart';
-import '../web/responsive_layout.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
@@ -55,51 +52,20 @@ class _AdminDashboardState extends State<AdminDashboard> {
 
   Future<void> _loadAdminName() async {
     final prefs = await SharedPreferences.getInstance();
-    final token = prefs.getString('auth_token');
 
-    // 먼저 로컬에 저장된 이름과 닉네임 확인
+    // 로컬에 저장된 이름과 닉네임 확인
     final savedName = prefs.getString('admin_name');
     final savedNickname = prefs.getString('admin_nickname');
-    if (savedName != null && savedName.isNotEmpty) {
-      setState(() {
-        adminName = savedName;
-        adminNickname = savedNickname ?? savedName;
-      });
-    }
 
-    // 서버에서 최신 이름 가져오기
-    if (token != null) {
-      try {
-        final response = await http.get(
-          Uri.parse('${Config.serverUrl}/api/auth/profile'),
-          headers: {
-            'Authorization': 'Bearer $token',
-            'Content-Type': 'application/json; charset=UTF-8',
-          },
-        );
-
-        if (response.statusCode == 200) {
-          final data = json.decode(utf8.decode(response.bodyBytes));
-          final userName = data['name'] ?? '관리자';
-          final userNickname = data['nickname'] ?? userName;
-
-          setState(() {
-            adminName = userName;
-            adminNickname = userNickname;
-          });
-
-          // 로컬 저장소에도 업데이트
-          await prefs.setString('admin_name', userName);
-          await prefs.setString('admin_nickname', userNickname);
-        }
-      } catch (e) {
-        // 오류 발생 시 기본값 유지
-        print('관리자 이름 로드 실패: $e');
-      }
-    }
+    if (!mounted) return;
+    setState(() {
+      adminName = savedName ?? '관리자';
+      adminNickname = savedNickname ?? adminName;
+    });
   }
 
   void _updateDateTime() {
+    if (!mounted) return;
     final now = DateTime.now();
     final formatter = DateFormat('yyyy년 M월 d일 (EEEE) HH:mm', 'ko_KR');
     setState(() {
@@ -122,15 +88,17 @@ class _AdminDashboardState extends State<AdminDashboard> {
       if (token == null) return;
 
       // 동시에 두 API 호출
-      final futures = await Future.wait([
+      await Future.wait([
         _fetchPendingPosts(token),
         _fetchPendingSignups(token),
       ]);
 
+      if (!mounted) return;
       setState(() {
         isLoadingData = false;
       });
     } catch (e) {
+      if (!mounted) return;
       setState(() {
         isLoadingData = false;
       });
@@ -149,6 +117,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
 
       if (response.statusCode == 200) {
         final data = json.decode(utf8.decode(response.bodyBytes));
+        if (!mounted) return;
         setState(() {
           pendingPostsCount = data['count'] ?? 0;
         });
@@ -170,6 +139,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
 
       if (response.statusCode == 200) {
         final List<dynamic> data = json.decode(utf8.decode(response.bodyBytes));
+        if (!mounted) return;
         setState(() {
           pendingSignupsCount = data.length;
         });
@@ -178,7 +148,6 @@ class _AdminDashboardState extends State<AdminDashboard> {
       // 에러 무시 (UI에 영향주지 않음)
     }
   }
-
 
   @override
   Widget build(BuildContext context) {
@@ -239,6 +208,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
                     );
                   },
                 ),
+
                 const SizedBox(height: AppTheme.spacing16),
                 _buildPremiumFeatureCard(
                   icon: Icons.list_alt_outlined,
@@ -381,7 +351,6 @@ class _AdminDashboardState extends State<AdminDashboard> {
       );
       notifications.add(const SizedBox(height: AppTheme.spacing12));
     }
-
 
     // 알림이 없으면 빈 리스트 반환 (카드가 표시되지 않음)
     return notifications;
