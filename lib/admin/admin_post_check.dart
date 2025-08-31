@@ -81,27 +81,30 @@ class _AdminPostCheckState extends State<AdminPostCheck>
 
     // 검색어 필터링
     if (searchQuery.isNotEmpty) {
-      filtered = filtered.where((post) {
-        final title = post['title']?.toString().toLowerCase() ?? '';
-        final content = post['content']?.toString().toLowerCase() ?? '';
-        final hospitalName = post['hospital_name']?.toString().toLowerCase() ?? '';
-        final query = searchQuery.toLowerCase();
-        
-        return title.contains(query) || 
-               content.contains(query) || 
-               hospitalName.contains(query);
-      }).toList();
+      filtered =
+          filtered.where((post) {
+            final title = post['title']?.toString().toLowerCase() ?? '';
+            final content = post['content']?.toString().toLowerCase() ?? '';
+            final hospitalName =
+                post['hospital_name']?.toString().toLowerCase() ?? '';
+            final query = searchQuery.toLowerCase();
+
+            return title.contains(query) ||
+                content.contains(query) ||
+                hospitalName.contains(query);
+          }).toList();
     }
 
     // 날짜 필터링
     if (startDate != null && endDate != null) {
-      filtered = filtered.where((post) {
-        final createdAt = DateTime.tryParse(post['created_at'] ?? '');
-        if (createdAt == null) return false;
-        
-        return createdAt.isAfter(startDate!) && 
-               createdAt.isBefore(endDate!.add(const Duration(days: 1)));
-      }).toList();
+      filtered =
+          filtered.where((post) {
+            final createdAt = DateTime.tryParse(post['created_at'] ?? '');
+            if (createdAt == null) return false;
+
+            return createdAt.isAfter(startDate!) &&
+                createdAt.isBefore(endDate!.add(const Duration(days: 1)));
+          }).toList();
     }
 
     return filtered;
@@ -110,7 +113,6 @@ class _AdminPostCheckState extends State<AdminPostCheck>
   Future<void> _loadToken() async {
     final prefs = await SharedPreferences.getInstance();
     final storedToken = prefs.getString('auth_token');
-
 
     setState(() {
       token = storedToken;
@@ -160,7 +162,6 @@ class _AdminPostCheckState extends State<AdminPostCheck>
 
       final url = Uri.parse(apiUrl);
 
-
       final response = await http.get(
         url,
         headers: {
@@ -169,9 +170,9 @@ class _AdminPostCheckState extends State<AdminPostCheck>
         },
       );
 
-
       if (response.statusCode == 200) {
         final data = json.decode(utf8.decode(response.bodyBytes));
+        print('DEBUG: 게시글 API 응답: $data'); // API 응답 데이터 확인
         if (mounted) {
           setState(() {
             posts = data is List ? data : [];
@@ -312,7 +313,6 @@ class _AdminPostCheckState extends State<AdminPostCheck>
         },
         body: jsonEncode({'approved': approve}),
       );
-
 
       if (response.statusCode == 200) {
         fetchPosts();
@@ -859,7 +859,7 @@ class _AdminPostCheckState extends State<AdminPostCheck>
                       borderRadius: BorderRadius.circular(2),
                     ),
                   ),
-                  
+
                   // 헤더
                   Container(
                     padding: const EdgeInsets.fromLTRB(20, 8, 20, 16),
@@ -872,15 +872,17 @@ class _AdminPostCheckState extends State<AdminPostCheck>
                             vertical: 4,
                           ),
                           decoration: BoxDecoration(
-                            color: postType == '긴급' 
-                                ? Colors.red.withOpacity(0.15)
-                                : Colors.blue.withOpacity(0.15),
+                            color:
+                                postType == '긴급'
+                                    ? Colors.red.withOpacity(0.15)
+                                    : Colors.blue.withOpacity(0.15),
                             borderRadius: BorderRadius.circular(6),
                           ),
                           child: Text(
                             postType,
                             style: AppTheme.bodySmallStyle.copyWith(
-                              color: postType == '긴급' ? Colors.red : Colors.blue,
+                              color:
+                                  postType == '긴급' ? Colors.red : Colors.blue,
                               fontWeight: FontWeight.bold,
                             ),
                           ),
@@ -893,7 +895,10 @@ class _AdminPostCheckState extends State<AdminPostCheck>
                               Text(
                                 post['title'] ?? '제목 없음',
                                 style: AppTheme.h3Style.copyWith(
-                                  color: postType == '긴급' ? Colors.red : AppTheme.textPrimary,
+                                  color:
+                                      postType == '긴급'
+                                          ? Colors.red
+                                          : AppTheme.textPrimary,
                                   fontWeight: FontWeight.bold,
                                 ),
                                 maxLines: 2,
@@ -909,9 +914,9 @@ class _AdminPostCheckState extends State<AdminPostCheck>
                       ],
                     ),
                   ),
-                  
+
                   const Divider(height: 1),
-                  
+
                   // 메타 정보
                   Container(
                     padding: const EdgeInsets.all(20),
@@ -921,17 +926,30 @@ class _AdminPostCheckState extends State<AdminPostCheck>
                         // 닉네임과 작성일
                         Row(
                           children: [
-                            Icon(Icons.business, size: 16, color: AppTheme.textSecondary),
+                            Icon(
+                              Icons.business,
+                              size: 16,
+                              color: AppTheme.textSecondary,
+                            ),
                             const SizedBox(width: 8),
                             Text(
-                              post['hospital_nickname'] ?? post['accounts']?['nickname'] ?? post['hospital_name'] ?? '병원',
+                              _extractHospitalName(
+                                post['title'] ?? '',
+                              ), // 제목에서 병원 이름 추출
                               style: AppTheme.bodyMediumStyle.copyWith(
                                 fontWeight: FontWeight.w600,
                               ),
                             ),
                             const Spacer(),
                             Text(
-                              DateFormat('yy.MM.dd').format(DateTime.tryParse(post['created_date'] ?? post['created_at'] ?? '') ?? DateTime.now()),
+                              DateFormat('yy.MM.dd').format(
+                                DateTime.tryParse(
+                                      post['created_date'] ??
+                                          post['created_at'] ??
+                                          '',
+                                    ) ??
+                                    DateTime.now(),
+                              ),
                               style: AppTheme.bodySmallStyle.copyWith(
                                 color: AppTheme.textSecondary,
                               ),
@@ -942,7 +960,11 @@ class _AdminPostCheckState extends State<AdminPostCheck>
                         // 주소
                         Row(
                           children: [
-                            Icon(Icons.location_on, size: 16, color: AppTheme.textSecondary),
+                            Icon(
+                              Icons.location_on,
+                              size: 16,
+                              color: AppTheme.textSecondary,
+                            ),
                             const SizedBox(width: 8),
                             Expanded(
                               child: Text(
@@ -953,7 +975,8 @@ class _AdminPostCheckState extends State<AdminPostCheck>
                           ],
                         ),
                         // 설명글 (있는 경우만)
-                        if (post['description'] != null && post['description'].toString().isNotEmpty) ...[
+                        if (post['description'] != null &&
+                            post['description'].toString().isNotEmpty) ...[
                           const SizedBox(height: 12),
                           Container(
                             width: double.infinity,
@@ -977,7 +1000,7 @@ class _AdminPostCheckState extends State<AdminPostCheck>
                       ],
                     ),
                   ),
-                  
+
                   // 상세 정보
                   Expanded(
                     child: SingleChildScrollView(
@@ -987,23 +1010,33 @@ class _AdminPostCheckState extends State<AdminPostCheck>
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           // 혈액형 정보
-                          if (post['blood_type'] != null && post['blood_type'].toString().isNotEmpty) ...[
+                          if (post['blood_type'] != null &&
+                              post['blood_type'].toString().isNotEmpty) ...[
                             Text('필요 혈액형', style: AppTheme.h4Style),
                             const SizedBox(height: 8),
                             Container(
                               width: double.infinity,
                               padding: const EdgeInsets.all(16),
                               decoration: BoxDecoration(
-                                color: postType == '긴급' ? Colors.red.shade50 : Colors.blue.shade50,
+                                color:
+                                    postType == '긴급'
+                                        ? Colors.red.shade50
+                                        : Colors.blue.shade50,
                                 borderRadius: BorderRadius.circular(12),
                                 border: Border.all(
-                                  color: postType == '긴급' ? Colors.red.shade200 : Colors.blue.shade200,
+                                  color:
+                                      postType == '긴급'
+                                          ? Colors.red.shade200
+                                          : Colors.blue.shade200,
                                 ),
                               ),
                               child: Text(
                                 post['blood_type'],
                                 style: AppTheme.h3Style.copyWith(
-                                  color: postType == '긴급' ? Colors.red : Colors.blue,
+                                  color:
+                                      postType == '긴급'
+                                          ? Colors.red
+                                          : Colors.blue,
                                   fontWeight: FontWeight.bold,
                                 ),
                                 textAlign: TextAlign.center,
@@ -1011,12 +1044,12 @@ class _AdminPostCheckState extends State<AdminPostCheck>
                             ),
                             const SizedBox(height: 24),
                           ],
-                          
+
                           // 동물 종류
                           if (animalTypeKorean.isNotEmpty) ...[
                             _buildDetailRow(
                               context,
-                              post['animalType'] == 'dog' 
+                              post['animalType'] == 'dog'
                                   ? FontAwesomeIcons.dog
                                   : FontAwesomeIcons.cat,
                               '동물 종류',
@@ -1024,7 +1057,7 @@ class _AdminPostCheckState extends State<AdminPostCheck>
                             ),
                             const SizedBox(height: 12),
                           ],
-                          
+
                           // 신청자 수
                           _buildDetailRow(
                             context,
@@ -1032,18 +1065,18 @@ class _AdminPostCheckState extends State<AdminPostCheck>
                             '신청자 수',
                             '${post['applicantCount'] ?? post['applicant_count'] ?? 0}명',
                           ),
-                          
+
                           const SizedBox(height: 24),
-                          
+
                           // 헌혈 예정일
                           Text("헌혈 예정일", style: AppTheme.h4Style),
                           const SizedBox(height: 12),
-                          
+
                           // 드롭다운 형태의 날짜/시간 선택 UI
                           _buildDateTimeDropdown(post),
 
                           const SizedBox(height: 24),
-                          
+
                           // 승인/거절 버튼 (대기 상태일 때만 표시)
                           if (postStatus == '승인 대기') ...[
                             Row(
@@ -1057,7 +1090,10 @@ class _AdminPostCheckState extends State<AdminPostCheck>
                                         _showConfirmDialog(
                                           postId is int
                                               ? postId
-                                              : int.tryParse(postId.toString()) ?? 0,
+                                              : int.tryParse(
+                                                    postId.toString(),
+                                                  ) ??
+                                                  0,
                                           true,
                                           post['title'] ?? '제목 없음',
                                         );
@@ -1065,12 +1101,16 @@ class _AdminPostCheckState extends State<AdminPostCheck>
                                     },
                                     style: OutlinedButton.styleFrom(
                                       foregroundColor: Colors.green,
-                                      side: const BorderSide(color: Colors.green),
+                                      side: const BorderSide(
+                                        color: Colors.green,
+                                      ),
                                       backgroundColor: Colors.transparent,
                                       shape: RoundedRectangleBorder(
                                         borderRadius: BorderRadius.circular(8),
                                       ),
-                                      padding: const EdgeInsets.symmetric(vertical: 12),
+                                      padding: const EdgeInsets.symmetric(
+                                        vertical: 12,
+                                      ),
                                     ),
                                     child: const Text('승인'),
                                   ),
@@ -1085,7 +1125,10 @@ class _AdminPostCheckState extends State<AdminPostCheck>
                                         _showConfirmDialog(
                                           postId is int
                                               ? postId
-                                              : int.tryParse(postId.toString()) ?? 0,
+                                              : int.tryParse(
+                                                    postId.toString(),
+                                                  ) ??
+                                                  0,
                                           false,
                                           post['title'] ?? '제목 없음',
                                         );
@@ -1098,7 +1141,9 @@ class _AdminPostCheckState extends State<AdminPostCheck>
                                       shape: RoundedRectangleBorder(
                                         borderRadius: BorderRadius.circular(8),
                                       ),
-                                      padding: const EdgeInsets.symmetric(vertical: 12),
+                                      padding: const EdgeInsets.symmetric(
+                                        vertical: 12,
+                                      ),
                                     ),
                                     child: const Text('거절'),
                                   ),
@@ -1222,7 +1267,7 @@ class _AdminPostCheckState extends State<AdminPostCheck>
   // 시간 포맷팅 메서드
   String _formatTime(String time24) {
     if (time24.isEmpty) return '시간 미정';
-    
+
     try {
       final parts = time24.split(':');
       if (parts.length == 2) {
@@ -1244,6 +1289,16 @@ class _AdminPostCheckState extends State<AdminPostCheck>
     return '시간 미정';
   }
 
+  // 제목에서 병원 이름 추출하는 메서드
+  String _extractHospitalName(String title) {
+    // [병원이름] 형식에서 병원 이름 추출
+    final match = RegExp(r'\[(.*?)\]').firstMatch(title);
+    if (match != null && match.group(1) != null) {
+      return match.group(1)!;
+    }
+    return '병원 이름 없음';
+  }
+
   Widget _buildDateTimeDropdown(Map<String, dynamic> post) {
     final timeRanges = post['timeRanges'] as List<dynamic>? ?? [];
 
@@ -1259,9 +1314,7 @@ class _AdminPostCheckState extends State<AdminPostCheck>
         child: Center(
           child: Text(
             '헌혈 날짜 정보가 없습니다',
-            style: AppTheme.bodyMediumStyle.copyWith(
-              color: Colors.red,
-            ),
+            style: AppTheme.bodyMediumStyle.copyWith(color: Colors.red),
             textAlign: TextAlign.center,
           ),
         ),
@@ -1270,7 +1323,7 @@ class _AdminPostCheckState extends State<AdminPostCheck>
 
     // timeRanges를 날짜별로 그룹화
     final Map<String, List<Map<String, dynamic>>> groupedByDate = {};
-    
+
     for (final timeRange in timeRanges) {
       final dateStr = timeRange['donation_date'] ?? timeRange['date'] ?? 'N/A';
       if (!groupedByDate.containsKey(dateStr)) {
@@ -1280,78 +1333,92 @@ class _AdminPostCheckState extends State<AdminPostCheck>
     }
 
     return Column(
-      children: groupedByDate.entries.map((entry) {
-        final dateStr = entry.key;
-        final timeSlots = entry.value;
-        
-        return Container(
-          margin: const EdgeInsets.only(bottom: 12),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: Colors.grey.shade200, width: 1.5),
-          ),
-          child: Theme(
-            data: Theme.of(context).copyWith(
-              dividerColor: Colors.transparent,
-            ),
-            child: ExpansionTile(
-              tilePadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-              childrenPadding: const EdgeInsets.only(bottom: 12),
-              leading: Icon(
-                Icons.calendar_month,
-                color: Colors.black,
-                size: 24,
+      children:
+          groupedByDate.entries.map((entry) {
+            final dateStr = entry.key;
+            final timeSlots = entry.value;
+
+            return Container(
+              margin: const EdgeInsets.only(bottom: 12),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: Colors.grey.shade200, width: 1.5),
               ),
-              title: Text(
-                _formatDateWithWeekday(dateStr),
-                style: AppTheme.h4Style.copyWith(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                  color: AppTheme.textPrimary,
-                ),
-              ),
-              trailing: Icon(
-                Icons.keyboard_arrow_down,
-                color: Colors.black,
-                size: 24,
-              ),
-              children: timeSlots.map<Widget>((timeSlot) {
-                final timeStr = timeSlot['time'] ?? timeSlot['donation_time'] ?? 'N/A';
-                return Container(
-                  margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                    decoration: BoxDecoration(
-                      color: Colors.grey.shade50,
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: Colors.grey.shade200),
-                    ),
-                    child: Row(
-                      children: [
-                        Icon(
-                          Icons.access_time,
-                          color: Colors.black,
-                          size: 20,
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Text(
-                            _formatTime(timeStr),
-                            style: AppTheme.bodyLargeStyle.copyWith(
-                              fontWeight: FontWeight.w600,
-                              color: Colors.black,
-                            ),
-                          ),
-                        ),
-                      ],
+              child: Theme(
+                data: Theme.of(
+                  context,
+                ).copyWith(dividerColor: Colors.transparent),
+                child: ExpansionTile(
+                  tilePadding: const EdgeInsets.symmetric(
+                    horizontal: 20,
+                    vertical: 8,
+                  ),
+                  childrenPadding: const EdgeInsets.only(bottom: 12),
+                  leading: Icon(
+                    Icons.calendar_month,
+                    color: Colors.black,
+                    size: 24,
+                  ),
+                  title: Text(
+                    _formatDateWithWeekday(dateStr),
+                    style: AppTheme.h4Style.copyWith(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      color: AppTheme.textPrimary,
                     ),
                   ),
-                );
-              }).toList(),
-            ),
-          ),
-        );
-      }).toList(),
+                  trailing: Icon(
+                    Icons.keyboard_arrow_down,
+                    color: Colors.black,
+                    size: 24,
+                  ),
+                  children:
+                      timeSlots.map<Widget>((timeSlot) {
+                        final timeStr =
+                            timeSlot['time'] ??
+                            timeSlot['donation_time'] ??
+                            'N/A';
+                        return Container(
+                          margin: const EdgeInsets.symmetric(
+                            horizontal: 20,
+                            vertical: 4,
+                          ),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 16,
+                              vertical: 14,
+                            ),
+                            decoration: BoxDecoration(
+                              color: Colors.grey.shade50,
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(color: Colors.grey.shade200),
+                            ),
+                            child: Row(
+                              children: [
+                                Icon(
+                                  Icons.access_time,
+                                  color: Colors.black,
+                                  size: 20,
+                                ),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: Text(
+                                    _formatTime(timeStr),
+                                    style: AppTheme.bodyLargeStyle.copyWith(
+                                      fontWeight: FontWeight.w600,
+                                      color: Colors.black,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        );
+                      }).toList(),
+                ),
+              ),
+            );
+          }).toList(),
     );
   }
 }
