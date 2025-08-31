@@ -268,7 +268,7 @@ class _AdminHospitalCheckState extends State<AdminHospitalCheck>
                 // 번호 헤더
                 Container(
                   width: 50,
-                  alignment: Alignment.centerLeft,
+                  alignment: Alignment.center,
                   child: Text(
                     '번호',
                     style: AppTheme.bodyMediumStyle.copyWith(
@@ -412,7 +412,7 @@ class _AdminHospitalCheckState extends State<AdminHospitalCheck>
             // 번호 (리스트 인덱스 + 1)
             Container(
               width: 50,
-              alignment: Alignment.centerLeft,
+              alignment: Alignment.center,
               child: Text(
                 '${index + 1}',
                 style: AppTheme.bodyMediumStyle.copyWith(

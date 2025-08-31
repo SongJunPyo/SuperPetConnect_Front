@@ -2,7 +2,7 @@ class User {
   final int accountIdx;
   final String email;
   final String name;
-  final String? nickname;
+  final String? nickname; // nickname은 null 허용
   final String phoneNumber;
   final String address;
   final double latitude;
@@ -36,19 +36,21 @@ class User {
       accountIdx: json['account_idx'] ?? 0,
       email: json['email'] ?? '',
       name: json['name'] ?? '',
-      nickname: json['nickname'],
+      nickname: json['nickname'], // null 허용
       phoneNumber: json['phone_number'] ?? '',
       address: json['address'] ?? '',
       latitude: (json['latitude'] ?? 0.0).toDouble(),
       longitude: (json['longitude'] ?? 0.0).toDouble(),
       userType: json['user_type'] ?? 2,
       status: json['status'] ?? 0,
-      createdAt: json['created_at'] != null
-          ? DateTime.tryParse(json['created_at'])
-          : null,
-      updatedAt: json['updated_at'] != null
-          ? DateTime.tryParse(json['updated_at'])
-          : null,
+      createdAt:
+          json['created_at'] != null
+              ? DateTime.tryParse(json['created_at'])
+              : null,
+      updatedAt:
+          json['updated_at'] != null
+              ? DateTime.tryParse(json['updated_at'])
+              : null,
       blacklistReason: json['blacklist_reason'],
       remainingDays: json['remaining_days'],
     );
@@ -105,7 +107,8 @@ class UserListResponse {
 
   factory UserListResponse.fromJson(Map<String, dynamic> json) {
     return UserListResponse(
-      users: (json['users'] as List<dynamic>?)
+      users:
+          (json['users'] as List<dynamic>?)
               ?.map((user) => User.fromJson(user))
               .toList() ??
           [],

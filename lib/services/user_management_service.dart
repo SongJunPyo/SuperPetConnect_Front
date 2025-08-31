@@ -37,8 +37,9 @@ class UserManagementService {
       queryParams['status'] = status.toString();
     }
 
-    final uri = Uri.parse('${Config.serverUrl}/api/admin/users')
-        .replace(queryParameters: queryParams);
+    final uri = Uri.parse(
+      '${Config.serverUrl}/api/admin/users',
+    ).replace(queryParameters: queryParams);
 
     final response = await http.get(
       uri,

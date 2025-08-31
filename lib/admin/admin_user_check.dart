@@ -144,17 +144,19 @@ class _AdminUserCheckState extends State<AdminUserCheck>
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (context) => user.isActive 
-          ? ActiveUserBottomSheet(
-              user: user,
-              onBlacklistPressed: () {
-                Navigator.of(context).pop();
-                _showBlacklistDialog(user);
-              },
-            )
-          : SuspendedUserBottomSheet(user: user),
+      builder:
+          (context) =>
+              user.isActive
+                  ? ActiveUserBottomSheet(
+                    user: user,
+                    onBlacklistPressed: () {
+                      Navigator.of(context).pop();
+                      _showBlacklistDialog(user);
+                    },
+                  )
+                  : SuspendedUserBottomSheet(user: user),
     );
-    
+
     if (result == true) {
       _loadData();
     }
@@ -167,10 +169,7 @@ class _AdminUserCheckState extends State<AdminUserCheck>
         title: '사용자 관리',
         showBackButton: true,
         actions: [
-          IconButton(
-            icon: const Icon(Icons.refresh),
-            onPressed: _loadData,
-          ),
+          IconButton(icon: const Icon(Icons.refresh), onPressed: _loadData),
         ],
       ),
       body: Column(
@@ -207,10 +206,7 @@ class _AdminUserCheckState extends State<AdminUserCheck>
           Expanded(
             child: TabBarView(
               controller: _tabController,
-              children: [
-                _buildUserListView(),
-                _buildUserListView(),
-              ],
+              children: [_buildUserListView(), _buildUserListView()],
             ),
           ),
           if (totalCount > pageSize) _buildPagination(),
@@ -228,15 +224,16 @@ class _AdminUserCheckState extends State<AdminUserCheck>
         decoration: InputDecoration(
           hintText: '이름, 이메일, 전화번호로 검색...',
           prefixIcon: const Icon(Icons.search),
-          suffixIcon: searchQuery.isNotEmpty
-              ? IconButton(
-                  icon: const Icon(Icons.clear),
-                  onPressed: () {
-                    searchController.clear();
-                    _onSearchChanged('');
-                  },
-                )
-              : null,
+          suffixIcon:
+              searchQuery.isNotEmpty
+                  ? IconButton(
+                    icon: const Icon(Icons.clear),
+                    onPressed: () {
+                      searchController.clear();
+                      _onSearchChanged('');
+                    },
+                  )
+                  : null,
           border: OutlineInputBorder(
             borderRadius: BorderRadius.circular(12),
             borderSide: BorderSide(color: AppTheme.lightGray),
@@ -268,10 +265,7 @@ class _AdminUserCheckState extends State<AdminUserCheck>
             const SizedBox(height: 8),
             Text(errorMessage!, style: AppTheme.bodyMediumStyle),
             const SizedBox(height: 24),
-            ElevatedButton(
-              onPressed: _loadData,
-              child: const Text('다시 시도'),
-            ),
+            ElevatedButton(onPressed: _loadData, child: const Text('다시 시도')),
           ],
         ),
       );
@@ -298,10 +292,7 @@ class _AdminUserCheckState extends State<AdminUserCheck>
       children: [
         // 헤더 추가
         Container(
-          padding: const EdgeInsets.symmetric(
-            horizontal: 20.0,
-            vertical: 8.0,
-          ),
+          padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 8.0),
           decoration: BoxDecoration(
             color: Colors.grey.shade100,
             border: Border(
@@ -313,8 +304,8 @@ class _AdminUserCheckState extends State<AdminUserCheck>
             children: [
               // 번호 헤더
               Container(
-                width: 50,
-                alignment: Alignment.centerLeft,
+                width: 30,
+                alignment: Alignment.center,
                 child: Text(
                   '번호',
                   style: AppTheme.bodyMediumStyle.copyWith(
@@ -324,27 +315,40 @@ class _AdminUserCheckState extends State<AdminUserCheck>
                   ),
                 ),
               ),
-              // 닉네임 헤더
-              Expanded(
-                child: Container(
-                  padding: const EdgeInsets.only(left: 8.0, right: 8.0),
-                  alignment: Alignment.centerLeft,
-                  child: Text(
-                    '닉네임',
-                    style: AppTheme.bodyMediumStyle.copyWith(
-                      fontWeight: FontWeight.bold,
-                      color: Colors.grey[700],
-                      fontSize: 13,
-                    ),
+
+              // 전화번호 헤더
+              Container(
+                width: 150,
+                alignment: Alignment.center,
+                child: Text(
+                  '전화번호',
+                  style: AppTheme.bodyMediumStyle.copyWith(
+                    fontWeight: FontWeight.bold,
+                    color: Colors.grey[700],
+                    fontSize: 13,
                   ),
                 ),
               ),
-              // 전화번호 헤더
+              // 사용자 헤더
               Container(
-                width: 120,
-                alignment: Alignment.centerLeft,
+                width: 50,
+                alignment: Alignment.center,
                 child: Text(
-                  '전화번호',
+                  '사용자',
+                  style: AppTheme.bodyMediumStyle.copyWith(
+                    fontWeight: FontWeight.bold,
+                    color: Colors.grey[700],
+                    fontSize: 13,
+                  ),
+                ),
+              ),
+
+              // 닉네임 헤더
+              Container(
+                width: 150,
+                alignment: Alignment.center,
+                child: Text(
+                  '닉네임',
                   style: AppTheme.bodyMediumStyle.copyWith(
                     fontWeight: FontWeight.bold,
                     color: Colors.grey[700],
@@ -385,8 +389,8 @@ class _AdminUserCheckState extends State<AdminUserCheck>
           children: [
             // 번호 (리스트 인덱스 + 1)
             Container(
-              width: 50,
-              alignment: Alignment.centerLeft,
+              width: 30,
+              alignment: Alignment.center,
               child: Text(
                 '${index + 1}',
                 style: AppTheme.bodyMediumStyle.copyWith(
@@ -395,40 +399,82 @@ class _AdminUserCheckState extends State<AdminUserCheck>
                 ),
               ),
             ),
-            // 닉네임
-            Expanded(
-              child: Container(
-                padding: const EdgeInsets.only(left: 8.0, right: 8.0),
-                alignment: Alignment.centerLeft,
-                child: Text(
-                  user.nickname?.isNotEmpty == true ? user.nickname! : user.name,
-                  style: AppTheme.bodyMediumStyle.copyWith(
-                    fontWeight: FontWeight.w600,
-                    color: AppTheme.textPrimary,
-                  ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
-            ),
-            // 전화번호
+
             Container(
-              width: 120,
-              alignment: Alignment.centerLeft,
+              width: 150,
+              alignment: Alignment.center,
               child: Text(
-                user.phoneNumber,
+                _formatPhoneNumber(user.phoneNumber),
                 style: AppTheme.bodyMediumStyle.copyWith(
                   fontWeight: FontWeight.w500,
-                  color: AppTheme.textSecondary,
+                  color: AppTheme.textPrimary,
                 ),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
+              ),
+            ),
+
+            // 사용자
+            Container(
+              width: 50,
+              alignment: Alignment.center,
+              child: Tooltip(
+                message: user.name,
+                child: Text(
+                  user.name.length > 4
+                      ? '${user.name.substring(0, 4)}...'
+                      : user.name,
+                  style: AppTheme.bodyMediumStyle.copyWith(
+                    fontWeight: FontWeight.w500,
+                    color: AppTheme.textSecondary,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.clip,
+                ),
+              ),
+            ),
+
+            // 닉네임
+            Container(
+              width: 150,
+              alignment: Alignment.center,
+              child: Tooltip(
+                message:
+                    user.nickname?.isNotEmpty == true
+                        ? user.nickname!
+                        : user.name,
+                child: Text(
+                  _truncateText(
+                    user.nickname?.isNotEmpty == true
+                        ? user.nickname!
+                        : user.name,
+                    8,
+                  ),
+                  style: AppTheme.bodyMediumStyle.copyWith(
+                    fontWeight: FontWeight.w500,
+                    color: AppTheme.textSecondary,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.clip,
+                ),
               ),
             ),
           ],
         ),
       ),
     );
+  }
+
+  // 텍스트 길이를 제한하는 헬퍼 메서드
+  String _truncateText(String text, int maxLength) {
+    if (text.length <= maxLength) return text;
+    return '${text.substring(0, maxLength)}...';
+  }
+
+  // 전화번호 포맷팅 헬퍼 메서드
+  String _formatPhoneNumber(String phoneNumber) {
+    if (phoneNumber.length != 11) return phoneNumber;
+    return '${phoneNumber.substring(0, 3)}-${phoneNumber.substring(3, 7)}-${phoneNumber.substring(7)}';
   }
 
   Widget _buildPagination() {
@@ -567,10 +613,7 @@ class _BlacklistBottomSheetState extends State<_BlacklistBottomSheet> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
-                  '정지 사유',
-                  style: AppTheme.bodyMediumStyle,
-                ),
+                const Text('정지 사유', style: AppTheme.bodyMediumStyle),
                 const SizedBox(height: 8),
                 TextFormField(
                   controller: _reasonController,
@@ -589,10 +632,7 @@ class _BlacklistBottomSheetState extends State<_BlacklistBottomSheet> {
                   },
                 ),
                 const SizedBox(height: 16),
-                const Text(
-                  '정지 일수',
-                  style: AppTheme.bodyMediumStyle,
-                ),
+                const Text('정지 일수', style: AppTheme.bodyMediumStyle),
                 const SizedBox(height: 8),
                 TextFormField(
                   controller: _daysController,
@@ -631,16 +671,17 @@ class _BlacklistBottomSheetState extends State<_BlacklistBottomSheet> {
                         borderRadius: BorderRadius.circular(12),
                       ),
                     ),
-                    child: _isLoading
-                        ? const SizedBox(
-                            width: 20,
-                            height: 20,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              color: Colors.white,
-                            ),
-                          )
-                        : const Text('등록'),
+                    child:
+                        _isLoading
+                            ? const SizedBox(
+                              width: 20,
+                              height: 20,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: Colors.white,
+                              ),
+                            )
+                            : const Text('등록'),
                   ),
                 ),
               ],
@@ -651,4 +692,3 @@ class _BlacklistBottomSheetState extends State<_BlacklistBottomSheet> {
     );
   }
 }
-
