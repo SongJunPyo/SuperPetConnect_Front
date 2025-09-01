@@ -72,7 +72,7 @@ class _AdminApprovedPostsScreenState extends State<AdminApprovedPostsScreen>
   Future<void> _loadToken() async {
     final prefs = await SharedPreferences.getInstance();
     final storedToken = prefs.getString('auth_token');
-    
+
     if (storedToken != null && storedToken.isNotEmpty) {
       print(
         "토큰 로드 성공: ${storedToken.substring(0, math.min(20, storedToken.length))}...",
@@ -83,7 +83,7 @@ class _AdminApprovedPostsScreenState extends State<AdminApprovedPostsScreen>
       print("저장된 사용자 이메일: ${prefs.getString('user_email') ?? '없음'}");
       print("저장된 사용자 이름: ${prefs.getString('user_name') ?? '없음'}");
     }
-    
+
     setState(() {
       token = storedToken;
     });
@@ -273,11 +273,7 @@ class _AdminApprovedPostsScreenState extends State<AdminApprovedPostsScreen>
                 ),
                 child: Row(
                   children: [
-                    Icon(
-                      Icons.schedule,
-                      color: Colors.blue.shade700,
-                      size: 20,
-                    ),
+                    Icon(Icons.schedule, color: Colors.blue.shade700, size: 20),
                     const SizedBox(width: 8),
                     Text(
                       '헌혈 일시: ${_formatDateTime(donationDateTime)}',
@@ -293,121 +289,131 @@ class _AdminApprovedPostsScreenState extends State<AdminApprovedPostsScreen>
 
               // 신청자 목록
               Expanded(
-                child: postTimesIdx == null
-                    ? Center(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(
-                              Icons.error_outline,
-                              size: 64,
-                              color: Colors.grey[400],
-                            ),
-                            const SizedBox(height: 16),
-                            Text(
-                              '시간대 ID가 없어 신청자 목록을 불러올 수 없습니다.',
-                              style: AppTheme.bodyMediumStyle.copyWith(
-                                color: Colors.grey[600],
+                child:
+                    postTimesIdx == null
+                        ? Center(
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(
+                                Icons.error_outline,
+                                size: 64,
+                                color: Colors.grey[400],
                               ),
-                              textAlign: TextAlign.center,
-                            ),
-                          ],
-                        ),
-                      )
-                    : FutureBuilder<List<dynamic>>(
-                        future: _fetchApplicants(postTimesIdx),
-                        builder: (context, snapshot) {
-                          if (snapshot.connectionState == ConnectionState.waiting) {
-                            return const Center(child: CircularProgressIndicator());
-                          }
+                              const SizedBox(height: 16),
+                              Text(
+                                '시간대 ID가 없어 신청자 목록을 불러올 수 없습니다.',
+                                style: AppTheme.bodyMediumStyle.copyWith(
+                                  color: Colors.grey[600],
+                                ),
+                                textAlign: TextAlign.center,
+                              ),
+                            ],
+                          ),
+                        )
+                        : FutureBuilder<List<dynamic>>(
+                          future: _fetchApplicants(postTimesIdx),
+                          builder: (context, snapshot) {
+                            if (snapshot.connectionState ==
+                                ConnectionState.waiting) {
+                              return const Center(
+                                child: CircularProgressIndicator(),
+                              );
+                            }
 
-                          if (snapshot.hasError) {
-                            return Center(
-                              child: Column(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  Icon(
-                                    Icons.error_outline,
-                                    size: 64,
-                                    color: Colors.red[400],
-                                  ),
-                                  const SizedBox(height: 16),
-                                  Text(
-                                    '신청자 목록을 불러오는데 실패했습니다.\n${snapshot.error}',
-                                    style: AppTheme.bodyMediumStyle.copyWith(
-                                      color: Colors.red[600],
+                            if (snapshot.hasError) {
+                              return Center(
+                                child: Column(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Icon(
+                                      Icons.error_outline,
+                                      size: 64,
+                                      color: Colors.red[400],
                                     ),
-                                    textAlign: TextAlign.center,
-                                  ),
-                                ],
-                              ),
-                            );
-                          }
+                                    const SizedBox(height: 16),
+                                    Text(
+                                      '신청자 목록을 불러오는데 실패했습니다.\n${snapshot.error}',
+                                      style: AppTheme.bodyMediumStyle.copyWith(
+                                        color: Colors.red[600],
+                                      ),
+                                      textAlign: TextAlign.center,
+                                    ),
+                                  ],
+                                ),
+                              );
+                            }
 
-                          final applicants = snapshot.data ?? [];
+                            final applicants = snapshot.data ?? [];
 
-                          if (applicants.isEmpty) {
-                            return Center(
-                              child: Column(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  Icon(
-                                    Icons.people_outline,
-                                    size: 64,
-                                    color: Colors.grey[400],
-                                  ),
-                                  const SizedBox(height: 16),
-                                  Text(
-                                    '아직 신청한 사용자가 없습니다.',
-                                    style: AppTheme.bodyMediumStyle.copyWith(
+                            if (applicants.isEmpty) {
+                              return Center(
+                                child: Column(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Icon(
+                                      Icons.people_outline,
+                                      size: 64,
+                                      color: Colors.grey[400],
+                                    ),
+                                    const SizedBox(height: 16),
+                                    Text(
+                                      '아직 신청한 사용자가 없습니다.',
+                                      style: AppTheme.bodyMediumStyle.copyWith(
+                                        color: Colors.grey[600],
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              );
+                            }
+
+                            return ListView.builder(
+                              itemCount: applicants.length,
+                              itemBuilder: (context, index) {
+                                final applicant = applicants[index];
+                                return Card(
+                                  margin: const EdgeInsets.only(bottom: 8.0),
+                                  child: ListTile(
+                                    leading: CircleAvatar(
+                                      backgroundColor: AppTheme.primaryBlue
+                                          .withOpacity(0.1),
+                                      child: Text(
+                                        '${index + 1}',
+                                        style: TextStyle(
+                                          color: AppTheme.primaryBlue,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                    ),
+                                    title: Text(
+                                      applicant['user_name'] ?? '이름 없음',
+                                      style: AppTheme.bodyMediumStyle.copyWith(
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                    subtitle: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          '반려동물: ${applicant['pet_name'] ?? 'N/A'}',
+                                        ),
+                                        Text(
+                                          '연락처: ${applicant['phone'] ?? 'N/A'}',
+                                        ),
+                                      ],
+                                    ),
+                                    trailing: Icon(
+                                      Icons.pets,
                                       color: Colors.grey[600],
                                     ),
                                   ),
-                                ],
-                              ),
+                                );
+                              },
                             );
-                          }
-
-                          return ListView.builder(
-                            itemCount: applicants.length,
-                            itemBuilder: (context, index) {
-                              final applicant = applicants[index];
-                              return Card(
-                                margin: const EdgeInsets.only(bottom: 8.0),
-                                child: ListTile(
-                                  leading: CircleAvatar(
-                                    backgroundColor: AppTheme.primaryBlue.withOpacity(0.1),
-                                    child: Text(
-                                      '${index + 1}',
-                                      style: TextStyle(
-                                        color: AppTheme.primaryBlue,
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                    ),
-                                  ),
-                                  title: Text(
-                                    applicant['user_name'] ?? '이름 없음',
-                                    style: AppTheme.bodyMediumStyle.copyWith(
-                                      fontWeight: FontWeight.w600,
-                                    ),
-                                  ),
-                                  subtitle: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      Text('반려동물: ${applicant['pet_name'] ?? 'N/A'}'),
-                                      Text('연락처: ${applicant['phone'] ?? 'N/A'}'),
-                                    ],
-                                  ),
-                                  trailing: Icon(
-                                    Icons.pets,
-                                    color: Colors.grey[600],
-                                  ),
-                                ),
-                              );
-                            },
-                          );
-                        },
-                      ),
+                          },
+                        ),
               ),
             ],
           ),
@@ -419,14 +425,18 @@ class _AdminApprovedPostsScreenState extends State<AdminApprovedPostsScreen>
   Future<List<dynamic>> _fetchApplicants(int postTimesIdx) async {
     try {
       final response = await http.get(
-        Uri.parse('${Config.serverUrl}/api/applied_donation/time-slot/$postTimesIdx/applications'),
+        Uri.parse(
+          '${Config.serverUrl}/api/applied_donation/time-slot/$postTimesIdx/applications',
+        ),
         headers: {
           'Authorization': 'Bearer $token',
           'Content-Type': 'application/json',
         },
       );
 
-      print('신청자 목록 API 요청 URL: ${Config.serverUrl}/api/applied_donation/time-slot/$postTimesIdx/applications');
+      print(
+        '신청자 목록 API 요청 URL: ${Config.serverUrl}/api/applied_donation/time-slot/$postTimesIdx/applications',
+      );
       print('신청자 목록 API 응답 상태: ${response.statusCode}');
       print('신청자 목록 API 응답 내용: ${response.body}');
 
@@ -485,17 +495,17 @@ class _AdminApprovedPostsScreenState extends State<AdminApprovedPostsScreen>
   String _formatDate(String dateTime) {
     try {
       if (dateTime.isEmpty) return '-';
-      
+
       // YYYY-MM-DD HH:mm:ss 또는 YYYY-MM-DD 형식 처리
       final datePart = dateTime.split(' ')[0];
       final parts = datePart.split('-');
-      
+
       if (parts.length == 3) {
         // YY.MM.DD 형식으로 반환 (2024 → 24)
         final year = parts[0].length >= 2 ? parts[0].substring(2) : parts[0];
         return '$year.${parts[1]}.${parts[2]}';
       }
-      
+
       return dateTime;
     } catch (e) {
       return '-';
@@ -586,30 +596,38 @@ class _AdminApprovedPostsScreenState extends State<AdminApprovedPostsScreen>
                     decoration: BoxDecoration(
                       color: Colors.white,
                       border: Border(
-                        bottom: BorderSide(color: Colors.grey.shade200, width: 1),
+                        bottom: BorderSide(
+                          color: Colors.grey.shade200,
+                          width: 1,
+                        ),
                       ),
                     ),
                     child: TabBar(
                       controller: _tabController,
                       tabs: const [
-                        Tab(
-                          height: 50,
-                          child: Text('모집진행'),
-                        ),
-                        Tab(
-                          height: 50,
-                          child: Text('모집마감'),
-                        ),
+                        Tab(height: 50, child: Text('모집진행')),
+                        Tab(height: 50, child: Text('모집마감')),
                       ],
                       indicator: UnderlineTabIndicator(
-                        borderSide: const BorderSide(color: Colors.black, width: 4.0),
+                        borderSide: const BorderSide(
+                          color: Colors.black,
+                          width: 4.0,
+                        ),
                         insets: const EdgeInsets.symmetric(horizontal: 5.0),
                       ),
                       labelColor: Colors.black,
                       unselectedLabelColor: Colors.grey,
-                      labelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-                      unselectedLabelStyle: const TextStyle(fontWeight: FontWeight.normal, fontSize: 16),
-                      overlayColor: MaterialStateProperty.all(Colors.transparent),
+                      labelStyle: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 16,
+                      ),
+                      unselectedLabelStyle: const TextStyle(
+                        fontWeight: FontWeight.normal,
+                        fontSize: 16,
+                      ),
+                      overlayColor: MaterialStateProperty.all(
+                        Colors.transparent,
+                      ),
                     ),
                   ),
 
@@ -740,7 +758,6 @@ class _AdminApprovedPostsScreenState extends State<AdminApprovedPostsScreen>
       );
     }
 
-    // 네이버 카페 스타일 리스트
     return Column(
       children: [
         // 헤더
@@ -897,14 +914,6 @@ class _AdminApprovedPostsScreenState extends State<AdminApprovedPostsScreen>
     String postStatus,
     String postType,
   ) {
-    // 디버깅: 게시글 상세 데이터 확인
-    print('=== 게시글 상세 데이터 ===');
-    print('전체 post 데이터: $post');
-    print('blood_type 값: "${post['blood_type']}" (타입: ${post['blood_type'].runtimeType})');
-    print('applicantCount 값: "${post['applicantCount']}" (타입: ${post['applicantCount'].runtimeType})');
-    print('사용 가능한 모든 키: ${post.keys.toList()}');
-    print('========================');
-    
     // 동물 종류 표시를 위한 변환
     String animalTypeKorean = '';
     if (post['animalType'] == 'dog') {
@@ -1063,7 +1072,10 @@ class _AdminApprovedPostsScreenState extends State<AdminApprovedPostsScreen>
 
                                 return InkWell(
                                   onTap: () {
-                                    _showApplicantList(postTimesIdx, donationDate.toString());
+                                    _showApplicantList(
+                                      postTimesIdx,
+                                      donationDate.toString(),
+                                    );
                                   },
                                   child: Container(
                                     margin: const EdgeInsets.only(bottom: 8.0),
@@ -1076,14 +1088,18 @@ class _AdminApprovedPostsScreenState extends State<AdminApprovedPostsScreen>
                                       ),
                                     ),
                                     child: Row(
-                                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.spaceBetween,
                                       children: [
                                         Expanded(
                                           child: Text(
-                                            _formatDateTime(donationDate.toString()),
-                                            style: AppTheme.bodyLargeStyle.copyWith(
-                                              fontWeight: FontWeight.bold,
+                                            _formatDateTime(
+                                              donationDate.toString(),
                                             ),
+                                            style: AppTheme.bodyLargeStyle
+                                                .copyWith(
+                                                  fontWeight: FontWeight.bold,
+                                                ),
                                             textAlign: TextAlign.center,
                                           ),
                                         ),

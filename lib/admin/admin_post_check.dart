@@ -1217,6 +1217,18 @@ class _AdminPostCheckState extends State<AdminPostCheck>
     );
   }
 
+  String _formatPhoneNumber(String? phone) {
+    if (phone == null || phone.isEmpty) return '연락처 없음';
+
+    // 숫자만 추출
+    String numbers = phone.replaceAll(RegExp(r'[^0-9]'), '');
+
+    if (numbers.length != 11) return phone; // 휴대폰 번호가 아닌 경우 원본 반환
+
+    // 000-0000-0000 형식으로 변환
+    return '${numbers.substring(0, 3)}-${numbers.substring(3, 7)}-${numbers.substring(7)}';
+  }
+
   String _formatDate(String dateTime) {
     try {
       if (dateTime.isEmpty) return '-';
@@ -1391,8 +1403,8 @@ class _AdminPostCheckState extends State<AdminPostCheck>
                           onTap:
                               isActive
                                   ? () => _showTimeSlotApplicants(
-                                    post['postIdx'],
-                                    timeSlot['post_times_idx'],
+                                    post['id'],
+                                    timeSlot['id'],
                                     dateStr,
                                     time,
                                   )
@@ -1402,7 +1414,7 @@ class _AdminPostCheckState extends State<AdminPostCheck>
                             decoration: BoxDecoration(
                               color:
                                   isActive
-                                      ? Colors.blue.shade50
+                                      ? Colors.white
                                       : Colors.grey.shade100,
                               border: Border(
                                 top: BorderSide(color: Colors.grey.shade200),
@@ -1413,16 +1425,14 @@ class _AdminPostCheckState extends State<AdminPostCheck>
                                 Icon(
                                   Icons.access_time,
                                   size: 16,
-                                  color: isActive ? Colors.blue : Colors.grey,
+                                  color: isActive ? Colors.black : Colors.grey,
                                 ),
                                 const SizedBox(width: 8),
                                 Text(
                                   _formatTime(time),
                                   style: AppTheme.bodyMediumStyle.copyWith(
                                     color:
-                                        isActive
-                                            ? Colors.blue.shade700
-                                            : Colors.grey,
+                                        isActive ? Colors.black : Colors.grey,
                                     fontWeight: FontWeight.w500,
                                   ),
                                 ),
@@ -1439,10 +1449,11 @@ class _AdminPostCheckState extends State<AdminPostCheck>
                                     icon: const Icon(
                                       Icons.people_outline,
                                       size: 18,
+                                      color: Colors.black,
                                     ),
                                     label: const Text('신청자 관리'),
                                     style: TextButton.styleFrom(
-                                      foregroundColor: Colors.blue,
+                                      foregroundColor: Colors.black,
                                       padding: const EdgeInsets.symmetric(
                                         horizontal: 12,
                                         vertical: 8,
@@ -1509,7 +1520,7 @@ class _AdminPostCheckState extends State<AdminPostCheck>
                   Padding(
                     padding: const EdgeInsets.fromLTRB(20, 8, 20, 16),
                     child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
                         Text(
                           '신청자 목록',
@@ -1576,11 +1587,36 @@ class _AdminPostCheckState extends State<AdminPostCheck>
                           itemBuilder: (context, index) {
                             final applicant = applicants[index];
                             return ListTile(
-                              title: Text(
-                                '${applicant['name'] ?? '이름 없음'} (${applicant['contact'] ?? '연락처 없음'})',
-                                style: AppTheme.bodyLargeStyle.copyWith(
-                                  fontWeight: FontWeight.w600,
-                                ),
+                              title: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Row(
+                                    children: [
+                                      Text(
+                                        '${applicant['nickname'] ?? '닉네임 없음'}',
+                                        style: AppTheme.bodyLargeStyle.copyWith(
+                                          fontWeight: FontWeight.w600,
+                                          color: Colors.black,
+                                        ),
+                                      ),
+                                      const SizedBox(width: 8),
+                                      Text(
+                                        '[${_formatPhoneNumber(applicant['contact'])}]',
+                                        style: AppTheme.bodyLargeStyle.copyWith(
+                                          fontWeight: FontWeight.w500,
+                                          color: Colors.black,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    '${applicant['name'] ?? '이름 없음'}',
+                                    style: AppTheme.bodyMediumStyle.copyWith(
+                                      color: Colors.black87,
+                                    ),
+                                  ),
+                                ],
                               ),
                               subtitle: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
