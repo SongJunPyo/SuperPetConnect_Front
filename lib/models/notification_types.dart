@@ -1,0 +1,183 @@
+// 알림 타입 및 관련 상수 정의
+enum UserType {
+  admin,    // 관리자 (account_type = 1)
+  hospital, // 병원 (account_type = 2)
+  user,     // 일반 사용자 (account_type = 3)
+}
+
+// DB의 account_type과 UserType 매핑
+class UserTypeMapper {
+  static const Map<int, UserType> fromAccountType = {
+    1: UserType.admin,
+    2: UserType.hospital,
+    3: UserType.user,
+  };
+  
+  static const Map<UserType, int> toAccountType = {
+    UserType.admin: 1,
+    UserType.hospital: 2,
+    UserType.user: 3,
+  };
+  
+  static UserType? fromDbType(int accountType) {
+    return fromAccountType[accountType];
+  }
+  
+  static int toDbType(UserType userType) {
+    return toAccountType[userType] ?? 3;
+  }
+}
+
+// 관리자 알림 타입
+enum AdminNotificationType {
+  signupRequest,      // 회원가입 승인 요청
+  postApprovalRequest, // 헌혈 게시글 승인 요청
+  columnApprovalRequest, // 칼럼 게시글 승인 요청
+  systemNotice,       // 시스템 공지 알림
+}
+
+// 병원 알림 타입
+enum HospitalNotificationType {
+  postApproved,       // 헌혈 게시글 승인
+  postRejected,       // 헌혈 게시글 거절
+  recruitmentDeadline, // 모집 마감
+  columnApproved,     // 칼럼 게시글 승인
+  columnRejected,     // 칼럼 게시글 거절
+  systemNotice,       // 시스템 공지
+}
+
+// 사용자 알림 타입 (향후 확장용)
+enum UserNotificationType {
+  systemNotice,       // 시스템 공지 (기본)
+}
+
+// 알림 타입 한국어 이름 매핑
+class NotificationTypeNames {
+  // 관리자 알림 이름
+  static const Map<AdminNotificationType, String> adminNames = {
+    AdminNotificationType.signupRequest: '회원가입 승인 요청',
+    AdminNotificationType.postApprovalRequest: '헌혈 게시글 승인 요청',
+    AdminNotificationType.columnApprovalRequest: '칼럼 게시글 승인 요청',
+    AdminNotificationType.systemNotice: '시스템 공지',
+  };
+
+  // 병원 알림 이름
+  static const Map<HospitalNotificationType, String> hospitalNames = {
+    HospitalNotificationType.postApproved: '헌혈 게시글 승인',
+    HospitalNotificationType.postRejected: '헌혈 게시글 거절',
+    HospitalNotificationType.recruitmentDeadline: '모집 마감',
+    HospitalNotificationType.columnApproved: '칼럼 게시글 승인',
+    HospitalNotificationType.columnRejected: '칼럼 게시글 거절',
+    HospitalNotificationType.systemNotice: '시스템 공지',
+  };
+
+  // 사용자 알림 이름
+  static const Map<UserNotificationType, String> userNames = {
+    UserNotificationType.systemNotice: '시스템 공지',
+  };
+}
+
+// 알림 타입 아이콘 매핑
+class NotificationTypeIcons {
+  // 관리자 알림 아이콘
+  static const Map<AdminNotificationType, String> adminIcons = {
+    AdminNotificationType.signupRequest: '👤',
+    AdminNotificationType.postApprovalRequest: '📝',
+    AdminNotificationType.columnApprovalRequest: '📄',
+    AdminNotificationType.systemNotice: '🔔',
+  };
+
+  // 병원 알림 아이콘  
+  static const Map<HospitalNotificationType, String> hospitalIcons = {
+    HospitalNotificationType.postApproved: '✅',
+    HospitalNotificationType.postRejected: '❌',
+    HospitalNotificationType.recruitmentDeadline: '⏰',
+    HospitalNotificationType.columnApproved: '✅',
+    HospitalNotificationType.columnRejected: '❌',
+    HospitalNotificationType.systemNotice: '🔔',
+  };
+
+  // 사용자 알림 아이콘
+  static const Map<UserNotificationType, String> userIcons = {
+    UserNotificationType.systemNotice: '🔔',
+  };
+}
+
+// 알림 우선순위 (높을수록 중요)
+class NotificationPriority {
+  static const int low = 1;
+  static const int normal = 2;
+  static const int high = 3;
+  static const int urgent = 4;
+  
+  // 관리자 알림 우선순위
+  static const Map<AdminNotificationType, int> adminPriorities = {
+    AdminNotificationType.signupRequest: normal,
+    AdminNotificationType.postApprovalRequest: high,
+    AdminNotificationType.columnApprovalRequest: normal,
+    AdminNotificationType.systemNotice: urgent,
+  };
+
+  // 병원 알림 우선순위
+  static const Map<HospitalNotificationType, int> hospitalPriorities = {
+    HospitalNotificationType.postApproved: high,
+    HospitalNotificationType.postRejected: high,
+    HospitalNotificationType.recruitmentDeadline: urgent,
+    HospitalNotificationType.columnApproved: normal,
+    HospitalNotificationType.columnRejected: normal,
+    HospitalNotificationType.systemNotice: urgent,
+  };
+
+  // 사용자 알림 우선순위
+  static const Map<UserNotificationType, int> userPriorities = {
+    UserNotificationType.systemNotice: urgent,
+  };
+}
+
+// 알림 타입 ID 매핑 (서버 API와 호환)
+class NotificationTypeIds {
+  // 관리자 알림 ID
+  static const Map<AdminNotificationType, int> adminIds = {
+    AdminNotificationType.signupRequest: 101,
+    AdminNotificationType.postApprovalRequest: 102,
+    AdminNotificationType.columnApprovalRequest: 103,
+    AdminNotificationType.systemNotice: 104,
+  };
+
+  // 병원 알림 ID
+  static const Map<HospitalNotificationType, int> hospitalIds = {
+    HospitalNotificationType.postApproved: 201,
+    HospitalNotificationType.postRejected: 202,
+    HospitalNotificationType.recruitmentDeadline: 203,
+    HospitalNotificationType.columnApproved: 204,
+    HospitalNotificationType.columnRejected: 205,
+    HospitalNotificationType.systemNotice: 206,
+  };
+
+  // 사용자 알림 ID
+  static const Map<UserNotificationType, int> userIds = {
+    UserNotificationType.systemNotice: 301,
+  };
+  
+  // ID에서 타입으로 역매핑
+  static AdminNotificationType? getAdminTypeById(int id) {
+    return adminIds.entries
+        .where((entry) => entry.value == id)
+        .map((entry) => entry.key)
+        .firstOrNull;
+  }
+  
+  static HospitalNotificationType? getHospitalTypeById(int id) {
+    return hospitalIds.entries
+        .where((entry) => entry.value == id)
+        .map((entry) => entry.key)
+        .firstOrNull;
+  }
+  
+  static UserNotificationType? getUserTypeById(int id) {
+    return userIds.entries
+        .where((entry) => entry.value == id)
+        .map((entry) => entry.key)
+        .firstOrNull;
+  }
+}

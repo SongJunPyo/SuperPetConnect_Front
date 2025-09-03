@@ -6,6 +6,7 @@ class Pet {
   final String ownerEmail; // 보호자 이메일 (이메일 기반 관계로 변경)
   final String name;
   final String species;
+  final int? animalType; // 0=강아지, 1=고양이
   final String? breed;
   final int ageNumber; // DB의 age_number 필드
   final String? bloodType;
@@ -22,6 +23,7 @@ class Pet {
     required this.ownerEmail,
     required this.name,
     required this.species,
+    this.animalType,
     this.breed,
     required this.ageNumber,
     this.bloodType,
@@ -62,6 +64,7 @@ class Pet {
       ownerEmail: json['owner_email'] ?? '',
       name: json['name'] ?? '',
       species: json['species'] ?? '',
+      animalType: json['animal_type'], // 0=강아지, 1=고양이
       breed: json['breed'],
       ageNumber: parseAge(json['age_number']),
       bloodType: json['blood_type'],
@@ -82,6 +85,7 @@ class Pet {
       'owner_email': ownerEmail,
       'name': name,
       'species': species,
+      'animal_type': animalType, // 0=강아지, 1=고양이
       'breed': breed,
       'age_number': ageNumber,
       'blood_type': bloodType,
@@ -124,5 +128,13 @@ class Pet {
       final remainingDays = nextDate.difference(DateTime.now()).inDays;
       return '헌혈 대기 중 ($remainingDays일 후 가능)';
     }
+  }
+
+  // 반려동물 정보 표시용 getter
+  String get displayInfo {
+    final speciesText = species == 'dog' ? '반려견' : species == 'cat' ? '반려묘' : species;
+    final breedText = breed != null ? ' • $breed' : '';
+    final bloodText = bloodType != null ? ' • $bloodType형' : '';
+    return '$name ($speciesText • $age • ${weightKg}kg$breedText$bloodText)';
   }
 }

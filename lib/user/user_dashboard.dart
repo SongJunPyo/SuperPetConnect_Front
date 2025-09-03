@@ -3,6 +3,7 @@ import 'pet_management.dart';
 import '../utils/app_theme.dart';
 import '../widgets/app_card.dart';
 import '../widgets/app_app_bar.dart';
+import '../widgets/unified_notification_page.dart';
 import '../auth/profile_management.dart';
 import 'user_notice_list.dart';
 import 'user_donation_list.dart';
@@ -486,9 +487,10 @@ class _UserDashboardState extends State<UserDashboard>
             _loadUserName();
           },
           onNotificationPressed: () {
-            ScaffoldMessenger.of(
+            Navigator.push(
               context,
-            ).showSnackBar(const SnackBar(content: Text('알림 페이지로 이동 (준비 중)')));
+              MaterialPageRoute(builder: (context) => const UnifiedNotificationPage()),
+            );
           },
           additionalAction: IconButton(
             icon: const Icon(Icons.pets, color: AppTheme.textPrimary),

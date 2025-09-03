@@ -199,11 +199,13 @@ class _LoginScreenState extends State<LoginScreen> {
           errorMessage = '네트워크 연결을 확인해주세요.';
         }
         
-        _showAlertDialog(
-          context,
-          '연결 오류',
-          '$errorMessage\n\n상세 오류: $e',
-        );
+        if (mounted) {
+          _showAlertDialog(
+            context,
+            '연결 오류',
+            '$errorMessage\n\n상세 오류: $e',
+          );
+        }
       }
     }
   }

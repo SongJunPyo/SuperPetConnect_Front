@@ -30,7 +30,8 @@ class _PetRegisterScreenState extends State<PetRegisterScreen> {
   final _weightController = TextEditingController();
   final _ageController = TextEditingController();
 
-  String? _selectedSpecies; // 강아지 또는 고양이
+  String? _selectedSpecies; // 강아지 또는 고양이 (UI 표시용)
+  int? _selectedAnimalType; // 0=강아지, 1=고양이 (서버 전송용)
   String? _selectedBloodType;
   bool _isPregnant = false;
   bool _isVaccinated = false;
@@ -47,6 +48,8 @@ class _PetRegisterScreenState extends State<PetRegisterScreen> {
       final pet = widget.petToEdit!;
       _nameController.text = pet.name;
       _selectedSpecies = pet.species;
+      // animal_type 설정 (기존 species 기반으로 변환)
+      _selectedAnimalType = pet.species == '강아지' ? 0 : 1;
       _breedController.text = pet.breed ?? ''; // null일 경우 빈 문자열
       _weightController.text = pet.weightKg.toString();
       _ageController.text = pet.ageNumber.toString();
@@ -99,7 +102,7 @@ class _PetRegisterScreenState extends State<PetRegisterScreen> {
     if (!_formKey.currentState!.validate()) {
       return;
     }
-    if (_selectedSpecies == null || _selectedBloodType == null) {
+    if (_selectedSpecies == null || _selectedAnimalType == null || _selectedBloodType == null) {
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(const SnackBar(content: Text('종류와 혈액형을 모두 선택해주세요.')));
@@ -124,6 +127,7 @@ class _PetRegisterScreenState extends State<PetRegisterScreen> {
     final Map<String, dynamic> petData = {
       'name': _nameController.text.trim(),
       'species': _selectedSpecies!,
+      'animal_type': _selectedAnimalType!, // 0=강아지, 1=고양이
       'breed': _breedController.text.trim(),
       'age_number': int.parse(_ageController.text.trim()),
       'weight_kg': double.parse(_weightController.text.trim()),
@@ -321,7 +325,7 @@ class _PetRegisterScreenState extends State<PetRegisterScreen> {
     );
   }
 
-  // 종류 선택 드롭다운 위젯
+  // 종류 선택 버튼 위젯 (강아지/고양이)
   Widget _buildSpeciesDropdown(BuildContext context) {
     final TextTheme textTheme = Theme.of(context).textTheme;
     
@@ -335,59 +339,118 @@ class _PetRegisterScreenState extends State<PetRegisterScreen> {
             style: textTheme.bodySmall?.copyWith(color: Colors.grey[700]),
           ),
           const SizedBox(height: 8),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 5),
-            decoration: BoxDecoration(
-              color: Colors.grey[100],
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: Colors.grey.shade300),
-            ),
-            child: DropdownButtonHideUnderline(
-              child: DropdownButton<String>(
-                value: _selectedSpecies,
-                hint: Text(
-                  '종류를 선택해주세요.',
-                  style: textTheme.bodyMedium?.copyWith(
-                    color: Colors.grey[500],
-                  ),
-                ),
-                isExpanded: true,
-                icon: Icon(
-                  Icons.arrow_drop_down_circle_outlined,
-                  color: Colors.grey[600],
-                ),
-                style: textTheme.bodyMedium?.copyWith(
-                  color: Colors.black87,
-                ),
-                onChanged: (String? newValue) {
-                  setState(() {
-                    _selectedSpecies = newValue;
-                    // 종류 변경시 혈액형 유효성 재검사
-                    if (_selectedBloodType != null && newValue != null) {
-                      _selectedBloodType = _validateBloodType(newValue, _selectedBloodType);
-                    } else {
-                      _selectedBloodType = null;
-                    }
-                  });
-                },
-                items: ['강아지', '고양이'].map<DropdownMenuItem<String>>((String value) {
-                  return DropdownMenuItem<String>(
-                    value: value,
-                    child: Row(
+          Row(
+            children: [
+              // 강아지 선택 버튼
+              Expanded(
+                child: GestureDetector(
+                  onTap: () {
+                    setState(() {
+                      _selectedSpecies = '강아지';
+                      _selectedAnimalType = 0;
+                      // 종류 변경시 혈액형 유효성 재검사
+                      if (_selectedBloodType != null) {
+                        _selectedBloodType = _validateBloodType('강아지', _selectedBloodType);
+                      } else {
+                        _selectedBloodType = null;
+                      }
+                    });
+                  },
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 12),
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color: _selectedSpecies == '강아지' 
+                            ? AppTheme.primaryBlue 
+                            : Colors.grey.shade300,
+                        width: _selectedSpecies == '강아지' ? 2 : 1,
+                      ),
+                      color: _selectedSpecies == '강아지' 
+                          ? AppTheme.primaryBlue.withOpacity(0.1)
+                          : Colors.grey[100],
+                    ),
+                    child: Column(
                       children: [
                         Icon(
-                          value == '강아지' ? Icons.pets : Icons.cruelty_free,
-                          size: 20,
-                          color: AppTheme.primaryBlue,
+                          Icons.pets,
+                          size: 32,
+                          color: _selectedSpecies == '강아지' 
+                              ? AppTheme.primaryBlue
+                              : Colors.grey[600],
                         ),
-                        const SizedBox(width: 8),
-                        Text(value),
+                        const SizedBox(height: 8),
+                        Text(
+                          '강아지',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                            color: _selectedSpecies == '강아지' 
+                                ? AppTheme.primaryBlue
+                                : Colors.grey[700],
+                          ),
+                        ),
                       ],
                     ),
-                  );
-                }).toList(),
+                  ),
+                ),
               ),
-            ),
+              const SizedBox(width: 12),
+              // 고양이 선택 버튼
+              Expanded(
+                child: GestureDetector(
+                  onTap: () {
+                    setState(() {
+                      _selectedSpecies = '고양이';
+                      _selectedAnimalType = 1;
+                      // 종류 변경시 혈액형 유효성 재검사
+                      if (_selectedBloodType != null) {
+                        _selectedBloodType = _validateBloodType('고양이', _selectedBloodType);
+                      } else {
+                        _selectedBloodType = null;
+                      }
+                    });
+                  },
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 12),
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color: _selectedSpecies == '고양이' 
+                            ? AppTheme.primaryBlue 
+                            : Colors.grey.shade300,
+                        width: _selectedSpecies == '고양이' ? 2 : 1,
+                      ),
+                      color: _selectedSpecies == '고양이' 
+                          ? AppTheme.primaryBlue.withOpacity(0.1)
+                          : Colors.grey[100],
+                    ),
+                    child: Column(
+                      children: [
+                        Icon(
+                          Icons.cruelty_free, // 고양이 아이콘
+                          size: 32,
+                          color: _selectedSpecies == '고양이' 
+                              ? AppTheme.primaryBlue
+                              : Colors.grey[600],
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          '고양이',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                            color: _selectedSpecies == '고양이' 
+                                ? AppTheme.primaryBlue
+                                : Colors.grey[700],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ],
           ),
         ],
       ),

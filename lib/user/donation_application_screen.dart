@@ -3,6 +3,7 @@ import '../models/pet_model.dart';
 import '../services/donation_application_service.dart';
 import '../services/manage_pet_info.dart';
 import '../utils/app_theme.dart';
+import 'pet_register.dart'; // PetRegisterScreen import 추가
 
 /// 헌혈 신청 화면 (사용자용)
 class DonationApplicationScreen extends StatefulWidget {
@@ -10,7 +11,7 @@ class DonationApplicationScreen extends StatefulWidget {
   final String postTitle;
   final String hospitalName;
   final String bloodType;
-  final String animalType;
+  final int animalType; // 0=강아지, 1=고양이
 
   const DonationApplicationScreen({
     super.key,
@@ -49,14 +50,16 @@ class _DonationApplicationScreenState extends State<DonationApplicationScreen> {
       
       // 헌혈 가능한 반려동물 필터링
       final filteredPets = allPets.where((pet) {
-        // 동물 종류 매칭
-        bool speciesMatch = false;
-        if (widget.animalType.contains('개') || widget.animalType.contains('dog')) {
-          speciesMatch = pet.species.toLowerCase() == 'dog';
-        } else if (widget.animalType.contains('고양이') || widget.animalType.contains('cat')) {
-          speciesMatch = pet.species.toLowerCase() == 'cat';
-        } else {
-          speciesMatch = true; // 종류 제한이 없는 경우
+        // 동물 종류 매칭 (새로운 animal_type 필드 사용)
+        bool animalTypeMatch = pet.animalType == widget.animalType;
+        
+        // animal_type이 null인 경우 기존 species로 매칭 (하위 호환성)
+        if (pet.animalType == null) {
+          if (widget.animalType == 0) { // 강아지
+            animalTypeMatch = pet.species == '강아지';
+          } else if (widget.animalType == 1) { // 고양이
+            animalTypeMatch = pet.species == '고양이';
+          }
         }
 
         // 혈액형 매칭 (혈액형이 지정된 경우만)
@@ -72,7 +75,7 @@ class _DonationApplicationScreenState extends State<DonationApplicationScreen> {
                               (pet.vaccinated ?? false) &&
                               !(pet.hasDisease ?? false);
 
-        return speciesMatch && bloodTypeMatch && basicConditions;
+        return animalTypeMatch && bloodTypeMatch && basicConditions;
       }).toList();
 
       setState(() {
@@ -106,12 +109,7 @@ class _DonationApplicationScreenState extends State<DonationApplicationScreen> {
       );
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('헌혈 신청이 완료되었습니다!'),
-            backgroundColor: Colors.green,
-          ),
-        );
+        // 성공 시 별도의 스낵바 메시지 표시하지 않음
         Navigator.of(context).pop(true); // 성공 결과 반환
       }
     } catch (e) {
@@ -230,7 +228,7 @@ class _DonationApplicationScreenState extends State<DonationApplicationScreen> {
                                   style: AppTheme.bodyMediumStyle,
                                 ),
                               Text(
-                                '대상: ${widget.animalType}',
+                                '대상: ${widget.animalType == 0 ? "강아지" : "고양이"}',
                                 style: AppTheme.bodyMediumStyle,
                               ),
                             ],
@@ -260,23 +258,83 @@ class _DonationApplicationScreenState extends State<DonationApplicationScreen> {
                             child: Column(
                               children: [
                                 Icon(
-                                  Icons.pets_outlined,
+                                  widget.animalType == 0 ? Icons.pets : Icons.cruelty_free,
                                   size: 48,
                                   color: AppTheme.mediumGray,
                                 ),
                                 const SizedBox(height: 16),
                                 Text(
-                                  '헌혈 가능한 반려동물이 없습니다',
-                                  style: AppTheme.bodyLargeStyle,
-                                  textAlign: TextAlign.center,
-                                ),
-                                const SizedBox(height: 8),
-                                Text(
-                                  '헌혈 조건:\n• 나이: 1-8세\n• 체중: 20kg 이상\n• 건강한 상태\n• 예방접종 완료\n• 임신하지 않은 상태',
-                                  style: AppTheme.bodyMediumStyle.copyWith(
-                                    color: AppTheme.textSecondary,
+                                  '이 헌혈 요청에 참여할 수 있는\n${widget.animalType == 0 ? "강아지" : "고양이"}가 없습니다',
+                                  style: AppTheme.bodyLargeStyle.copyWith(
+                                    fontWeight: FontWeight.w600,
                                   ),
                                   textAlign: TextAlign.center,
+                                ),
+                                const SizedBox(height: 12),
+                                Container(
+                                  padding: const EdgeInsets.all(16),
+                                  decoration: BoxDecoration(
+                                    color: widget.animalType == 0 
+                                        ? Colors.blue.shade50 
+                                        : Colors.purple.shade50,
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  child: Column(
+                                    children: [
+                                      Row(
+                                        children: [
+                                          Icon(
+                                            Icons.info_outline,
+                                            size: 20,
+                                            color: widget.animalType == 0 
+                                                ? Colors.blue.shade600 
+                                                : Colors.purple.shade600,
+                                          ),
+                                          const SizedBox(width: 8),
+                                          Text(
+                                            '헌혈 조건',
+                                            style: TextStyle(
+                                              fontWeight: FontWeight.w600,
+                                              color: widget.animalType == 0 
+                                                  ? Colors.blue.shade600 
+                                                  : Colors.purple.shade600,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                      const SizedBox(height: 8),
+                                      Text(
+                                        '• ${widget.animalType == 0 ? "강아지" : "고양이"} 종류 일치\n• 나이: 1-8세\n• 체중: 20kg 이상\n• 건강한 상태 (질병 없음)\n• 예방접종 완료\n• 임신하지 않은 상태',
+                                        style: AppTheme.bodyMediumStyle.copyWith(
+                                          color: AppTheme.textSecondary,
+                                        ),
+                                        textAlign: TextAlign.left,
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                const SizedBox(height: 16),
+                                ElevatedButton.icon(
+                                  onPressed: () {
+                                    Navigator.of(context).push(
+                                      MaterialPageRoute(
+                                        builder: (context) => const PetRegisterScreen(),
+                                      ),
+                                    ).then((result) {
+                                      if (result == true) {
+                                        _loadAvailablePets(); // 새로운 펫 등록 후 목록 새로고침
+                                      }
+                                    });
+                                  },
+                                  icon: const Icon(Icons.add_circle_outline),
+                                  label: Text('${widget.animalType == 0 ? "강아지" : "고양이"} 등록하기'),
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: AppTheme.primaryBlue,
+                                    foregroundColor: Colors.white,
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
+                                  ),
                                 ),
                               ],
                             ),

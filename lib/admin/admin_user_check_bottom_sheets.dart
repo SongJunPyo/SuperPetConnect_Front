@@ -11,14 +11,16 @@ class SuspendedUserBottomSheet extends StatefulWidget {
   const SuspendedUserBottomSheet({super.key, required this.user});
 
   @override
-  State<SuspendedUserBottomSheet> createState() => _SuspendedUserBottomSheetState();
+  State<SuspendedUserBottomSheet> createState() =>
+      _SuspendedUserBottomSheetState();
 }
 
 class _SuspendedUserBottomSheetState extends State<SuspendedUserBottomSheet> {
   final _formKey = GlobalKey<FormState>();
   final _reasonController = TextEditingController();
   final _daysController = TextEditingController();
-  bool _isLoading = false;
+  bool _isActivating = false;
+  bool _isUpdating = false;
 
   @override
   void initState() {
@@ -34,11 +36,67 @@ class _SuspendedUserBottomSheetState extends State<SuspendedUserBottomSheet> {
     super.dispose();
   }
 
+  Future<void> _activateUser() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('계정 활성화'),
+        content: Text('${widget.user.name}님의 계정을 활성화하시겠습니까?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('취소'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('활성화'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true) return;
+
+    setState(() {
+      _isActivating = true;
+    });
+
+    try {
+      // Status 1 for 'Active'
+      await UserManagementService.updateUserStatus(widget.user.accountIdx, 1);
+
+      if (mounted) {
+        Navigator.of(context).pop(true); // Pop bottom sheet and signal success
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('계정이 활성화되었습니다.'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('활성화 실패: ${e.toString()}'),
+            backgroundColor: AppTheme.error,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isActivating = false;
+        });
+      }
+    }
+  }
+
   Future<void> _updateBlacklist() async {
     if (!_formKey.currentState!.validate()) return;
 
     setState(() {
-      _isLoading = true;
+      _isUpdating = true;
     });
 
     try {
@@ -71,7 +129,7 @@ class _SuspendedUserBottomSheetState extends State<SuspendedUserBottomSheet> {
     } finally {
       if (mounted) {
         setState(() {
-          _isLoading = false;
+          _isUpdating = false;
         });
       }
     }
@@ -115,17 +173,42 @@ class _SuspendedUserBottomSheetState extends State<SuspendedUserBottomSheet> {
           _buildInfoRow('이메일', widget.user.email),
           _buildInfoRow('전화번호', widget.user.phoneNumber),
           _buildInfoRow('사용자 유형', widget.user.userTypeText),
-          
+
           const SizedBox(height: 24),
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton(
+              onPressed: _isActivating || _isUpdating ? null : _activateUser,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.green,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(vertical: 16),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+              child: _isActivating
+                  ? const SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: Colors.white,
+                      ),
+                    )
+                  : const Text('계정 활성화'),
+            ),
+          ),
+          const SizedBox(height: 16),
           const Divider(),
           const SizedBox(height: 16),
-          
+
           Text(
             '정지 정보 수정',
             style: AppTheme.h4Style.copyWith(fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 16),
-          
+
           Form(
             key: _formKey,
             child: Column(
@@ -186,7 +269,8 @@ class _SuspendedUserBottomSheetState extends State<SuspendedUserBottomSheet> {
                 SizedBox(
                   width: double.infinity,
                   child: ElevatedButton(
-                    onPressed: _isLoading ? null : _updateBlacklist,
+                    onPressed:
+                        _isActivating || _isUpdating ? null : _updateBlacklist,
                     style: ElevatedButton.styleFrom(
                       backgroundColor: AppTheme.primaryBlue,
                       foregroundColor: Colors.white,
@@ -195,7 +279,7 @@ class _SuspendedUserBottomSheetState extends State<SuspendedUserBottomSheet> {
                         borderRadius: BorderRadius.circular(12),
                       ),
                     ),
-                    child: _isLoading
+                    child: _isUpdating
                         ? const SizedBox(
                             width: 20,
                             height: 20,

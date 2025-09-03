@@ -47,6 +47,8 @@ dependencies:
   # 위치 정보 & 권한 요청 관리용 패키지
   geolocator: ^12.0.0
   permission_handler: ^11.3.1
+  # WebSocket 연결용 패키지
+  web_socket_channel: ^2.4.0
   # 환경변수 관리
   flutter_dotenv: ^5.1.0
 

@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:connect/hospital/hospital_post.dart';
-import 'package:connect/hospital/hospital_alarm.dart';
+import '../widgets/unified_notification_page.dart';
 import 'package:connect/hospital/hospital_post_check.dart';
 import '../utils/app_theme.dart';
 import '../widgets/app_card.dart';
@@ -254,7 +254,7 @@ class _HospitalDashboardState extends State<HospitalDashboard>
           onNotificationPressed: () {
             Navigator.push(
               context,
-              MaterialPageRoute(builder: (context) => const HospitalAlarm()),
+              MaterialPageRoute(builder: (context) => const UnifiedNotificationPage()),
             );
           },
         ),

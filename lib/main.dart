@@ -18,6 +18,7 @@ import 'package:flutter/foundation.dart';
 import 'package:connect/web/web_router.dart';
 // 알림 서비스
 import 'package:connect/services/notification_service.dart';
+import 'package:connect/services/notification_list_service.dart';
 // 관리자 페이지
 import 'package:connect/admin/admin_post_management_page.dart';
 // 병원 페이지
@@ -211,6 +212,9 @@ void main() async {
 
   // 6. 알림 서비스 초기화 (FCM 메시지 리스너 포함)
   await NotificationService.initialize();
+  
+  // 7. 통합 알림 서비스 초기화 (WebSocket 연결 포함)
+  await NotificationListService.initialize();
 
   runApp(const MyApp());
 }

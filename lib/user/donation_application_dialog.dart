@@ -4,20 +4,23 @@ import 'package:flutter/material.dart';
 import '../utils/app_theme.dart';
 import '../models/applied_donation_model.dart';
 import '../models/donation_post_time_model.dart';
+import '../models/pet_model.dart' as pet_model;
 import '../services/applied_donation_service.dart';
 
 class DonationApplicationDialog extends StatefulWidget {
   final int postIdx;
   final String postTitle;
   final String hospitalName;
+  final int animalType; // 0=강아지, 1=고양이
   final List<DonationDateWithTimes> availableDatesWithTimes;
-  final List<Pet> userPets; // 사용자의 반려동물 목록
+  final List<pet_model.Pet> userPets; // 사용자의 반려동물 목록
 
   const DonationApplicationDialog({
     super.key,
     required this.postIdx,
     required this.postTitle,
     required this.hospitalName,
+    required this.animalType,
     required this.availableDatesWithTimes,
     required this.userPets,
   });
@@ -27,7 +30,7 @@ class DonationApplicationDialog extends StatefulWidget {
 }
 
 class _DonationApplicationDialogState extends State<DonationApplicationDialog> {
-  Pet? selectedPet;
+  pet_model.Pet? selectedPet;
   DonationDateWithTimes? selectedDateWithTimes;
   DonationPostTime? selectedTime;
   bool isSubmitting = false;
@@ -121,36 +124,85 @@ class _DonationApplicationDialogState extends State<DonationApplicationDialog> {
               ),
             ),
             const SizedBox(height: AppTheme.spacing8),
-            Container(
-              decoration: BoxDecoration(
-                border: Border.all(color: AppTheme.lightGray),
-                borderRadius: BorderRadius.circular(AppTheme.radius8),
-              ),
-              child: DropdownButtonHideUnderline(
-                child: DropdownButton<Pet>(
-                  value: selectedPet,
-                  hint: const Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 16),
-                    child: Text('반려동물을 선택하세요'),
+            
+            // 헌혈 가능한 반려동물 필터링
+            Builder(builder: (context) {
+              final availablePets = widget.userPets.where((pet) {
+                // 동물 종류 매칭 (새로운 animal_type 필드 사용)
+                bool animalTypeMatch = pet.animalType == widget.animalType;
+                
+                // animal_type이 null인 경우 기존 species로 매칭 (하위 호환성)
+                if (pet.animalType == null) {
+                  if (widget.animalType == 0) { // 강아지
+                    animalTypeMatch = pet.species == '강아지';
+                  } else if (widget.animalType == 1) { // 고양이
+                    animalTypeMatch = pet.species == '고양이';
+                  }
+                }
+                
+                return animalTypeMatch;
+              }).toList();
+              
+              if (availablePets.isEmpty) {
+                return Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade50,
+                    borderRadius: BorderRadius.circular(AppTheme.radius8),
+                    border: Border.all(color: AppTheme.lightGray),
                   ),
-                  isExpanded: true,
-                  items: widget.userPets.map((pet) {
-                    return DropdownMenuItem<Pet>(
-                      value: pet,
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 16),
-                        child: Text(pet.displayInfo),
+                  child: Row(
+                    children: [
+                      Icon(
+                        widget.animalType == 0 ? Icons.pets : Icons.cruelty_free,
+                        color: AppTheme.mediumGray,
+                        size: 20,
                       ),
-                    );
-                  }).toList(),
-                  onChanged: (pet) {
-                    setState(() {
-                      selectedPet = pet;
-                    });
-                  },
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          '이 헌혈 요청에 참여할 수 있는 ${widget.animalType == 0 ? "강아지" : "고양이"}가 없습니다',
+                          style: AppTheme.bodyMediumStyle.copyWith(
+                            color: AppTheme.textSecondary,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              }
+              
+              return Container(
+                decoration: BoxDecoration(
+                  border: Border.all(color: AppTheme.lightGray),
+                  borderRadius: BorderRadius.circular(AppTheme.radius8),
                 ),
-              ),
-            ),
+                child: DropdownButtonHideUnderline(
+                  child: DropdownButton<pet_model.Pet>(
+                    value: selectedPet,
+                    hint: const Padding(
+                      padding: EdgeInsets.symmetric(horizontal: 16),
+                      child: Text('반려동물을 선택하세요'),
+                    ),
+                    isExpanded: true,
+                    items: availablePets.map((pet) {
+                      return DropdownMenuItem<pet_model.Pet>(
+                        value: pet,
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 16),
+                          child: Text(pet.displayInfo),
+                        ),
+                      );
+                    }).toList(),
+                    onChanged: (pet) {
+                      setState(() {
+                        selectedPet = pet;
+                      });
+                    },
+                  ),
+                ),
+              );
+            }),
 
             const SizedBox(height: AppTheme.spacing20),
 
@@ -369,7 +421,25 @@ class _DonationApplicationDialogState extends State<DonationApplicationDialog> {
   }
 
   bool _canSubmit() {
-    return selectedPet != null && 
+    // 헌혈 가능한 반려동물 필터링
+    final availablePets = widget.userPets.where((pet) {
+      // 동물 종류 매칭 (새로운 animal_type 필드 사용)
+      bool animalTypeMatch = pet.animalType == widget.animalType;
+      
+      // animal_type이 null인 경우 기존 species로 매칭 (하위 호환성)
+      if (pet.animalType == null) {
+        if (widget.animalType == 0) { // 강아지
+          animalTypeMatch = pet.species == '강아지' || pet.species == '개';
+        } else if (widget.animalType == 1) { // 고양이
+          animalTypeMatch = pet.species == '고양이';
+        }
+      }
+      
+      return animalTypeMatch;
+    }).toList();
+    
+    return availablePets.isNotEmpty &&
+           selectedPet != null && 
            selectedTime != null && 
            !isSubmitting;
   }
@@ -401,13 +471,7 @@ class _DonationApplicationDialogState extends State<DonationApplicationDialog> {
       if (mounted) {
         Navigator.of(context).pop(true); // 성공 결과와 함께 다이얼로그 닫기
         
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('헌혈 신청이 완료되었습니다!\n${selectedPet!.name}의 신청이 접수되었습니다.'),
-            backgroundColor: Colors.green,
-            duration: const Duration(seconds: 3),
-          ),
-        );
+        // 성공 시 별도의 스낵바 메시지 표시하지 않음
       }
     } catch (e) {
       if (mounted) {

@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
-import 'package:connect/admin/admin_alarm.dart';
+import '../widgets/unified_notification_page.dart';
 import 'package:connect/admin/admin_post_check.dart';
 import 'package:connect/admin/admin_user_check.dart';
 import 'package:connect/admin/admin_hospital_check.dart';
@@ -163,7 +163,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
         onNotificationPressed: () {
           Navigator.push(
             context,
-            MaterialPageRoute(builder: (context) => const AdminAlarm()),
+            MaterialPageRoute(builder: (context) => const UnifiedNotificationPage()),
           );
         },
       ),
