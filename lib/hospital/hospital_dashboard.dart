@@ -1,3 +1,4 @@
+// ignore_for_file: use_build_context_synchronously
 import 'package:flutter/material.dart';
 import 'package:connect/hospital/hospital_post.dart';
 import '../widgets/unified_notification_page.dart';
@@ -138,7 +139,6 @@ class _HospitalDashboardState extends State<HospitalDashboard>
         }
       } catch (e) {
         // 오류 발생 시 기본값 유지
-        print('병원 이름 로드 실패: $e');
       }
     }
   }
@@ -161,9 +161,6 @@ class _HospitalDashboardState extends State<HospitalDashboard>
       final columnPosts = futures[0] as List<ColumnPost>;
       final noticePosts = futures[1] as List<NoticePost>;
 
-      print('DEBUG: 병원 대시보드 데이터 로드 결과:');
-      print('  - 칼럼: ${columnPosts.length}건');
-      print('  - 공지사항: ${noticePosts.length}건');
 
       // 칼럼 정렬 (중요 공지 우선, 그 다음 최신순)
       final sortedColumns =
@@ -230,7 +227,6 @@ class _HospitalDashboardState extends State<HospitalDashboard>
         isLoadingNotices = false;
       });
     } catch (e) {
-      print('병원 대시보드 데이터 로드 실패: $e');
       setState(() {
         isLoadingDashboard = false;
         isLoadingColumns = false;
@@ -241,8 +237,8 @@ class _HospitalDashboardState extends State<HospitalDashboard>
 
   @override
   Widget build(BuildContext context) {
-    return WillPopScope(
-      onWillPop: () async => false, // 뒤로가기 방지
+    return PopScope(
+      canPop: false, // 뒤로가기 방지
       child: Scaffold(
         appBar: AppDashboardAppBar(
           onProfilePressed: () {
@@ -332,7 +328,7 @@ class _HospitalDashboardState extends State<HospitalDashboard>
                             title: "헌혈 신청 현황",
                             subtitle: "헌혈 신청자 관리 및 승인 처리",
                             iconColor: AppTheme.success,
-                            backgroundColor: AppTheme.success.withOpacity(0.1),
+                            backgroundColor: AppTheme.success.withValues(alpha: 0.1),
                             onTap: () {
                               Navigator.push(
                                 context,
@@ -348,23 +344,27 @@ class _HospitalDashboardState extends State<HospitalDashboard>
                             title: "칼럼 게시글 작성",
                             subtitle: "반려동물 헌혈 관련 정보 공유",
                             iconColor: AppTheme.warning,
-                            backgroundColor: AppTheme.warning.withOpacity(0.1),
+                            backgroundColor: AppTheme.warning.withValues(alpha: 0.1),
                             onTap: () async {
                               final hasPermission = await HospitalColumnService.checkColumnPermission();
                               if (hasPermission) {
-                                Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (context) => const HospitalColumnList(),
-                                  ),
-                                );
+                                if (mounted) {
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (context) => const HospitalColumnList(),
+                                    ),
+                                  );
+                                }
                               } else {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(
-                                    content: Text('관리자의 권한이 필요합니다.'),
-                                    backgroundColor: Colors.orange,
-                                  ),
-                                );
+                                if (mounted) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                      content: Text('관리자의 권한이 필요합니다.'),
+                                      backgroundColor: Colors.orange,
+                                    ),
+                                  );
+                                }
                               }
                             },
                           ),
@@ -434,7 +434,7 @@ class _HospitalDashboardState extends State<HospitalDashboard>
                   decoration: BoxDecoration(
                     color: Colors.white,
                     borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: AppTheme.lightGray.withOpacity(0.3)),
+                    border: Border.all(color: AppTheme.lightGray.withValues(alpha: 0.3)),
                   ),
                   child: TabBarView(
                     controller: _tabController,
@@ -490,7 +490,7 @@ class _HospitalDashboardState extends State<HospitalDashboard>
               separatorBuilder:
                   (context, index) => Container(
                     height: 1,
-                    color: AppTheme.lightGray.withOpacity(0.2),
+                    color: AppTheme.lightGray.withValues(alpha: 0.2),
                     margin: const EdgeInsets.symmetric(horizontal: 16),
                   ),
               itemBuilder: (context, index) {
@@ -535,7 +535,7 @@ class _HospitalDashboardState extends State<HospitalDashboard>
                       crossAxisAlignment: CrossAxisAlignment.center,
                       children: [
                         // 왼쪽: 순서 (2줄 높이 중앙 정렬)
-                        Container(
+                        SizedBox(
                           width: 28,
                           height: 40,
                           child: Center(
@@ -658,10 +658,10 @@ class _HospitalDashboardState extends State<HospitalDashboard>
                                 vertical: 4,
                               ),
                               decoration: BoxDecoration(
-                                color: AppTheme.mediumGray.withOpacity(0.2),
+                                color: AppTheme.mediumGray.withValues(alpha: 0.2),
                                 borderRadius: BorderRadius.circular(6),
                                 border: Border.all(
-                                  color: AppTheme.lightGray.withOpacity(0.3),
+                                  color: AppTheme.lightGray.withValues(alpha: 0.3),
                                   width: 1,
                                 ),
                               ),
@@ -735,7 +735,7 @@ class _HospitalDashboardState extends State<HospitalDashboard>
               separatorBuilder:
                   (context, index) => Container(
                     height: 1,
-                    color: AppTheme.lightGray.withOpacity(0.2),
+                    color: AppTheme.lightGray.withValues(alpha: 0.2),
                     margin: const EdgeInsets.symmetric(horizontal: 16),
                   ),
               itemBuilder: (context, index) {
@@ -790,7 +790,7 @@ class _HospitalDashboardState extends State<HospitalDashboard>
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         // 왼쪽: 순서 번호 (1.5번째 줄 위치)
-                        Container(
+                        SizedBox(
                           width: 20,
                           height: 50, // 전체 높이에 맞춤
                           child: Center(
@@ -906,10 +906,10 @@ class _HospitalDashboardState extends State<HospitalDashboard>
                                 vertical: 4,
                               ),
                               decoration: BoxDecoration(
-                                color: AppTheme.mediumGray.withOpacity(0.2),
+                                color: AppTheme.mediumGray.withValues(alpha: 0.2),
                                 borderRadius: BorderRadius.circular(6),
                                 border: Border.all(
-                                  color: AppTheme.lightGray.withOpacity(0.3),
+                                  color: AppTheme.lightGray.withValues(alpha: 0.3),
                                   width: 1,
                                 ),
                               ),
@@ -967,7 +967,7 @@ class _HospitalDashboardState extends State<HospitalDashboard>
           padding: const EdgeInsets.all(AppTheme.spacing20),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(AppTheme.radius16),
-            border: Border.all(color: iconColor.withOpacity(0.2), width: 1.5),
+            border: Border.all(color: iconColor.withValues(alpha: 0.2), width: 1.5),
           ),
           child: Row(
             children: [
@@ -1007,7 +1007,7 @@ class _HospitalDashboardState extends State<HospitalDashboard>
                 width: 36,
                 height: 36,
                 decoration: BoxDecoration(
-                  color: iconColor.withOpacity(0.1),
+                  color: iconColor.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(AppTheme.radius8),
                 ),
                 child: Icon(

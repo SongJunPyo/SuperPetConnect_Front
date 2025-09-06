@@ -60,9 +60,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
   Future<void> _getFcmToken() async {
     try {
       _fcmToken = await FirebaseMessaging.instance.getToken();
-      print("FCM Token: $_fcmToken");
     } catch (e) {
-      print("FCM Token Error: $e");
+      // FCM 토큰 가져오기 실패 시 로그 출력 (필수가 아님)
+      debugPrint('Failed to get FCM token: $e');
     }
   }
 
@@ -95,8 +95,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
           'longitude': 126.9780, // 서울 시청 경도 (가데이터)
         };
 
-        print('DEBUG: 회원가입 요청 URL: ${Config.serverUrl}/api/register');
-        print('DEBUG: 회원가입 요청 데이터: ${json.encode(requestBody)}');
 
         final response = await http.post(
           Uri.parse('${Config.serverUrl}/api/register'),
@@ -108,8 +106,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
           Navigator.pop(context);
         }
 
-        print('DEBUG: 회원가입 응답 상태코드: ${response.statusCode}');
-        print('DEBUG: 회원가입 응답 본문: ${response.body}');
 
         String message;
 
@@ -130,7 +126,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
         } else if (response.statusCode == 500) {
           message = '서버 내부 오류가 발생했습니다.\n잠시 후 다시 시도해주세요.\n\n만약 문제가 계속되면 관리자에게 문의해주세요.';
           _showSnackBar(message);
-          print('서버 오류 상세: ${response.body}');
         } else if (response.statusCode == 400) {
           // 서버에서 구체적인 에러 메시지가 올 수 있음
           try {
@@ -150,7 +145,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
           Navigator.pop(context);
         }
         _showSnackBar('네트워크 오류가 발생했습니다: $e');
-        print('Register Error: $e');
       }
     }
   }

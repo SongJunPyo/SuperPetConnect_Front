@@ -271,7 +271,7 @@ class Pet {
     }
     if (bloodType != null) info.add(bloodType!);
     if (weightKg != null) info.add('${weightKg}kg');
-    if (age != null) info.add('${age}세');
+    if (age != null) info.add('$age세');
     return info.join(' · ');
   }
 

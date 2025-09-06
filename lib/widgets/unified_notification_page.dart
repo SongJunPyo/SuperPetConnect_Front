@@ -13,13 +13,14 @@ class UnifiedNotificationPage extends StatefulWidget {
   const UnifiedNotificationPage({super.key});
 
   @override
-  State<UnifiedNotificationPage> createState() => _UnifiedNotificationPageState();
+  State<UnifiedNotificationPage> createState() =>
+      _UnifiedNotificationPageState();
 }
 
 class _UnifiedNotificationPageState extends State<UnifiedNotificationPage> {
   UserType? currentUserType;
   bool isLoading = true;
-  
+
   // 실시간 알림 리스너
   StreamSubscription<NotificationModel>? _realTimeNotificationSubscription;
   StreamSubscription<bool>? _connectionStatusSubscription;
@@ -41,74 +42,78 @@ class _UnifiedNotificationPageState extends State<UnifiedNotificationPage> {
   // 실시간 알림 설정
   void _setupRealTimeNotifications() {
     // 실시간 알림 리스너 설정
-    _realTimeNotificationSubscription = NotificationListService.realTimeNotifications.listen((notification) {
-      if (mounted) {
-        // 새로운 알림이 왔을 때 스낵바로 알림
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Row(
-              children: [
-                Icon(Icons.notifications_active, color: Colors.white, size: 20),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        notification.title,
-                        style: const TextStyle(fontWeight: FontWeight.bold),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
+    _realTimeNotificationSubscription = NotificationListService
+        .realTimeNotifications
+        .listen((notification) {
+          if (mounted) {
+            // 새로운 알림이 왔을 때 스낵바로 알림
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Row(
+                  children: [
+                    Icon(
+                      Icons.notifications_active,
+                      color: Colors.white,
+                      size: 20,
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            notification.title,
+                            style: const TextStyle(fontWeight: FontWeight.bold),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          Text(
+                            notification.content,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ],
                       ),
-                      Text(
-                        notification.content,
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
-              ],
-            ),
-            backgroundColor: Colors.blue.shade600,
-            duration: const Duration(seconds: 4),
-            behavior: SnackBarBehavior.floating,
-            action: SnackBarAction(
-              label: '확인',
-              textColor: Colors.white,
-              onPressed: () {
-                // 알림 클릭 시 처리 로직 실행
-                _onNotificationTap(notification);
-              },
-            ),
-          ),
-        );
-        
-        print('실시간 알림 수신: ${notification.title}');
-      }
-    });
+                backgroundColor: Colors.blue.shade600,
+                duration: const Duration(seconds: 4),
+                behavior: SnackBarBehavior.floating,
+                action: SnackBarAction(
+                  label: '확인',
+                  textColor: Colors.white,
+                  onPressed: () {
+                    // 알림 클릭 시 처리 로직 실행
+                    _onNotificationTap(notification);
+                  },
+                ),
+              ),
+            );
+          }
+        });
 
     // 연결 상태 리스너 설정
-    _connectionStatusSubscription = NotificationListService.connectionStatus.listen((isConnected) {
-      if (mounted) {
-        print('WebSocket 연결 상태: $isConnected');
-        // 필요시 UI에 연결 상태 표시
-      }
-    });
+    _connectionStatusSubscription = NotificationListService.connectionStatus
+        .listen((isConnected) {
+          if (mounted) {
+            // 필요시 UI에 연결 상태 표시
+          }
+        });
   }
 
   // SharedPreferences에서 사용자 타입 로드
   Future<void> _loadUserType() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      
+
       // account_type을 가져와서 UserType으로 변환
       final accountType = prefs.getInt('account_type');
-      
+
       if (accountType != null) {
         final userType = UserTypeMapper.fromDbType(accountType);
-        
+
         if (mounted) {
           setState(() {
             currentUserType = userType;
@@ -125,7 +130,6 @@ class _UnifiedNotificationPageState extends State<UnifiedNotificationPage> {
         }
       }
     } catch (e) {
-      print('사용자 타입 로드 실패: $e');
       if (mounted) {
         setState(() {
           currentUserType = UserType.user; // 기본값
@@ -155,7 +159,6 @@ class _UnifiedNotificationPageState extends State<UnifiedNotificationPage> {
           return await NotificationListService.getUserNotifications();
       }
     } catch (e) {
-      print('알림 로드 실패: $e');
       return NotificationListResponse(
         notifications: [],
         totalCount: 0,
@@ -169,7 +172,6 @@ class _UnifiedNotificationPageState extends State<UnifiedNotificationPage> {
     try {
       return await NotificationListService.markAsRead(notificationId);
     } catch (e) {
-      print('읽음 처리 실패: $e');
       return false;
     }
   }
@@ -179,7 +181,6 @@ class _UnifiedNotificationPageState extends State<UnifiedNotificationPage> {
     try {
       return await NotificationListService.markAllAsRead();
     } catch (e) {
-      print('전체 읽음 처리 실패: $e');
       return false;
     }
   }
@@ -222,18 +223,17 @@ class _UnifiedNotificationPageState extends State<UnifiedNotificationPage> {
           Navigator.push(
             context,
             MaterialPageRoute(
-              builder: (context) => AdminPostManagementPage(
-                initialTab: 'pending_approval',
-                highlightPostId: notification.relatedId?.toString(),
-              ),
+              builder:
+                  (context) => AdminPostManagementPage(
+                    initialTab: 'pending_approval',
+                    highlightPostId: notification.relatedId?.toString(),
+                  ),
             ),
           );
           break;
         case AdminNotificationType.columnApprovalRequest:
-          // TODO: 칼럼 승인 페이지로 이동
           break;
         case AdminNotificationType.systemNotice:
-          // TODO: 시스템 공지 상세 페이지로 이동
           break;
       }
     }
@@ -251,11 +251,9 @@ class _UnifiedNotificationPageState extends State<UnifiedNotificationPage> {
         case HospitalNotificationType.recruitmentDeadline:
           // 모집 마감 - 병원 대시보드로 이동하여 해당 게시글 확인
           Navigator.pushReplacementNamed(
-            context, 
+            context,
             '/hospital/dashboard',
-            arguments: {
-              'highlightPostId': notification.relatedId,
-            },
+            arguments: {'highlightPostId': notification.relatedId},
           );
           break;
         case HospitalNotificationType.columnApproved:
@@ -278,11 +276,9 @@ class _UnifiedNotificationPageState extends State<UnifiedNotificationPage> {
           // 시스템 공지 - 사용자 대시보드로 이동
           // 계정 승인/거절, 헌혈 신청 승인/거절 등 모두 포함
           Navigator.pushReplacementNamed(
-            context, 
+            context,
             '/user/dashboard',
-            arguments: {
-              'highlightNotificationId': notification.notificationId,
-            },
+            arguments: {'highlightNotificationId': notification.notificationId},
           );
           break;
       }
@@ -293,72 +289,61 @@ class _UnifiedNotificationPageState extends State<UnifiedNotificationPage> {
   void _openNotificationSettings() {
     showModalBottomSheet(
       context: context,
-      builder: (context) => Container(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            ListTile(
-              leading: const Icon(Icons.bug_report),
-              title: const Text('디버그 페이지'),
-              subtitle: const Text('알림 시스템 연결 상태 확인'),
-              onTap: () {
-                Navigator.pop(context);
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => const NotificationDebugPage(),
-                  ),
-                );
-              },
+      builder:
+          (context) => Container(
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                ListTile(
+                  leading: const Icon(Icons.bug_report),
+                  title: const Text('디버그 페이지'),
+                  subtitle: const Text('알림 시스템 연결 상태 확인'),
+                  onTap: () {
+                    Navigator.pop(context);
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const NotificationDebugPage(),
+                      ),
+                    );
+                  },
+                ),
+                ListTile(
+                  leading: const Icon(Icons.settings),
+                  title: const Text('알림 설정'),
+                  subtitle: const Text('구현 예정'),
+                  onTap: () {
+                    Navigator.pop(context);
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('알림 설정 기능 구현 예정')),
+                    );
+                  },
+                ),
+              ],
             ),
-            ListTile(
-              leading: const Icon(Icons.settings),
-              title: const Text('알림 설정'),
-              subtitle: const Text('구현 예정'),
-              onTap: () {
-                Navigator.pop(context);
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('알림 설정 기능 구현 예정')),
-                );
-              },
-            ),
-          ],
-        ),
-      ),
+          ),
     );
   }
 
   @override
   Widget build(BuildContext context) {
     if (isLoading) {
-      return const Scaffold(
-        body: Center(
-          child: CircularProgressIndicator(),
-        ),
-      );
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
 
     if (currentUserType == null) {
       return Scaffold(
-        appBar: AppBar(
-          title: const Text('알림'),
-        ),
+        appBar: AppBar(title: const Text('알림')),
         body: const Center(
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Icon(Icons.error_outline, size: 64, color: Colors.red),
               SizedBox(height: 16),
-              Text(
-                '사용자 타입을 확인할 수 없습니다.',
-                style: TextStyle(fontSize: 16),
-              ),
+              Text('사용자 타입을 확인할 수 없습니다.', style: TextStyle(fontSize: 16)),
               SizedBox(height: 8),
-              Text(
-                '다시 로그인해 주세요.',
-                style: TextStyle(color: Colors.grey),
-              ),
+              Text('다시 로그인해 주세요.', style: TextStyle(color: Colors.grey)),
             ],
           ),
         ),

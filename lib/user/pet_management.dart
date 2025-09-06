@@ -1,11 +1,10 @@
+// ignore_for_file: use_build_context_synchronously
 import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:connect/user/pet_register.dart';
 import 'package:connect/models/pet_model.dart';
 import 'package:connect/services/manage_pet_info.dart';
 import '../utils/app_theme.dart';
-import '../widgets/app_app_bar.dart';
-import '../widgets/app_card.dart';
 
 class PetManagementScreen extends StatefulWidget {
   const PetManagementScreen({super.key});
@@ -87,7 +86,9 @@ class _PetManagementScreenState extends State<PetManagementScreen> {
                   await PetService.deletePet(pet.petIdx!);
 
                   // 2. 다이얼로그 닫기
-                  Navigator.of(context).pop();
+                  if (mounted) {
+                    Navigator.of(context).pop();
+                  }
 
                   // 3. 삭제 성공 메시지 표시
                   _showSnackBar('${pet.name} 펫이 삭제되었습니다.');
@@ -96,7 +97,9 @@ class _PetManagementScreenState extends State<PetManagementScreen> {
                   _refreshPets();
                 } catch (e) {
                   // 에러 처리
-                  Navigator.of(context).pop();
+                  if (mounted) {
+                    Navigator.of(context).pop();
+                  }
                   _showSnackBar('삭제 실패: $e');
                 }
               },
@@ -283,7 +286,7 @@ class _PetManagementScreenState extends State<PetManagementScreen> {
         color: canDonate ? Colors.lightGreen.shade50 : Colors.pink.shade50,
         borderRadius: BorderRadius.circular(AppTheme.radius12),
         elevation: 2,
-        shadowColor: Colors.black.withOpacity(0.1),
+        shadowColor: Colors.black.withValues(alpha: 0.1),
         child: InkWell(
           onTap: () => _showPetDetailDialog(pet),
           borderRadius: BorderRadius.circular(AppTheme.radius12),
@@ -472,31 +475,6 @@ class _PetManagementScreenState extends State<PetManagementScreen> {
     );
   }
 
-  // 헌혈 가능 여부 체크 함수
-  bool _checkDonationEligibility(Pet pet) {
-    // 강아지가 아닌 경우 헌혈 불가
-    if (pet.species != '개' && pet.species != '강아지') return false;
-
-    // 나이 체크 (2살~8살)
-    if (pet.ageNumber < 2 || pet.ageNumber > 8) return false;
-
-    // 몸무게 체크 (20kg 이상)
-    if (pet.weightKg < 20) return false;
-
-    // 임신 중인 경우 헌혈 불가
-    if (pet.pregnant) return false;
-
-    // 백신 접종하지 않은 경우 헌혈 불가
-    if (pet.vaccinated != true) return false;
-
-    // 질병 이력이 있는 경우 헌혈 불가
-    if (pet.hasDisease == true) return false;
-
-    // 출산 경험이 있는 경우 헌혈 불가 (1년 이내)
-    if (pet.hasBirthExperience == true) return false;
-
-    return true;
-  }
 
   // 펫 상세 정보를 보여주는 다이얼로그
   void _showPetDetailDialog(Pet pet) {
@@ -555,7 +533,7 @@ class _PetManagementScreenState extends State<PetManagementScreen> {
                     margin: const EdgeInsets.only(top: AppTheme.spacing12),
                     padding: const EdgeInsets.all(AppTheme.spacing8),
                     decoration: BoxDecoration(
-                      color: Colors.pinkAccent.withOpacity(0.1),
+                      color: Colors.pinkAccent.withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(AppTheme.radius8),
                       border: Border.all(color: Colors.pinkAccent, width: 0.5),
                     ),

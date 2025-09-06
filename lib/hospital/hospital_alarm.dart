@@ -4,7 +4,7 @@ class HospitalAlarm extends StatefulWidget {
   const HospitalAlarm({super.key});
 
   @override
-  _HospitalAlarmState createState() => _HospitalAlarmState();
+  State createState() => _HospitalAlarmState();
 }
 
 class _HospitalAlarmState extends State<HospitalAlarm> {
@@ -136,8 +136,8 @@ class _HospitalAlarmState extends State<HospitalAlarm> {
                     color:
                         isRead
                             ? Colors.white
-                            : colorScheme.primary.withOpacity(
-                              0.05,
+                            : colorScheme.primary.withValues(
+                              alpha: 0.05,
                             ), // 읽지 않은 알림은 연한 배경색
                     child: InkWell(
                       // 터치 피드백을 위해 InkWell 사용

@@ -53,7 +53,6 @@ class _CommonNotificationPageState extends State<CommonNotificationPage> {
         isLoading = false;
       });
     } catch (e) {
-      print('알림 로드 실패: $e');
       setState(() {
         isLoading = false;
       });
@@ -73,7 +72,8 @@ class _CommonNotificationPageState extends State<CommonNotificationPage> {
         });
       }
     } catch (e) {
-      print('읽음 처리 실패: $e');
+      // 알림 목록 로딩 실패 시 로그 출력
+      debugPrint('Failed to load notifications: $e');
     }
   }
 
@@ -95,7 +95,6 @@ class _CommonNotificationPageState extends State<CommonNotificationPage> {
         }
       }
     } catch (e) {
-      print('전체 읽음 처리 실패: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('읽음 처리에 실패했습니다.')),
@@ -254,7 +253,7 @@ class _CommonNotificationPageState extends State<CommonNotificationPage> {
       ),
       color: notification.isRead
           ? Colors.white
-          : colorScheme.primary.withOpacity(0.05),
+          : colorScheme.primary.withValues(alpha: 0.05),
       child: InkWell(
         borderRadius: BorderRadius.circular(12),
         onTap: () {

@@ -31,8 +31,6 @@ class BlackListService {
     try {
       final headers = await _getHeaders();
       
-      print('DEBUG: 블랙리스트 등록 요청 - URL: $baseUrl');
-      print('DEBUG: 요청 본문: ${jsonEncode(request.toJson())}');
 
       final response = await http.post(
         Uri.parse(baseUrl),
@@ -40,8 +38,6 @@ class BlackListService {
         body: jsonEncode(request.toJson()),
       );
 
-      print('DEBUG: 응답 상태코드: ${response.statusCode}');
-      print('DEBUG: 응답 본문: ${response.body}');
 
       if (response.statusCode == 200 || response.statusCode == 201) {
         final data = json.decode(utf8.decode(response.bodyBytes));
@@ -57,7 +53,6 @@ class BlackListService {
         );
       }
     } catch (e) {
-      print('ERROR: 블랙리스트 등록 중 오류: $e');
       throw Exception('블랙리스트 등록 중 오류 발생: $e');
     }
   }
@@ -87,12 +82,9 @@ class BlackListService {
 
       final uri = Uri.parse(baseUrl).replace(queryParameters: queryParams);
       
-      print('DEBUG: 블랙리스트 목록 조회 - URL: $uri');
 
       final response = await http.get(uri, headers: headers);
 
-      print('DEBUG: 블랙리스트 목록 응답 상태코드: ${response.statusCode}');
-      print('DEBUG: 블랙리스트 목록 응답 본문: ${response.body}');
 
       if (response.statusCode == 200) {
         final data = json.decode(utf8.decode(response.bodyBytes));
@@ -108,7 +100,6 @@ class BlackListService {
         );
       }
     } catch (e) {
-      print('ERROR: 블랙리스트 목록 조회 중 오류: $e');
       throw Exception('블랙리스트 목록 조회 중 오류 발생: $e');
     }
   }
@@ -118,15 +109,12 @@ class BlackListService {
     try {
       final headers = await _getHeaders();
       
-      print('DEBUG: 블랙리스트 상세 조회 - URL: $baseUrl/$blackUserIdx');
 
       final response = await http.get(
         Uri.parse('$baseUrl/$blackUserIdx'),
         headers: headers,
       );
 
-      print('DEBUG: 블랙리스트 상세 응답 상태코드: ${response.statusCode}');
-      print('DEBUG: 블랙리스트 상세 응답 본문: ${response.body}');
 
       if (response.statusCode == 200) {
         final data = json.decode(utf8.decode(response.bodyBytes));
@@ -144,7 +132,6 @@ class BlackListService {
         );
       }
     } catch (e) {
-      print('ERROR: 블랙리스트 조회 중 오류: $e');
       throw Exception('블랙리스트 조회 중 오류 발생: $e');
     }
   }
@@ -157,8 +144,6 @@ class BlackListService {
     try {
       final headers = await _getHeaders();
       
-      print('DEBUG: 블랙리스트 수정 요청 - URL: $baseUrl/$blackUserIdx');
-      print('DEBUG: 수정 요청 본문: ${jsonEncode(request.toJson())}');
 
       final response = await http.put(
         Uri.parse('$baseUrl/$blackUserIdx'),
@@ -166,8 +151,6 @@ class BlackListService {
         body: jsonEncode(request.toJson()),
       );
 
-      print('DEBUG: 수정 응답 상태코드: ${response.statusCode}');
-      print('DEBUG: 수정 응답 본문: ${response.body}');
 
       if (response.statusCode == 200) {
         final data = json.decode(utf8.decode(response.bodyBytes));
@@ -185,7 +168,6 @@ class BlackListService {
         );
       }
     } catch (e) {
-      print('ERROR: 블랙리스트 수정 중 오류: $e');
       throw Exception('블랙리스트 수정 중 오류 발생: $e');
     }
   }
@@ -195,15 +177,12 @@ class BlackListService {
     try {
       final headers = await _getHeaders();
       
-      print('DEBUG: 블랙리스트 삭제 요청 - URL: $baseUrl/$blackUserIdx');
 
       final response = await http.delete(
         Uri.parse('$baseUrl/$blackUserIdx'),
         headers: headers,
       );
 
-      print('DEBUG: 삭제 응답 상태코드: ${response.statusCode}');
-      print('DEBUG: 삭제 응답 본문: ${response.body}');
 
       if (response.statusCode == 204 || response.statusCode == 200) {
         return; // 성공적으로 삭제됨
@@ -220,7 +199,6 @@ class BlackListService {
         );
       }
     } catch (e) {
-      print('ERROR: 블랙리스트 삭제 중 오류: $e');
       throw Exception('블랙리스트 삭제 중 오류 발생: $e');
     }
   }
@@ -230,15 +208,12 @@ class BlackListService {
     try {
       final headers = await _getHeaders();
       
-      print('DEBUG: 블랙리스트 즉시 해제 요청 - URL: $baseUrl/$blackUserIdx/release');
 
       final response = await http.patch(
         Uri.parse('$baseUrl/$blackUserIdx/release'),
         headers: headers,
       );
 
-      print('DEBUG: 해제 응답 상태코드: ${response.statusCode}');
-      print('DEBUG: 해제 응답 본문: ${response.body}');
 
       if (response.statusCode == 200) {
         final data = json.decode(utf8.decode(response.bodyBytes));
@@ -254,7 +229,6 @@ class BlackListService {
         throw Exception('즉시 해제 실패: ${error['detail'] ?? error['message'] ?? response.body}');
       }
     } catch (e) {
-      print('ERROR: 블랙리스트 해제 중 오류: $e');
       throw Exception('블랙리스트 해제 중 오류 발생: $e');
     }
   }
@@ -267,15 +241,12 @@ class BlackListService {
       final headers = await _getHeaders();
       
       final url = '${Config.serverUrl}/api/admin/user/$accountIdx/black-list-status';
-      print('DEBUG: 사용자 정지 상태 확인 - URL: $url');
 
       final response = await http.get(
         Uri.parse(url),
         headers: headers,
       );
 
-      print('DEBUG: 사용자 상태 확인 응답 상태코드: ${response.statusCode}');
-      print('DEBUG: 사용자 상태 확인 응답 본문: ${response.body}');
 
       if (response.statusCode == 200) {
         final data = json.decode(utf8.decode(response.bodyBytes));
@@ -291,7 +262,6 @@ class BlackListService {
         );
       }
     } catch (e) {
-      print('ERROR: 사용자 상태 확인 중 오류: $e');
       throw Exception('사용자 상태 확인 중 오류 발생: $e');
     }
   }
@@ -334,7 +304,6 @@ class BlackListService {
       final status = await getUserBlackListStatus(accountIdx);
       return status.isSuspended;
     } catch (e) {
-      print('WARNING: 사용자 정지 상태 확인 실패: $e');
       return false; // 확인 실패 시 정지되지 않은 것으로 간주
     }
   }
@@ -352,7 +321,6 @@ class BlackListService {
       
       return null; // 활성화된 블랙리스트가 없음
     } catch (e) {
-      print('WARNING: 사용자 블랙리스트 조회 실패: $e');
       return null;
     }
   }

@@ -174,7 +174,7 @@ class _AdminNoticeListScreenState extends State<AdminNoticeListScreen>
         final statusText = updatedNotice.noticeActive ? '활성화' : '비활성화';
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('공지글이 ${statusText}되었습니다.'),
+            content: Text('공지글이 $statusText되었습니다.'),
             backgroundColor:
                 updatedNotice.noticeActive ? AppTheme.success : AppTheme.mediumGray,
           ),
@@ -304,7 +304,7 @@ class _AdminNoticeListScreenState extends State<AdminNoticeListScreen>
                       ),
                       const SizedBox(width: 8),
                       Text(
-                        '${notice.authorNickname ?? notice.authorName}',
+                        notice.authorNickname ?? notice.authorName,
                         style: AppTheme.bodySmallStyle.copyWith(
                           color: AppTheme.textSecondary,
                         ),
@@ -336,7 +336,7 @@ class _AdminNoticeListScreenState extends State<AdminNoticeListScreen>
                   ),
                   const SizedBox(height: 16),
                   // 수정 버튼
-                  Container(
+                  SizedBox(
                     width: double.infinity,
                     child: ElevatedButton.icon(
                       onPressed: () {
@@ -548,7 +548,7 @@ class _AdminNoticeListScreenState extends State<AdminNoticeListScreen>
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                     decoration: BoxDecoration(
-                      color: AppTheme.primaryBlue.withOpacity(0.1),
+                      color: AppTheme.primaryBlue.withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: Row(
@@ -650,7 +650,7 @@ class _AdminNoticeListScreenState extends State<AdminNoticeListScreen>
         itemCount: filteredNotices.length,
         separatorBuilder: (context, index) => Container(
           height: 1,
-          color: AppTheme.lightGray.withOpacity(0.2),
+          color: AppTheme.lightGray.withValues(alpha: 0.2),
           margin: const EdgeInsets.symmetric(horizontal: 16),
         ),
         itemBuilder: (context, index) {
@@ -805,10 +805,10 @@ class _AdminNoticeListScreenState extends State<AdminNoticeListScreen>
                           vertical: 4,
                         ),
                         decoration: BoxDecoration(
-                          color: AppTheme.mediumGray.withOpacity(0.2),
+                          color: AppTheme.mediumGray.withValues(alpha: 0.2),
                           borderRadius: BorderRadius.circular(6),
                           border: Border.all(
-                            color: AppTheme.lightGray.withOpacity(0.3),
+                            color: AppTheme.lightGray.withValues(alpha: 0.3),
                             width: 1,
                           ),
                         ),

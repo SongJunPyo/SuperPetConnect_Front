@@ -79,7 +79,8 @@ class _UserDonationListScreenState extends State<UserDonationListScreen> {
             // 혈액형 필터 (긴급 헌혈인 경우에만 적용)
             if (selectedBloodType != '전체' && donation.isUrgent) {
               String donationBloodType = donation.displayBloodType;
-              if (donationBloodType != selectedBloodType && donationBloodType != '혈액형 무관') {
+              if (donationBloodType != selectedBloodType &&
+                  donationBloodType != '혈액형 무관') {
                 return false;
               }
             }
@@ -350,7 +351,7 @@ class _UserDonationListScreenState extends State<UserDonationListScreen> {
                       vertical: 8,
                     ),
                     decoration: BoxDecoration(
-                      color: AppTheme.primaryBlue.withOpacity(0.1),
+                      color: AppTheme.primaryBlue.withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: Row(
@@ -460,198 +461,206 @@ class _UserDonationListScreenState extends State<UserDonationListScreen> {
           // 목록
           Expanded(
             child: ListView.separated(
-                padding: EdgeInsets.zero,
-                itemCount: donations.length,
-                separatorBuilder:
-                    (context, index) => Container(
-                      height: 1,
-                      color: AppTheme.lightGray.withOpacity(0.2),
-                      margin: const EdgeInsets.symmetric(horizontal: 16),
-                    ),
-                itemBuilder: (context, index) {
-                  final donation = donations[index];
+              padding: EdgeInsets.zero,
+              itemCount: donations.length,
+              separatorBuilder:
+                  (context, index) => Container(
+                    height: 1,
+                    color: AppTheme.lightGray.withValues(alpha: 0.2),
+                    margin: const EdgeInsets.symmetric(horizontal: 16),
+                  ),
+              itemBuilder: (context, index) {
+                final donation = donations[index];
 
-                  return InkWell(
-                    onTap: () {
-                      // TODO: 헌혈 모집글 상세 페이지로 이동
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text(
-                            '헌혈 모집글 ${donation.postIdx} 상세 페이지 (준비 중)',
+                return InkWell(
+                  onTap: () {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text(
+                          '헌혈 모집글 ${donation.postIdx} 상세 페이지 (준비 중)',
+                        ),
+                      ),
+                    );
+                  },
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 15,
+                    ),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
+                        // 왼쪽: 순서 (카드 중앙 높이)
+                        SizedBox(
+                          width: 28,
+                          child: Text(
+                            '${index + 1}',
+                            style: AppTheme.bodySmallStyle.copyWith(
+                              color: AppTheme.textTertiary,
+                              fontWeight: FontWeight.w500,
+                              fontSize: 13,
+                            ),
+                            textAlign: TextAlign.center,
                           ),
                         ),
-                      );
-                    },
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 15,
-                      ),
-                      child: Row(
-                        crossAxisAlignment: CrossAxisAlignment.center,
-                        children: [
-                          // 왼쪽: 순서 (카드 중앙 높이)
-                          Container(
-                            width: 28,
-                            child: Text(
-                              '${index + 1}',
-                              style: AppTheme.bodySmallStyle.copyWith(
-                                color: AppTheme.textTertiary,
-                                fontWeight: FontWeight.w500,
-                                fontSize: 13,
-                              ),
-                              textAlign: TextAlign.center,
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          // 중앙: 메인 콘텐츠
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                // 첫 번째 줄: 뱃지 + 제목
-                                Row(
-                                  crossAxisAlignment: CrossAxisAlignment.center,
-                                  children: [
-                                    Container(
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: 6,
-                                        vertical: 3,
+                        const SizedBox(width: 8),
+                        // 중앙: 메인 콘텐츠
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              // 첫 번째 줄: 뱃지 + 제목
+                              Row(
+                                crossAxisAlignment: CrossAxisAlignment.center,
+                                children: [
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 6,
+                                      vertical: 3,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color:
+                                          donation.isUrgent
+                                              ? AppTheme.error
+                                              : AppTheme.success,
+                                      borderRadius: BorderRadius.circular(4),
+                                    ),
+                                    child: Text(
+                                      donation.isUrgent ? '긴급' : '정기',
+                                      style: AppTheme.bodySmallStyle.copyWith(
+                                        color: Colors.white,
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 10,
                                       ),
-                                      decoration: BoxDecoration(
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Expanded(
+                                    child: MarqueeText(
+                                      text: donation.title,
+                                      style: AppTheme.bodyMediumStyle.copyWith(
                                         color:
                                             donation.isUrgent
                                                 ? AppTheme.error
-                                                : AppTheme.success,
-                                        borderRadius: BorderRadius.circular(4),
+                                                : AppTheme.textPrimary,
+                                        fontWeight:
+                                            donation.isUrgent
+                                                ? FontWeight.w600
+                                                : FontWeight.w500,
+                                        fontSize: 14,
                                       ),
-                                      child: Text(
-                                        donation.isUrgent ? '긴급' : '정기',
-                                        style: AppTheme.bodySmallStyle.copyWith(
-                                          color: Colors.white,
-                                          fontWeight: FontWeight.bold,
-                                          fontSize: 10,
-                                        ),
+                                      animationDuration: const Duration(
+                                        milliseconds: 4000,
                                       ),
-                                    ),
-                                    const SizedBox(width: 8),
-                                    Expanded(
-                                      child: MarqueeText(
-                                        text: donation.title,
-                                        style: AppTheme.bodyMediumStyle
-                                            .copyWith(
-                                              color:
-                                                  donation.isUrgent
-                                                      ? AppTheme.error
-                                                      : AppTheme.textPrimary,
-                                              fontWeight:
-                                                  donation.isUrgent
-                                                      ? FontWeight.w600
-                                                      : FontWeight.w500,
-                                              fontSize: 14,
-                                            ),
-                                        animationDuration: const Duration(milliseconds: 4000),
-                                        pauseDuration: const Duration(milliseconds: 1000),
+                                      pauseDuration: const Duration(
+                                        milliseconds: 1000,
                                       ),
-                                    ),
-                                  ],
-                                ),
-                                const SizedBox(height: 6),
-                                // 두 번째 줄: 병원 주소
-                                Row(
-                                  children: [
-                                    // 병원 주소 (전체 표시)
-                                    Expanded(
-                                      child: Text(
-                                        donation.location.isNotEmpty
-                                            ? donation.location
-                                            : '주소 정보 없음',
-                                        style: AppTheme.bodySmallStyle.copyWith(
-                                          color: AppTheme.textSecondary,
-                                          fontSize: 12,
-                                        ),
-                                        maxLines: 1,
-                                        overflow: TextOverflow.ellipsis,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ],
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          // 오른쪽: 날짜들 + 2줄 높이의 조회수 박스
-                          Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              // 날짜 컴럼 (등록/헌혈 날짜 세로 배치)
-                              Column(
-                                crossAxisAlignment: CrossAxisAlignment.end,
-                                children: [
-                                  Text(
-                                    '등록: ${DateFormat('yy.MM.dd').format(donation.createdAt)}',
-                                    style: AppTheme.bodySmallStyle.copyWith(
-                                      color: AppTheme.textTertiary,
-                                      fontSize: 11,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 2),
-                                  Text(
-                                    '헌혈: ${donation.donationDate != null ? DateFormat('yy.MM.dd').format(donation.donationDate!) : '미정'}',
-                                    style: AppTheme.bodySmallStyle.copyWith(
-                                      color: AppTheme.textTertiary,
-                                      fontSize: 11,
                                     ),
                                   ),
                                 ],
                               ),
-                              const SizedBox(width: 8),
-                              // 2줄 높이의 조회수 박스
-                              Container(
-                                height: 36, // 높이 늘림
-                                width: 40, // 너비 늘림
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 4,
-                                  vertical: 4,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: AppTheme.mediumGray.withOpacity(0.2),
-                                  borderRadius: BorderRadius.circular(6),
-                                  border: Border.all(
-                                    color: AppTheme.lightGray.withOpacity(0.3),
-                                    width: 1,
-                                  ),
-                                ),
-                                child: Column(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    Icon(
-                                      Icons.visibility_outlined,
-                                      size: 10,
-                                      color: AppTheme.textTertiary,
-                                    ),
-                                    const SizedBox(height: 1),
-                                    Text(
-                                      NumberFormatUtil.formatViewCount(donation.viewCount),
+                              const SizedBox(height: 6),
+                              // 두 번째 줄: 병원 주소
+                              Row(
+                                children: [
+                                  // 병원 주소 (전체 표시)
+                                  Expanded(
+                                    child: Text(
+                                      donation.location.isNotEmpty
+                                          ? donation.location
+                                          : '주소 정보 없음',
                                       style: AppTheme.bodySmallStyle.copyWith(
-                                        color: AppTheme.textTertiary,
-                                        fontSize: 10,
-                                        fontWeight: FontWeight.w500,
+                                        color: AppTheme.textSecondary,
+                                        fontSize: 12,
                                       ),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
                                     ),
-                                  ],
-                                ),
+                                  ),
+                                ],
                               ),
                             ],
                           ),
-                        ],
-                      ),
+                        ),
+                        const SizedBox(width: 12),
+                        // 오른쪽: 날짜들 + 2줄 높이의 조회수 박스
+                        Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            // 날짜 컴럼 (등록/헌혈 날짜 세로 배치)
+                            Column(
+                              crossAxisAlignment: CrossAxisAlignment.end,
+                              children: [
+                                Text(
+                                  '등록: ${DateFormat('yy.MM.dd').format(donation.createdAt)}',
+                                  style: AppTheme.bodySmallStyle.copyWith(
+                                    color: AppTheme.textTertiary,
+                                    fontSize: 11,
+                                  ),
+                                ),
+                                const SizedBox(height: 2),
+                                Text(
+                                  '헌혈: ${donation.donationDate != null ? DateFormat('yy.MM.dd').format(donation.donationDate!) : '미정'}',
+                                  style: AppTheme.bodySmallStyle.copyWith(
+                                    color: AppTheme.textTertiary,
+                                    fontSize: 11,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(width: 8),
+                            // 2줄 높이의 조회수 박스
+                            Container(
+                              height: 36, // 높이 늘림
+                              width: 40, // 너비 늘림
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 4,
+                                vertical: 4,
+                              ),
+                              decoration: BoxDecoration(
+                                color: AppTheme.mediumGray.withValues(
+                                  alpha: 0.2,
+                                ),
+                                borderRadius: BorderRadius.circular(6),
+                                border: Border.all(
+                                  color: AppTheme.lightGray.withValues(
+                                    alpha: 0.3,
+                                  ),
+                                  width: 1,
+                                ),
+                              ),
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(
+                                    Icons.visibility_outlined,
+                                    size: 10,
+                                    color: AppTheme.textTertiary,
+                                  ),
+                                  const SizedBox(height: 1),
+                                  Text(
+                                    NumberFormatUtil.formatViewCount(
+                                      donation.viewCount,
+                                    ),
+                                    style: AppTheme.bodySmallStyle.copyWith(
+                                      color: AppTheme.textTertiary,
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
                     ),
-                  );
-                },
-              ),
+                  ),
+                );
+              },
             ),
+          ),
         ],
       ),
     );

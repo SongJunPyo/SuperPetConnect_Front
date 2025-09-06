@@ -3,7 +3,6 @@ import '../utils/app_theme.dart';
 import '../widgets/app_app_bar.dart';
 import '../models/user_model.dart';
 import '../services/user_management_service.dart';
-import 'package:intl/intl.dart';
 import 'admin_user_check_bottom_sheets.dart';
 
 class AdminUserCheck extends StatefulWidget {

@@ -7,11 +7,11 @@ class ResponsiveLayout extends StatelessWidget {
   final Widget? desktop;
 
   const ResponsiveLayout({
-    Key? key,
+    super.key,
     required this.mobile,
     this.tablet,
     this.desktop,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -57,11 +57,11 @@ class WebAppBar extends StatelessWidget implements PreferredSizeWidget {
   final bool showBackButton;
 
   const WebAppBar({
-    Key? key,
+    super.key,
     required this.title,
     this.actions,
     this.showBackButton = false,
-  }) : super(key: key);
+  });
 
   @override
   Size get preferredSize => const Size.fromHeight(kToolbarHeight);
@@ -84,7 +84,7 @@ class WebAppBar extends StatelessWidget implements PreferredSizeWidget {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
             decoration: BoxDecoration(
-              color: Theme.of(context).primaryColor.withOpacity(0.1),
+              color: Theme.of(context).primaryColor.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(16),
             ),
             child: Text(
@@ -132,11 +132,11 @@ class WebContainer extends StatelessWidget {
   final double maxWidth;
 
   const WebContainer({
-    Key? key,
+    super.key,
     required this.child,
     this.padding,
     this.maxWidth = 1200,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -161,11 +161,11 @@ class WebCard extends StatelessWidget {
   final EdgeInsetsGeometry? margin;
 
   const WebCard({
-    Key? key,
+    super.key,
     required this.child,
     this.padding,
     this.margin,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -184,7 +184,7 @@ class WebCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(12),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.1),
+            color: Colors.black.withValues(alpha: 0.1),
             blurRadius: 8,
             offset: const Offset(0, 2),
           ),

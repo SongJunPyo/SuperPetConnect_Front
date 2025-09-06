@@ -1,3 +1,4 @@
+// ignore_for_file: use_build_context_synchronously
 import 'package:flutter/material.dart';
 import 'package:connect/auth/login.dart';
 import '../utils/app_theme.dart';
@@ -21,7 +22,7 @@ class WelcomeScreen extends StatefulWidget {
 class _WelcomeScreenState extends State<WelcomeScreen>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
-  
+
   // 서버 데이터
   List<HospitalColumn> columns = [];
   List<Notice> notices = [];
@@ -38,17 +39,15 @@ class _WelcomeScreenState extends State<WelcomeScreen>
     });
     _loadData();
   }
-  
+
   // 데이터 로드
   Future<void> _loadData() async {
-    print('DEBUG: Welcome 페이지 리프레시 - 데이터 로드 시작');
     setState(() {
       isLoadingColumns = true;
       isLoadingNotices = true;
     });
 
     try {
-      print('DEBUG: API 호출 시작 - 칼럼 및 공지사항');
       final futures = await Future.wait([
         DashboardService.getPublicColumns(limit: 10),
         DashboardService.getPublicNotices(limit: 10),
@@ -56,24 +55,23 @@ class _WelcomeScreenState extends State<WelcomeScreen>
 
       final columnPosts = futures[0] as List<ColumnPost>;
       final noticePosts = futures[1] as List<NoticePost>;
-      
-      print('DEBUG: API 응답 - 칼럼: ${columnPosts.length}개, 공지사항: ${noticePosts.length}개');
 
       // 칼럼 변환
-      final sortedColumns = columnPosts.map((column) {
-        return HospitalColumn(
-          columnIdx: column.columnIdx,
-          title: column.title,
-          content: column.contentPreview,
-          hospitalName: column.authorName, // 병원 실명
-          hospitalIdx: 0,
-          isPublished: true,
-          viewCount: column.viewCount,
-          createdAt: column.createdAt,
-          updatedAt: column.updatedAt,
-          authorNickname: column.authorNickname, // 병원 닉네임
-        );
-      }).toList();
+      final sortedColumns =
+          columnPosts.map((column) {
+            return HospitalColumn(
+              columnIdx: column.columnIdx,
+              title: column.title,
+              content: column.contentPreview,
+              hospitalName: column.authorName, // 병원 실명
+              hospitalIdx: 0,
+              isPublished: true,
+              viewCount: column.viewCount,
+              createdAt: column.createdAt,
+              updatedAt: column.updatedAt,
+              authorNickname: column.authorNickname, // 병원 닉네임
+            );
+          }).toList();
 
       // 중요도 우선 정렬
       sortedColumns.sort((a, b) {
@@ -85,25 +83,30 @@ class _WelcomeScreenState extends State<WelcomeScreen>
       });
 
       // 공지사항 변환 (청중 타겟이 전체(0) 또는 사용자(3)만 필터링)
-      final sortedNotices = noticePosts
-          .where((notice) => notice.targetAudience == 0 || notice.targetAudience == 3)
-          .map((notice) {
-        return Notice(
-          noticeIdx: notice.noticeIdx,
-          accountIdx: 0, // DashboardService에서 제공하지 않는 필드
-          title: notice.title,
-          content: notice.contentPreview,
-          noticeImportant: notice.noticeImportant, // 1=뱃지 표시, 0=뱃지 숨김
-          noticeActive: true,
-          createdAt: notice.createdAt,
-          updatedAt: notice.updatedAt,
-          authorEmail: notice.authorEmail,
-          authorName: notice.authorName,
-          authorNickname: notice.authorNickname, // 작성자 닉네임
-          viewCount: notice.viewCount,
-          targetAudience: notice.targetAudience,
-        );
-      }).toList();
+      final sortedNotices =
+          noticePosts
+              .where(
+                (notice) =>
+                    notice.targetAudience == 0 || notice.targetAudience == 3,
+              )
+              .map((notice) {
+                return Notice(
+                  noticeIdx: notice.noticeIdx,
+                  accountIdx: 0, // DashboardService에서 제공하지 않는 필드
+                  title: notice.title,
+                  content: notice.contentPreview,
+                  noticeImportant: notice.noticeImportant, // 1=뱃지 표시, 0=뱃지 숨김
+                  noticeActive: true,
+                  createdAt: notice.createdAt,
+                  updatedAt: notice.updatedAt,
+                  authorEmail: notice.authorEmail,
+                  authorName: notice.authorName,
+                  authorNickname: notice.authorNickname, // 작성자 닉네임
+                  viewCount: notice.viewCount,
+                  targetAudience: notice.targetAudience,
+                );
+              })
+              .toList();
 
       // 뱃지가 있는 공지를 상단에 정렬
       sortedNotices.sort((a, b) {
@@ -118,10 +121,7 @@ class _WelcomeScreenState extends State<WelcomeScreen>
         isLoadingColumns = false;
         isLoadingNotices = false;
       });
-      
-      print('DEBUG: Welcome 페이지 데이터 로드 완료 - 칼럼: ${columns.length}개, 공지사항: ${notices.length}개');
     } catch (e) {
-      print('ERROR: Welcome 페이지 데이터 로드 실패: $e');
       setState(() {
         isLoadingColumns = false;
         isLoadingNotices = false;
@@ -243,7 +243,9 @@ class _WelcomeScreenState extends State<WelcomeScreen>
                 decoration: BoxDecoration(
                   color: Colors.white,
                   borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: AppTheme.lightGray.withOpacity(0.3)),
+                  border: Border.all(
+                    color: AppTheme.lightGray.withValues(alpha: 0.3),
+                  ),
                 ),
                 child: TabBarView(
                   controller: _tabController,
@@ -311,11 +313,12 @@ class _WelcomeScreenState extends State<WelcomeScreen>
             child: ListView.separated(
               padding: EdgeInsets.zero,
               itemCount: notices.length + 1, // ... 아이템 추가를 위해 +1
-              separatorBuilder: (context, index) => Container(
-                height: 1,
-                color: AppTheme.lightGray.withOpacity(0.2),
-                margin: const EdgeInsets.symmetric(horizontal: 16),
-              ),
+              separatorBuilder:
+                  (context, index) => Container(
+                    height: 1,
+                    color: AppTheme.lightGray.withValues(alpha: 0.2),
+                    margin: const EdgeInsets.symmetric(horizontal: 16),
+                  ),
               itemBuilder: (context, index) {
                 // 마지막 아이템은 ... 버튼
                 if (index == notices.length) {
@@ -345,7 +348,7 @@ class _WelcomeScreenState extends State<WelcomeScreen>
                     ),
                   );
                 }
-                
+
                 final notice = notices[index];
 
                 return InkWell(
@@ -361,7 +364,7 @@ class _WelcomeScreenState extends State<WelcomeScreen>
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         // 왼쪽: 순서 번호 (1.5번째 줄 위치)
-                        Container(
+                        SizedBox(
                           width: 20,
                           height: 50, // 전체 높이에 맞춤
                           child: Center(
@@ -413,12 +416,22 @@ class _WelcomeScreenState extends State<WelcomeScreen>
                                     child: MarqueeText(
                                       text: notice.title,
                                       style: AppTheme.bodyMediumStyle.copyWith(
-                                        color: notice.showBadge ? AppTheme.error : AppTheme.textPrimary,
-                                        fontWeight: notice.showBadge ? FontWeight.w600 : FontWeight.w500,
+                                        color:
+                                            notice.showBadge
+                                                ? AppTheme.error
+                                                : AppTheme.textPrimary,
+                                        fontWeight:
+                                            notice.showBadge
+                                                ? FontWeight.w600
+                                                : FontWeight.w500,
                                         fontSize: 14,
                                       ),
-                                      animationDuration: const Duration(milliseconds: 4000),
-                                      pauseDuration: const Duration(milliseconds: 1000),
+                                      animationDuration: const Duration(
+                                        milliseconds: 4000,
+                                      ),
+                                      pauseDuration: const Duration(
+                                        milliseconds: 1000,
+                                      ),
                                     ),
                                   ),
                                 ],
@@ -426,9 +439,12 @@ class _WelcomeScreenState extends State<WelcomeScreen>
                               const SizedBox(height: 6),
                               // 두 번째 줄: 작성자 이름
                               Text(
-                                (notice.authorNickname ?? notice.authorName).length > 15
+                                (notice.authorNickname ?? notice.authorName)
+                                            .length >
+                                        15
                                     ? '${(notice.authorNickname ?? notice.authorName).substring(0, 15)}..'
-                                    : (notice.authorNickname ?? notice.authorName),
+                                    : (notice.authorNickname ??
+                                        notice.authorName),
                                 style: AppTheme.bodySmallStyle.copyWith(
                                   color: AppTheme.textSecondary,
                                   fontSize: 12,
@@ -475,10 +491,14 @@ class _WelcomeScreenState extends State<WelcomeScreen>
                                 vertical: 4,
                               ),
                               decoration: BoxDecoration(
-                                color: AppTheme.mediumGray.withOpacity(0.2),
+                                color: AppTheme.mediumGray.withValues(
+                                  alpha: 0.2,
+                                ),
                                 borderRadius: BorderRadius.circular(6),
                                 border: Border.all(
-                                  color: AppTheme.lightGray.withOpacity(0.3),
+                                  color: AppTheme.lightGray.withValues(
+                                    alpha: 0.3,
+                                  ),
                                   width: 1,
                                 ),
                               ),
@@ -493,7 +513,9 @@ class _WelcomeScreenState extends State<WelcomeScreen>
                                   ),
                                   const SizedBox(height: 1),
                                   Text(
-                                    NumberFormatUtil.formatViewCount(notice.viewCount ?? 0),
+                                    NumberFormatUtil.formatViewCount(
+                                      notice.viewCount ?? 0,
+                                    ),
                                     style: AppTheme.bodySmallStyle.copyWith(
                                       color: AppTheme.textTertiary,
                                       fontSize: 10,
@@ -540,7 +562,11 @@ class _WelcomeScreenState extends State<WelcomeScreen>
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(Icons.article_outlined, size: 64, color: AppTheme.mediumGray),
+                  Icon(
+                    Icons.article_outlined,
+                    size: 64,
+                    color: AppTheme.mediumGray,
+                  ),
                   const SizedBox(height: 16),
                   Text('공개된 칼럼이 없습니다', style: AppTheme.h4Style),
                 ],
@@ -563,11 +589,12 @@ class _WelcomeScreenState extends State<WelcomeScreen>
             child: ListView.separated(
               padding: EdgeInsets.zero,
               itemCount: columns.length + 1, // ... 아이템 추가를 위해 +1
-              separatorBuilder: (context, index) => Container(
-                height: 1,
-                color: AppTheme.lightGray.withOpacity(0.2),
-                margin: const EdgeInsets.symmetric(horizontal: 16),
-              ),
+              separatorBuilder:
+                  (context, index) => Container(
+                    height: 1,
+                    color: AppTheme.lightGray.withValues(alpha: 0.2),
+                    margin: const EdgeInsets.symmetric(horizontal: 16),
+                  ),
               itemBuilder: (context, index) {
                 // 마지막 아이템은 ... 버튼
                 if (index == columns.length) {
@@ -597,14 +624,14 @@ class _WelcomeScreenState extends State<WelcomeScreen>
                     ),
                   );
                 }
-                
+
                 final column = columns[index];
-                final isImportant = column.title.contains('[중요]') ||
+                final isImportant =
+                    column.title.contains('[중요]') ||
                     column.title.contains('[공지]');
 
                 return InkWell(
                   onTap: () {
-                    // TODO: 칼럼 상세 페이지로 이동
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(
                         content: Text('칼럼 ${column.columnIdx} 상세 페이지 (준비 중)'),
@@ -620,7 +647,7 @@ class _WelcomeScreenState extends State<WelcomeScreen>
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         // 왼쪽: 순서 번호 (1.5번째 줄 위치)
-                        Container(
+                        SizedBox(
                           width: 20,
                           height: 50, // 전체 높이에 맞춤
                           child: Center(
@@ -670,16 +697,22 @@ class _WelcomeScreenState extends State<WelcomeScreen>
                                     child: MarqueeText(
                                       text: column.title,
                                       style: AppTheme.bodyMediumStyle.copyWith(
-                                        color: isImportant
-                                            ? AppTheme.error
-                                            : AppTheme.textPrimary,
-                                        fontWeight: isImportant
-                                            ? FontWeight.w600
-                                            : FontWeight.w500,
+                                        color:
+                                            isImportant
+                                                ? AppTheme.error
+                                                : AppTheme.textPrimary,
+                                        fontWeight:
+                                            isImportant
+                                                ? FontWeight.w600
+                                                : FontWeight.w500,
                                         fontSize: 14,
                                       ),
-                                      animationDuration: const Duration(milliseconds: 4000),
-                                      pauseDuration: const Duration(milliseconds: 1000),
+                                      animationDuration: const Duration(
+                                        milliseconds: 4000,
+                                      ),
+                                      pauseDuration: const Duration(
+                                        milliseconds: 1000,
+                                      ),
                                     ),
                                   ),
                                 ],
@@ -687,9 +720,12 @@ class _WelcomeScreenState extends State<WelcomeScreen>
                               const SizedBox(height: 6),
                               // 두 번째 줄: 작성자 이름
                               Text(
-                                (column.authorNickname ?? column.hospitalName).length > 15
+                                (column.authorNickname ?? column.hospitalName)
+                                            .length >
+                                        15
                                     ? '${(column.authorNickname ?? column.hospitalName).substring(0, 15)}..'
-                                    : (column.authorNickname ?? column.hospitalName),
+                                    : (column.authorNickname ??
+                                        column.hospitalName),
                                 style: AppTheme.bodySmallStyle.copyWith(
                                   color: AppTheme.textSecondary,
                                   fontSize: 12,
@@ -736,10 +772,14 @@ class _WelcomeScreenState extends State<WelcomeScreen>
                                 vertical: 4,
                               ),
                               decoration: BoxDecoration(
-                                color: AppTheme.mediumGray.withOpacity(0.2),
+                                color: AppTheme.mediumGray.withValues(
+                                  alpha: 0.2,
+                                ),
                                 borderRadius: BorderRadius.circular(6),
                                 border: Border.all(
-                                  color: AppTheme.lightGray.withOpacity(0.3),
+                                  color: AppTheme.lightGray.withValues(
+                                    alpha: 0.3,
+                                  ),
                                   width: 1,
                                 ),
                               ),
@@ -754,7 +794,9 @@ class _WelcomeScreenState extends State<WelcomeScreen>
                                   ),
                                   const SizedBox(height: 1),
                                   Text(
-                                    NumberFormatUtil.formatViewCount(column.viewCount),
+                                    NumberFormatUtil.formatViewCount(
+                                      column.viewCount,
+                                    ),
                                     style: AppTheme.bodySmallStyle.copyWith(
                                       color: AppTheme.textTertiary,
                                       fontSize: 10,
@@ -782,18 +824,18 @@ class _WelcomeScreenState extends State<WelcomeScreen>
   // 공지사항 바텀시트 표시
   void _showNoticeBottomSheet(BuildContext context, Notice notice) async {
     // 상세 조회 API 호출 (조회수 자동 증가)
-    final noticeDetail = await DashboardService.getNoticeDetail(notice.noticeIdx);
-    
+    final noticeDetail = await DashboardService.getNoticeDetail(
+      notice.noticeIdx,
+    );
+
     if (!mounted) return;
-    
+
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.white,
       shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(
-          top: Radius.circular(20),
-        ),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
       builder: (BuildContext context) {
         return DraggableScrollableSheet(
@@ -805,9 +847,7 @@ class _WelcomeScreenState extends State<WelcomeScreen>
             return Container(
               decoration: const BoxDecoration(
                 color: Colors.white,
-                borderRadius: BorderRadius.vertical(
-                  top: Radius.circular(20),
-                ),
+                borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
               ),
               child: Column(
                 children: [
@@ -850,7 +890,10 @@ class _WelcomeScreenState extends State<WelcomeScreen>
                           child: Text(
                             noticeDetail?.title ?? notice.title,
                             style: AppTheme.h3Style.copyWith(
-                              color: notice.showBadge ? AppTheme.error : AppTheme.textPrimary,
+                              color:
+                                  notice.showBadge
+                                      ? AppTheme.error
+                                      : AppTheme.textPrimary,
                               fontWeight: FontWeight.bold,
                             ),
                           ),
@@ -875,7 +918,9 @@ class _WelcomeScreenState extends State<WelcomeScreen>
                           ),
                         ),
                         Text(
-                          DateFormat('yyyy년 MM월 dd일').format(noticeDetail?.createdAt ?? notice.createdAt),
+                          DateFormat(
+                            'yyyy년 MM월 dd일',
+                          ).format(noticeDetail?.createdAt ?? notice.createdAt),
                           style: AppTheme.bodySmallStyle.copyWith(
                             color: AppTheme.textSecondary,
                           ),
@@ -888,7 +933,9 @@ class _WelcomeScreenState extends State<WelcomeScreen>
                         ),
                         const SizedBox(width: 4),
                         Text(
-                          NumberFormatUtil.formatViewCount(noticeDetail?.viewCount ?? notice.viewCount ?? 0),
+                          NumberFormatUtil.formatViewCount(
+                            noticeDetail?.viewCount ?? notice.viewCount ?? 0,
+                          ),
                           style: AppTheme.bodySmallStyle.copyWith(
                             color: AppTheme.textSecondary,
                           ),
@@ -903,9 +950,7 @@ class _WelcomeScreenState extends State<WelcomeScreen>
                       padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
                       child: Text(
                         noticeDetail?.contentPreview ?? notice.content,
-                        style: AppTheme.bodyMediumStyle.copyWith(
-                          height: 1.6,
-                        ),
+                        style: AppTheme.bodyMediumStyle.copyWith(height: 1.6),
                       ),
                     ),
                   ),

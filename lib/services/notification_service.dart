@@ -21,12 +21,8 @@ class NotificationService {
     
     // 포그라운드 메시지 리스너
     FirebaseMessaging.onMessage.listen((RemoteMessage message) {
-      print('>>> NOTIFICATION_SERVICE: Received FCM message: ${message.notification?.title}');
-      print('>>> NOTIFICATION_SERVICE: Message body: ${message.notification?.body}');
-      print('>>> NOTIFICATION_SERVICE: Message data: ${message.data}');
       
       // 포그라운드에서도 상단 알림 표시
-      print('>>> NOTIFICATION_SERVICE: Calling main_app.showGlobalLocalNotification');
       main_app.showGlobalLocalNotification(message);
       
       if (message.data['type'] == 'donation_application') {
@@ -46,8 +42,6 @@ class NotificationService {
     
     // 백그라운드에서 앱을 연 경우
     FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) {
-      print('Notification clicked!');
-      print('백그라운드 알림 데이터: ${message.data}');
       
       try {
         // 서버에서 JSON 문자열로 전송한 데이터 파싱
@@ -72,7 +66,6 @@ class NotificationService {
           _navigateToUserDashboard(parsedData);
         }
       } catch (e) {
-        print('백그라운드 알림 데이터 파싱 오류: $e');
         // 파싱 실패 시 기본 데이터로 처리
       }
     });
@@ -80,7 +73,6 @@ class NotificationService {
     // 앱이 완전히 종료된 상태에서 알림으로 앱을 연 경우
     FirebaseMessaging.instance.getInitialMessage().then((RemoteMessage? message) {
       if (message != null) {
-        print('앱 종료 상태에서 알림 데이터: ${message.data}');
         
         Future.delayed(const Duration(milliseconds: 1000), () {
           try {
@@ -106,7 +98,6 @@ class NotificationService {
               _navigateToUserDashboard(parsedData);
             }
           } catch (e) {
-            print('종료 상태 알림 데이터 파싱 오류: $e');
             // 파싱 실패 시 기본 데이터로 처리
           }
         });
@@ -123,7 +114,6 @@ class NotificationService {
       final data = jsonDecode(payload) as Map<String, dynamic>;
       final notificationType = data['type'] as String?;
       
-      print('로컬 알림 클릭: 타입=$notificationType');
       
       // 알림 타입별로 적절한 페이지로 이동
       switch (notificationType) {
@@ -149,10 +139,10 @@ class NotificationService {
           _navigateToUserDashboard(parsedData);
           break;
         default:
-          print('알 수 없는 알림 타입: $notificationType');
       }
     } catch (e) {
-      print('로컬 알림 페이로드 파싱 오류: $e');
+      // 알림 처리 실패 시 로그 출력
+      debugPrint('Failed to handle notification: $e');
     }
   }
 
@@ -171,7 +161,6 @@ class NotificationService {
       // 다른 필드들도 복사
       parsedData.addAll(data);
     } catch (e) {
-      print('알림 데이터 파싱 중 오류: $e');
       // 파싱 실패 시 원본 데이터 반환
       return data;
     }
@@ -183,11 +172,11 @@ class NotificationService {
     try {
       final token = await FirebaseMessaging.instance.getToken();
       if (token != null) {
-        print('FCM Token: $token');
         await _sendTokenToServer(token);
       }
     } catch (e) {
-      print('FCM 토큰 업데이트 실패: $e');
+      // 알림 처리 실패 시 로그 출력
+      debugPrint('Failed to handle notification: $e');
     }
   }
   
@@ -197,7 +186,6 @@ class NotificationService {
       final authToken = prefs.getString('auth_token') ?? '';
       
       if (authToken.isEmpty) {
-        print('인증 토큰이 없어서 FCM 토큰을 서버에 전송하지 않습니다.');
         return;
       }
       
@@ -211,19 +199,16 @@ class NotificationService {
       );
       
       if (response.statusCode == 200) {
-        print('FCM 토큰이 서버에 성공적으로 전송되었습니다.');
       } else {
-        print('FCM 토큰 서버 전송 실패: ${response.statusCode}');
       }
     } catch (e) {
-      print('FCM 토큰 서버 전송 중 오류: $e');
+      // 알림 처리 실패 시 로그 출력
+      debugPrint('Failed to handle notification: $e');
     }
   }
   
   static void _handleDonationApplicationNotification(RemoteMessage message) {
     // 포그라운드에서 받은 알림을 처리 (필요시 추가 로직)
-    print('헌혈 신청 알림 처리: ${message.notification?.body}');
-    print('알림 데이터: ${message.data}');
     
     try {
       // 서버에서 JSON 문자열로 전송한 데이터 파싱
@@ -236,21 +221,18 @@ class NotificationService {
         parsedData['post_info'] = jsonDecode(message.data['post_info'] ?? '{}');
       }
       
-      print('파싱된 알림 데이터: $parsedData');
       
       // FCM 알림을 실시간 스트림에 추가
       _addFCMNotificationToStream(message);
       
       // 상단 푸시 알림은 포그라운드 리스너에서 이미 표시됨
     } catch (e) {
-      print('알림 데이터 파싱 오류: $e');
       // 상단 푸시 알림은 포그라운드 리스너에서 이미 표시됨
     }
   }
   
   static void _handleNewPostApprovalNotification(RemoteMessage message) {
     // 병원 게시글 승인 요청 알림 처리
-    print('게시글 승인 요청 알림 처리: ${message.notification?.body}');
     
     // 상단 푸시 알림은 포그라운드 리스너에서 이미 표시됨
   }
@@ -269,11 +251,9 @@ class NotificationService {
             ? jsonDecode(navigation) 
             : navigation;
             
-        final page = navData['page']; // "post_management"
         final postId = navData['post_id']; // 게시글 ID
         final tab = navData['tab']; // "pending_approval"
         
-        print('게시글 승인 네비게이션: page=$page, postId=$postId, tab=$tab');
         
         // 관리자 게시글 관리 페이지로 이동
         Navigator.pushNamed(
@@ -290,7 +270,6 @@ class NotificationService {
         Navigator.pushNamed(context, '/admin/post-management');
       }
     } catch (e) {
-      print('게시글 승인 알림 클릭 네비게이션 처리 중 오류: $e');
       
       // 오류 발생 시 기본 관리자 게시글 관리 페이지로 이동
       Navigator.pushNamed(context, '/admin/post-management');
@@ -307,21 +286,18 @@ class NotificationService {
     if (kIsWeb) return;
     
     FirebaseMessaging.instance.onTokenRefresh.listen((String token) {
-      print('FCM 토큰 새로고침: $token');
       _sendTokenToServer(token);
     });
   }
 
   // 헌혈 게시글 승인 알림 처리 (병원용)
   static void _handleDonationPostApprovedNotification(RemoteMessage message) {
-    print('헌혈 게시글 승인 알림 처리: ${message.notification?.body}');
     
     // 상단 푸시 알림은 포그라운드 리스너에서 이미 표시됨
   }
 
   // 칼럼 게시글 승인 알림 처리 (병원용)
   static void _handleColumnApprovedNotification(RemoteMessage message) {
-    print('칼럼 승인 알림 처리: ${message.notification?.body}');
     
     // 상단 푸시 알림은 포그라운드 리스너에서 이미 표시됨
   }
@@ -340,11 +316,9 @@ class NotificationService {
             ? jsonDecode(navigation) 
             : navigation;
             
-        final page = navData['page']; // "donation_management"
         final postId = navData['post_id']; // 게시글 ID
         final tab = navData['tab']; // "applications"
         
-        print('헌혈 신청 관리 네비게이션: page=$page, postId=$postId, tab=$tab');
         
         // 병원 헌혈 신청 관리 페이지로 이동
         Navigator.pushNamed(
@@ -363,7 +337,6 @@ class NotificationService {
         Navigator.pushNamed(context, '/hospital/dashboard');
       }
     } catch (e) {
-      print('헌혈 신청 관리 네비게이션 처리 중 오류: $e');
       // 오류 발생 시 기본 병원 대시보드로 이동
       Navigator.pushNamed(context, '/hospital/dashboard');
     }
@@ -376,7 +349,6 @@ class NotificationService {
     
     try {
       final postId = data['post_id'];
-      print('병원 게시글 페이지로 이동: postId=$postId');
       
       // 병원 대시보드 또는 게시글 관리 페이지로 이동
       Navigator.pushNamed(
@@ -388,7 +360,6 @@ class NotificationService {
         },
       );
     } catch (e) {
-      print('병원 게시글 네비게이션 처리 중 오류: $e');
       // 오류 발생 시 기본 병원 대시보드로 이동
       Navigator.pushNamed(context, '/hospital/dashboard');
     }
@@ -401,7 +372,6 @@ class NotificationService {
     
     try {
       final columnId = data['column_id'];
-      print('병원 칼럼 페이지로 이동: columnId=$columnId');
       
       // 병원 칼럼 목록 페이지로 이동
       Navigator.pushNamed(
@@ -412,7 +382,6 @@ class NotificationService {
         },
       );
     } catch (e) {
-      print('병원 칼럼 네비게이션 처리 중 오류: $e');
       // 오류 발생 시 기본 병원 대시보드로 이동
       Navigator.pushNamed(context, '/hospital/dashboard');
     }
@@ -420,14 +389,12 @@ class NotificationService {
 
   // 헌혈 신청 승인 알림 처리 (사용자용)
   static void _handleDonationApprovedNotification(RemoteMessage message) {
-    print('헌혈 신청 승인 알림 처리: ${message.notification?.body}');
     
     // 상단 푸시 알림만 표시됨 (다이얼로그 제거)
   }
 
   // 헌혈 신청 거절 알림 처리 (사용자용)
   static void _handleDonationRejectedNotification(RemoteMessage message) {
-    print('헌혈 신청 거절 알림 처리: ${message.notification?.body}');
     
     // 상단 푸시 알림만 표시됨 (다이얼로그 제거)
   }
@@ -442,7 +409,6 @@ class NotificationService {
       final postId = navigation['post_id'];
       final applicationId = navigation['application_id'];
       
-      print('사용자 대시보드로 이동: postId=$postId, applicationId=$applicationId');
       
       // 사용자 대시보드로 이동 (헌혈 신청 내역 탭으로)
       Navigator.pushNamed(
@@ -455,7 +421,6 @@ class NotificationService {
         },
       );
     } catch (e) {
-      print('사용자 대시보드 네비게이션 처리 중 오류: $e');
       // 오류 발생 시 기본 사용자 대시보드로 이동
       Navigator.pushNamed(context, '/user/dashboard');
     }
@@ -470,7 +435,6 @@ class NotificationService {
       final userType = accountType != null ? UserTypeMapper.fromDbType(accountType) : null;
       
       if (userType == null) {
-        print('FCM 알림 스트림 추가 실패: 사용자 타입 없음');
         return;
       }
 
@@ -480,10 +444,10 @@ class NotificationService {
       if (notification != null) {
         // WebSocket 서비스의 스트림에 추가
         WebSocketNotificationService.instance.addFCMNotificationToStream(notification);
-        print('FCM 알림이 실시간 스트림에 추가됨: ${notification.title}');
       }
     } catch (e) {
-      print('FCM 알림 스트림 추가 중 오류: $e');
+      // 알림 처리 실패 시 로그 출력
+      debugPrint('Failed to handle notification: $e');
     }
   }
 
@@ -506,17 +470,17 @@ class NotificationService {
             relatedData.addAll(navData);
           }
         } catch (e) {
-          print('Navigation 데이터 파싱 실패: $e');
+          // 네비게이션 데이터 파싱 실패 시 로그 출력
+          debugPrint('Failed to parse navigation data: $e');
         }
       }
       
       // 다른 관련 데이터들 추가
-      ['post_idx', 'post_id', 'application_id', 'user_id', 'hospital_id']
-          .forEach((key) {
+      for (final key in ['post_idx', 'post_id', 'application_id', 'user_id', 'hospital_id']) {
         if (data.containsKey(key)) {
           relatedData[key] = data[key];
         }
-      });
+      }
 
       final title = message.notification?.title ?? '알림';
       final content = message.notification?.body ?? '';
@@ -564,7 +528,6 @@ class NotificationService {
           );
       }
     } catch (e) {
-      print('FCM -> NotificationModel 변환 오류: $e');
       return null;
     }
   }

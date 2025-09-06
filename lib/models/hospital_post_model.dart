@@ -35,23 +35,17 @@ class HospitalPost {
 
   factory HospitalPost.fromJson(Map<String, dynamic> json) {
     try {
-      print('Parsing HospitalPost from JSON: $json');
 
       // 각 필드를 개별적으로 파싱하여 어디서 에러가 발생하는지 확인
       final postIdx = json['postIdx'] ?? json['id'] ?? 0;
-      print('postIdx: $postIdx (type: ${postIdx.runtimeType})');
 
       final title = json['title'] ?? '';
       final createdDate = json['createdDate'] ?? json['date'] ?? '';
 
       // timeRanges 파싱 시 타입 확인
-      print(
-        'timeRanges raw: ${json['timeRanges']} (type: ${json['timeRanges'].runtimeType})',
-      );
       final List<TimeRange> timeRanges =
           json['timeRanges'] != null
               ? (json['timeRanges'] as List).map((e) {
-                print('Parsing timeRange: $e');
                 return TimeRange.fromJson(e);
               }).toList()
               : <TimeRange>[];
@@ -59,7 +53,6 @@ class HospitalPost {
       final typesRaw = json['types'] ?? 1; // 기본값을 정기(1)로 변경
       final types =
           typesRaw is int ? typesRaw : int.tryParse(typesRaw.toString()) ?? 1;
-      print('types: $types (type: ${types.runtimeType})');
 
       final statusRaw = json['status'] ?? 0; // 기본값 대기(0)
       final status =
@@ -82,9 +75,6 @@ class HospitalPost {
           applicantCountRaw is int
               ? applicantCountRaw
               : int.tryParse(applicantCountRaw.toString()) ?? 0;
-      print(
-        'applicantCount: $applicantCount (type: ${applicantCount.runtimeType})',
-      );
 
       return HospitalPost(
         postIdx:
@@ -104,9 +94,7 @@ class HospitalPost {
         animalType: animalType,
         viewCount: json['viewCount'] ?? json['view_count'],
       );
-    } catch (e, stackTrace) {
-      print('Error parsing HospitalPost: $e');
-      print('Stack trace: $stackTrace');
+    } catch (e) {
       rethrow;
     }
   }
@@ -153,25 +141,18 @@ class TimeRange {
 
   factory TimeRange.fromJson(Map<String, dynamic> json) {
     try {
-      print('Parsing TimeRange from JSON: $json');
 
       final id = json['id'];
-      print('TimeRange id: $id (type: ${id?.runtimeType})');
 
       final time = json['time'] ?? '';
-      print('TimeRange time: $time (type: ${time.runtimeType})');
 
       final teamRaw = json['team'];
       final team = teamRaw != null ? teamRaw.toString() : 'A';
-      print('TimeRange team: $team (type: ${team.runtimeType})');
 
       final date = json['date'];
-      print('TimeRange date: $date (type: ${date?.runtimeType})');
 
       return TimeRange(id: id?.toString(), time: time, team: team, date: date);
-    } catch (e, stackTrace) {
-      print('Error parsing TimeRange: $e');
-      print('Stack trace: $stackTrace');
+    } catch (e) {
       rethrow;
     }
   }

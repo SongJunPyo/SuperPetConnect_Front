@@ -1,12 +1,4 @@
 class Notice {
-  // 닉네임이 유효한지 확인하는 헬퍼 메서드
-  static bool _isValidNickname(dynamic nickname) {
-    if (nickname == null) return false;
-    final nicknameStr = nickname.toString();
-    if (nicknameStr.isEmpty) return false;
-    if (nicknameStr.toLowerCase() == 'null') return false;
-    return true;
-  }
   final int noticeIdx;
   final int accountIdx; // 작성자 계정 ID (FK)
   final String title;
@@ -59,7 +51,6 @@ class Notice {
   
   // notice_important 필드 파싱 헬퍼 메서드 (bool/int 호환)
   static int _parseNoticeImportant(dynamic value) {
-    print('DEBUG: notice_important 값 타입: ${value.runtimeType}, 값: $value'); // 디버그 로그 추가
     if (value == null) return 1; // 기본값: 뱃지 숨김(1)
     if (value is int) return value;
     if (value is bool) return value ? 1 : 0; // true=뱃지 숨김(1), false=뱃지 표시(0) - 서버 로직에 맞춤

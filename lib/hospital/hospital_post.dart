@@ -3,7 +3,6 @@ import 'package:interval_time_picker/interval_time_picker.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'dart:math';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import '../utils/config.dart';
 import '../utils/app_theme.dart';
@@ -16,7 +15,7 @@ class HospitalPost extends StatefulWidget {
   const HospitalPost({super.key});
 
   @override
-  _HospitalPostState createState() => _HospitalPostState();
+  State createState() => _HospitalPostState();
 }
 
 class _HospitalPostState extends State<HospitalPost> {
@@ -39,12 +38,8 @@ class _HospitalPostState extends State<HospitalPost> {
   Future<String> _getAuthToken() async {
     final prefs = await SharedPreferences.getInstance();
     final token = prefs.getString('auth_token') ?? '';
-    print(
-      'Retrieved token: ${token.isNotEmpty ? "Token exists" : "Token is empty"}',
-    );
 
     if (token.isEmpty) {
-      print('No token found, please login first');
       return '';
     }
     return token;
@@ -57,7 +52,6 @@ class _HospitalPostState extends State<HospitalPost> {
     try {
       final token = await _getAuthToken();
       if (token.isEmpty) {
-        print('토큰이 비어있음');
         return '';
       }
 
@@ -70,17 +64,12 @@ class _HospitalPostState extends State<HospitalPost> {
         },
       );
 
-      print('프로필 API 응답 상태: ${response.statusCode}');
-      print('프로필 API 응답 내용: ${response.body}');
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         final address = data['address'] ?? '';
         final name = data['name'] ?? '';
         final nickname = data['nickname'] ?? name; // 닉네임이 없으면 이름 사용
-        print('프로필에서 주소 가져오기 성공: $address');
-        print('프로필에서 병원 이름 가져오기 성공: $name');
-        print('프로필에서 병원 닉네임 가져오기 성공: $nickname');
 
         // 병원 이름과 닉네임을 함께 저장
         if (name.isNotEmpty) {
@@ -93,10 +82,9 @@ class _HospitalPostState extends State<HospitalPost> {
 
         return address;
       } else {
-        print('프로필 API 호출 실패 - HTTP ${response.statusCode}: ${response.body}');
       }
     } catch (e) {
-      print('주소 가져오기 실패: $e');
+      // 토큰 로드 오류 무시
     }
     return '';
   }
@@ -176,8 +164,6 @@ class _HospitalPostState extends State<HospitalPost> {
         postData['emergency_blood_type'] = null;
       }
 
-      print('Sending post data: ${json.encode(postData)}');
-      print('Using token: ${token.substring(0, min(10, token.length))}...');
 
       final url = Uri.parse('${Config.serverUrl}/api/hospital/post');
 
@@ -190,8 +176,6 @@ class _HospitalPostState extends State<HospitalPost> {
         body: json.encode(postData),
       );
 
-      print('Response status: ${response.statusCode}');
-      print('Response body: ${response.body}');
 
       if (response.statusCode == 201) {
         // 게시글이 성공적으로 생성된 경우, 선택된 헌혈 날짜들도 추가
@@ -207,11 +191,7 @@ class _HospitalPostState extends State<HospitalPost> {
                 dateWithTimes.times.map((t) => t.donationTime).toList(),
               );
             }
-            print(
-              '헌혈 날짜+시간 ${selectedDonationDatesWithTimes.length}개가 성공적으로 추가되었습니다.',
-            );
           } catch (e) {
-            print('헌혈 날짜+시간 추가 실패: $e');
             // 게시글은 성공했지만 날짜+시간 추가가 실패한 경우에도 성공으로 처리
           }
         }
@@ -226,7 +206,6 @@ class _HospitalPostState extends State<HospitalPost> {
         _showAlertDialog('등록 실패', '게시글 등록에 실패했습니다: ${response.body}');
       }
     } catch (e) {
-      print('Error in _submitPost: $e');
       _showAlertDialog('오류 발생', '오류가 발생했습니다: $e');
     }
   }
@@ -452,7 +431,7 @@ class _HospitalPostState extends State<HospitalPost> {
                 decoration: BoxDecoration(
                   color: Colors.white,
                   borderRadius: BorderRadius.circular(AppTheme.radius16),
-                  border: Border.all(color: AppTheme.lightGray.withOpacity(0.5), width: 1),
+                  border: Border.all(color: AppTheme.lightGray.withValues(alpha: 0.5), width: 1),
                 ),
                 child: Padding(
                   padding: const EdgeInsets.all(AppTheme.spacing20),
@@ -468,7 +447,7 @@ class _HospitalPostState extends State<HospitalPost> {
                           label: const Text('헌혈 일정 작성'),
                           style: OutlinedButton.styleFrom(
                             foregroundColor: AppTheme.textSecondary,
-                            side: BorderSide(color: AppTheme.lightGray.withOpacity(0.5)),
+                            side: BorderSide(color: AppTheme.lightGray.withValues(alpha: 0.5)),
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(
                                 AppTheme.radius12,
@@ -506,7 +485,7 @@ class _HospitalPostState extends State<HospitalPost> {
                                 border: Border.all(color: AppTheme.lightGray),
                                 boxShadow: [
                                   BoxShadow(
-                                    color: Colors.black.withOpacity(0.05),
+                                    color: Colors.black.withValues(alpha: 0.05),
                                     blurRadius: 2,
                                     offset: const Offset(0, 1),
                                   ),
@@ -602,7 +581,7 @@ class _HospitalPostState extends State<HospitalPost> {
                         Container(
                           padding: const EdgeInsets.all(AppTheme.spacing24),
                           decoration: BoxDecoration(
-                            color: AppTheme.lightGray.withOpacity(0.3),
+                            color: AppTheme.lightGray.withValues(alpha: 0.3),
                             borderRadius: BorderRadius.circular(
                               AppTheme.radius12,
                             ),
@@ -641,7 +620,7 @@ class _HospitalPostState extends State<HospitalPost> {
                   color: Colors.white,
                   borderRadius: BorderRadius.circular(AppTheme.radius16),
                   border: Border.all(
-                    color: AppTheme.lightGray.withOpacity(0.5),
+                    color: AppTheme.lightGray.withValues(alpha: 0.5),
                     width: 1,
                   ),
                 ),
@@ -834,10 +813,10 @@ class _HospitalPostState extends State<HospitalPost> {
 class _TimeEntryDialog extends StatefulWidget {
   final Function(String timeRange, int teamNumber) onSave;
 
-  const _TimeEntryDialog({super.key, required this.onSave}); // const 생성자 추가
+  const _TimeEntryDialog({required this.onSave}); // const 생성자 추가
 
   @override
-  _TimeEntryDialogState createState() => _TimeEntryDialogState();
+  State createState() => _TimeEntryDialogState();
 }
 
 class _TimeEntryDialogState extends State<_TimeEntryDialog> {
@@ -972,9 +951,9 @@ class _TimeEntryDialogState extends State<_TimeEntryDialog> {
                   items:
                       List.generate(10, (index) => index + 1)
                           .map(
-                            (num) => DropdownMenuItem(
-                              value: num,
-                              child: Text("$num팀"),
+                            (teamNum) => DropdownMenuItem<int>(
+                              value: teamNum,
+                              child: Text("$teamNum팀"),
                             ),
                           )
                           .toList(),
@@ -1084,7 +1063,6 @@ class _EditEntryDialog extends StatefulWidget {
   final Function(Map<String, dynamic>) onSave;
 
   const _EditEntryDialog({
-    super.key,
     required this.entry,
     required this.onSave,
   }); // const 생성자 추가
@@ -1281,7 +1259,7 @@ class _EditEntryDialogState extends State<_EditEntryDialog> {
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(8),
                 ),
-                side: BorderSide(color: colorScheme.primary.withOpacity(0.5)),
+                side: BorderSide(color: colorScheme.primary.withValues(alpha: 0.5)),
               ),
             ),
           ),
@@ -1310,9 +1288,9 @@ class _EditEntryDialogState extends State<_EditEntryDialog> {
                   items:
                       List.generate(10, (index) => index + 1)
                           .map(
-                            (num) => DropdownMenuItem(
-                              value: num,
-                              child: Text("$num팀"),
+                            (teamNum) => DropdownMenuItem<int>(
+                              value: teamNum,
+                              child: Text("$teamNum팀"),
                             ),
                           )
                           .toList(),

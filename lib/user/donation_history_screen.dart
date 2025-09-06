@@ -85,7 +85,8 @@ class _DonationHistoryScreenState extends State<DonationHistoryScreen>
         throw Exception('데이터를 불러올 수 없습니다.');
       }
     } catch (e) {
-      print('헌혈 이력 로드 실패: $e');
+      // 헌혈 이력 로딩 실패 시 로그 출력
+      debugPrint('Failed to load donation history: $e');
     } finally {
       setState(() => isLoading = false);
     }
@@ -233,7 +234,7 @@ class _DonationHistoryScreenState extends State<DonationHistoryScreen>
       margin: const EdgeInsets.all(AppTheme.spacing16),
       padding: const EdgeInsets.all(AppTheme.spacing16),
       decoration: BoxDecoration(
-        color: AppTheme.lightBlue.withOpacity(0.1),
+        color: AppTheme.lightBlue.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(AppTheme.radius12),
         border: Border.all(color: AppTheme.lightBlue),
       ),

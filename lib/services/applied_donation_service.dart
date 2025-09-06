@@ -2,6 +2,7 @@
 
 import 'package:http/http.dart' as http;
 import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/applied_donation_model.dart';
 import '../utils/config.dart';
@@ -222,7 +223,6 @@ class AppliedDonationService {
       }
       return false;
     } catch (e) {
-      print('신청 중복 확인 실패: $e');
       return false;
     }
   }
@@ -262,7 +262,6 @@ class AppliedDonationService {
       final postApps = await getPostApplications(postIdx);
       return postApps.pendingCount;
     } catch (e) {
-      print('대기 중인 신청 개수 조회 실패: $e');
       return 0;
     }
   }
@@ -278,7 +277,8 @@ class AppliedDonationService {
           final result = await updateApplicationStatus(id, newStatus);
           results.add(result);
         } catch (e) {
-          print('신청 $id 상태 변경 실패: $e');
+          // 개별 신청 상태 변경 실패 시 로그 출력하고 계속 진행
+          debugPrint('Failed to update application $id: $e');
         }
       }
       

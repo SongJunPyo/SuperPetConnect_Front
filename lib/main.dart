@@ -35,24 +35,19 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   // 백그라운드 핸들러 내에서도 Firebase 초기화는 필수
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
 
-  print("백그라운드 메시지 수신: ${message.messageId}");
   if (message.notification != null) {
     _showLocalNotification(message);
   }
 }
 
 Future<void> _showLocalNotification(RemoteMessage message) async {
-  print(">>> MAIN.DART 로컬 알림 표시 시작: ${message.notification?.title}");
-  print(">>> MAIN.DART 알림 제목: ${message.notification?.title}");
-  print(">>> MAIN.DART 알림 내용: ${message.notification?.body}");
-  print(">>> MAIN.DART 알림 데이터: ${message.data}");
-  
   try {
     const AndroidNotificationDetails androidPlatformChannelSpecifics =
         AndroidNotificationDetails(
           'high_importance_channel',
           'High Importance Notifications',
-          channelDescription: 'This channel is used for important notifications.',
+          channelDescription:
+              'This channel is used for important notifications.',
           importance: Importance.max,
           priority: Priority.high,
           ticker: 'ticker',
@@ -64,7 +59,6 @@ Future<void> _showLocalNotification(RemoteMessage message) async {
       android: androidPlatformChannelSpecifics,
     );
 
-    print(">>> MAIN.DART 알림 플러그인 show 호출 시작");
     await flutterLocalNotificationsPlugin.show(
       message.hashCode,
       message.notification?.title,
@@ -72,18 +66,14 @@ Future<void> _showLocalNotification(RemoteMessage message) async {
       platformChannelSpecifics,
       payload: jsonEncode(message.data),
     );
-    print(">>> MAIN.DART 로컬 알림 표시 완료: ${message.notification?.title}");
   } catch (e) {
-    print(">>> MAIN.DART 로컬 알림 표시 오류: $e");
-    print(">>> MAIN.DART 오류 스택트레이스: ${StackTrace.current}");
+    // 로컬 알림 표시 오류 발생
   }
 }
 
 // 전역적으로 사용할 수 있도록 함수 노출
 Future<void> showGlobalLocalNotification(RemoteMessage message) async {
-  print(">>> MAIN.DART showGlobalLocalNotification 호출됨: ${message.notification?.title}");
   await _showLocalNotification(message);
-  print(">>> MAIN.DART showGlobalLocalNotification 완료: ${message.notification?.title}");
 }
 
 void main() async {
@@ -92,9 +82,7 @@ void main() async {
   // 0. 환경변수 로드 (가장 먼저)
   try {
     await dotenv.load(fileName: ".env");
-    print('환경변수 로드 성공!');
   } catch (e) {
-    print('환경변수 로드 실패: $e');
     // .env 파일이 없어도 앱이 동작하도록 기본값 사용
   }
 
@@ -103,9 +91,7 @@ void main() async {
     await Firebase.initializeApp(
       options: DefaultFirebaseOptions.currentPlatform,
     );
-    print('Firebase 초기화 성공!');
   } catch (e) {
-    print('Firebase 초기화 실패: $e');
     // 초기화 실패 시 앱을 계속 실행할지, 오류 화면을 보여줄지 결정
     // 여기서는 오류 발생 시 앱 종료를 고려할 수도 있습니다.
     // return; // 앱 종료
@@ -121,19 +107,15 @@ void main() async {
   try {
     if (!kIsWeb && (Platform.isAndroid || Platform.isIOS)) {
       tz.setLocalLocation(tz.getLocation('Asia/Seoul'));
-      print('타임존 설정 완료: Asia/Seoul');
     } else {
       tz.setLocalLocation(tz.UTC);
-      print('타임존 설정 완료: UTC (웹 또는 기타 플랫폼)');
     }
   } catch (e) {
-    print('타임존 설정 실패, UTC로 fallback: $e');
     tz.setLocalLocation(tz.UTC);
   }
 
   // 3-1. 한국어 로케일 데이터 초기화
   await initializeDateFormatting('ko_KR', null);
-  print('한국어 로케일 초기화 완료');
 
   // 4. 로컬 알림 플러그인 초기화 (모바일에서만)
   if (!kIsWeb) {
@@ -145,22 +127,24 @@ void main() async {
           requestBadgePermission: true,
           requestSoundPermission: true,
         );
-    const InitializationSettings initializationSettings = InitializationSettings(
-      android: initializationSettingsAndroid,
-      iOS: initializationSettingsDarwin,
-    );
+    const InitializationSettings initializationSettings =
+        InitializationSettings(
+          android: initializationSettingsAndroid,
+          iOS: initializationSettingsDarwin,
+        );
 
     await flutterLocalNotificationsPlugin.initialize(
       initializationSettings,
       onDidReceiveNotificationResponse: (
         NotificationResponse notificationResponse,
       ) async {
-        print('알림 탭! Payload: ${notificationResponse.payload}');
         // NotificationService의 핸들러 호출
-        NotificationService.handleLocalNotificationTap(notificationResponse.payload);
+        NotificationService.handleLocalNotificationTap(
+          notificationResponse.payload,
+        );
       },
     );
-    
+
     // Android 알림 채널 생성 (API 26+ 에서 필요)
     if (!kIsWeb && Platform.isAndroid) {
       const AndroidNotificationChannel channel = AndroidNotificationChannel(
@@ -173,10 +157,12 @@ void main() async {
       );
 
       final AndroidFlutterLocalNotificationsPlugin? androidPlugin =
-          flutterLocalNotificationsPlugin.resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>();
+          flutterLocalNotificationsPlugin
+              .resolvePlatformSpecificImplementation<
+                AndroidFlutterLocalNotificationsPlugin
+              >();
 
       await androidPlugin?.createNotificationChannel(channel);
-      print('Android 알림 채널 생성 완료');
     }
   }
 
@@ -195,24 +181,21 @@ void main() async {
           );
 
       if (settings.authorizationStatus == AuthorizationStatus.authorized) {
-        print('사용자에게 알림 권한이 허용되었습니다.');
+        // 사용자에게 알림 권한이 허용됨
       } else if (settings.authorizationStatus ==
           AuthorizationStatus.provisional) {
-        print('사용자에게 임시 알림 권한이 허용되었습니다.');
+        // 사용자에게 임시 알림 권한이 허용됨
       } else {
-        print('사용자에게 알림 권한이 거부되었습니다.');
-        // TODO: 사용자에게 알림 권한 설정 페이지로 이동하도록 안내하는 UI 표시
+        // 사용자에게 알림 권한이 거부됨
       }
     } catch (e) {
-      print('FCM 알림 권한 요청 중 오류 발생: $e');
+      // FCM 알림 권한 요청 중 오류 발생
     }
-  } else {
-    print('웹 환경에서는 FCM 권한 요청을 스킵합니다.');
   }
 
   // 6. 알림 서비스 초기화 (FCM 메시지 리스너 포함)
   await NotificationService.initialize();
-  
+
   // 7. 통합 알림 서비스 초기화 (WebSocket 연결 포함)
   await NotificationListService.initialize();
 
@@ -234,7 +217,8 @@ class MyApp extends StatelessWidget {
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.blueAccent),
         useMaterial3: true,
         // 앱 전체의 스캐폴드 배경색을 흰색으로 설정하여 깔끔함을 강조합니다.
-        scaffoldBackgroundColor: kIsWeb ? const Color(0xfff5f5f5) : Colors.white,
+        scaffoldBackgroundColor:
+            kIsWeb ? const Color(0xfff5f5f5) : Colors.white,
         appBarTheme: const AppBarTheme(
           backgroundColor: Colors.white, // AppBar 배경도 흰색으로 통일
           elevation: kIsWeb ? 1 : 0, // 웹에서는 약간의 그림자, 모바일에서는 제거
@@ -244,32 +228,41 @@ class MyApp extends StatelessWidget {
       // 웹에서는 라우팅 기반 네비게이션 사용
       initialRoute: kIsWeb ? WebRouter.getInitialRoute() : null,
       onGenerateRoute: kIsWeb ? WebRouter.generateRoute : null,
-      routes: kIsWeb ? {} : {
-        '/admin/post-management': (context) {
-          final args = ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>?;
-          return AdminPostManagementPage(
-            postId: args?['postId'],
-            initialTab: args?['initialTab'],
-            highlightPostId: args?['highlightPost'],
-          );
-        },
-        '/hospital/dashboard': (context) {
-          final args = ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>?;
-          return HospitalDashboard(
-            highlightPostId: args?['highlightPostId'],
-            showPostDetail: args?['showPostDetail'] ?? false,
-          );
-        },
-        '/hospital/columns': (context) {
-          final args = ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>?;
-          // 병원 대시보드에 칼럼 탭으로 이동
-          return HospitalDashboard(
-            highlightColumnId: args?['highlightColumnId'],
-            initialTab: 'columns',
-          );
-        },
-        '/profile_management': (context) => const ProfileManagement(),
-      },
+      routes:
+          kIsWeb
+              ? {}
+              : {
+                '/admin/post-management': (context) {
+                  final args =
+                      ModalRoute.of(context)?.settings.arguments
+                          as Map<String, dynamic>?;
+                  return AdminPostManagementPage(
+                    postId: args?['postId'],
+                    initialTab: args?['initialTab'],
+                    highlightPostId: args?['highlightPost'],
+                  );
+                },
+                '/hospital/dashboard': (context) {
+                  final args =
+                      ModalRoute.of(context)?.settings.arguments
+                          as Map<String, dynamic>?;
+                  return HospitalDashboard(
+                    highlightPostId: args?['highlightPostId'],
+                    showPostDetail: args?['showPostDetail'] ?? false,
+                  );
+                },
+                '/hospital/columns': (context) {
+                  final args =
+                      ModalRoute.of(context)?.settings.arguments
+                          as Map<String, dynamic>?;
+                  // 병원 대시보드에 칼럼 탭으로 이동
+                  return HospitalDashboard(
+                    highlightColumnId: args?['highlightColumnId'],
+                    initialTab: 'columns',
+                  );
+                },
+                '/profile_management': (context) => const ProfileManagement(),
+              },
       home: kIsWeb ? null : const WelcomeScreen(),
       debugShowCheckedModeBanner: false, // 오른쪽 상단 디버그 배너 제거
       navigatorKey: NotificationService.navigatorKey,

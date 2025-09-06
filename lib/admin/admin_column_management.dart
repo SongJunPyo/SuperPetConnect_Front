@@ -1,15 +1,15 @@
+// ignore_for_file: use_build_context_synchronously
 import 'package:flutter/material.dart';
 import '../services/hospital_column_service.dart';
 import '../models/hospital_column_model.dart';
 import '../utils/app_theme.dart';
-import '../hospital/hospital_column_detail.dart';
 import 'package:intl/intl.dart';
 
 class AdminColumnManagement extends StatefulWidget {
   const AdminColumnManagement({super.key});
 
   @override
-  _AdminColumnManagementState createState() => _AdminColumnManagementState();
+  State createState() => _AdminColumnManagementState();
 }
 
 class _AdminColumnManagementState extends State<AdminColumnManagement> with TickerProviderStateMixin {
@@ -135,23 +135,27 @@ class _AdminColumnManagementState extends State<AdminColumnManagement> with Tick
         }
       });
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            updatedColumn.isPublished
-                ? '칼럼이 공개되었습니다.'
-                : '칼럼 공개가 해제되었습니다.',
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              updatedColumn.isPublished
+                  ? '칼럼이 공개되었습니다.'
+                  : '칼럼 공개가 해제되었습니다.',
+            ),
+            backgroundColor: Colors.green,
           ),
-          backgroundColor: Colors.green,
-        ),
-      );
+        );
+      }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('오류: ${e.toString().replaceAll('Exception: ', '')}'),
-          backgroundColor: Colors.red,
-        ),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('오류: ${e.toString().replaceAll('Exception: ', '')}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     }
   }
 
@@ -219,6 +223,9 @@ class _AdminColumnManagementState extends State<AdminColumnManagement> with Tick
                 }
 
                 try {
+                  final navigator = Navigator.of(context);
+                  final messenger = ScaffoldMessenger.of(context);
+                  
                   await HospitalColumnService.updateColumn(
                     column.columnIdx,
                     HospitalColumnUpdateRequest(
@@ -227,21 +234,26 @@ class _AdminColumnManagementState extends State<AdminColumnManagement> with Tick
                     ),
                   );
 
-                  Navigator.of(context).pop();
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('칼럼이 수정되었습니다.'),
-                      backgroundColor: Colors.green,
-                    ),
-                  );
-                  _loadAllColumns(); // 목록 새로고침
+                  if (mounted) {
+                    navigator.pop();
+                    messenger.showSnackBar(
+                      const SnackBar(
+                        content: Text('칼럼이 수정되었습니다.'),
+                        backgroundColor: Colors.green,
+                      ),
+                    );
+                    _loadAllColumns(); // 목록 새로고침
+                  }
                 } catch (e) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text('수정 실패: ${e.toString().replaceAll('Exception: ', '')}'),
-                      backgroundColor: Colors.red,
-                    ),
-                  );
+                  final messenger = ScaffoldMessenger.of(context);
+                  if (mounted) {
+                    messenger.showSnackBar(
+                      SnackBar(
+                        content: Text('수정 실패: ${e.toString().replaceAll('Exception: ', '')}'),
+                        backgroundColor: Colors.red,
+                      ),
+                    );
+                  }
                 }
               },
               child: const Text('수정'),
@@ -537,7 +549,7 @@ class _AdminColumnManagementState extends State<AdminColumnManagement> with Tick
                 decoration: BoxDecoration(
                   color: AppTheme.lightBlue,
                   borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: AppTheme.primaryBlue.withOpacity(0.3)),
+                  border: Border.all(color: AppTheme.primaryBlue.withValues(alpha: 0.3)),
                 ),
                 child: Row(
                   children: [
@@ -665,7 +677,7 @@ class _AdminColumnManagementState extends State<AdminColumnManagement> with Tick
         itemCount: columns.length,
         separatorBuilder: (context, index) => Container(
           height: 1,
-          color: AppTheme.lightGray.withOpacity(0.2),
+          color: AppTheme.lightGray.withValues(alpha: 0.2),
           margin: const EdgeInsets.symmetric(horizontal: 16),
         ),
         itemBuilder: (context, index) {
@@ -711,7 +723,7 @@ class _AdminColumnManagementState extends State<AdminColumnManagement> with Tick
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // 왼쪽: 순서 번호 (1.5번째 줄 위치)
-            Container(
+            SizedBox(
               width: 20,
               height: 50, // 전체 높이에 맞춤
               child: Center(
@@ -795,10 +807,10 @@ class _AdminColumnManagementState extends State<AdminColumnManagement> with Tick
                     vertical: 4,
                   ),
                   decoration: BoxDecoration(
-                    color: AppTheme.mediumGray.withOpacity(0.2),
+                    color: AppTheme.mediumGray.withValues(alpha: 0.2),
                     borderRadius: BorderRadius.circular(6),
                     border: Border.all(
-                      color: AppTheme.lightGray.withOpacity(0.3),
+                      color: AppTheme.lightGray.withValues(alpha: 0.3),
                       width: 1,
                     ),
                   ),

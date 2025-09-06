@@ -55,7 +55,8 @@ class _DonationApplicationDialogState extends State<DonationApplicationDialog> {
               );
               stats[time.postTimesId!] = slotStats;
             } catch (e) {
-              print('시간대 ${time.postTimesId} 통계 로드 실패: $e');
+              // 시간대별 통계 로딩 실패 시 로그 출력
+              debugPrint('Failed to load stats for time slot: $e');
             }
           }
         }
@@ -67,7 +68,8 @@ class _DonationApplicationDialogState extends State<DonationApplicationDialog> {
         });
       }
     } catch (e) {
-      print('시간대 통계 로드 실패: $e');
+      // 전체 통계 로딩 실패 시 로그 출력
+      debugPrint('Failed to load time slot statistics: $e');
     }
   }
 
@@ -293,7 +295,7 @@ class _DonationApplicationDialogState extends State<DonationApplicationDialog> {
     return Container(
       margin: const EdgeInsets.only(bottom: AppTheme.spacing8),
       decoration: BoxDecoration(
-        color: isSelected ? AppTheme.lightBlue.withOpacity(0.2) : Colors.white,
+        color: isSelected ? AppTheme.lightBlue.withValues(alpha: 0.2) : Colors.white,
         borderRadius: BorderRadius.circular(AppTheme.radius8),
         border: Border.all(
           color: isSelected ? AppTheme.primaryBlue : AppTheme.lightGray,
@@ -357,7 +359,7 @@ class _DonationApplicationDialogState extends State<DonationApplicationDialog> {
     return Container(
       decoration: BoxDecoration(
         color: isSelected 
-            ? AppTheme.primaryBlue.withOpacity(0.1)
+            ? AppTheme.primaryBlue.withValues(alpha: 0.1)
             : isFullyBooked 
                 ? Colors.grey.shade100
                 : Colors.white,
@@ -463,7 +465,7 @@ class _DonationApplicationDialogState extends State<DonationApplicationDialog> {
       }
 
       // 헌혈 신청 생성
-      final application = await AppliedDonationService.createApplication(
+      await AppliedDonationService.createApplication(
         selectedPet!.petIdx!,
         selectedTime!.postTimesId!,
       );

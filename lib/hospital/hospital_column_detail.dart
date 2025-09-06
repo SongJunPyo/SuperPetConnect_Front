@@ -15,7 +15,7 @@ class HospitalColumnDetail extends StatefulWidget {
   });
 
   @override
-  _HospitalColumnDetailState createState() => _HospitalColumnDetailState();
+  State createState() => _HospitalColumnDetailState();
 }
 
 class _HospitalColumnDetailState extends State<HospitalColumnDetail> {
@@ -47,12 +47,9 @@ class _HospitalColumnDetailState extends State<HospitalColumnDetail> {
         // 세션에 조회 기록 저장
         await prefs.setBool(viewKey, true);
         
-        print('DEBUG: 칼럼 ${widget.columnIdx} 조회수 증가 완료');
       } else {
-        print('DEBUG: 칼럼 ${widget.columnIdx}은 이미 조회한 칼럼입니다.');
       }
     } catch (e) {
-      print('WARNING: 조회수 증가 처리 중 오류: $e');
       // 조회수 증가 실패는 사용자 경험에 영향을 주지 않도록 무시
     }
   }
@@ -124,12 +121,14 @@ class _HospitalColumnDetailState extends State<HospitalColumnDetail> {
           );
         }
       } catch (e) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('삭제 실패: ${e.toString().replaceAll('Exception: ', '')}'),
-            backgroundColor: Colors.red,
-          ),
-        );
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('삭제 실패: ${e.toString().replaceAll('Exception: ', '')}'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
       }
     }
   }

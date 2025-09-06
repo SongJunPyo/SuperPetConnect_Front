@@ -13,7 +13,7 @@ class AdminPostCheck extends StatefulWidget {
   const AdminPostCheck({super.key});
 
   @override
-  _AdminPostCheckState createState() => _AdminPostCheckState();
+  State createState() => _AdminPostCheckState();
 }
 
 class _AdminPostCheckState extends State<AdminPostCheck>
@@ -315,12 +315,14 @@ class _AdminPostCheckState extends State<AdminPostCheck>
 
       if (response.statusCode == 200) {
         fetchPosts();
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(approve ? "게시글이 승인되었습니다." : "게시글이 거절되었습니다."),
-            backgroundColor: approve ? Colors.green : Colors.orange,
-          ),
-        );
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(approve ? "게시글이 승인되었습니다." : "게시글이 거절되었습니다."),
+              backgroundColor: approve ? Colors.green : Colors.orange,
+            ),
+          );
+        }
       } else if (response.statusCode == 401) {
         if (mounted) {
           setState(() {
@@ -338,9 +340,11 @@ class _AdminPostCheckState extends State<AdminPostCheck>
         }
       }
     } catch (e) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text("오류 발생: $e")));
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text("오류 발생: $e")));
+      }
     }
   }
 
@@ -409,19 +413,23 @@ class _AdminPostCheckState extends State<AdminPostCheck>
       );
 
       if (response.statusCode == 200) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(approved ? '신청이 승인되었습니다.' : '신청이 거절되었습니다.'),
-            backgroundColor: approved ? Colors.green : Colors.red,
-          ),
-        );
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(approved ? '신청이 승인되었습니다.' : '신청이 거절되었습니다.'),
+              backgroundColor: approved ? Colors.green : Colors.red,
+            ),
+          );
+        }
       } else {
         throw Exception('Failed to update status');
       }
     } catch (e) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('처리 중 오류가 발생했습니다: $e')));
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('처리 중 오류가 발생했습니다: $e')));
+      }
     }
   }
 
@@ -966,8 +974,8 @@ class _AdminPostCheckState extends State<AdminPostCheck>
                               decoration: BoxDecoration(
                                 color:
                                     postType == '긴급'
-                                        ? Colors.red.withOpacity(0.15)
-                                        : Colors.blue.withOpacity(0.15),
+                                        ? Colors.red.withValues(alpha: 0.15)
+                                        : Colors.blue.withValues(alpha: 0.15),
                                 borderRadius: BorderRadius.circular(6),
                               ),
                               child: Text(
@@ -1079,7 +1087,7 @@ class _AdminPostCheckState extends State<AdminPostCheck>
                                   color: AppTheme.veryLightGray,
                                   borderRadius: BorderRadius.circular(8),
                                   border: Border.all(
-                                    color: AppTheme.lightGray.withOpacity(0.5),
+                                    color: AppTheme.lightGray.withValues(alpha: 0.5),
                                   ),
                                 ),
                                 child: Text(
@@ -1338,7 +1346,7 @@ class _AdminPostCheckState extends State<AdminPostCheck>
     try {
       final date = DateTime.parse(dateStr);
       final weekday = _getWeekday(dateStr);
-      return '${date.year}년 ${date.month}월 ${date.day}일 ${weekday}요일';
+      return '${date.year}년 ${date.month}월 ${date.day}일 $weekday요일';
     } catch (e) {
       return dateStr;
     }
@@ -1447,7 +1455,6 @@ class _AdminPostCheckState extends State<AdminPostCheck>
                         return InkWell(
                           onTap: isActive
                                   ? () async {
-                                    print('>>> 시간대 클릭 - isActive: $isActive, isSlotClosed: $isSlotClosed');
                                     await _showTimeSlotApplicants(
                                       post['id'],
                                       timeSlot['id'],
@@ -1496,7 +1503,6 @@ class _AdminPostCheckState extends State<AdminPostCheck>
                                     padding: const EdgeInsets.only(left: 8.0),
                                     child: TextButton.icon(
                                       onPressed: () async {
-                                        print('>>> 신청자 관리 버튼 클릭 - isSlotClosed: $isSlotClosed');
                                         await _showTimeSlotApplicants(
                                           post['id'],
                                           timeSlot['id'],
@@ -1739,7 +1745,7 @@ class _AdminPostCheckState extends State<AdminPostCheck>
                                             }(),
                                           ],
                                         ),
-                                        trailing: Container(
+                                        trailing: SizedBox(
                                           width: 150,
                                           child: ToggleButtons(
                                             isSelected: [
@@ -1945,34 +1951,25 @@ class _AdminPostCheckState extends State<AdminPostCheck>
 
         // 2. 업데이트된 시간대 정보를 사용하여 효율적으로 상태 업데이트
         if (updatedTimeSlot != null) {
-          print('>>> 업데이트된 시간대 정보: $updatedTimeSlot');
           final updatedTimeSlotId = updatedTimeSlot['post_times_idx'];
           final updatedStatus = updatedTimeSlot['status'];
-          print('>>> 업데이트할 시간대 ID: $updatedTimeSlotId, 상태: $updatedStatus');
 
           // 모달 내부 상태 업데이트
           final timeRanges = post['timeRanges'] as List<dynamic>? ?? [];
-          print('>>> 현재 timeRanges: $timeRanges');
           
           // id 또는 idx 필드로 매칭 시도
           int timeSlotIndex = timeRanges.indexWhere((ts) => ts['id'] == updatedTimeSlotId);
           if (timeSlotIndex == -1) {
             timeSlotIndex = timeRanges.indexWhere((ts) => ts['idx'] == updatedTimeSlotId);
-            print('>>> idx로 다시 검색, 결과: $timeSlotIndex');
           }
-          print('>>> 최종 찾은 timeSlotIndex: $timeSlotIndex');
           
           if (timeSlotIndex != -1) {
-            print('>>> 모달 내부 상태 업데이트 실행');
             onUpdate(() {
               // status 필드가 없을 수도 있으므로 추가
               timeRanges[timeSlotIndex]['status'] = updatedStatus;
             });
           } else {
-            print('>>> 경고: 업데이트할 시간대를 찾을 수 없음 (ID: $updatedTimeSlotId)');
-            print('>>> timeRanges의 각 항목 구조:');
             for (int i = 0; i < timeRanges.length; i++) {
-              print('>>> [$i]: ${timeRanges[i]}');
             }
           }
 
@@ -1990,24 +1987,22 @@ class _AdminPostCheckState extends State<AdminPostCheck>
                 }
                 
                 if (mainTimeSlotIndex != -1) {
-                  print('>>> 메인 화면 상태 업데이트 실행');
                   mainTimeRanges[mainTimeSlotIndex]['status'] = updatedStatus;
                 } else {
-                  print('>>> 경고: 메인 목록에서 업데이트할 시간대를 찾을 수 없음');
-                  print('>>> 메인 timeRanges 구조: $mainTimeRanges');
                 }
               }
             });
           }
         } else {
-          print('>>> 경고: updated_time_slot 정보가 없음');
         }
 
         // 확인 창 닫기
-        Navigator.of(context).pop();
-        
-        // 신청자 관리 바텀시트도 닫기
-        Navigator.of(context).pop();
+        if (mounted) {
+          Navigator.of(context).pop();
+          
+          // 신청자 관리 바텀시트도 닫기
+          Navigator.of(context).pop();
+        }
         
         // 상세 게시글 새로고침을 위해 잠깐 닫고 다시 열기
         await _refreshAndReopenPostDetail(post, _getPostStatus(post['status']), post['types'] == 1 ? '긴급' : '정기');
@@ -2025,22 +2020,26 @@ class _AdminPostCheckState extends State<AdminPostCheck>
         await fetchPosts();
         
       } else {
-        Navigator.of(context).pop(); // 오류 시에도 확인 창은 닫습니다.
+        if (mounted) {
+          Navigator.of(context).pop(); // 오류 시에도 확인 창은 닫습니다.
+        }
         final errorData = json.decode(utf8.decode(response.bodyBytes));
         if (response.statusCode == 400) {
-          showDialog(
-            context: context,
-            builder: (_) => AlertDialog(
-              title: const Text('알림'),
-              content: const Text('이미 마감된 시간대입니다.'),
-              actions: [
-                TextButton(
-                  child: const Text('확인'),
-                  onPressed: () => Navigator.of(context).pop(),
-                ),
-              ],
-            ),
-          );
+          if (mounted) {
+            showDialog(
+              context: context,
+              builder: (_) => AlertDialog(
+                title: const Text('알림'),
+                content: const Text('이미 마감된 시간대입니다.'),
+                actions: [
+                  TextButton(
+                    child: const Text('확인'),
+                    onPressed: () => Navigator.of(context).pop(),
+                  ),
+                ],
+              ),
+            );
+          }
         } else {
           throw Exception(
             'Failed to close time slot: ${errorData['message'] ?? response.statusCode}',
@@ -2049,7 +2048,6 @@ class _AdminPostCheckState extends State<AdminPostCheck>
       }
     } catch (e) {
       // 오류 발생 시 로그만 출력
-      print('>>> 시간대 마감 오류: $e');
     }
   }
 
@@ -2074,9 +2072,9 @@ class _AdminPostCheckState extends State<AdminPostCheck>
           ),
           builder: (context, snapshot) {
             if (snapshot.connectionState == ConnectionState.waiting) {
-              return Container(
+              return const SizedBox(
                 height: 200,
-                child: const Center(child: CircularProgressIndicator()),
+                child: Center(child: CircularProgressIndicator()),
               );
             }
 
@@ -2308,7 +2306,6 @@ class _AdminPostCheckState extends State<AdminPostCheck>
 
       if (response.statusCode == 200) {
         final responseData = json.decode(utf8.decode(response.bodyBytes));
-        print('>>> 마감 해제 API 응답: $responseData');
         
         final updatedTimeSlot = responseData['updated_time_slot'];
         if (updatedTimeSlot != null) {
@@ -2340,7 +2337,9 @@ class _AdminPostCheckState extends State<AdminPostCheck>
         }
 
         // 신청자 관리 바텀시트 닫기
-        Navigator.of(context).pop();
+        if (mounted) {
+          Navigator.of(context).pop();
+        }
         
         // 상세 게시글 새로고침을 위해 잠깐 닫고 다시 열기
         await _refreshAndReopenPostDetail(post, _getPostStatus(post['status']), post['types'] == 1 ? '긴급' : '정기');
@@ -2350,11 +2349,9 @@ class _AdminPostCheckState extends State<AdminPostCheck>
         await fetchPosts();
       } else {
         // 마감 해제 실패 시 로그만 출력
-        print('>>> 마감 해제 실패: ${response.statusCode}');
       }
     } catch (e) {
       // 오류 발생 시 로그만 출력
-      print('>>> 마감 해제 오류: $e');
     }
   }
 
@@ -2362,7 +2359,6 @@ class _AdminPostCheckState extends State<AdminPostCheck>
   // 상세 게시글을 새로고침하고 다시 여는 메서드
   Future<void> _refreshAndReopenPostDetail(Map<String, dynamic> post, String postStatus, String postType) async {
     try {
-      print('>>> 상세 게시글 새로고침 및 재오픈 시작');
       
       // 1. 상세 게시글 모달 닫기
       Navigator.of(context).pop();
@@ -2383,9 +2379,9 @@ class _AdminPostCheckState extends State<AdminPostCheck>
       // 5. 업데이트된 게시글로 상세 모달 다시 열기
       _showPostDetail(updatedPost, _getPostStatus(updatedPost['status']), updatedPost['types'] == 1 ? '긴급' : '정기');
       
-      print('>>> 상세 게시글 새로고침 및 재오픈 완료');
     } catch (e) {
-      print('>>> 상세 게시글 새로고침 오류: $e');
+      // 게시글 새로고침 실패 시 로그 출력
+      debugPrint('Failed to refresh post detail: $e');
     }
   }
 }

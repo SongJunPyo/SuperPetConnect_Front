@@ -153,7 +153,7 @@ class _AppInputFieldState extends State<AppInputField> {
                   ? (_isFocused
                       ? AppTheme.veryLightBlue
                       : AppTheme.veryLightGray)
-                  : AppTheme.lightGray.withOpacity(0.3),
+                  : AppTheme.lightGray.withValues(alpha: 0.3),
           border: OutlineInputBorder(
             borderRadius: BorderRadius.circular(AppTheme.radius12),
             borderSide: BorderSide.none,
@@ -240,7 +240,6 @@ class _AppInputFieldState extends State<AppInputField> {
         return TextInputType.multiline;
       case AppInputType.password:
       case AppInputType.text:
-      default:
         return TextInputType.text;
     }
   }

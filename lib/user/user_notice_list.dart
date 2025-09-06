@@ -172,8 +172,9 @@ class _UserNoticeListScreenState extends State<UserNoticeListScreen> {
       });
     }
     
-    showDialog(
-      context: context,
+    if (mounted) {
+      showDialog(
+        context: context,
       builder: (BuildContext context) {
         return AlertDialog(
           title: Row(
@@ -253,6 +254,7 @@ class _UserNoticeListScreenState extends State<UserNoticeListScreen> {
         );
       },
     );
+    }
   }
 
   String _getTargetAudienceText(int targetAudience) {
@@ -269,18 +271,6 @@ class _UserNoticeListScreenState extends State<UserNoticeListScreen> {
   }
 
   // 날짜/시간 표시 로직
-  String _getTimeDisplay(DateTime dateTime) {
-    final now = DateTime.now();
-    final difference = now.difference(dateTime);
-    
-    if (difference.inDays > 0) {
-      // 하루 이상 지나면 날짜로 표시
-      return DateFormat('yyyy.MM.dd').format(dateTime);
-    } else {
-      // 하루 안에는 시간으로 표시
-      return DateFormat('HH:mm').format(dateTime);
-    }
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -357,7 +347,7 @@ class _UserNoticeListScreenState extends State<UserNoticeListScreen> {
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                     decoration: BoxDecoration(
-                      color: AppTheme.primaryBlue.withOpacity(0.1),
+                      color: AppTheme.primaryBlue.withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: Row(
@@ -459,7 +449,7 @@ class _UserNoticeListScreenState extends State<UserNoticeListScreen> {
         itemCount: notices.length,
         separatorBuilder: (context, index) => Container(
           height: 1,
-          color: AppTheme.lightGray.withOpacity(0.2),
+          color: AppTheme.lightGray.withValues(alpha: 0.2),
           margin: const EdgeInsets.symmetric(horizontal: 16),
         ),
         itemBuilder: (context, index) {
@@ -482,7 +472,7 @@ class _UserNoticeListScreenState extends State<UserNoticeListScreen> {
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
                                     // 순서 번호
-                                    Container(
+                                    SizedBox(
                                       width: 20,
                                       child: Text(
                                         '${index + 1}',
@@ -585,10 +575,10 @@ class _UserNoticeListScreenState extends State<UserNoticeListScreen> {
                                   vertical: 4,
                                 ),
                                 decoration: BoxDecoration(
-                                  color: AppTheme.mediumGray.withOpacity(0.2),
+                                  color: AppTheme.mediumGray.withValues(alpha: 0.2),
                                   borderRadius: BorderRadius.circular(6),
                                   border: Border.all(
-                                    color: AppTheme.lightGray.withOpacity(0.3),
+                                    color: AppTheme.lightGray.withValues(alpha: 0.3),
                                     width: 1,
                                   ),
                                 ),
@@ -625,14 +615,4 @@ class _UserNoticeListScreenState extends State<UserNoticeListScreen> {
     );
   }
 
-  Color _getTargetAudienceColor(int targetAudience) {
-    switch (targetAudience) {
-      case 2:
-        return Colors.orange; // 병원: 주황색
-      case 3:
-        return AppTheme.success; // 사용자: 초록색
-      default:
-        return AppTheme.primaryBlue; // 전체: 파란색
-    }
-  }
 }

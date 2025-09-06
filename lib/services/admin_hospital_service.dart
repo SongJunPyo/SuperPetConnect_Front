@@ -43,7 +43,6 @@ class HospitalInfo {
       address: json['address'],
       phoneNumber: json['phone_number'],
       hospitalCode: json['hospital_code'],
-      // TODO: 서버에서 is_active와 approved 필드 구분 필요 - API 응답에서 is_active 필드 확인
       isActive: json['is_active'] ?? json['approved'] ?? false,
       columnActive: json['column_active'] ?? false,
       approved: json['approved'] ?? false,
@@ -267,7 +266,6 @@ class AdminHospitalService {
         );
       }
     } catch (e) {
-      print('ERROR: 병원 검색 중 오류: $e');
       throw Exception('병원 검색 중 오류 발생: $e');
     }
   }
@@ -304,7 +302,6 @@ class AdminHospitalService {
         );
       }
     } catch (e) {
-      print('ERROR: 병원 조회 중 오류: $e');
       throw Exception('병원 조회 중 오류 발생: $e');
     }
   }
@@ -351,7 +348,6 @@ class AdminHospitalService {
         );
       }
     } catch (e) {
-      print('ERROR: 병원 정보 수정 중 오류: $e');
       throw Exception('병원 정보 수정 중 오류 발생: $e');
     }
   }
@@ -387,7 +383,6 @@ class AdminHospitalService {
         );
       }
     } catch (e) {
-      print('ERROR: 병원 삭제 중 오류: $e');
       throw Exception('병원 삭제 중 오류 발생: $e');
     }
   }
@@ -421,7 +416,6 @@ class AdminHospitalService {
         );
       }
     } catch (e) {
-      print('ERROR: 병원 통계 조회 중 오류: $e');
       throw Exception('병원 통계 조회 중 오류 발생: $e');
     }
   }

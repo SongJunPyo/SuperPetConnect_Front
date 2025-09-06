@@ -328,7 +328,7 @@ class MonthlyCancellationStats {
   }
 
   String get formattedMonth {
-    return '$year년 ${month}월';
+    return '$year년 $month월';
   }
 
   String get monthlyCancellationStats {

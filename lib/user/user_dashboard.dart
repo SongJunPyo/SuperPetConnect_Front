@@ -1,12 +1,11 @@
+// ignore_for_file: use_build_context_synchronously
 import 'package:flutter/material.dart';
 import 'pet_management.dart';
 import '../utils/app_theme.dart';
-import '../widgets/app_card.dart';
 import '../widgets/app_app_bar.dart';
 import '../widgets/unified_notification_page.dart';
 import '../auth/profile_management.dart';
 import 'user_notice_list.dart';
-import 'user_donation_list.dart';
 import 'user_donation_posts_list.dart';
 import 'user_column_list.dart';
 import 'donation_history_screen.dart';
@@ -20,7 +19,6 @@ import 'package:intl/intl.dart';
 import 'dart:async';
 import '../widgets/marquee_text.dart';
 import '../utils/number_format_util.dart';
-import '../widgets/refreshable_screen.dart';
 import '../utils/config.dart';
 import '../widgets/region_selection_sheet.dart';
 import '../models/region_model.dart';
@@ -128,8 +126,6 @@ class _UserDashboardState extends State<UserDashboard>
           final userRealName = data['name'] ?? '사용자';
           final userRealNickname = data['nickname'] ?? userRealName;
 
-          print('DEBUG: 서버에서 받은 사용자 이름: $userRealName');
-          print('DEBUG: 서버에서 받은 사용자 닉네임: $userRealNickname');
           if (!mounted) return;
           setState(() {
             userName = userRealName;
@@ -143,7 +139,6 @@ class _UserDashboardState extends State<UserDashboard>
         }
       } catch (e) {
         // 웹 환경에서는 CORS 문제로 인해 로컬 데이터 사용
-        print('DEBUG: 로컬 사용자 정보 사용 (서버 연결 실패)');
       }
     }
 
@@ -151,15 +146,12 @@ class _UserDashboardState extends State<UserDashboard>
     final savedName = prefs.getString('user_name');
     final savedNickname = prefs.getString('user_nickname');
     if (savedName != null && savedName.isNotEmpty) {
-      print('DEBUG: 로컬에서 받은 사용자 이름: $savedName');
-      print('DEBUG: 로컬에서 받은 사용자 닉네임: $savedNickname');
       if (!mounted) return;
       setState(() {
         userName = savedName;
         userNickname = savedNickname ?? savedName;
       });
     } else {
-      print('DEBUG: 기본 사용자 이름 사용');
       if (!mounted) return;
       setState(() {
         userName = '사용자';
@@ -199,7 +191,6 @@ class _UserDashboardState extends State<UserDashboard>
     };
 
     final mapped = regionMapping[fullName];
-    print('DEBUG: 지역 매핑 - $fullName → $mapped');
     return mapped ?? fullName;
   }
 
@@ -249,11 +240,6 @@ class _UserDashboardState extends State<UserDashboard>
       }
       final donationPosts = uniquePosts.values.toList();
 
-      print('DEBUG: 다중 지역 필터링 헌혈 모집글 로드 결과:');
-      print('  - 선택 지역: ${selectedRegionText}');
-      print('  - 총 API 호출 결과: ${allDonationPosts.length}건');
-      print('  - 중복 제거 후: ${donationPosts.length}건');
-
       // 헌혈 모집글 정렬 (긴급 우선, 그 다음 최신순)
       final sortedDonations = List<DonationPost>.from(donationPosts);
       sortedDonations.sort((a, b) {
@@ -268,7 +254,6 @@ class _UserDashboardState extends State<UserDashboard>
         isLoadingDonations = false;
       });
     } catch (e) {
-      print('헌혈 모집글 새로고침 실패: $e');
       if (!mounted) return;
       setState(() {
         isLoadingDonations = false;
@@ -333,11 +318,6 @@ class _UserDashboardState extends State<UserDashboard>
 
       final columnPosts = futures[0] as List<ColumnPost>;
       final noticePosts = futures[1] as List<NoticePost>;
-
-      print('DEBUG: 대시보드 데이터 로드 결과:');
-      print('  - 헌혈 모집글: ${donationPosts.length}건');
-      print('  - 칼럼: ${columnPosts.length}건');
-      print('  - 공지사항: ${noticePosts.length}건');
 
       // 헌혈 모집글 정렬 (긴급 우선, 그 다음 최신순)
       final sortedDonations = List<DonationPost>.from(donationPosts);
@@ -415,7 +395,6 @@ class _UserDashboardState extends State<UserDashboard>
         isLoadingNotices = false;
       });
     } catch (e) {
-      print('대시보드 데이터 로드 실패: $e');
       if (!mounted) return;
       setState(() {
         isLoadingDashboard = false;
@@ -427,18 +406,6 @@ class _UserDashboardState extends State<UserDashboard>
   }
 
   // 날짜/시간 표시 로직
-  String _getTimeDisplay(DateTime dateTime) {
-    final now = DateTime.now();
-    final difference = now.difference(dateTime);
-
-    if (difference.inDays > 0) {
-      // 하루 이상 지나면 날짜로 표시
-      return DateFormat('yyyy.MM.dd').format(dateTime);
-    } else {
-      // 하루 안에는 시간으로 표시
-      return DateFormat('HH:mm').format(dateTime);
-    }
-  }
 
   // 지역 선택 바텀 시트 표시
   void _showRegionSelectionSheet() {
@@ -471,8 +438,8 @@ class _UserDashboardState extends State<UserDashboard>
 
   @override
   Widget build(BuildContext context) {
-    return WillPopScope(
-      onWillPop: () async => false, // 뒤로가기 방지
+    return PopScope(
+      canPop: false, // 뒤로가기 방지
       child: Scaffold(
         appBar: AppDashboardAppBar(
           onProfilePressed: () async {
@@ -489,7 +456,9 @@ class _UserDashboardState extends State<UserDashboard>
           onNotificationPressed: () {
             Navigator.push(
               context,
-              MaterialPageRoute(builder: (context) => const UnifiedNotificationPage()),
+              MaterialPageRoute(
+                builder: (context) => const UnifiedNotificationPage(),
+              ),
             );
           },
           additionalAction: IconButton(
@@ -610,7 +579,9 @@ class _UserDashboardState extends State<UserDashboard>
             decoration: BoxDecoration(
               color: Colors.white,
               borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: AppTheme.lightGray.withOpacity(0.3)),
+              border: Border.all(
+                color: AppTheme.lightGray.withValues(alpha: 0.3),
+              ),
             ),
             child: TabBarView(
               controller: _tabController,
@@ -655,7 +626,7 @@ class _UserDashboardState extends State<UserDashboard>
                   color: AppTheme.veryLightGray,
                   borderRadius: BorderRadius.circular(AppTheme.radius8),
                   border: Border.all(
-                    color: AppTheme.lightGray.withOpacity(0.5),
+                    color: AppTheme.lightGray.withValues(alpha: 0.5),
                   ),
                 ),
                 child: Row(
@@ -735,7 +706,7 @@ class _UserDashboardState extends State<UserDashboard>
                       separatorBuilder:
                           (context, index) => Container(
                             height: 1,
-                            color: AppTheme.lightGray.withOpacity(0.2),
+                            color: AppTheme.lightGray.withValues(alpha: 0.2),
                             margin: const EdgeInsets.symmetric(horizontal: 16),
                           ),
                       itemBuilder: (context, index) {
@@ -795,7 +766,7 @@ class _UserDashboardState extends State<UserDashboard>
                               crossAxisAlignment: CrossAxisAlignment.center,
                               children: [
                                 // 왼쪽: 순서 (카드 중앙 높이)
-                                Container(
+                                SizedBox(
                                   width: 28,
                                   child: Text(
                                     '${index + 1}',
@@ -933,13 +904,13 @@ class _UserDashboardState extends State<UserDashboard>
                                         vertical: 4,
                                       ),
                                       decoration: BoxDecoration(
-                                        color: AppTheme.mediumGray.withOpacity(
-                                          0.2,
+                                        color: AppTheme.mediumGray.withValues(
+                                          alpha: 0.2,
                                         ),
                                         borderRadius: BorderRadius.circular(6),
                                         border: Border.all(
-                                          color: AppTheme.lightGray.withOpacity(
-                                            0.3,
+                                          color: AppTheme.lightGray.withValues(
+                                            alpha: 0.3,
                                           ),
                                           width: 1,
                                         ),
@@ -1017,7 +988,7 @@ class _UserDashboardState extends State<UserDashboard>
               separatorBuilder:
                   (context, index) => Container(
                     height: 1,
-                    color: AppTheme.lightGray.withOpacity(0.2),
+                    color: AppTheme.lightGray.withValues(alpha: 0.2),
                     margin: const EdgeInsets.symmetric(horizontal: 16),
                   ),
               itemBuilder: (context, index) {
@@ -1057,7 +1028,6 @@ class _UserDashboardState extends State<UserDashboard>
 
                 return InkWell(
                   onTap: () {
-                    // TODO: 칼럼 상세 페이지로 이동
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(
                         content: Text('칼럼 ${column.columnIdx} 상세 페이지 (준비 중)'),
@@ -1073,7 +1043,7 @@ class _UserDashboardState extends State<UserDashboard>
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         // 왼쪽: 순서 번호 (1.5번째 줄 위치)
-                        Container(
+                        SizedBox(
                           width: 20,
                           height: 50, // 전체 높이에 맞춤
                           child: Center(
@@ -1203,10 +1173,14 @@ class _UserDashboardState extends State<UserDashboard>
                                 vertical: 4,
                               ),
                               decoration: BoxDecoration(
-                                color: AppTheme.mediumGray.withOpacity(0.2),
+                                color: AppTheme.mediumGray.withValues(
+                                  alpha: 0.2,
+                                ),
                                 borderRadius: BorderRadius.circular(6),
                                 border: Border.all(
-                                  color: AppTheme.lightGray.withOpacity(0.3),
+                                  color: AppTheme.lightGray.withValues(
+                                    alpha: 0.3,
+                                  ),
                                   width: 1,
                                 ),
                               ),
@@ -1286,7 +1260,7 @@ class _UserDashboardState extends State<UserDashboard>
               separatorBuilder:
                   (context, index) => Container(
                     height: 1,
-                    color: AppTheme.lightGray.withOpacity(0.2),
+                    color: AppTheme.lightGray.withValues(alpha: 0.2),
                     margin: const EdgeInsets.symmetric(horizontal: 16),
                   ),
               itemBuilder: (context, index) {
@@ -1334,7 +1308,7 @@ class _UserDashboardState extends State<UserDashboard>
                       crossAxisAlignment: CrossAxisAlignment.center,
                       children: [
                         // 왼쪽: 순서 (2줄 높이 중앙 정렬)
-                        Container(
+                        SizedBox(
                           width: 28,
                           height: 40,
                           child: Center(
@@ -1472,10 +1446,14 @@ class _UserDashboardState extends State<UserDashboard>
                                 vertical: 4,
                               ),
                               decoration: BoxDecoration(
-                                color: AppTheme.mediumGray.withOpacity(0.2),
+                                color: AppTheme.mediumGray.withValues(
+                                  alpha: 0.2,
+                                ),
                                 borderRadius: BorderRadius.circular(6),
                                 border: Border.all(
-                                  color: AppTheme.lightGray.withOpacity(0.3),
+                                  color: AppTheme.lightGray.withValues(
+                                    alpha: 0.3,
+                                  ),
                                   width: 1,
                                 ),
                               ),
@@ -1535,7 +1513,7 @@ class _UserDashboardState extends State<UserDashboard>
           padding: const EdgeInsets.all(AppTheme.spacing20),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(AppTheme.radius16),
-            border: Border.all(color: color.withOpacity(0.2), width: 1.5),
+            border: Border.all(color: color.withValues(alpha: 0.2), width: 1.5),
           ),
           child: Row(
             children: [
@@ -1543,7 +1521,7 @@ class _UserDashboardState extends State<UserDashboard>
                 width: 56,
                 height: 56,
                 decoration: BoxDecoration(
-                  color: color.withOpacity(0.1),
+                  color: color.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(AppTheme.radius12),
                 ),
                 child: Icon(icon, size: 28, color: color),
@@ -1575,7 +1553,7 @@ class _UserDashboardState extends State<UserDashboard>
                 width: 36,
                 height: 36,
                 decoration: BoxDecoration(
-                  color: color.withOpacity(0.1),
+                  color: color.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(AppTheme.radius8),
                 ),
                 child: Icon(Icons.arrow_forward_ios, size: 16, color: color),
@@ -1588,58 +1566,6 @@ class _UserDashboardState extends State<UserDashboard>
   }
 
   // 퀵 액세스 카드를 생성하는 위젯
-  Widget _buildQuickAccessCard({
-    required IconData icon,
-    required String title,
-    required String subtitle,
-    required Color color,
-    required VoidCallback onTap,
-  }) {
-    return Material(
-      color: Colors.white,
-      borderRadius: BorderRadius.circular(AppTheme.radius12),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(AppTheme.radius12),
-        child: Container(
-          padding: const EdgeInsets.all(AppTheme.spacing16),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(AppTheme.radius12),
-            border: Border.all(color: color.withOpacity(0.2), width: 1.5),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Container(
-                width: 48,
-                height: 48,
-                decoration: BoxDecoration(
-                  color: color.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(AppTheme.radius8),
-                ),
-                child: Icon(icon, size: 24, color: color),
-              ),
-              const SizedBox(height: AppTheme.spacing12),
-              Text(
-                title,
-                style: AppTheme.bodyLargeStyle.copyWith(
-                  fontWeight: FontWeight.w600,
-                  color: AppTheme.textPrimary,
-                ),
-              ),
-              const SizedBox(height: AppTheme.spacing4),
-              Text(
-                subtitle,
-                style: AppTheme.bodySmallStyle.copyWith(
-                  color: AppTheme.textSecondary,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
 
   // 공지사항 바텀시트 표시
   void _showNoticeBottomSheet(BuildContext context, Notice notice) async {

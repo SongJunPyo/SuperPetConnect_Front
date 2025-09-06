@@ -26,30 +26,52 @@ class CancelledDonationService {
 
   // ===== 공통 API =====
 
-  // 1. 헌혈 취소 처리
-  static Future<Map<String, dynamic>> cancelBloodDonation(CancelDonationRequest request) async {
+  // 1. 병원용 - 1차 헌혈 중단 처리
+  static Future<Map<String, dynamic>> hospitalCancelBloodDonation(CancelDonationRequest request) async {
     try {
       final headers = await _getHeaders();
       
+      // 디버깅용 로그
+      print('=== 헌혈 중단 요청 ===');
+      print('URL: $baseUrl/cancelled_donation/hospital_cancel');
+      print('Headers: $headers');
+      print('Body: ${jsonEncode({
+        'applied_donation_idx': request.appliedDonationIdx,
+        'cancelled_reason': request.cancelledReason,
+      })}');
+      
       final response = await http.post(
-        Uri.parse('$baseUrl/cancelled_donation/cancel'),
+        Uri.parse('$baseUrl/cancelled_donation/hospital_cancel'),
         headers: headers,
-        body: jsonEncode(request.toJson()),
+        body: jsonEncode({
+          'applied_donation_idx': request.appliedDonationIdx,
+          'cancelled_reason': request.cancelledReason,
+        }),
       );
+
+      print('Response Status: ${response.statusCode}');
+      print('Response Body: ${response.body}');
 
       if (response.statusCode == 200 || response.statusCode == 201) {
         final data = json.decode(utf8.decode(response.bodyBytes));
         return {
-          'message': data['message'],
-          'cancelledDonation': CancelledDonation.fromJson(data['cancelled_donation']),
-          'appliedDonationStatusUpdated': data['applied_donation_status_updated'] ?? false,
+          'message': data['message'] ?? '1차 중단 처리되었습니다. 관리자 승인 대기 중입니다.',
+          'status': data['status'] ?? 'pendingCancellation',
+          'applied_donation_idx': data['applied_donation_idx'],
+          'cancelled_reason': data['cancelled_reason'],
+          'cancelled_at': data['cancelled_at'],
         };
       } else {
-        throw Exception('헌혈 취소 처리 실패: ${response.body}');
+        throw Exception('헌혈 중단 처리 실패: ${response.body}');
       }
     } catch (e) {
-      throw Exception('헌혈 취소 처리 중 오류 발생: $e');
+      throw Exception('헌혈 중단 처리 중 오류 발생: $e');
     }
+  }
+
+  // 1-1. 기존 메서드 유지 (하위 호환성)
+  static Future<Map<String, dynamic>> cancelBloodDonation(CancelDonationRequest request) async {
+    return hospitalCancelBloodDonation(request);
   }
 
   // 2. 특정 취소 기록 조회
@@ -79,7 +101,7 @@ class CancelledDonationService {
       final headers = await _getHeaders();
       
       final response = await http.get(
-        Uri.parse('$baseUrl/cancelled_donation/reason-templates'),
+        Uri.parse('$baseUrl/cancelled_donation/templates/reasons'),
         headers: headers,
       );
 
@@ -87,10 +109,36 @@ class CancelledDonationService {
         final List<dynamic> data = json.decode(utf8.decode(response.bodyBytes));
         return data.cast<Map<String, dynamic>>();
       } else {
-        throw Exception('취소 사유 템플릿 조회 실패: ${response.body}');
+        // 서버 API 실패 시 기본 템플릿 반환
+        return [
+          {
+            'subject': CancelledSubject.hospital,
+            'template_reasons': [
+              '충분한 헌혈량 확보',
+              '응급상황 해결',
+              '헌혈 조건 미충족',
+              '병원 사정으로 인한 취소',
+              '의료진 부재',
+              '기타 병원 사유',
+            ]
+          }
+        ];
       }
     } catch (e) {
-      throw Exception('취소 사유 템플릿 조회 중 오류 발생: $e');
+      // 오류 발생 시 기본 템플릿 반환
+      return [
+        {
+          'subject': CancelledSubject.hospital,
+          'template_reasons': [
+            '충분한 헌혈량 확보',
+            '응급상황 해결',
+            '헌혈 조건 미충족',
+            '병원 사정으로 인한 취소',
+            '의료진 부재',
+            '기타 병원 사유',
+          ]
+        }
+      ];
     }
   }
 
@@ -255,11 +303,12 @@ class CancelledDonationService {
   // 11. 병원용 헌혈 취소 처리
   static Future<Map<String, dynamic>> cancelByHospital(
       int appliedDonationIdx, String cancelledReason) async {
-    return await cancelBloodDonationNow(
-      appliedDonationIdx, 
-      CancelledSubject.hospital, 
-      cancelledReason
+    final request = CancelDonationRequest(
+      appliedDonationIdx: appliedDonationIdx,
+      cancelledSubject: CancelledSubject.hospital,
+      cancelledReason: cancelledReason,
     );
+    return await hospitalCancelBloodDonation(request);
   }
 
   // 12. 관리자용 헌혈 취소 처리
@@ -320,7 +369,6 @@ class CancelledDonationService {
       
       return _getDefaultReasonTemplates(subject);
     } catch (e) {
-      print('템플릿 로드 실패, 기본 템플릿 사용: $e');
       return _getDefaultReasonTemplates(subject);
     }
   }
@@ -388,7 +436,6 @@ class CancelledDonationService {
       
       return recentCancellations;
     } catch (e) {
-      print('최근 취소 기록 조회 실패: $e');
       return [];
     }
   }

@@ -10,13 +10,13 @@ class RefreshableScreen extends StatelessWidget {
   final EdgeInsets? padding;
 
   const RefreshableScreen({
-    Key? key,
+    super.key,
     required this.child,
     required this.onRefresh,
     this.enableRefresh = true,
     this.indicatorColor,
     this.padding,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -72,14 +72,14 @@ class RefreshableTabScreen extends StatelessWidget {
   final Widget? appBar;
 
   const RefreshableTabScreen({
-    Key? key,
+    super.key,
     required this.tabController,
     required this.tabs,
     required this.children,
     required this.onRefresh,
     this.indicatorColor,
     this.appBar,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {

@@ -111,7 +111,7 @@ class AppPostCard extends StatelessWidget {
         color: Colors.white,
         borderRadius: BorderRadius.circular(AppTheme.radius12),
         elevation: 2,
-        shadowColor: Colors.black.withOpacity(0.1),
+        shadowColor: Colors.black.withValues(alpha: 0.1),
         child: InkWell(
           onTap: onTap,
           borderRadius: BorderRadius.circular(AppTheme.radius12),
@@ -120,7 +120,7 @@ class AppPostCard extends StatelessWidget {
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(AppTheme.radius12),
               border: Border.all(
-                color: AppTheme.lightGray.withOpacity(0.8),
+                color: AppTheme.lightGray.withValues(alpha: 0.8),
                 width: 1,
               ),
             ),
@@ -168,7 +168,7 @@ class AppPostCard extends StatelessWidget {
                             vertical: AppTheme.spacing4,
                           ),
                           decoration: BoxDecoration(
-                            color: (statusColor ?? AppTheme.primaryBlue).withOpacity(0.1),
+                            color: (statusColor ?? AppTheme.primaryBlue).withValues(alpha: 0.1),
                             borderRadius: BorderRadius.circular(AppTheme.radius8),
                             border: Border.all(
                               color: statusColor ?? AppTheme.primaryBlue,

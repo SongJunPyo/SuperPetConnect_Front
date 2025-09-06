@@ -2,7 +2,6 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:intl/intl.dart';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
@@ -114,13 +113,13 @@ class _PetRegisterScreenState extends State<PetRegisterScreen> {
     final int? accountIdx = prefs.getInt('account_idx'); // account_idx로 사용
 
     // 🚨 불러온 값 확인하는 디버그 로그 추가
-    print('DEBUG: _savePet()에서 불러온 token: $token');
-    print('DEBUG: _savePet()에서 불러온 accountIdx: $accountIdx');
 
     if (token == null || accountIdx == null || accountIdx == 0) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('로그인 정보가 없거나 유효하지 않습니다. 다시 로그인해주세요.')),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('로그인 정보가 없거나 유효하지 않습니다. 다시 로그인해주세요.')),
+        );
+      }
       return;
     }
 
@@ -140,6 +139,7 @@ class _PetRegisterScreenState extends State<PetRegisterScreen> {
     };
     
     // 등록 모드일 때만 account_idx 추가
+    // ignore: unnecessary_null_comparison
     if (!_isEditMode && accountIdx != null) {
       petData['account_idx'] = accountIdx;
     }
@@ -177,28 +177,34 @@ class _PetRegisterScreenState extends State<PetRegisterScreen> {
 
       if (response.statusCode == 201 || response.statusCode == 200) {
         // 201은 생성, 200은 성공적인 수정
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              _isEditMode ? '반려동물 정보가 수정되었습니다.' : '반려동물이 성공적으로 등록되었습니다.',
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                _isEditMode ? '반려동물 정보가 수정되었습니다.' : '반려동물이 성공적으로 등록되었습니다.',
+              ),
             ),
-          ),
-        );
-        Navigator.pop(context, true); // 성공했다는 의미로 true를 반환하며 창 닫기
+          );
+          Navigator.pop(context, true); // 성공했다는 의미로 true를 반환하며 창 닫기
+        }
       } else {
         final responseBody = jsonDecode(utf8.decode(response.bodyBytes));
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              '처리 실패: ${responseBody['detail'] ?? response.statusCode}',
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                '처리 실패: ${responseBody['detail'] ?? response.statusCode}',
+              ),
             ),
-          ),
-        );
+          );
+        }
       }
     } catch (e) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('오류가 발생했습니다: $e')));
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('오류가 발생했습니다: $e')));
+      }
     }
   }
 
@@ -206,8 +212,7 @@ class _PetRegisterScreenState extends State<PetRegisterScreen> {
   @override
   Widget build(BuildContext context) {
     // ... (기존 build 메서드 내용은 동일) ...
-    final ColorScheme colorScheme =
-        Theme.of(context).colorScheme; // colorScheme 사용을 위해 추가
+    // colorScheme을 사용하지 않으므로 제거
 
     return Scaffold(
       appBar: AppSimpleAppBar(
@@ -367,7 +372,7 @@ class _PetRegisterScreenState extends State<PetRegisterScreen> {
                         width: _selectedSpecies == '강아지' ? 2 : 1,
                       ),
                       color: _selectedSpecies == '강아지' 
-                          ? AppTheme.primaryBlue.withOpacity(0.1)
+                          ? AppTheme.primaryBlue.withValues(alpha: 0.1)
                           : Colors.grey[100],
                     ),
                     child: Column(
@@ -422,7 +427,7 @@ class _PetRegisterScreenState extends State<PetRegisterScreen> {
                         width: _selectedSpecies == '고양이' ? 2 : 1,
                       ),
                       color: _selectedSpecies == '고양이' 
-                          ? AppTheme.primaryBlue.withOpacity(0.1)
+                          ? AppTheme.primaryBlue.withValues(alpha: 0.1)
                           : Colors.grey[100],
                     ),
                     child: Column(
@@ -503,7 +508,7 @@ class _PetRegisterScreenState extends State<PetRegisterScreen> {
   Widget _buildBloodTypeDropdown(BuildContext context) {
     // context 받도록 수정
     final TextTheme textTheme = Theme.of(context).textTheme;
-    final ColorScheme colorScheme = Theme.of(context).colorScheme;
+    // colorScheme을 사용하지 않으므로 제거
 
     // 종류에 따른 혈액형 목록
     final List<String> bloodTypes;
@@ -575,8 +580,7 @@ class _PetRegisterScreenState extends State<PetRegisterScreen> {
   // 저장 버튼 위젯
   Widget _buildSaveButton(BuildContext context) {
     // context 받도록 수정
-    final TextTheme textTheme = Theme.of(context).textTheme;
-    final ColorScheme colorScheme = Theme.of(context).colorScheme;
+    // textTheme과 colorScheme을 사용하지 않으므로 제거
 
     return AppPrimaryButton(
       text: _isEditMode ? '정보 수정' : '등록하기',

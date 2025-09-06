@@ -1,17 +1,13 @@
 import 'package:flutter/material.dart';
 import 'dart:convert';
-import 'dart:math' as math;
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import '../utils/app_theme.dart';
 import '../utils/config.dart';
 import '../services/dashboard_service.dart';
 import '../widgets/marquee_text.dart';
-import '../utils/number_format_util.dart';
 import 'package:intl/intl.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
-import '../models/pet_model.dart';
-import 'pet_register.dart';
 
 class UserDonationPostsListScreen extends StatefulWidget {
   final DonationPost? initialPost; // 초기에 표시할 게시글
@@ -83,7 +79,7 @@ class _UserDonationPostsListScreenState
     try {
       final date = DateTime.parse(dateStr);
       final weekday = _getWeekday(dateStr);
-      return '${date.year}년 ${date.month}월 ${date.day}일 ${weekday}요일';
+      return '${date.year}년 ${date.month}월 ${date.day}일 $weekday요일';
     } catch (e) {
       return dateStr;
     }
@@ -165,7 +161,6 @@ class _UserDonationPostsListScreenState
 
     // 검색어 필터링
     if (searchQuery.isNotEmpty) {
-      final beforeSearch = filtered.length;
       filtered =
           filtered.where((post) {
             return post.title.toLowerCase().contains(
@@ -200,6 +195,7 @@ class _UserDonationPostsListScreenState
   }
 
   // 시간 선택 다이얼로그 표시 (새로운 API 구조용)
+  // ignore: unused_element
   void _showTimeSelectionDialog(
     BuildContext context,
     DonationPost post,
@@ -210,7 +206,7 @@ class _UserDonationPostsListScreenState
         post.availableDates?[selectedDate];
 
     for (int i = 0; i < (timeSlots?.length ?? 0); i++) {
-      final timeSlot = timeSlots![i];
+      // timeSlot 변수 제거됨 - 사용되지 않음
     }
 
     if (timeSlots == null || timeSlots.isEmpty) {
@@ -249,7 +245,7 @@ class _UserDonationPostsListScreenState
               Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: AppTheme.primaryBlue.withOpacity(0.1),
+                  color: AppTheme.primaryBlue.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Column(
@@ -283,7 +279,7 @@ class _UserDonationPostsListScreenState
                       margin: const EdgeInsets.only(bottom: 8),
                       padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
-                        color: AppTheme.lightGray.withOpacity(0.3),
+                        color: AppTheme.lightGray.withValues(alpha: 0.3),
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: InkWell(
@@ -313,8 +309,7 @@ class _UserDonationPostsListScreenState
                         ),
                       ),
                     ),
-                  )
-                  .toList(),
+                  ),
               const SizedBox(height: 16),
               SizedBox(
                 width: double.infinity,
@@ -380,7 +375,7 @@ class _UserDonationPostsListScreenState
               Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: AppTheme.primaryBlue.withOpacity(0.1),
+                  color: AppTheme.primaryBlue.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Column(
@@ -661,14 +656,18 @@ class _UserDonationPostsListScreenState
         throw Exception('서버 연결 오류 (상태코드: ${response.statusCode})');
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('신청 중 오류가 발생했습니다: ${e.toString()}'),
-          backgroundColor: AppTheme.error,
-          behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-        ),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('신청 중 오류가 발생했습니다: ${e.toString()}'),
+            backgroundColor: AppTheme.error,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(8),
+            ),
+          ),
+        );
+      }
     }
   }
 
@@ -749,14 +748,18 @@ class _UserDonationPostsListScreenState
         throw Exception('서버 연결 오류 (상태코드: ${response.statusCode})');
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('신청 중 오류가 발생했습니다: ${e.toString()}'),
-          backgroundColor: AppTheme.error,
-          behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-        ),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('신청 중 오류가 발생했습니다: ${e.toString()}'),
+            backgroundColor: AppTheme.error,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(8),
+            ),
+          ),
+        );
+      }
     }
   }
 
@@ -792,10 +795,10 @@ class _UserDonationPostsListScreenState
               Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: AppTheme.lightBlue.withOpacity(0.1),
+                  color: AppTheme.lightBlue.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(8),
                   border: Border.all(
-                    color: AppTheme.primaryBlue.withOpacity(0.2),
+                    color: AppTheme.primaryBlue.withValues(alpha: 0.2),
                   ),
                 ),
                 child: Column(
@@ -958,8 +961,8 @@ class _UserDonationPostsListScreenState
                           decoration: BoxDecoration(
                             color:
                                 displayPost.isUrgent
-                                    ? Colors.red.withOpacity(0.15)
-                                    : Colors.blue.withOpacity(0.15),
+                                    ? Colors.red.withValues(alpha: 0.15)
+                                    : Colors.blue.withValues(alpha: 0.15),
                             borderRadius: BorderRadius.circular(6),
                           ),
                           child: Text(
@@ -1019,9 +1022,11 @@ class _UserDonationPostsListScreenState
                             ),
                             const SizedBox(width: 8),
                             Text(
-                              displayPost.hospitalNickname ??
-                                  displayPost.hospitalName ??
-                                  '병원',
+                              (displayPost.hospitalNickname?.isNotEmpty ?? false)
+                                  ? displayPost.hospitalNickname!
+                                  : displayPost.hospitalName.isNotEmpty
+                                      ? displayPost.hospitalName
+                                      : '병원',
                               style: AppTheme.bodyMediumStyle.copyWith(
                                 fontWeight: FontWeight.w600,
                               ),
@@ -1065,7 +1070,9 @@ class _UserDonationPostsListScreenState
                               color: AppTheme.veryLightGray,
                               borderRadius: BorderRadius.circular(8),
                               border: Border.all(
-                                color: AppTheme.lightGray.withOpacity(0.5),
+                                color: AppTheme.lightGray.withValues(
+                                  alpha: 0.5,
+                                ),
                               ),
                             ),
                             child: Text(
@@ -1141,7 +1148,7 @@ class _UserDonationPostsListScreenState
                                       i < entry.value.length;
                                       i++
                                     ) {
-                                      final timeSlot = entry.value[i];
+                                      // timeSlot 제거됨 - 사용되지 않음
                                     }
                                   }
                                 } else {}
@@ -1226,8 +1233,8 @@ class _UserDonationPostsListScreenState
                                             vertical: 4,
                                           ),
                                           decoration: BoxDecoration(
-                                            color: AppTheme.success.withOpacity(
-                                              0.1,
+                                            color: AppTheme.success.withValues(
+                                              alpha: 0.1,
                                             ),
                                             borderRadius: BorderRadius.circular(
                                               12,
@@ -1547,8 +1554,8 @@ class _UserDonationPostsListScreenState
                 decoration: BoxDecoration(
                   color:
                       post.isUrgent
-                          ? Colors.red.withOpacity(0.15)
-                          : Colors.blue.withOpacity(0.15),
+                          ? Colors.red.withValues(alpha: 0.15)
+                          : Colors.blue.withValues(alpha: 0.15),
                   borderRadius: BorderRadius.circular(4.0),
                 ),
                 child: Text(
@@ -1757,11 +1764,11 @@ class _UserDonationPostsListScreenState
   }
 
   // 헌혈 신청 처리
+  // ignore: unused_element
   void _processDonationApplication(
     DonationPost post,
     Map<String, dynamic> timeSlot,
   ) {
-    // TODO: 실제 API 호출 구현
     // 성공 시 별도의 스낵바 메시지 표시하지 않음
   }
 }
@@ -1843,8 +1850,6 @@ class _DonationApplicationPageState extends State<DonationApplicationPage> {
           if (petsResponse.statusCode == 200) {
             final petsData = jsonDecode(utf8.decode(petsResponse.bodyBytes));
 
-            print('🐕 반려동물 데이터 확인: $petsData'); // 디버깅용
-
             // 반려동물 정보 매핑 (DB 스키마 기준 - NOT NULL 필드들)
             userPets =
                 (petsData['data'] as List<dynamic>)
@@ -1883,13 +1888,19 @@ class _DonationApplicationPageState extends State<DonationApplicationPage> {
           try {
             final userData = jsonDecode(utf8.decode(userResponse.bodyBytes));
             errorMessage = userData['detail'] ?? errorMessage;
-          } catch (e) {}
+          } catch (e) {
+            // JSON 파싱 실패 시 기본 오류 메시지 사용
+            debugPrint('Failed to parse user response: $e');
+          }
         }
         if (petsResponse.statusCode != 200) {
           try {
             final petsData = jsonDecode(utf8.decode(petsResponse.bodyBytes));
             errorMessage = petsData['detail'] ?? errorMessage;
-          } catch (e) {}
+          } catch (e) {
+            // JSON 파싱 실패 시 기본 오류 메시지 사용
+            debugPrint('Failed to parse user response: $e');
+          }
         }
         throw Exception(errorMessage);
       }
@@ -2237,9 +2248,7 @@ class _DonationApplicationPageState extends State<DonationApplicationPage> {
                             ),
                             // 수정 아이콘을 오른쪽 끝으로 이동
                             GestureDetector(
-                              onTap: () {
-                                _navigateToPetEditPage(pet);
-                              },
+                              onTap: () {},
                               child: Icon(
                                 Icons.edit,
                                 color: Colors.grey.shade600,
@@ -2255,8 +2264,7 @@ class _DonationApplicationPageState extends State<DonationApplicationPage> {
                     ),
                   ),
                 ),
-              )
-              .toList(),
+              ),
       ],
     );
   }
@@ -2276,7 +2284,7 @@ class _DonationApplicationPageState extends State<DonationApplicationPage> {
             const Spacer(),
             IconButton(
               icon: const Icon(Icons.edit, size: 20, color: Colors.grey),
-              onPressed: _navigateToProfilePage,
+              onPressed: () {},
               tooltip: '프로필 관리',
             ),
           ],
@@ -2423,11 +2431,13 @@ class _DonationApplicationPageState extends State<DonationApplicationPage> {
       );
 
       if (response.statusCode == 200) {
-        final data = jsonDecode(utf8.decode(response.bodyBytes));
+        jsonDecode(utf8.decode(response.bodyBytes));
 
-        Navigator.pop(context); // 동의 바텀시트 닫기
-        Navigator.pop(context); // 신청 페이지 닫기
-        Navigator.pop(context); // 헌혈 게시글 바텀시트 닫기
+        if (mounted) {
+          Navigator.pop(context); // 동의 바텀시트 닫기
+          Navigator.pop(context); // 신청 페이지 닫기
+          Navigator.pop(context); // 헌혈 게시글 바텀시트 닫기
+        }
 
         // 성공 시 별도의 스낵바 메시지 표시하지 않음
       } else {
@@ -2437,12 +2447,14 @@ class _DonationApplicationPageState extends State<DonationApplicationPage> {
         );
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('신청 실패: ${e.toString()}'),
-          backgroundColor: Colors.red,
-        ),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('신청 실패: ${e.toString()}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     }
   }
 }
@@ -2628,332 +2640,5 @@ class _TermsAgreementBottomSheetState extends State<TermsAgreementBottomSheet> {
       padding: const EdgeInsets.only(bottom: 8),
       child: Text(text, style: AppTheme.bodyMediumStyle.copyWith(height: 1.5)),
     );
-  }
-}
-
-// DonationApplicationPage 클래스의 추가 메서드들
-extension DonationApplicationPageMethods on _DonationApplicationPageState {
-  // 사용자 정보 수정 다이얼로그
-  void _showEditUserInfoDialog() {
-    final nameController = TextEditingController(text: userInfo!['name']);
-    final phoneController = TextEditingController(text: userInfo!['phone']);
-    final addressController = TextEditingController(text: userInfo!['address']);
-
-    showDialog(
-      context: context,
-      builder:
-          (context) => AlertDialog(
-            title: const Text('사용자 정보 수정'),
-            content: SingleChildScrollView(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  TextFormField(
-                    controller: nameController,
-                    decoration: const InputDecoration(
-                      labelText: '이름',
-                      border: OutlineInputBorder(),
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  TextFormField(
-                    controller: phoneController,
-                    decoration: const InputDecoration(
-                      labelText: '연락처',
-                      border: OutlineInputBorder(),
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  TextFormField(
-                    controller: addressController,
-                    decoration: const InputDecoration(
-                      labelText: '주소',
-                      border: OutlineInputBorder(),
-                    ),
-                    maxLines: 2,
-                  ),
-                ],
-              ),
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context),
-                child: const Text('취소'),
-              ),
-              ElevatedButton(
-                onPressed: () async {
-                  await _updateUserInfo(
-                    nameController.text,
-                    phoneController.text,
-                    addressController.text,
-                  );
-                  Navigator.pop(context);
-                },
-                child: const Text('저장'),
-              ),
-            ],
-          ),
-    );
-  }
-
-  // 반려동물 정보 수정 다이얼로그
-  void _showEditPetInfoDialog(Map<String, dynamic> pet) {
-    final nameController = TextEditingController(text: pet['name']);
-    final breedController = TextEditingController(text: pet['breed']);
-    final ageController = TextEditingController(text: pet['age'].toString());
-    final weightController = TextEditingController(
-      text: pet['weight'].toString().replaceAll('kg', ''),
-    );
-    final bloodTypeController = TextEditingController(text: pet['bloodType']);
-
-    showDialog(
-      context: context,
-      builder:
-          (context) => AlertDialog(
-            title: const Text('반려동물 정보 수정'),
-            content: SingleChildScrollView(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  TextFormField(
-                    controller: nameController,
-                    decoration: const InputDecoration(
-                      labelText: '이름',
-                      border: OutlineInputBorder(),
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  TextFormField(
-                    controller: breedController,
-                    decoration: const InputDecoration(
-                      labelText: '품종',
-                      border: OutlineInputBorder(),
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  TextFormField(
-                    controller: ageController,
-                    decoration: const InputDecoration(
-                      labelText: '나이 (세)',
-                      border: OutlineInputBorder(),
-                    ),
-                    keyboardType: TextInputType.number,
-                  ),
-                  const SizedBox(height: 16),
-                  TextFormField(
-                    controller: weightController,
-                    decoration: const InputDecoration(
-                      labelText: '체중 (kg)',
-                      border: OutlineInputBorder(),
-                    ),
-                    keyboardType: TextInputType.number,
-                  ),
-                  const SizedBox(height: 16),
-                  TextFormField(
-                    controller: bloodTypeController,
-                    decoration: const InputDecoration(
-                      labelText: '혈액형',
-                      border: OutlineInputBorder(),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context),
-                child: const Text('취소'),
-              ),
-              ElevatedButton(
-                onPressed: () async {
-                  await _updatePetInfo(
-                    pet['pet_idx'],
-                    nameController.text,
-                    breedController.text,
-                    int.tryParse(ageController.text) ?? 0,
-                    double.tryParse(weightController.text) ?? 0.0,
-                    bloodTypeController.text,
-                  );
-                  Navigator.pop(context);
-                },
-                child: const Text('저장'),
-              ),
-            ],
-          ),
-    );
-  }
-
-  // 사용자 정보 업데이트 API
-  Future<void> _updateUserInfo(
-    String name,
-    String phone,
-    String address,
-  ) async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      final token = prefs.getString('auth_token');
-
-      if (token == null) {
-        throw Exception('로그인이 필요합니다.');
-      }
-
-      final response = await http.put(
-        Uri.parse('${Config.serverUrl}/api/user/profile'),
-        headers: {
-          'Authorization': 'Bearer $token',
-          'Content-Type': 'application/json; charset=UTF-8',
-        },
-        body: jsonEncode({
-          'name': name,
-          'phone_number': phone,
-          'address': address,
-        }),
-      );
-
-      if (response.statusCode == 200) {
-        setState(() {
-          userInfo!['name'] = name;
-          userInfo!['phone'] = phone;
-          userInfo!['address'] = address;
-        });
-
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('사용자 정보가 수정되었습니다.'),
-            backgroundColor: Colors.green,
-          ),
-        );
-      } else {
-        final errorData = jsonDecode(utf8.decode(response.bodyBytes));
-        throw Exception(errorData['detail'] ?? '수정 실패: ${response.statusCode}');
-      }
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('수정 실패: ${e.toString()}'),
-          backgroundColor: Colors.red,
-        ),
-      );
-    }
-  }
-
-  // 반려동물 정보 업데이트 API
-  Future<void> _updatePetInfo(
-    int petIdx,
-    String name,
-    String breed,
-    int age,
-    double weight,
-    String bloodType,
-  ) async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      final token = prefs.getString('auth_token');
-
-      if (token == null) {
-        throw Exception('로그인이 필요합니다.');
-      }
-
-      final response = await http.put(
-        Uri.parse('${Config.serverUrl}/api/user/pets/$petIdx'),
-        headers: {
-          'Authorization': 'Bearer $token',
-          'Content-Type': 'application/json; charset=UTF-8',
-        },
-        body: jsonEncode({
-          'name': name,
-          'breed': breed,
-          'age_number': age,
-          'weight_kg': weight,
-          'blood_type': bloodType,
-        }),
-      );
-
-      if (response.statusCode == 200) {
-        // 로컬 데이터 업데이트
-        for (int i = 0; i < userPets.length; i++) {
-          if (userPets[i]['pet_idx'] == petIdx) {
-            setState(() {
-              userPets[i]['name'] = name;
-              userPets[i]['breed'] = breed;
-              userPets[i]['age'] = age;
-              userPets[i]['weight'] = '${weight}kg';
-              userPets[i]['bloodType'] = bloodType;
-
-              // 선택된 반려동물이 수정된 경우 업데이트
-              if (selectedPet != null && selectedPet!['pet_idx'] == petIdx) {
-                selectedPet = userPets[i];
-              }
-            });
-            break;
-          }
-        }
-
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('반려동물 정보가 수정되었습니다.'),
-            backgroundColor: Colors.green,
-          ),
-        );
-      } else {
-        final errorData = jsonDecode(utf8.decode(response.bodyBytes));
-        throw Exception(errorData['detail'] ?? '수정 실패: ${response.statusCode}');
-      }
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('수정 실패: ${e.toString()}'),
-          backgroundColor: Colors.red,
-        ),
-      );
-    }
-  }
-
-  // 반려동물 수정 페이지로 이동
-  void _navigateToPetEditPage(Map<String, dynamic> petData) async {
-    // Pet 모델로 변환
-    final pet = Pet(
-      petIdx: petData['pet_idx'],
-      accountIdx: 0, // 현재 사용자의 account_idx
-      ownerEmail: userInfo?['email'] ?? '', // 사용자 이메일 추가
-      name: petData['name']?.toString() ?? '',
-      species: petData['species']?.toString() ?? '',
-      breed: petData['breed']?.toString() ?? '',
-      ageNumber: petData['age'] ?? 0,
-      bloodType: petData['bloodType']?.toString() ?? '',
-      weightKg:
-          double.tryParse(
-            petData['weight']?.toString().replaceAll('kg', '') ?? '0',
-          ) ??
-          0.0,
-      pregnant: petData['pregnant'] ?? false,
-      vaccinated: petData['vaccinated'] ?? false,
-      hasDisease: petData['has_disease'] ?? false,
-      hasBirthExperience: petData['has_birth_experience'] ?? false,
-      prevDonationDate:
-          petData['prev_donation_date'] != null
-              ? DateTime.tryParse(petData['prev_donation_date'].toString())
-              : null,
-    );
-
-    final result = await Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => PetRegisterScreen(petToEdit: pet),
-      ),
-    );
-
-    if (result == true) {
-      // 수정 완료 후 다시 데이터 로드
-      _loadUserDataAndPets();
-    }
-  }
-
-  // 신청자 정보 수정 페이지로 이동
-  void _navigateToProfilePage() {
-    Navigator.pushNamed(context, '/profile_management').then((_) {
-      // 수정 완료 후 다시 데이터 로드
-      _loadUserDataAndPets();
-    });
   }
 }

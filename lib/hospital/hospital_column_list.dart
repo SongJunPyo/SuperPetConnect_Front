@@ -1,3 +1,4 @@
+// ignore_for_file: use_build_context_synchronously
 import 'package:flutter/material.dart';
 import '../services/hospital_column_service.dart';
 import '../models/hospital_column_model.dart';
@@ -11,7 +12,7 @@ class HospitalColumnList extends StatefulWidget {
   const HospitalColumnList({super.key});
 
   @override
-  _HospitalColumnListState createState() => _HospitalColumnListState();
+  State createState() => _HospitalColumnListState();
 }
 
 class _HospitalColumnListState extends State<HospitalColumnList> with TickerProviderStateMixin {
@@ -183,19 +184,23 @@ class _HospitalColumnListState extends State<HospitalColumnList> with TickerProv
             onPressed: () async {
               final hasPermission = await HospitalColumnService.checkColumnPermission();
               if (hasPermission) {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => const HospitalColumnCreate(),
-                  ),
-                ).then((_) => _loadMyColumns());
+                if (mounted) {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const HospitalColumnCreate(),
+                    ),
+                  ).then((_) => _loadMyColumns());
+                }
               } else {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('관리자의 권한이 필요합니다.'),
-                    backgroundColor: Colors.orange,
-                  ),
-                );
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('관리자의 권한이 필요합니다.'),
+                      backgroundColor: Colors.orange,
+                    ),
+                  );
+                }
               }
             },
             tooltip: '칼럼 작성',
@@ -384,19 +389,23 @@ class _HospitalColumnListState extends State<HospitalColumnList> with TickerProv
                   onPressed: () async {
                     final hasPermission = await HospitalColumnService.checkColumnPermission();
                     if (hasPermission) {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => const HospitalColumnCreate(),
-                        ),
-                      ).then((_) => _loadMyColumns());
+                      if (mounted) {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => const HospitalColumnCreate(),
+                          ),
+                        ).then((_) => _loadMyColumns());
+                      }
                     } else {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('관리자의 권한이 필요합니다.'),
-                          backgroundColor: Colors.orange,
-                        ),
-                      );
+                      if (mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('관리자의 권한이 필요합니다.'),
+                            backgroundColor: Colors.orange,
+                          ),
+                        );
+                      }
                     }
                   },
                   icon: const Icon(Icons.add),
@@ -455,7 +464,7 @@ class _HospitalColumnListState extends State<HospitalColumnList> with TickerProv
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // 왼쪽: 순서 번호
-            Container(
+            SizedBox(
               width: 20,
               height: 50,
               child: Center(

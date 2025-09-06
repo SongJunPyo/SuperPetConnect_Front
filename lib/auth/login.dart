@@ -27,7 +27,6 @@ class _LoginScreenState extends State<LoginScreen> {
   final _formKey = GlobalKey<FormState>();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
-  bool _isObscure = true; // 비밀번호 가시성 토글을 위한 변수
 
   // 로그인 버튼 클릭 시 호출될 함수
   void _login() async {
@@ -46,13 +45,13 @@ class _LoginScreenState extends State<LoginScreen> {
         if (!kIsWeb) {
           try {
             fcmToken = await FirebaseMessaging.instance.getToken();
-            print('FCM 토큰 획득: $fcmToken');
+            // FCM 토큰 획득 완료
           } catch (e) {
-            print('FCM 토큰 획득 실패: $e');
+            // FCM 토큰 획득 실패
             // FCM 토큰이 없어도 로그인은 계속 진행
           }
         } else {
-          print('웹 환경에서는 FCM 토큰 스킵');
+          // 웹 환경에서는 FCM 토큰 스킵
         }
 
         // API 요청 body 구성
@@ -60,25 +59,25 @@ class _LoginScreenState extends State<LoginScreen> {
           'username': _emailController.text,
           'password': _passwordController.text,
         };
-        
+
         // FCM 토큰이 있으면 추가
         if (fcmToken != null && fcmToken.isNotEmpty) {
           requestBody['fcm_token'] = fcmToken;
         }
 
         // API 요청 (웹 환경 대응)
-        print('DEBUG: 로그인 API 요청 시작');
-        print('DEBUG: 서버 URL: ${Config.serverUrl}');
-        print('DEBUG: 요청 데이터: $requestBody');
-        
-        final response = await http.post(
-          Uri.parse('${Config.serverUrl}/api/login'),
-          headers: {
-            'Content-Type': 'application/x-www-form-urlencoded',
-            'Accept': 'application/json',
-          },
-          body: requestBody,
-        ).timeout(const Duration(seconds: 15));
+        // 로그인 API 요청 시작
+
+        final response = await http
+            .post(
+              Uri.parse('${Config.serverUrl}/api/login'),
+              headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+                'Accept': 'application/json',
+              },
+              body: requestBody,
+            )
+            .timeout(const Duration(seconds: 15));
 
         // 로딩 닫기
         if (mounted) {
@@ -95,6 +94,7 @@ class _LoginScreenState extends State<LoginScreen> {
           // 사용자 정보 저장
           await prefs.setString('user_email', data['email'] ?? '');
           await prefs.setString('user_name', data['name'] ?? '');
+          await prefs.setInt('account_type', data['account_type'] ?? 0); // account_type 저장 추가
 
           await prefs.setInt(
             'account_idx',
@@ -104,107 +104,108 @@ class _LoginScreenState extends State<LoginScreen> {
           // 병원 사용자인 경우 hospital_code 저장
           if (data['account_type'] == 2 && data['hospital_code'] != null) {
             await prefs.setString('hospital_code', data['hospital_code']);
-            print('DEBUG: 병원 코드 저장됨: ${data['hospital_code']}');
+            // 병원 코드 저장됨
           }
 
           // 🚨 저장 후 바로 확인하는 디버그 로그 추가
-          print(
-            'DEBUG: SharedPreferences에 저장된 account_idx: ${prefs.getInt('account_idx')}',
-          );
-          print(
-            'DEBUG: SharedPreferences에 저장된 auth_token: ${prefs.getString('auth_token')}',
-          );
-          
+          // SharedPreferences에 사용자 정보 저장 완료
+
           // 로그인 성공 후 FCM 토큰 서버 업데이트
           try {
             await NotificationService.updateTokenAfterLogin();
-            print('DEBUG: FCM 토큰 서버 업데이트 완료');
+            // FCM 토큰 서버 업데이트 완료
           } catch (e) {
-            print('DEBUG: FCM 토큰 서버 업데이트 실패: $e');
+            // FCM 토큰 서버 업데이트 실패
           }
           // 승인 여부 확인
           if (data['approved'] == false) {
+            if (mounted) {
+              _showAlertDialog(
+                context,
+                '승인 대기 중',
+                '관리자의 승인을 기다리고 있습니다. \n승인 후 로그인이 가능합니다.',
+              );
+            }
+            return;
+          }
+
+          // 계정 상태 확인: ${data['account_type']}
+
+          // 사용자 유형에 따라 적절한 화면으로 이동
+          if (mounted) {
+            switch (data['account_type']) {
+              case 1: // 관리자
+                Navigator.pushAndRemoveUntil(
+                  context,
+                  MaterialPageRoute(builder: (context) => const AdminDashboard()),
+                  (route) => false,
+                );
+                break;
+              case 2: // 병원
+                Navigator.pushAndRemoveUntil(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const HospitalDashboard(),
+                  ),
+                  (route) => false,
+                );
+                break;
+              case 3: // 일반 사용자
+                Navigator.pushAndRemoveUntil(
+                  context,
+                  MaterialPageRoute(builder: (context) => const UserDashboard()),
+                  (route) => false,
+                );
+                break;
+              default:
+                _showAlertDialog(context, '오류', '알 수 없는 사용자 유형입니다.');
+            }
+          }
+        } else if (response.statusCode == 403) {
+          // 승인되지 않은 계정인 경우
+          if (mounted) {
             _showAlertDialog(
               context,
               '승인 대기 중',
               '관리자의 승인을 기다리고 있습니다. \n승인 후 로그인이 가능합니다.',
             );
-            return;
           }
-
-          print('디버그!!!!!!: ${data['account_type']}');
-
-          // 사용자 유형에 따라 적절한 화면으로 이동
-          switch (data['account_type']) {
-            case 1: // 관리자
-              Navigator.pushAndRemoveUntil(
-                context,
-                MaterialPageRoute(builder: (context) => const AdminDashboard()),
-                (route) => false,
-              );
-              break;
-            case 2: // 병원
-              Navigator.pushAndRemoveUntil(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => const HospitalDashboard(),
-                ),
-                (route) => false,
-              );
-              break;
-            case 3: // 일반 사용자
-              Navigator.pushAndRemoveUntil(
-                context,
-                MaterialPageRoute(builder: (context) => const UserDashboard()),
-                (route) => false,
-              );
-              break;
-            default:
-              _showAlertDialog(context, '오류', '알 수 없는 사용자 유형입니다.');
-          }
-        } else if (response.statusCode == 403) {
-          // 승인되지 않은 계정인 경우
-          _showAlertDialog(
-            context,
-            '승인 대기 중',
-            '관리자의 승인을 기다리고 있습니다. \n승인 후 로그인이 가능합니다.',
-          );
         } else if (response.statusCode == 401) {
           // 인증 실패 (이메일 또는 비밀번호 오류)
-          _showAlertDialog(context, '로그인 실패', '이메일 또는 비밀번호가 올바르지 않습니다.');
+          if (mounted) {
+            _showAlertDialog(context, '로그인 실패', '이메일 또는 비밀번호가 올바르지 않습니다.');
+          }
         } else {
           // 기타 서버 오류
-          _showAlertDialog(
-            context,
-            '오류 발생',
-            '서버 오류가 발생했습니다. 잠시 후 다시 시도해주세요.\n${utf8.decode(response.bodyBytes)}',
-          );
+          if (mounted) {
+            _showAlertDialog(
+              context,
+              '오류 발생',
+              '서버 오류가 발생했습니다. 잠시 후 다시 시도해주세요.\n${utf8.decode(response.bodyBytes)}',
+            );
+          }
         }
       } catch (e) {
         if (mounted) {
           // 에러 발생 시 로딩 닫기 전 위젯 마운트 상태 확인
           Navigator.pop(context);
         }
-        
-        print('ERROR: 로그인 요청 실패: $e');
-        print('ERROR: 에러 타입: ${e.runtimeType}');
-        
+
+        // 로그인 요청 실패
+
         String errorMessage = '서버 연결 오류가 발생했습니다.';
-        
+
         if (e.toString().contains('NotInitializedError')) {
-          errorMessage = 'HTTP 클라이언트 초기화 오류가 발생했습니다.\n웹 브라우저를 새로고침하거나 앱을 재시작해주세요.';
+          errorMessage =
+              'HTTP 클라이언트 초기화 오류가 발생했습니다.\n웹 브라우저를 새로고침하거나 앱을 재시작해주세요.';
         } else if (e.toString().contains('TimeoutException')) {
           errorMessage = '요청 시간이 초과되었습니다.\n네트워크 연결을 확인해주세요.';
         } else if (e.toString().contains('SocketException')) {
           errorMessage = '네트워크 연결을 확인해주세요.';
         }
-        
+
         if (mounted) {
-          _showAlertDialog(
-            context,
-            '연결 오류',
-            '$errorMessage\n\n상세 오류: $e',
-          );
+          _showAlertDialog(context, '연결 오류', '$errorMessage\n\n상세 오류: $e');
         }
       }
     }
@@ -240,7 +241,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
   // 회원가입 버튼 클릭 시 호출될 함수
   void _signUp() {
-    print('회원가입 페이지로 이동');
+    // 회원가입 페이지로 이동
     Navigator.push(
       context,
       MaterialPageRoute(builder: (context) => const RegisterScreen()),
@@ -249,11 +250,10 @@ class _LoginScreenState extends State<LoginScreen> {
 
   // 비밀번호 찾기 버튼 클릭 시 호출될 함수 (현재는 스낵바만 표시)
   void _forgotPassword() {
-    print('비밀번호 찾기 페이지로 이동');
+    // 비밀번호 찾기 페이지로 이동
     ScaffoldMessenger.of(
       context,
     ).showSnackBar(const SnackBar(content: Text('비밀번호 찾기 기능은 나중에 구현됩니다!')));
-    // TODO: 실제 비밀번호 찾기 페이지로 이동하는 로직 추가
   }
 
   @override
@@ -266,9 +266,7 @@ class _LoginScreenState extends State<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: const AppAppBar(
-        showBackButton: true,
-      ),
+      appBar: const AppAppBar(showBackButton: true),
       body: SingleChildScrollView(
         padding: AppTheme.pagePadding,
         child: Form(
@@ -277,15 +275,9 @@ class _LoginScreenState extends State<LoginScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const SizedBox(height: AppTheme.spacing40),
-              Text(
-                '로그인',
-                style: AppTheme.h1Style,
-              ),
+              Text('로그인', style: AppTheme.h1Style),
               const SizedBox(height: AppTheme.spacing32),
-              AppEmailField(
-                controller: _emailController,
-                required: true,
-              ),
+              AppEmailField(controller: _emailController, required: true),
               const SizedBox(height: AppTheme.spacing16),
               AppPasswordField(
                 controller: _passwordController,
@@ -353,9 +345,7 @@ class _LoginScreenState extends State<LoginScreen> {
               const SizedBox(height: AppTheme.spacing40),
               Text(
                 '개발용 임시 이동 버튼',
-                style: AppTheme.h3Style.copyWith(
-                  color: AppTheme.error,
-                ),
+                style: AppTheme.h3Style.copyWith(color: AppTheme.error),
               ),
               const SizedBox(height: AppTheme.spacing16),
               Row(

@@ -1,15 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
-import '../admin/admin_dashboard.dart';
-import '../admin/admin_post_check.dart';
-import '../admin/admin_approved_posts.dart';
-import '../admin/admin_signup_management.dart';
-import '../admin/admin_hospital_check.dart';
-import '../hospital/hospital_dashboard.dart';
-import '../user/user_dashboard.dart';
 import '../auth/login.dart';
-import '../auth/welcome.dart';
 import 'auth_guard.dart';
 
 class WebRouter {
@@ -50,13 +41,12 @@ class WebRouter {
     // 실제 인증 확인은 AuthGuard에서 처리
     final uri = Uri.base;
     final route = uri.path == '/' ? welcome : uri.path;
-    print('WebRouter: 현재 URL: ${uri.path}, 결정된 라우트: $route');
     return route;
   }
 }
 
 class NotFoundPage extends StatelessWidget {
-  const NotFoundPage({Key? key}) : super(key: key);
+  const NotFoundPage({super.key});
 
   @override
   Widget build(BuildContext context) {

@@ -284,13 +284,13 @@ class _AdminUserManagementScreenState extends State<AdminUserManagementScreen>
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
           color: isActive
-              ? AppTheme.success.withOpacity(0.3)
-              : AppTheme.error.withOpacity(0.3),
+              ? AppTheme.success.withValues(alpha: 0.3)
+              : AppTheme.error.withValues(alpha: 0.3),
           width: isActive ? 1 : 2,
         ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: Colors.black.withValues(alpha: 0.05),
             blurRadius: 5,
             offset: const Offset(0, 2),
           ),
@@ -333,8 +333,8 @@ class _AdminUserManagementScreenState extends State<AdminUserManagementScreen>
                         const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                     decoration: BoxDecoration(
                       color: isActive
-                          ? AppTheme.success.withOpacity(0.1)
-                          : AppTheme.error.withOpacity(0.1),
+                          ? AppTheme.success.withValues(alpha: 0.1)
+                          : AppTheme.error.withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Text(
@@ -350,7 +350,7 @@ class _AdminUserManagementScreenState extends State<AdminUserManagementScreen>
                     padding:
                         const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                     decoration: BoxDecoration(
-                      color: AppTheme.primaryBlue.withOpacity(0.1),
+                      color: AppTheme.primaryBlue.withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Text(
@@ -416,7 +416,7 @@ class _AdminUserManagementScreenState extends State<AdminUserManagementScreen>
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           Text(
-            '총 ${totalCount}개 (${currentPage}/${((totalCount - 1) / pageSize).ceil() + 1}페이지)',
+            '총 $totalCount개 ($currentPage/${((totalCount - 1) / pageSize).ceil() + 1}페이지)',
             style: AppTheme.bodySmallStyle,
           ),
           Row(

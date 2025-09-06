@@ -15,7 +15,7 @@ class NotificationDebugPage extends StatefulWidget {
 
 class _NotificationDebugPageState extends State<NotificationDebugPage> {
   bool _isWebSocketConnected = false;
-  List<String> _debugLogs = [];
+  final List<String> _debugLogs = [];
   StreamSubscription<bool>? _connectionSubscription;
   StreamSubscription<NotificationModel>? _notificationSubscription;
   int _receivedNotificationCount = 0;

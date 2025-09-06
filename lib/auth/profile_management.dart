@@ -59,9 +59,11 @@ class _ProfileManagementState extends State<ProfileManagement> {
       setState(() {
         isLoading = false;
       });
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('로그인 정보를 찾을 수 없습니다.')),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('로그인 정보를 찾을 수 없습니다.')),
+        );
+      }
     }
   }
 
@@ -119,9 +121,11 @@ class _ProfileManagementState extends State<ProfileManagement> {
       setState(() {
         isLoading = false;
       });
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('오류가 발생했습니다: $e')),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('오류가 발생했습니다: $e')),
+        );
+      }
     }
   }
 
@@ -259,16 +263,20 @@ class _ProfileManagementState extends State<ProfileManagement> {
             break;
         }
         
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('프로필이 성공적으로 업데이트되었습니다.')),
-        );
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('프로필이 성공적으로 업데이트되었습니다.')),
+          );
+        }
       } else {
         throw Exception('프로필 업데이트에 실패했습니다.');
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('오류가 발생했습니다: $e')),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('오류가 발생했습니다: $e')),
+        );
+      }
     }
   }
 
@@ -426,13 +434,13 @@ class _ProfileManagementState extends State<ProfileManagement> {
                 color: Colors.white,
                 borderRadius: BorderRadius.circular(AppTheme.radius16),
                 elevation: 2,
-                shadowColor: Colors.black.withOpacity(0.1),
+                shadowColor: Colors.black.withValues(alpha: 0.1),
                 child: Container(
                   padding: const EdgeInsets.all(AppTheme.spacing20),
                   decoration: BoxDecoration(
                     borderRadius: BorderRadius.circular(AppTheme.radius16),
                     border: Border.all(
-                      color: AppTheme.lightGray.withOpacity(0.8),
+                      color: AppTheme.lightGray.withValues(alpha: 0.8),
                       width: 1,
                     ),
                   ),

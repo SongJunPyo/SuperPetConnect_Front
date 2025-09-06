@@ -22,8 +22,6 @@ class NoticeService {
         throw Exception('인증 토큰이 없습니다. 다시 로그인해주세요.');
       }
 
-      print('DEBUG: 공지글 작성 요청 - URL: $baseUrl/');
-      print('DEBUG: 요청 본문: ${jsonEncode(request.toJson())}');
 
       final response = await http.post(
         Uri.parse('$baseUrl/'),
@@ -34,8 +32,6 @@ class NoticeService {
         body: jsonEncode(request.toJson()),
       );
 
-      print('DEBUG: 응답 상태코드: ${response.statusCode}');
-      print('DEBUG: 응답 본문: ${response.body}');
 
       if (response.statusCode == 200 || response.statusCode == 201) {
         final data = jsonDecode(utf8.decode(response.bodyBytes));
@@ -51,7 +47,6 @@ class NoticeService {
         );
       }
     } catch (e) {
-      print('ERROR: 공지글 작성 중 오류: $e');
       throw Exception('공지글 작성 중 오류 발생: $e');
     }
   }
@@ -75,7 +70,6 @@ class NoticeService {
         '$adminBaseUrl/',
       ).replace(queryParameters: queryParams.isNotEmpty ? queryParams : null);
 
-      print('DEBUG: 관리자 공지글 목록 조회 - URL: $uri');
 
       final response = await http.get(
         uri,
@@ -85,8 +79,6 @@ class NoticeService {
         },
       );
 
-      print('DEBUG: 관리자 공지글 목록 응답 상태코드: ${response.statusCode}');
-      print('DEBUG: 관리자 공지글 목록 응답 본문: ${response.body}');
 
       if (response.statusCode == 200) {
         final data = jsonDecode(utf8.decode(response.bodyBytes));
@@ -108,7 +100,6 @@ class NoticeService {
         );
       }
     } catch (e) {
-      print('ERROR: 관리자 공지글 목록 조회 중 오류: $e');
       throw Exception('공지글 목록 조회 중 오류 발생: $e');
     }
   }
@@ -136,7 +127,6 @@ class NoticeService {
         '$baseUrl/',
       ).replace(queryParameters: queryParams.isNotEmpty ? queryParams : null);
 
-      print('DEBUG: 공지글 목록 조회 - URL: $uri');
 
       final response = await http.get(
         uri,
@@ -146,8 +136,6 @@ class NoticeService {
         },
       );
 
-      print('DEBUG: 공지글 목록 응답 상태코드: ${response.statusCode}');
-      print('DEBUG: 공지글 목록 응답 본문: ${response.body}');
 
       if (response.statusCode == 200) {
         final data = jsonDecode(utf8.decode(response.bodyBytes));
@@ -169,7 +157,6 @@ class NoticeService {
         );
       }
     } catch (e) {
-      print('ERROR: 공지글 목록 조회 중 오류: $e');
       throw Exception('공지글 목록 조회 중 오류 발생: $e');
     }
   }
@@ -177,12 +164,9 @@ class NoticeService {
   // 특정 공지글 상세 조회 (모든 사용자)
   static Future<Notice> getNoticeDetail(int noticeIdx) async {
     try {
-      print('DEBUG: 공지글 상세 조회 - URL: $baseUrl/$noticeIdx');
 
       final response = await http.get(Uri.parse('$baseUrl/$noticeIdx'));
 
-      print('DEBUG: 공지글 상세 응답 상태코드: ${response.statusCode}');
-      print('DEBUG: 공지글 상세 응답 본문: ${response.body}');
 
       if (response.statusCode == 200) {
         final data = jsonDecode(utf8.decode(response.bodyBytes));
@@ -196,7 +180,6 @@ class NoticeService {
         );
       }
     } catch (e) {
-      print('ERROR: 공지글 조회 중 오류: $e');
       throw Exception('공지글 조회 중 오류 발생: $e');
     }
   }
@@ -212,8 +195,6 @@ class NoticeService {
         throw Exception('인증 토큰이 없습니다. 다시 로그인해주세요.');
       }
 
-      print('DEBUG: 공지글 수정 요청 - URL: $baseUrl/$noticeIdx');
-      print('DEBUG: 수정 요청 본문: ${jsonEncode(request.toJson())}');
 
       final response = await http.put(
         Uri.parse('$baseUrl/$noticeIdx'),
@@ -224,8 +205,6 @@ class NoticeService {
         body: jsonEncode(request.toJson()),
       );
 
-      print('DEBUG: 수정 응답 상태코드: ${response.statusCode}');
-      print('DEBUG: 수정 응답 본문: ${response.body}');
 
       if (response.statusCode == 200) {
         final data = jsonDecode(utf8.decode(response.bodyBytes));
@@ -243,7 +222,6 @@ class NoticeService {
         );
       }
     } catch (e) {
-      print('ERROR: 공지글 수정 중 오류: $e');
       throw Exception('공지글 수정 중 오류 발생: $e');
     }
   }
@@ -256,7 +234,6 @@ class NoticeService {
         throw Exception('인증 토큰이 없습니다. 다시 로그인해주세요.');
       }
       
-      print('DEBUG: 공지글 활성화 토글 요청 - URL: $baseUrl/$noticeIdx/toggle');
       
       final response = await http.patch(
         Uri.parse('$baseUrl/$noticeIdx/toggle'),
@@ -266,8 +243,6 @@ class NoticeService {
         },
       );
 
-      print('DEBUG: 토글 응답 상태코드: ${response.statusCode}');
-      print('DEBUG: 토글 응답 본문: ${response.body}');
 
       if (response.statusCode == 200) {
         final data = jsonDecode(utf8.decode(response.bodyBytes));
@@ -283,7 +258,6 @@ class NoticeService {
         throw Exception('상태 변경 실패: ${error['detail'] ?? error['message'] ?? response.body}');
       }
     } catch (e) {
-      print('ERROR: 공지글 상태 변경 중 오류: $e');
       throw Exception('공지글 상태 변경 중 오류 발생: $e');
     }
   }
@@ -296,7 +270,6 @@ class NoticeService {
         throw Exception('인증 토큰이 없습니다. 다시 로그인해주세요.');
       }
 
-      print('DEBUG: 공지글 삭제 요청 - URL: $baseUrl/$noticeIdx');
 
       final response = await http.delete(
         Uri.parse('$baseUrl/$noticeIdx'),
@@ -306,8 +279,6 @@ class NoticeService {
         },
       );
 
-      print('DEBUG: 삭제 응답 상태코드: ${response.statusCode}');
-      print('DEBUG: 삭제 응답 본문: ${response.body}');
 
       if (response.statusCode == 204 || response.statusCode == 200) {
         return; // 성공적으로 삭제됨
@@ -324,7 +295,6 @@ class NoticeService {
         );
       }
     } catch (e) {
-      print('ERROR: 공지글 삭제 중 오류: $e');
       throw Exception('공지글 삭제 중 오류 발생: $e');
     }
   }
@@ -332,7 +302,6 @@ class NoticeService {
   // 공개 공지글 조회 (사용자 화면용, 인증 불필요)
   static Future<List<Notice>> getPublicNotices() async {
     try {
-      print('DEBUG: 공개 공지글 목록 조회 - URL: $baseUrl/public');
 
       final response = await http.get(
         Uri.parse('$baseUrl/public'),
@@ -341,8 +310,6 @@ class NoticeService {
         },
       );
 
-      print('DEBUG: 공개 공지글 목록 응답 상태코드: ${response.statusCode}');
-      print('DEBUG: 공개 공지글 목록 응답 본문: ${response.body}');
 
       if (response.statusCode == 200) {
         final data = jsonDecode(utf8.decode(response.bodyBytes));
@@ -360,12 +327,10 @@ class NoticeService {
         );
       }
     } catch (e) {
-      print('ERROR: 공개 공지글 목록 조회 중 오류: $e');
       // 인증이 필요한 경우 일반 getNotices로 fallback
       try {
         return await getNotices(activeOnly: true, userRole: 'user');
       } catch (fallbackError) {
-        print('ERROR: fallback 공지글 조회도 실패: $fallbackError');
         throw Exception('공지글 목록 조회 중 오류 발생: $e');
       }
     }
@@ -385,7 +350,6 @@ class NoticeService {
 
       return importantNotices.take(5).toList(); // 최대 5개만 반환
     } catch (e) {
-      print('ERROR: 중요 공지글 조회 중 오류: $e');
       throw Exception('중요 공지글 조회 중 오류 발생: $e');
     }
   }

@@ -6,7 +6,8 @@
       "Bash(find:*)",
       "Read(D:\\SuperPetConnect_Front/**)",
       "Bash(flutter pub:*)",
-      "Bash(flutter analyze:*)"
+      "Bash(flutter analyze:*)",
+      "Read(//d/SuperPetConnect_Front/**)"
     ],
     "deny": [],
     "ask": []

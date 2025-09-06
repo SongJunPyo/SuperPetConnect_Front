@@ -62,7 +62,7 @@ class BlackList {
   String get remainingDaysText {
     if (!isActive) return '해제됨';
     if (dDay <= 0) return '해제 대기';
-    return '${dDay}일 남음';
+    return '$dDay일 남음';
   }
 
   // 상태 텍스트
@@ -151,7 +151,7 @@ class UserBlackListStatus {
   String get remainingDaysText {
     if (!isSuspended) return '정상';
     if (dDay <= 0) return '해제 대기';
-    return '${dDay}일 남음';
+    return '$dDay일 남음';
   }
 
   // 상태 텍스트

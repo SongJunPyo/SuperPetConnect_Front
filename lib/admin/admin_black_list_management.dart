@@ -412,12 +412,12 @@ class _AdminBlackListManagementScreenState
         color: Colors.white,
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
-          color: isActive ? AppTheme.error.withOpacity(0.3) : AppTheme.lightGray,
+          color: isActive ? AppTheme.error.withValues(alpha: 0.3) : AppTheme.lightGray,
           width: isActive ? 2 : 1,
         ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: Colors.black.withValues(alpha: 0.05),
             blurRadius: 5,
             offset: const Offset(0, 2),
           ),
@@ -459,8 +459,8 @@ class _AdminBlackListManagementScreenState
                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                     decoration: BoxDecoration(
                       color: isActive 
-                          ? AppTheme.error.withOpacity(0.1)
-                          : AppTheme.success.withOpacity(0.1),
+                          ? AppTheme.error.withValues(alpha: 0.1)
+                          : AppTheme.success.withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Text(
@@ -564,7 +564,7 @@ class _AdminBlackListManagementScreenState
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           Text(
-            '총 ${totalCount}개 (${currentPage}/${((totalCount - 1) / pageSize).ceil() + 1}페이지)',
+            '총 $totalCount개 ($currentPage/${((totalCount - 1) / pageSize).ceil() + 1}페이지)',
             style: AppTheme.bodySmallStyle,
           ),
           Row(
@@ -588,7 +588,7 @@ class _AdminBlackListManagementScreenState
 // 블랙리스트 등록 대화상자
 class _CreateBlackListDialog extends StatefulWidget {
   @override
-  _CreateBlackListDialogState createState() => _CreateBlackListDialogState();
+  State createState() => _CreateBlackListDialogState();
 }
 
 class _CreateBlackListDialogState extends State<_CreateBlackListDialog> {
@@ -743,7 +743,7 @@ class _EditBlackListDialog extends StatefulWidget {
   const _EditBlackListDialog({required this.blackList});
 
   @override
-  _EditBlackListDialogState createState() => _EditBlackListDialogState();
+  State createState() => _EditBlackListDialogState();
 }
 
 class _EditBlackListDialogState extends State<_EditBlackListDialog> {

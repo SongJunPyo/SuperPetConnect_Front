@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'dart:math' as math;
 import '../utils/config.dart';
 import '../utils/app_theme.dart';
 import '../widgets/marquee_text.dart';
@@ -12,7 +11,7 @@ class AdminApprovedPostsScreen extends StatefulWidget {
   const AdminApprovedPostsScreen({super.key});
 
   @override
-  _AdminApprovedPostsScreenState createState() =>
+  State<AdminApprovedPostsScreen> createState() =>
       _AdminApprovedPostsScreenState();
 }
 
@@ -74,14 +73,7 @@ class _AdminApprovedPostsScreenState extends State<AdminApprovedPostsScreen>
     final storedToken = prefs.getString('auth_token');
 
     if (storedToken != null && storedToken.isNotEmpty) {
-      print(
-        "토큰 로드 성공: ${storedToken.substring(0, math.min(20, storedToken.length))}...",
-      );
-      print("토큰 길이: ${storedToken.length}");
     } else {
-      print("토큰이 없거나 비어있음");
-      print("저장된 사용자 이메일: ${prefs.getString('user_email') ?? '없음'}");
-      print("저장된 사용자 이름: ${prefs.getString('user_name') ?? '없음'}");
     }
 
     setState(() {
@@ -132,10 +124,6 @@ class _AdminApprovedPostsScreenState extends State<AdminApprovedPostsScreen>
 
       final url = Uri.parse(apiUrl);
 
-      print('API 요청 URL: $url');
-      print(
-        '요청 헤더 - Authorization: Bearer ${token?.substring(0, math.min(20, token?.length ?? 0))}...',
-      );
 
       final response = await http.get(
         url,
@@ -145,12 +133,9 @@ class _AdminApprovedPostsScreenState extends State<AdminApprovedPostsScreen>
         },
       );
 
-      print('API 응답 상태: ${response.statusCode}');
-      print('API 응답 내용: ${response.body}');
 
       if (response.statusCode == 200) {
         final data = json.decode(utf8.decode(response.bodyBytes));
-        print('게시글 목록 조회 성공: ${data.length}개의 게시글');
         if (mounted) {
           setState(() {
             posts = data is List ? data : [];
@@ -164,9 +149,6 @@ class _AdminApprovedPostsScreenState extends State<AdminApprovedPostsScreen>
             isLoading = false;
           });
         }
-        print(
-          '401 인증 오류 - 토큰: ${token?.substring(0, math.min(10, token?.length ?? 0))}...',
-        );
       } else {
         if (mounted) {
           setState(() {
@@ -183,7 +165,6 @@ class _AdminApprovedPostsScreenState extends State<AdminApprovedPostsScreen>
           isLoading = false;
         });
       }
-      print('fetchPosts Error: $e');
     }
   }
 
@@ -377,7 +358,7 @@ class _AdminApprovedPostsScreenState extends State<AdminApprovedPostsScreen>
                                   child: ListTile(
                                     leading: CircleAvatar(
                                       backgroundColor: AppTheme.primaryBlue
-                                          .withOpacity(0.1),
+                                          .withValues(alpha: 0.1),
                                       child: Text(
                                         '${index + 1}',
                                         style: TextStyle(
@@ -434,11 +415,6 @@ class _AdminApprovedPostsScreenState extends State<AdminApprovedPostsScreen>
         },
       );
 
-      print(
-        '신청자 목록 API 요청 URL: ${Config.serverUrl}/api/applied_donation/time-slot/$postTimesIdx/applications',
-      );
-      print('신청자 목록 API 응답 상태: ${response.statusCode}');
-      print('신청자 목록 API 응답 내용: ${response.body}');
 
       if (response.statusCode == 200) {
         final data = json.decode(utf8.decode(response.bodyBytes));
@@ -453,7 +429,6 @@ class _AdminApprovedPostsScreenState extends State<AdminApprovedPostsScreen>
         throw Exception('API 오류: ${response.statusCode}');
       }
     } catch (e) {
-      print('신청자 목록 조회 오류: $e');
       throw Exception('신청자 목록을 불러올 수 없습니다: $e');
     }
   }
@@ -515,7 +490,6 @@ class _AdminApprovedPostsScreenState extends State<AdminApprovedPostsScreen>
   @override
   Widget build(BuildContext context) {
     final TextTheme textTheme = Theme.of(context).textTheme;
-    final ColorScheme colorScheme = Theme.of(context).colorScheme;
 
     return Scaffold(
       appBar: AppBar(
@@ -625,7 +599,7 @@ class _AdminApprovedPostsScreenState extends State<AdminApprovedPostsScreen>
                         fontWeight: FontWeight.normal,
                         fontSize: 16,
                       ),
-                      overlayColor: MaterialStateProperty.all(
+                      overlayColor: WidgetStateProperty.all(
                         Colors.transparent,
                       ),
                     ),
@@ -950,7 +924,7 @@ class _AdminApprovedPostsScreenState extends State<AdminApprovedPostsScreen>
                       vertical: 6.0,
                     ),
                     decoration: BoxDecoration(
-                      color: _getStatusColor(postStatus).withOpacity(0.15),
+                      color: _getStatusColor(postStatus).withValues(alpha: 0.15),
                       borderRadius: BorderRadius.circular(8.0),
                     ),
                     child: Text(

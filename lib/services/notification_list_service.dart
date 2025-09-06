@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:flutter/foundation.dart';
 import '../models/notification_model.dart';
 import '../models/notification_types.dart';
 import '../models/notification_mapping.dart';
@@ -54,8 +55,6 @@ class NotificationListService {
         final data = json.decode(utf8.decode(response.bodyBytes));
         return _parseServerNotificationResponse(data, UserType.admin);
       } else {
-        print('관리자 알림 API 응답 오류: ${response.statusCode}');
-        print('응답 내용: ${response.body}');
         // API 실패 시 빈 결과 반환
         return NotificationListResponse(
           notifications: [],
@@ -65,7 +64,6 @@ class NotificationListService {
         );
       }
     } catch (e) {
-      print('관리자 알림 조회 오류: $e');
       // 네트워크 오류 시 빈 결과 반환
       return NotificationListResponse(
         notifications: [],
@@ -92,8 +90,6 @@ class NotificationListService {
         final data = json.decode(utf8.decode(response.bodyBytes));
         return _parseServerNotificationResponse(data, UserType.hospital);
       } else {
-        print('병원 알림 API 응답 오류: ${response.statusCode}');
-        print('응답 내용: ${response.body}');
         return NotificationListResponse(
           notifications: [],
           totalCount: 0,
@@ -102,7 +98,6 @@ class NotificationListService {
         );
       }
     } catch (e) {
-      print('병원 알림 조회 오류: $e');
       return NotificationListResponse(
         notifications: [],
         totalCount: 0,
@@ -128,8 +123,6 @@ class NotificationListService {
         final data = json.decode(utf8.decode(response.bodyBytes));
         return _parseServerNotificationResponse(data, UserType.user);
       } else {
-        print('사용자 알림 API 응답 오류: ${response.statusCode}');
-        print('응답 내용: ${response.body}');
         return NotificationListResponse(
           notifications: [],
           totalCount: 0,
@@ -138,7 +131,6 @@ class NotificationListService {
         );
       }
     } catch (e) {
-      print('사용자 알림 조회 오류: $e');
       return NotificationListResponse(
         notifications: [],
         totalCount: 0,
@@ -171,7 +163,7 @@ class NotificationListService {
               serverNotification.type, userType);
           
           if (clientType != null) {
-            final priority = ServerNotificationMapping.getNotificationPriority(
+            ServerNotificationMapping.getNotificationPriority(
                 serverNotification.type);
             
             // 사용자 타입별 알림 모델 생성
@@ -212,13 +204,13 @@ class NotificationListService {
                 break;
             }
             
+            // ignore: unnecessary_null_comparison
             if (clientNotification != null) {
               notifications.add(clientNotification);
             }
           }
         }
       } catch (e) {
-        print('알림 데이터 파싱 오류: $e');
         // 파싱 실패한 개별 알림은 무시하고 계속 진행
       }
     }
@@ -231,14 +223,6 @@ class NotificationListService {
     );
   }
 
-  // 기존 파싱 메서드 (하위 호환성을 위해 유지)
-  static NotificationListResponse _parseNotificationResponse(
-    Map<String, dynamic> data,
-    UserType userType,
-  ) {
-    // 새로운 파싱 방식으로 위임
-    return _parseServerNotificationResponse(data, userType);
-  }
 
   // 개별 알림 읽음 처리
   static Future<bool> markAsRead(int notificationId) async {
@@ -250,14 +234,11 @@ class NotificationListService {
       );
 
       if (response.statusCode == 200) {
-        print('알림 읽음 처리 성공: $notificationId');
         return true;
       } else {
-        print('알림 읽음 처리 실패: ${response.statusCode}');
         return false;
       }
     } catch (e) {
-      print('알림 읽음 처리 오류: $e');
       return false;
     }
   }
@@ -272,14 +253,11 @@ class NotificationListService {
       );
 
       if (response.statusCode == 200) {
-        print('전체 알림 읽음 처리 성공');
         return true;
       } else {
-        print('전체 알림 읽음 처리 실패: ${response.statusCode}');
         return false;
       }
     } catch (e) {
-      print('전체 알림 읽음 처리 오류: $e');
       return false;
     }
   }
@@ -296,13 +274,12 @@ class NotificationListService {
       if (response.statusCode == 200) {
         final data = json.decode(utf8.decode(response.bodyBytes));
         final count = data['unread_count'] ?? 0;
-        print('읽지 않은 알림 개수: $count');
         return count;
       } else {
-        print('읽지 않은 알림 개수 조회 실패: ${response.statusCode}');
       }
     } catch (e) {
-      print('읽지 않은 알림 개수 조회 오류: $e');
+      // 알림 목록 처리 실패 시 로그 출력
+      debugPrint('Failed to process notification list: $e');
     }
     
     return 0; // 오류 시 0 반환

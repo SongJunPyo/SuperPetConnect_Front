@@ -26,23 +26,34 @@ class CompletedDonationService {
 
   // ===== 병원용 API =====
 
-  // 1. 헌혈 완료 처리
-  static Future<Map<String, dynamic>> completeBloodDonation(CompleteDonationRequest request) async {
+  // 1. 병원용 - 1차 헌혈 완료 처리
+  static Future<Map<String, dynamic>> hospitalCompleteBloodDonation(CompleteDonationRequest request) async {
     try {
       final headers = await _getHeaders();
       
+      // 디버깅용 로그
+      print('=== 헌혈 완료 요청 ===');
+      print('URL: $baseUrl/completed_donation/hospital_complete');
+      print('Headers: $headers');
+      print('Body: ${jsonEncode(request.toJson())}');
+      
       final response = await http.post(
-        Uri.parse('$baseUrl/completed_donation/complete'),
+        Uri.parse('$baseUrl/completed_donation/hospital_complete'),
         headers: headers,
         body: jsonEncode(request.toJson()),
       );
 
+      print('Response Status: ${response.statusCode}');
+      print('Response Body: ${response.body}');
+
       if (response.statusCode == 200 || response.statusCode == 201) {
         final data = json.decode(utf8.decode(response.bodyBytes));
         return {
-          'message': data['message'],
-          'completedDonation': CompletedDonation.fromJson(data['completed_donation']),
-          'appliedDonationStatusUpdated': data['applied_donation_status_updated'] ?? false,
+          'message': data['message'] ?? '1차 완료 처리되었습니다. 관리자 승인 대기 중입니다.',
+          'status': data['status'] ?? 'pendingCompletion',
+          'applied_donation_idx': data['applied_donation_idx'],
+          'blood_volume': data['blood_volume'],
+          'completed_at': data['completed_at'],
         };
       } else {
         throw Exception('헌혈 완료 처리 실패: ${response.body}');
@@ -50,6 +61,11 @@ class CompletedDonationService {
     } catch (e) {
       throw Exception('헌혈 완료 처리 중 오류 발생: $e');
     }
+  }
+
+  // 1-1. 기존 메서드 유지 (하위 호환성)
+  static Future<Map<String, dynamic>> completeBloodDonation(CompleteDonationRequest request) async {
+    return hospitalCompleteBloodDonation(request);
   }
 
   // 2. 병원 헌혈 통계 조회
@@ -254,7 +270,7 @@ class CompletedDonationService {
       completedAt: DateTime.now(),
     );
     
-    return await completeBloodDonation(request);
+    return await hospitalCompleteBloodDonation(request);
   }
 
   // 11. 반려동물의 최근 헌혈 이력 조회 (제한된 개수)
@@ -269,7 +285,6 @@ class CompletedDonationService {
       
       return recentDonations;
     } catch (e) {
-      print('최근 헌혈 이력 조회 실패: $e');
       return [];
     }
   }
@@ -297,7 +312,6 @@ class CompletedDonationService {
       
       return recentDonations;
     } catch (e) {
-      print('병원 최근 완료 기록 조회 실패: $e');
       return [];
     }
   }
@@ -403,7 +417,6 @@ class CompletedDonationService {
           final monthStat = await getMonthlyStats(year, month);
           monthlyStats.add(monthStat);
         } catch (e) {
-          print('$year년 $month월 통계 조회 실패: $e');
           // 해당 월 데이터가 없어도 계속 진행
         }
       }

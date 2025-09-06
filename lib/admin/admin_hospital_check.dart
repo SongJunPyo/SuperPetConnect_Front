@@ -7,7 +7,7 @@ class AdminHospitalCheck extends StatefulWidget {
   const AdminHospitalCheck({super.key});
 
   @override
-  _AdminHospitalCheckState createState() => _AdminHospitalCheckState();
+  State createState() => _AdminHospitalCheckState();
 }
 
 class _AdminHospitalCheckState extends State<AdminHospitalCheck>
@@ -480,7 +480,7 @@ class AdminHospitalDetailScreen extends StatefulWidget {
   const AdminHospitalDetailScreen({super.key, required this.hospital});
 
   @override
-  _AdminHospitalDetailScreenState createState() =>
+  State<AdminHospitalDetailScreen> createState() =>
       _AdminHospitalDetailScreenState();
 }
 
@@ -545,22 +545,26 @@ class _AdminHospitalDetailScreenState extends State<AdminHospitalDetailScreen> {
         isLoading = false;
       });
 
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('병원 정보가 업데이트되었습니다.')));
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('병원 정보가 업데이트되었습니다.')));
+      }
     } catch (e) {
       setState(() {
         isLoading = false;
       });
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            '업데이트 실패: ${e.toString().replaceAll('Exception: ', '')}',
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              '업데이트 실패: ${e.toString().replaceAll('Exception: ', '')}',
+            ),
+            backgroundColor: Colors.red,
           ),
-          backgroundColor: Colors.red,
-        ),
-      );
+        );
+      }
     }
   }
 
@@ -587,28 +591,32 @@ class _AdminHospitalDetailScreenState extends State<AdminHospitalDetailScreen> {
         isLoading = false;
       });
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            hospitalInfo.columnActive
-                ? '칼럼 작성 권한이 부여되었습니다.'
-                : '칼럼 작성 권한이 취소되었습니다.',
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              hospitalInfo.columnActive
+                  ? '칼럼 작성 권한이 부여되었습니다.'
+                  : '칼럼 작성 권한이 취소되었습니다.',
+            ),
           ),
-        ),
-      );
+        );
+      }
     } catch (e) {
       setState(() {
         isLoading = false;
       });
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            '권한 변경 실패: ${e.toString().replaceAll('Exception: ', '')}',
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              '권한 변경 실패: ${e.toString().replaceAll('Exception: ', '')}',
+            ),
+            backgroundColor: Colors.red,
           ),
-          backgroundColor: Colors.red,
-        ),
-      );
+        );
+      }
     }
   }
 
@@ -646,21 +654,25 @@ class _AdminHospitalDetailScreenState extends State<AdminHospitalDetailScreen> {
     try {
       await AdminHospitalService.deleteHospital(hospitalInfo.accountIdx);
 
-      Navigator.of(context).pop();
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('병원 "${hospitalInfo.name}"이 삭제되었습니다.')),
-      );
+      if (mounted) {
+        Navigator.of(context).pop();
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('병원 "${hospitalInfo.name}"이 삭제되었습니다.')),
+        );
+      }
     } catch (e) {
       setState(() {
         isLoading = false;
       });
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('삭제 실패: ${e.toString().replaceAll('Exception: ', '')}'),
-          backgroundColor: Colors.red,
-        ),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('삭제 실패: ${e.toString().replaceAll('Exception: ', '')}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     }
   }
 
@@ -778,7 +790,7 @@ class _AdminHospitalDetailScreenState extends State<AdminHospitalDetailScreen> {
                                     vertical: 6.0,
                                   ),
                                   decoration: BoxDecoration(
-                                    color: _getStatusColor().withOpacity(0.15),
+                                    color: _getStatusColor().withValues(alpha: 0.15),
                                     borderRadius: BorderRadius.circular(12.0),
                                   ),
                                   child: Text(

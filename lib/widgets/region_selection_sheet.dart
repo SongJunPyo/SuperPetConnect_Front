@@ -143,7 +143,7 @@ class _RegionSelectionSheetState extends State<RegionSelectionSheet> {
                                 fontSize: 12,
                               ),
                             ),
-                            backgroundColor: AppTheme.primaryBlue.withOpacity(0.1),
+                            backgroundColor: AppTheme.primaryBlue.withValues(alpha: 0.1),
                             deleteIcon: const Icon(Icons.close, size: 16),
                             onDeleted: () {
                               setState(() {
@@ -209,7 +209,7 @@ class _RegionSelectionSheetState extends State<RegionSelectionSheet> {
                                       ),
                                       decoration: BoxDecoration(
                                         color: isSelected 
-                                            ? AppTheme.primaryBlue.withOpacity(0.1)
+                                            ? AppTheme.primaryBlue.withValues(alpha: 0.1)
                                             : Colors.transparent,
                                         borderRadius: BorderRadius.circular(8),
                                       ),
@@ -276,9 +276,9 @@ class _RegionSelectionSheetState extends State<RegionSelectionSheet> {
                                     ),
                                     decoration: BoxDecoration(
                                       color: isViewing
-                                          ? AppTheme.lightGray.withOpacity(0.3)
+                                          ? AppTheme.lightGray.withValues(alpha: 0.3)
                                           : isSelected
-                                              ? AppTheme.primaryBlue.withOpacity(0.1)
+                                              ? AppTheme.primaryBlue.withValues(alpha: 0.1)
                                               : Colors.transparent,
                                       borderRadius: BorderRadius.circular(8),
                                       border: isSelected
@@ -382,7 +382,7 @@ class _RegionSelectionSheetState extends State<RegionSelectionSheet> {
                                         ),
                                         decoration: BoxDecoration(
                                           color: isAllSelected
-                                              ? AppTheme.primaryBlue.withOpacity(0.1)
+                                              ? AppTheme.primaryBlue.withValues(alpha: 0.1)
                                               : Colors.transparent,
                                           borderRadius: BorderRadius.circular(8),
                                         ),
@@ -443,7 +443,7 @@ class _RegionSelectionSheetState extends State<RegionSelectionSheet> {
                                       ),
                                       decoration: BoxDecoration(
                                         color: isSelected
-                                            ? AppTheme.primaryBlue.withOpacity(0.1)
+                                            ? AppTheme.primaryBlue.withValues(alpha: 0.1)
                                             : Colors.transparent,
                                         borderRadius: BorderRadius.circular(8),
                                       ),

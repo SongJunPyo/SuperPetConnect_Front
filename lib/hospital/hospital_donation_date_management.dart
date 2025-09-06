@@ -167,13 +167,13 @@ class _HospitalDonationDateManagementScreenState extends State<HospitalDonationD
         borderRadius: BorderRadius.circular(AppTheme.radius12),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: Colors.black.withValues(alpha: 0.05),
             blurRadius: 8,
             offset: const Offset(0, 2),
           ),
         ],
         border: Border.all(
-          color: AppTheme.lightGray.withOpacity(0.3),
+          color: AppTheme.lightGray.withValues(alpha: 0.3),
           width: 1,
         ),
       ),
@@ -217,7 +217,7 @@ class _HospitalDonationDateManagementScreenState extends State<HospitalDonationD
                         vertical: AppTheme.spacing4,
                       ),
                       decoration: BoxDecoration(
-                        color: _getStatusColor(post.statusText).withOpacity(0.1),
+                        color: _getStatusColor(post.statusText).withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(AppTheme.radius8),
                       ),
                       child: Text(
@@ -276,7 +276,7 @@ class _HospitalDonationDateManagementScreenState extends State<HospitalDonationD
                 Container(
                   padding: const EdgeInsets.all(AppTheme.spacing12),
                   decoration: BoxDecoration(
-                    color: AppTheme.lightBlue.withOpacity(0.3),
+                    color: AppTheme.lightBlue.withValues(alpha: 0.3),
                     borderRadius: BorderRadius.circular(AppTheme.radius8),
                   ),
                   child: Row(
@@ -481,7 +481,7 @@ class _DonationDateManagementDialogState extends State<DonationDateManagementDia
       margin: const EdgeInsets.only(bottom: AppTheme.spacing8),
       padding: const EdgeInsets.all(AppTheme.spacing12),
       decoration: BoxDecoration(
-        color: AppTheme.lightBlue.withOpacity(0.1),
+        color: AppTheme.lightBlue.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(AppTheme.radius8),
         border: Border.all(color: AppTheme.lightBlue),
       ),

@@ -31,11 +31,9 @@ class DonationApplicationService {
         },
       );
 
-      print('DEBUG: 신청자 목록 조회 - 상태코드: ${response.statusCode}');
 
       if (response.statusCode == 200) {
         final data = json.decode(utf8.decode(response.bodyBytes));
-        print('DEBUG: 신청자 목록 데이터: $data');
         
         // 서버가 직접 배열을 반환하는 경우
         if (data is List) {
@@ -61,8 +59,7 @@ class DonationApplicationService {
         throw Exception('신청자 목록 조회 실패: ${error['detail'] ?? response.body}');
       }
     } catch (e) {
-      print('Error fetching applications: $e');
-      throw e;
+      rethrow;
     }
   }
 
@@ -94,7 +91,6 @@ class DonationApplicationService {
         body: json.encode(request.toJson()),
       );
 
-      print('DEBUG: 신청 상태 업데이트 - 상태코드: ${response.statusCode}');
 
       if (response.statusCode == 200) {
         return true;
@@ -107,8 +103,7 @@ class DonationApplicationService {
         throw Exception('상태 업데이트 실패: ${error['detail'] ?? response.body}');
       }
     } catch (e) {
-      print('Error updating application status: $e');
-      throw e;
+      rethrow;
     }
   }
 
@@ -129,7 +124,6 @@ class DonationApplicationService {
         },
       );
 
-      print('DEBUG: 신청 삭제 - 상태코드: ${response.statusCode}');
 
       if (response.statusCode == 204 || response.statusCode == 200) {
         return true;
@@ -142,8 +136,7 @@ class DonationApplicationService {
         throw Exception('신청 삭제 실패: ${error['detail'] ?? response.body}');
       }
     } catch (e) {
-      print('Error deleting application: $e');
-      throw e;
+      rethrow;
     }
   }
 }
@@ -184,7 +177,6 @@ class UserApplicationService {
         body: json.encode(request.toJson()),
       );
 
-      print('DEBUG: 헌혈 신청 - 상태코드: ${response.statusCode}');
 
       if (response.statusCode == 201) {
         final data = json.decode(utf8.decode(response.bodyBytes));
@@ -201,8 +193,7 @@ class UserApplicationService {
         throw Exception('신청 실패: ${error['detail'] ?? response.body}');
       }
     } catch (e) {
-      print('Error creating application: $e');
-      throw e;
+      rethrow;
     }
   }
 
@@ -236,11 +227,9 @@ class UserApplicationService {
         },
       );
 
-      print('DEBUG: 내 신청 내역 조회 - 상태코드: ${response.statusCode}');
 
       if (response.statusCode == 200) {
         final data = json.decode(utf8.decode(response.bodyBytes));
-        print('DEBUG: 내 신청 내역 데이터: $data');
         
         // 서버가 직접 배열을 반환하는 경우
         if (data is List) {
@@ -261,8 +250,7 @@ class UserApplicationService {
         throw Exception('신청 내역 조회 실패: ${error['detail'] ?? response.body}');
       }
     } catch (e) {
-      print('Error fetching my applications: $e');
-      throw e;
+      rethrow;
     }
   }
 
@@ -283,7 +271,6 @@ class UserApplicationService {
         },
       );
 
-      print('DEBUG: 신청 취소 - 상태코드: ${response.statusCode}');
 
       if (response.statusCode == 204 || response.statusCode == 200) {
         return true;
@@ -298,8 +285,7 @@ class UserApplicationService {
         throw Exception('신청 취소 실패: ${error['detail'] ?? response.body}');
       }
     } catch (e) {
-      print('Error canceling application: $e');
-      throw e;
+      rethrow;
     }
   }
 }
@@ -331,11 +317,9 @@ class DonationHistoryService {
         },
       );
 
-      print('DEBUG: 헌혈 이력 조회 - 상태코드: ${response.statusCode}');
 
       if (response.statusCode == 200) {
         final data = json.decode(utf8.decode(response.bodyBytes));
-        print('DEBUG: 헌혈 이력 데이터: $data');
         
         // 서버가 직접 배열을 반환하는 경우
         if (data is List) {
@@ -358,8 +342,7 @@ class DonationHistoryService {
         throw Exception('헌혈 이력 조회 실패: ${error['detail'] ?? response.body}');
       }
     } catch (e) {
-      print('Error fetching donation history: $e');
-      throw e;
+      rethrow;
     }
   }
 }

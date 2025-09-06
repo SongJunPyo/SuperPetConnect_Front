@@ -42,7 +42,7 @@ class DonationPostTime {
 
   // 전체 날짜와 시간을 포맷된 문자열로 반환
   String get formattedDateTime {
-    return '${donationTime.year}년 ${donationTime.month}월 ${donationTime.day}일 ${formattedTime}';
+    return '${donationTime.year}년 ${donationTime.month}월 ${donationTime.day}일 $formattedTime';
   }
 
   // 날짜만 반환 (yyyy-MM-dd)

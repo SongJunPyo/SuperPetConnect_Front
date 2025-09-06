@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/foundation.dart';
 import '../widgets/unified_notification_page.dart';
 import 'package:connect/admin/admin_post_check.dart';
 import 'package:connect/admin/admin_user_check.dart';
@@ -215,7 +214,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
                   title: "공지글 목록",
                   subtitle: "작성된 공지사항 조회 및 관리",
                   iconColor: Colors.orange,
-                  backgroundColor: Colors.orange.withOpacity(0.1),
+                  backgroundColor: Colors.orange.withValues(alpha: 0.1),
                   onTap: () {
                     Navigator.push(
                       context,
@@ -231,7 +230,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
                   title: "칼럼 게시글 신청 관리",
                   subtitle: "병원 칼럼 승인 및 발행 관리",
                   iconColor: Colors.purple,
-                  backgroundColor: Colors.purple.withOpacity(0.1),
+                  backgroundColor: Colors.purple.withValues(alpha: 0.1),
                   onTap: () {
                     Navigator.push(
                       context,
@@ -270,7 +269,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
                   title: "병원 관리",
                   subtitle: "병원 계정 승인 및 현황 관리",
                   iconColor: AppTheme.success,
-                  backgroundColor: AppTheme.success.withOpacity(0.1),
+                  backgroundColor: AppTheme.success.withValues(alpha: 0.1),
                   onTap: () {
                     Navigator.push(
                       context,
@@ -286,7 +285,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
                   title: "회원 가입 관리",
                   subtitle: "신규 회원 가입 승인 관리",
                   iconColor: AppTheme.warning,
-                  backgroundColor: AppTheme.warning.withOpacity(0.1),
+                  backgroundColor: AppTheme.warning.withValues(alpha: 0.1),
                   onTap: () {
                     Navigator.push(
                       context,
@@ -314,7 +313,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
           width: double.infinity,
           child: AppInfoCard(
             icon: Icons.person_add_outlined,
-            title: '새로운 회원가입 승인 요청 ${pendingSignupsCount}건이 있습니다!',
+            title: '새로운 회원가입 승인 요청 $pendingSignupsCount건이 있습니다!',
             description: '승인 관리로 이동',
             onTap: () {
               Navigator.push(
@@ -336,10 +335,10 @@ class _AdminDashboardState extends State<AdminDashboard> {
           width: double.infinity,
           child: AppInfoCard(
             icon: Icons.post_add_outlined,
-            title: '새로운 게시글 승인 요청 ${pendingPostsCount}건이 있습니다!',
+            title: '새로운 게시글 승인 요청 $pendingPostsCount건이 있습니다!',
             description: '게시글 관리로 이동',
             iconColor: AppTheme.warning,
-            backgroundColor: AppTheme.warning.withOpacity(0.1),
+            backgroundColor: AppTheme.warning.withValues(alpha: 0.1),
             onTap: () {
               Navigator.push(
                 context,
@@ -374,7 +373,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
           padding: const EdgeInsets.all(AppTheme.spacing20),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(AppTheme.radius16),
-            border: Border.all(color: iconColor.withOpacity(0.2), width: 1.5),
+            border: Border.all(color: iconColor.withValues(alpha: 0.2), width: 1.5),
           ),
           child: Row(
             children: [
@@ -414,7 +413,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
                 width: 36,
                 height: 36,
                 decoration: BoxDecoration(
-                  color: iconColor.withOpacity(0.1),
+                  color: iconColor.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(AppTheme.radius8),
                 ),
                 child: Icon(

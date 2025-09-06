@@ -129,7 +129,7 @@ class _UserDonationApplicationsScreenState extends State<UserDonationApplication
       margin: const EdgeInsets.all(AppTheme.spacing16),
       padding: const EdgeInsets.all(AppTheme.spacing16),
       decoration: BoxDecoration(
-        color: AppTheme.lightBlue.withOpacity(0.1),
+        color: AppTheme.lightBlue.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(AppTheme.radius12),
         border: Border.all(color: AppTheme.lightBlue),
       ),
@@ -260,13 +260,13 @@ class _UserDonationApplicationsScreenState extends State<UserDonationApplication
         borderRadius: BorderRadius.circular(AppTheme.radius12),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: Colors.black.withValues(alpha: 0.05),
             blurRadius: 8,
             offset: const Offset(0, 2),
           ),
         ],
         border: Border.all(
-          color: AppTheme.lightGray.withOpacity(0.3),
+          color: AppTheme.lightGray.withValues(alpha: 0.3),
           width: 1,
         ),
       ),
@@ -281,7 +281,7 @@ class _UserDonationApplicationsScreenState extends State<UserDonationApplication
           width: 48,
           height: 48,
           decoration: BoxDecoration(
-            color: AppTheme.lightBlue.withOpacity(0.2),
+            color: AppTheme.lightBlue.withValues(alpha: 0.2),
             borderRadius: BorderRadius.circular(AppTheme.radius8),
           ),
           child: Icon(
@@ -337,7 +337,7 @@ class _UserDonationApplicationsScreenState extends State<UserDonationApplication
         vertical: AppTheme.spacing4,
       ),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
+        color: color.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(AppTheme.radius8),
       ),
       child: Text(
@@ -384,7 +384,7 @@ class _UserDonationApplicationsScreenState extends State<UserDonationApplication
                   vertical: AppTheme.spacing4,
                 ),
                 decoration: BoxDecoration(
-                  color: _getStatusColor(application.status).withOpacity(0.1),
+                  color: _getStatusColor(application.status).withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(AppTheme.radius8),
                 ),
                 child: Text(
@@ -491,7 +491,7 @@ class _UserDonationApplicationsScreenState extends State<UserDonationApplication
             Text('다음 헌혈 신청을 취소하시겠습니까?'),
             const SizedBox(height: 12),
             Text(
-              '${application.postTitle ?? '헌혈 요청'}',
+              application.postTitle ?? '헌혈 요청',
               style: const TextStyle(fontWeight: FontWeight.w600),
             ),
             Text(
@@ -522,15 +522,19 @@ class _UserDonationApplicationsScreenState extends State<UserDonationApplication
     try {
       await AppliedDonationService.cancelApplication(application.appliedDonationIdx!);
       
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('헌혈 신청이 취소되었습니다.')),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('헌혈 신청이 취소되었습니다.')),
+        );
+      }
       
       await _loadApplications(); // 목록 새로고침
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('신청 취소 실패: $e')),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('신청 취소 실패: $e')),
+        );
+      }
     }
   }
 }

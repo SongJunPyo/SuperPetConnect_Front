@@ -1,12 +1,4 @@
 class HospitalColumn {
-  // 닉네임이 유효한지 확인하는 헬퍼 메서드
-  static bool _isValidNickname(dynamic nickname) {
-    if (nickname == null) return false;
-    final nicknameStr = nickname.toString();
-    if (nicknameStr.isEmpty) return false;
-    if (nicknameStr.toLowerCase() == 'null') return false;
-    return true;
-  }
   final int columnIdx;
   final String title;
   final String content;

@@ -4,7 +4,7 @@ class AdminAlarm extends StatefulWidget {
   const AdminAlarm({super.key}); // Key? key -> super.key로 변경
 
   @override
-  _AdminAlarmState createState() => _AdminAlarmState();
+  State createState() => _AdminAlarmState();
 }
 
 class _AdminAlarmState extends State<AdminAlarm> {
@@ -97,7 +97,6 @@ class _AdminAlarmState extends State<AdminAlarm> {
             ), // 설정 아이콘
             tooltip: '알림 설정',
             onPressed: () {
-              // TODO: 알림 설정 페이지로 이동하는 로직 추가
               ScaffoldMessenger.of(context).showSnackBar(
                 const SnackBar(content: Text('알림 설정 페이지로 이동 (미구현)')),
               );
@@ -152,7 +151,7 @@ class _AdminAlarmState extends State<AdminAlarm> {
                             ? Colors.white
                             : colorScheme.primary.withAlpha(
                               13,
-                            ), // Colors.blueAccent.withOpacity(0.05) 대체
+                            ), // Colors.blueAccent.withValues(alpha: 0.05) 대체
                     child: InkWell(
                       // 터치 피드백을 위해 InkWell 사용
                       borderRadius: BorderRadius.circular(12),
@@ -160,7 +159,7 @@ class _AdminAlarmState extends State<AdminAlarm> {
                         setState(() {
                           alarm['isRead'] = true; // 탭하면 읽음 상태로 변경
                         });
-                        // TODO: 알림 내용 상세 보기 또는 해당 게시글/페이지로 이동하는 로직
+
                         ScaffoldMessenger.of(context).showSnackBar(
                           SnackBar(
                             content: Text(

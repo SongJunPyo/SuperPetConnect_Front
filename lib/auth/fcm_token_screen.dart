@@ -37,9 +37,6 @@ class _FcmTokenScreenState extends State<FcmTokenScreen> {
         _fcmToken = token ?? 'FCM 토큰을 가져오지 못했습니다. Firebase 설정을 확인하세요.';
       });
 
-      print("=====================================================");
-      print("새 페이지에서 발급된 FCM 토큰: $_fcmToken");
-      print("=====================================================");
 
       if (token == null) {
         _showSnackBar('FCM 토큰을 가져오지 못했습니다. Firebase 설정을 확인하세요.');
@@ -52,7 +49,6 @@ class _FcmTokenScreenState extends State<FcmTokenScreen> {
         _fcmToken = 'FCM 토큰 오류: $e';
       });
       _showSnackBar('FCM 토큰 오류: $e');
-      print("FCM 토큰 오류: $e");
     }
   }
 

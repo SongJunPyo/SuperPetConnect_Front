@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'dart:math' as math; // min 함수 사용을 위해 추가
 import '../utils/config.dart';
 
 // 신청자 데이터 모델
@@ -47,7 +46,7 @@ class ApplicantListScreen extends StatefulWidget {
   }); // Key? key -> super.key로 변경
 
   @override
-  _ApplicantListScreenState createState() => _ApplicantListScreenState();
+  State createState() => _ApplicantListScreenState();
 }
 
 class _ApplicantListScreenState extends State<ApplicantListScreen> {
@@ -66,9 +65,6 @@ class _ApplicantListScreenState extends State<ApplicantListScreen> {
   Future<void> _loadToken() async {
     final prefs = await SharedPreferences.getInstance();
     final storedToken = prefs.getString('auth_token');
-    print(
-      "불러온 토큰: ${storedToken?.substring(0, math.min(10, storedToken.length)) ?? '없음'}...",
-    ); // 디버그 출력 간결화
     setState(() {
       token = storedToken;
     });
@@ -81,7 +77,7 @@ class _ApplicantListScreenState extends State<ApplicantListScreen> {
         errorMessage = '로그인이 필요합니다. (토큰 없음)';
         isLoading = false;
       });
-      // TODO: 로그인 페이지로 강제 이동 로직 추가 (필요 시)
+
       // Navigator.of(context).pushReplacementNamed('/login');
       return;
     }
@@ -124,7 +120,6 @@ class _ApplicantListScreenState extends State<ApplicantListScreen> {
         errorMessage = '오류가 발생했습니다: $e';
         isLoading = false;
       });
-      print('fetchApplicants Error: $e'); // 자세한 오류 로깅
     }
   }
 
@@ -152,25 +147,30 @@ class _ApplicantListScreenState extends State<ApplicantListScreen> {
 
       if (response.statusCode == 200) {
         fetchApplicants(); // 목록 새로고침
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(status == 1 ? "신청자가 승인되었습니다." : "신청자가 거절되었습니다."),
-          ),
-        );
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              "처리 실패: ${response.statusCode}\n${utf8.decode(response.bodyBytes)}",
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(status == 1 ? "신청자가 승인되었습니다." : "신청자가 거절되었습니다."),
             ),
-          ),
-        );
+          );
+        }
+      } else {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                "처리 실패: ${response.statusCode}\n${utf8.decode(response.bodyBytes)}",
+              ),
+            ),
+          );
+        }
       }
     } catch (e) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text("오류 발생: $e")));
-      print('updateApplicantStatus Error: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text("오류 발생: $e")));
+      }
     }
   }
 

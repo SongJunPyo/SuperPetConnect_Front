@@ -2,6 +2,7 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:intl/intl.dart';
+import 'package:flutter/foundation.dart';
 import '../models/hospital_column_model.dart';
 import '../utils/config.dart';
 
@@ -38,7 +39,6 @@ class HospitalColumnService {
       
       return false;
     } catch (e) {
-      print('ERROR: 칼럼 권한 확인 중 오류: $e');
       return false;
     }
   }
@@ -53,9 +53,6 @@ class HospitalColumnService {
         throw Exception('인증 토큰이 없습니다. 다시 로그인해주세요.');
       }
 
-      print('DEBUG: 칼럼 작성 요청 - URL: $baseUrl/columns');
-      print('DEBUG: 요청 본문: ${jsonEncode(request.toJson())}');
-      print('DEBUG: 토큰: $token');
 
       final response = await http.post(
         Uri.parse('$baseUrl/columns'),
@@ -66,8 +63,6 @@ class HospitalColumnService {
         body: jsonEncode(request.toJson()),
       );
 
-      print('DEBUG: 칼럼 작성 응답 상태코드: ${response.statusCode}');
-      print('DEBUG: 칼럼 작성 응답 본문: ${response.body}');
 
       if (response.statusCode == 200 || response.statusCode == 201) {
         final data = jsonDecode(utf8.decode(response.bodyBytes));
@@ -101,7 +96,6 @@ class HospitalColumnService {
         }
       }
     } catch (e) {
-      print('ERROR: 칼럼 작성 중 오류: $e');
       throw Exception('칼럼 작성 중 오류 발생: $e');
     }
   }
@@ -126,12 +120,9 @@ class HospitalColumnService {
         queryParameters: queryParams,
       );
 
-      print('DEBUG: 공개 칼럼 목록 조회 - URL: $uri');
 
       final response = await http.get(uri);
 
-      print('DEBUG: 공개 칼럼 목록 응답 상태코드: ${response.statusCode}');
-      print('DEBUG: 공개 칼럼 목록 응답 본문: ${response.body}');
 
       if (response.statusCode == 200) {
         final data = jsonDecode(utf8.decode(response.bodyBytes));
@@ -143,7 +134,6 @@ class HospitalColumnService {
         );
       }
     } catch (e) {
-      print('ERROR: 칼럼 목록 조회 중 오류: $e');
       throw Exception('칼럼 목록 조회 중 오류 발생: $e');
     }
   }
@@ -151,21 +141,15 @@ class HospitalColumnService {
   // 서버 API 테스트용 함수
   static Future<void> testServerConnection() async {
     try {
-      print('DEBUG: 서버 연결 테스트 시작');
-      print('DEBUG: baseUrl = $baseUrl');
-      print('DEBUG: publicBaseUrl = $publicBaseUrl');
-      
-      final token = await _getAuthToken();
-      print('DEBUG: 토큰 길이: ${token.length}');
       
       // 공개 칼럼 목록 조회 테스트 (인증 불필요)
-      final publicResponse = await http.get(
+      await http.get(
         Uri.parse('$publicBaseUrl/columns?page=1&page_size=10'),
       );
-      print('DEBUG: 공개 칼럼 API 응답: ${publicResponse.statusCode} - ${publicResponse.body}');
       
     } catch (e) {
-      print('ERROR: 서버 연결 테스트 실패: $e');
+      // 테스트 연결 실패 시 로그 출력
+      debugPrint('Server connection test failed: $e');
     }
   }
 
@@ -174,8 +158,6 @@ class HospitalColumnService {
     try {
       final token = await _getAuthToken();
       
-      print('DEBUG: 칼럼 상세 조회 - URL: $baseUrl/columns/$columnIdx');
-      print('DEBUG: 토큰 유무: ${token.isNotEmpty}');
 
       // 먼저 인증된 사용자로 시도 (미발행 칼럼도 조회 가능)
       final response = await http.get(
@@ -186,24 +168,19 @@ class HospitalColumnService {
         } : {},
       );
 
-      print('DEBUG: 칼럼 상세 응답 상태코드: ${response.statusCode}');
-      print('DEBUG: 칼럼 상세 응답 본문: ${response.body}');
 
       if (response.statusCode == 200) {
         final data = jsonDecode(utf8.decode(response.bodyBytes));
         return HospitalColumn.fromJson(data);
       } else if (response.statusCode == 404) {
         // 404인 경우 "내 칼럼" 목록에서 찾아보기
-        print('DEBUG: 직접 조회 실패, 내 칼럼 목록에서 검색 시도');
         try {
           final myColumns = await getMyColumns(page: 1, pageSize: 50);
           final targetColumn = myColumns.columns.firstWhere(
             (column) => column.columnIdx == columnIdx,
           );
-          print('DEBUG: 내 칼럼 목록에서 찾음: ${targetColumn.title}');
           return targetColumn;
         } catch (e) {
-          print('ERROR: 내 칼럼 목록에서도 찾을 수 없음: $e');
           throw Exception('칼럼을 찾을 수 없습니다.');
         }
       } else {
@@ -213,7 +190,6 @@ class HospitalColumnService {
         );
       }
     } catch (e) {
-      print('ERROR: 칼럼 조회 중 오류: $e');
       if (e.toString().contains('칼럼을 찾을 수 없습니다')) {
         rethrow;
       }
@@ -246,7 +222,6 @@ class HospitalColumnService {
         queryParameters: queryParams,
       );
 
-      print('DEBUG: 내 칼럼 목록 조회 - URL: $uri');
 
       final response = await http.get(
         uri,
@@ -256,8 +231,6 @@ class HospitalColumnService {
         },
       );
 
-      print('DEBUG: 내 칼럼 목록 응답 상태코드: ${response.statusCode}');
-      print('DEBUG: 내 칼럼 목록 응답 본문: ${response.body}');
 
       if (response.statusCode == 200) {
         final data = jsonDecode(utf8.decode(response.bodyBytes));
@@ -275,7 +248,6 @@ class HospitalColumnService {
         );
       }
     } catch (e) {
-      print('ERROR: 내 칼럼 목록 조회 중 오류: $e');
       throw Exception('내 칼럼 목록 조회 중 오류 발생: $e');
     }
   }
@@ -291,8 +263,6 @@ class HospitalColumnService {
         throw Exception('인증 토큰이 없습니다. 다시 로그인해주세요.');
       }
 
-      print('DEBUG: 칼럼 수정 요청 - URL: $baseUrl/columns/$columnIdx');
-      print('DEBUG: 수정 요청 본문: ${jsonEncode(request.toJson())}');
 
       final response = await http.put(
         Uri.parse('$baseUrl/columns/$columnIdx'),
@@ -303,8 +273,6 @@ class HospitalColumnService {
         body: jsonEncode(request.toJson()),
       );
 
-      print('DEBUG: 칼럼 수정 응답 상태코드: ${response.statusCode}');
-      print('DEBUG: 칼럼 수정 응답 본문: ${response.body}');
 
       if (response.statusCode == 200) {
         final data = jsonDecode(utf8.decode(response.bodyBytes));
@@ -322,7 +290,6 @@ class HospitalColumnService {
         );
       }
     } catch (e) {
-      print('ERROR: 칼럼 수정 중 오류: $e');
       throw Exception('칼럼 수정 중 오류 발생: $e');
     }
   }
@@ -335,7 +302,6 @@ class HospitalColumnService {
         throw Exception('인증 토큰이 없습니다. 다시 로그인해주세요.');
       }
 
-      print('DEBUG: 칼럼 삭제 요청 - URL: $baseUrl/columns/$columnIdx');
 
       final response = await http.delete(
         Uri.parse('$baseUrl/columns/$columnIdx'),
@@ -345,8 +311,6 @@ class HospitalColumnService {
         },
       );
 
-      print('DEBUG: 칼럼 삭제 응답 상태코드: ${response.statusCode}');
-      print('DEBUG: 칼럼 삭제 응답 본문: ${response.body}');
 
       if (response.statusCode == 204 || response.statusCode == 200) {
         return; // 성공적으로 삭제됨
@@ -363,7 +327,6 @@ class HospitalColumnService {
         );
       }
     } catch (e) {
-      print('ERROR: 칼럼 삭제 중 오류: $e');
       throw Exception('칼럼 삭제 중 오류 발생: $e');
     }
   }
@@ -408,7 +371,6 @@ class HospitalColumnService {
         queryParameters: queryParams,
       );
 
-      print('DEBUG: 관리자 칼럼 목록 조회 (전용 API) - URL: $uri');
 
       final response = await http.get(
         uri,
@@ -418,8 +380,6 @@ class HospitalColumnService {
         },
       );
 
-      print('DEBUG: 관리자 칼럼 목록 응답 상태코드: ${response.statusCode}');
-      print('DEBUG: 관리자 칼럼 목록 응답 본문: ${response.body}');
 
       if (response.statusCode == 200) {
         final data = jsonDecode(utf8.decode(response.bodyBytes));
@@ -435,7 +395,6 @@ class HospitalColumnService {
         );
       }
     } catch (e) {
-      print('ERROR: 관리자 칼럼 목록 조회 중 오류: $e');
       rethrow;
     }
   }
@@ -448,7 +407,6 @@ class HospitalColumnService {
         throw Exception('인증 토큰이 없습니다. 다시 로그인해주세요.');
       }
 
-      print('DEBUG: 관리자 칼럼 발행 토글 요청 - URL: ${Config.serverUrl}/api/admin/columns/$columnIdx/publish');
 
       final response = await http.patch(
         Uri.parse('${Config.serverUrl}/api/admin/columns/$columnIdx/publish'),
@@ -458,8 +416,6 @@ class HospitalColumnService {
         },
       );
 
-      print('DEBUG: 관리자 칼럼 발행 토글 응답 상태코드: ${response.statusCode}');
-      print('DEBUG: 관리자 칼럼 발행 토글 응답 본문: ${response.body}');
 
       if (response.statusCode == 200) {
         final data = jsonDecode(utf8.decode(response.bodyBytes));
@@ -477,7 +433,6 @@ class HospitalColumnService {
         );
       }
     } catch (e) {
-      print('ERROR: 관리자 칼럼 공개 상태 변경 중 오류: $e');
       throw Exception('공개 상태 변경 중 오류 발생: $e');
     }
   }
@@ -487,7 +442,6 @@ class HospitalColumnService {
     try {
       final token = await _getAuthToken();
       
-      print('DEBUG: 조회수 증가 요청 - URL: $baseUrl/columns/$columnIdx/view');
       
       final response = await http.post(
         Uri.parse('$baseUrl/columns/$columnIdx/view'),
@@ -499,18 +453,13 @@ class HospitalColumnService {
         },
       );
 
-      print('DEBUG: 조회수 증가 응답 상태코드: ${response.statusCode}');
-      print('DEBUG: 조회수 증가 응답 본문: ${response.body}');
 
       if (response.statusCode == 200 || response.statusCode == 201) {
-        print('DEBUG: 조회수 증가 성공');
         return;
       } else {
-        print('WARNING: 조회수 증가 실패 - 상태코드: ${response.statusCode}');
         // 조회수 증가 실패는 사용자 경험에 영향을 주지 않도록 예외를 던지지 않음
       }
     } catch (e) {
-      print('WARNING: 조회수 증가 중 오류 (무시됨): $e');
       // 조회수 증가 실패는 사용자 경험에 영향을 주지 않도록 예외를 던지지 않음
     }
   }
@@ -523,7 +472,6 @@ class HospitalColumnService {
         throw Exception('인증 토큰이 없습니다. 다시 로그인해주세요.');
       }
 
-      print('DEBUG: 관리자 칼럼 상세 조회 - URL: ${Config.serverUrl}/api/admin/columns/$columnIdx');
 
       final response = await http.get(
         Uri.parse('${Config.serverUrl}/api/admin/columns/$columnIdx'),
@@ -533,8 +481,6 @@ class HospitalColumnService {
         },
       );
 
-      print('DEBUG: 관리자 칼럼 상세 응답 상태코드: ${response.statusCode}');
-      print('DEBUG: 관리자 칼럼 상세 응답 본문: ${response.body}');
 
       if (response.statusCode == 200) {
         final data = jsonDecode(utf8.decode(response.bodyBytes));
@@ -552,7 +498,6 @@ class HospitalColumnService {
         );
       }
     } catch (e) {
-      print('ERROR: 관리자 칼럼 조회 중 오류: $e');
       throw Exception('관리자 칼럼 조회 중 오류 발생: $e');
     }
   }

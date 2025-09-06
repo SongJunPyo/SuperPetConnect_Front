@@ -6,12 +6,15 @@ import '../services/hospital_post_service.dart';
 import '../utils/app_theme.dart';
 import 'package:intl/intl.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+import '../models/applied_donation_model.dart';
+import 'donation_completion_dialog.dart';
+import 'donation_cancellation_dialog.dart';
 
 class HospitalPostCheck extends StatefulWidget {
   const HospitalPostCheck({super.key});
 
   @override
-  _HospitalPostCheckState createState() => _HospitalPostCheckState();
+  State createState() => _HospitalPostCheckState();
 }
 
 class _HospitalPostCheckState extends State<HospitalPostCheck>
@@ -606,7 +609,7 @@ class PostDetailBottomSheet extends StatefulWidget {
   });
 
   @override
-  _PostDetailBottomSheetState createState() => _PostDetailBottomSheetState();
+  State createState() => _PostDetailBottomSheetState();
 }
 
 class _PostDetailBottomSheetState extends State<PostDetailBottomSheet> {
@@ -665,7 +668,6 @@ class _PostDetailBottomSheetState extends State<PostDetailBottomSheet> {
 
     if (confirm == true) {
       try {
-        // TODO: 실제 삭제 API 호출 구현
         // await HospitalPostService.deletePost(widget.post.postIdx.toString());
 
         if (mounted) {
@@ -686,6 +688,96 @@ class _PostDetailBottomSheetState extends State<PostDetailBottomSheet> {
         }
       }
     }
+  }
+
+  // 헌혈 완료 다이얼로그 표시
+  void _showCompletionDialog(DonationApplication applicant) {
+    // AppliedDonation 객체 생성
+    final appliedDonation = AppliedDonation(
+      appliedDonationIdx: applicant.appliedDonationIdx,
+      petIdx: applicant.pet.petIdx,
+      postTimesIdx: applicant.postTimesIdx,
+      status: applicant.status,
+      pet: Pet(
+        petIdx: applicant.pet.petIdx,
+        name: applicant.pet.name,
+        bloodType: applicant.pet.bloodType,
+        weightKg: applicant.pet.weightKg,
+        age: applicant.pet.ageNumber,
+      ),
+      donationTime:
+          applicant.selectedTime != null
+              ? DateTime.parse(
+                '${applicant.selectedDate} ${applicant.selectedTime}',
+              )
+              : null,
+      postTitle: widget.post.title,
+      hospitalName: widget.post.nickname,
+    );
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder:
+          (context) => DonationCompletionDialog(
+            appliedDonation: appliedDonation,
+            onCompleted: (completedDonation) {
+              // 완료 처리 후 목록 새로고침
+              _loadApplicants();
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('1차 헌혈 완료 처리되었습니다. 관리자 승인을 기다리고 있습니다.'),
+                  backgroundColor: Colors.green,
+                ),
+              );
+            },
+          ),
+    );
+  }
+
+  // 헌혈 중단 다이얼로그 표시
+  void _showCancellationDialog(DonationApplication applicant) {
+    // AppliedDonation 객체 생성
+    final appliedDonation = AppliedDonation(
+      appliedDonationIdx: applicant.appliedDonationIdx,
+      petIdx: applicant.pet.petIdx,
+      postTimesIdx: applicant.postTimesIdx,
+      status: applicant.status,
+      pet: Pet(
+        petIdx: applicant.pet.petIdx,
+        name: applicant.pet.name,
+        bloodType: applicant.pet.bloodType,
+        weightKg: applicant.pet.weightKg,
+        age: applicant.pet.ageNumber,
+      ),
+      donationTime:
+          applicant.selectedTime != null
+              ? DateTime.parse(
+                '${applicant.selectedDate} ${applicant.selectedTime}',
+              )
+              : null,
+      postTitle: widget.post.title,
+      hospitalName: widget.post.nickname,
+    );
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder:
+          (context) => DonationCancellationDialog(
+            appliedDonation: appliedDonation,
+            onCancelled: (cancelledDonation) {
+              // 중단 처리 후 목록 새로고침
+              _loadApplicants();
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('1차 헌혈 중단 처리되었습니다. 관리자 승인을 기다리고 있습니다.'),
+                  backgroundColor: Colors.orange,
+                ),
+              );
+            },
+          ),
+    );
   }
 
   @override
@@ -728,8 +820,8 @@ class _PostDetailBottomSheetState extends State<PostDetailBottomSheet> {
                       decoration: BoxDecoration(
                         color:
                             widget.post.isUrgent
-                                ? Colors.red.withOpacity(0.15)
-                                : Colors.blue.withOpacity(0.15),
+                                ? Colors.red.withValues(alpha: 0.15)
+                                : Colors.blue.withValues(alpha: 0.15),
                         borderRadius: BorderRadius.circular(6),
                       ),
                       child: Text(
@@ -812,7 +904,7 @@ class _PostDetailBottomSheetState extends State<PostDetailBottomSheet> {
                             vertical: 4.0,
                           ),
                           decoration: BoxDecoration(
-                            color: _getStatusColor().withOpacity(0.15),
+                            color: _getStatusColor().withValues(alpha: 0.15),
                             borderRadius: BorderRadius.circular(8.0),
                           ),
                           child: Text(
@@ -911,7 +1003,7 @@ class _PostDetailBottomSheetState extends State<PostDetailBottomSheet> {
                           color: AppTheme.veryLightGray,
                           borderRadius: BorderRadius.circular(8),
                           border: Border.all(
-                            color: AppTheme.lightGray.withOpacity(0.5),
+                            color: AppTheme.lightGray.withValues(alpha: 0.5),
                           ),
                         ),
                         child: Text(
@@ -1072,7 +1164,7 @@ class _PostDetailBottomSheetState extends State<PostDetailBottomSheet> {
                   decoration: BoxDecoration(
                     color: _getApplicantStatusColor(
                       applicant.status,
-                    ).withOpacity(0.15),
+                    ).withValues(alpha: 0.15),
                     borderRadius: BorderRadius.circular(6.0),
                   ),
                   child: Text(
@@ -1120,19 +1212,102 @@ class _PostDetailBottomSheetState extends State<PostDetailBottomSheet> {
                 ),
               ),
             ],
+            // 승인된 상태일 때만 완료/중단 버튼 표시
+            if (applicant.status == 1) ...[
+              const SizedBox(height: 12),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  // 헌혈 중단 버튼
+                  OutlinedButton.icon(
+                    onPressed: () => _showCancellationDialog(applicant),
+                    icon: const Icon(Icons.cancel_outlined, size: 16),
+                    label: const Text('헌혈 중단'),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: Colors.orange,
+                      side: const BorderSide(color: Colors.orange),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 6,
+                      ),
+                      textStyle: AppTheme.bodySmallStyle.copyWith(
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  // 헌혈 완료 버튼
+                  ElevatedButton.icon(
+                    onPressed: () => _showCompletionDialog(applicant),
+                    icon: const Icon(Icons.check_circle, size: 16),
+                    label: const Text('헌혈 완료'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.green,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 6,
+                      ),
+                      textStyle: AppTheme.bodySmallStyle.copyWith(
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+            // 완료대기/중단대기 상태 표시
+            if (applicant.status == 5 || applicant.status == 6) ...[
+              const SizedBox(height: 12),
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color:
+                      applicant.status == 5
+                          ? Colors.green.shade50
+                          : Colors.orange.shade50,
+                  borderRadius: BorderRadius.circular(6),
+                  border: Border.all(
+                    color:
+                        applicant.status == 5
+                            ? Colors.green.shade200
+                            : Colors.orange.shade200,
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    Icon(
+                      applicant.status == 5
+                          ? Icons.hourglass_top
+                          : Icons.hourglass_bottom,
+                      size: 14,
+                      color:
+                          applicant.status == 5
+                              ? Colors.green.shade700
+                              : Colors.orange.shade700,
+                    ),
+                    const SizedBox(width: 6),
+                    Text(
+                      applicant.status == 5
+                          ? '관리자 승인 대기 중 (완료)'
+                          : '관리자 승인 대기 중 (중단)',
+                      style: AppTheme.bodySmallStyle.copyWith(
+                        color:
+                            applicant.status == 5
+                                ? Colors.green.shade700
+                                : Colors.orange.shade700,
+                        fontWeight: FontWeight.w500,
+                        fontSize: 11,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ],
         ),
       ),
     );
-  }
-
-  String _formatDate(String dateString) {
-    try {
-      DateTime date = DateTime.parse(dateString);
-      return DateFormat('yyyy.MM.dd').format(date);
-    } catch (e) {
-      return dateString;
-    }
   }
 
   String _getStatusText() {
@@ -1175,6 +1350,12 @@ class _PostDetailBottomSheetState extends State<PostDetailBottomSheet> {
         return '거절';
       case 3:
         return '완료';
+      case 4:
+        return '취소';
+      case 5:
+        return '완료대기';
+      case 6:
+        return '취소대기';
       default:
         return '알 수 없음';
     }
@@ -1190,42 +1371,15 @@ class _PostDetailBottomSheetState extends State<PostDetailBottomSheet> {
         return AppTheme.error;
       case 3:
         return AppTheme.primaryBlue;
+      case 4:
+        return Colors.grey;
+      case 5:
+        return Colors.green;
+      case 6:
+        return Colors.orange;
       default:
         return AppTheme.textPrimary;
     }
-  }
-
-  Widget _buildDetailRow(
-    BuildContext context,
-    IconData icon,
-    String label,
-    String value,
-  ) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4.0),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Icon(icon, size: 18, color: Colors.grey[600]),
-          const SizedBox(width: 8),
-          Text(
-            '$label: ',
-            style: AppTheme.bodyMediumStyle.copyWith(
-              fontWeight: FontWeight.w500,
-              color: Colors.grey[700],
-            ),
-          ),
-          Expanded(
-            child: Text(
-              value,
-              style: AppTheme.bodyMediumStyle.copyWith(color: Colors.black87),
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-            ),
-          ),
-        ],
-      ),
-    );
   }
 
   // 날짜를 요일로 변환하는 함수
@@ -1244,7 +1398,7 @@ class _PostDetailBottomSheetState extends State<PostDetailBottomSheet> {
     try {
       final date = DateTime.parse(dateStr);
       final weekday = _getWeekday(dateStr);
-      return '${date.year}년 ${date.month}월 ${date.day}일 ${weekday}요일';
+      return '${date.year}년 ${date.month}월 ${date.day}일 $weekday요일';
     } catch (e) {
       return dateStr;
     }
@@ -1391,7 +1545,7 @@ class _PostDetailBottomSheetState extends State<PostDetailBottomSheet> {
                                   ),
                                   const SizedBox(height: 2),
                                   Text(
-                                    '${_formatTime(timeSlot.time)} (${timeSlot.team?.toString() ?? "A"}팀)',
+                                    '${_formatTime(timeSlot.time)} (${timeSlot.team.toString()}팀)',
                                     style: AppTheme.bodyMediumStyle.copyWith(
                                       fontWeight: FontWeight.w600,
                                       color: AppTheme.textPrimary,

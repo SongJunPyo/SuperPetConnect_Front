@@ -89,7 +89,6 @@ class _AdminPostManagementPageState extends State<AdminPostManagementPage>
         _isLoading = false;
       });
     } catch (e) {
-      print('게시글 로드 실패: $e');
       setState(() {
         _isLoading = false;
       });
@@ -116,7 +115,6 @@ class _AdminPostManagementPageState extends State<AdminPostManagementPage>
       }
       return [];
     } catch (e) {
-      print('$status 게시글 조회 실패: $e');
       return [];
     }
   }
@@ -138,24 +136,27 @@ class _AdminPostManagementPageState extends State<AdminPostManagementPage>
       );
 
       if (response.statusCode == 200) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('게시글이 승인되었습니다.'),
-            backgroundColor: Colors.green,
-          ),
-        );
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('게시글이 승인되었습니다.'),
+              backgroundColor: Colors.green,
+            ),
+          );
+        }
         _loadPosts(); // 목록 새로고침
       } else {
         throw Exception('승인 처리 실패');
       }
     } catch (e) {
-      print('게시글 승인 실패: $e');
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('승인 처리 중 오류가 발생했습니다: ${e.toString()}'),
-          backgroundColor: Colors.red,
-        ),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('승인 처리 중 오류가 발생했습니다: ${e.toString()}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     }
   }
 
@@ -176,24 +177,27 @@ class _AdminPostManagementPageState extends State<AdminPostManagementPage>
       );
 
       if (response.statusCode == 200) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('게시글이 거절되었습니다.'),
-            backgroundColor: Colors.orange,
-          ),
-        );
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('게시글이 거절되었습니다.'),
+              backgroundColor: Colors.orange,
+            ),
+          );
+        }
         _loadPosts(); // 목록 새로고침
       } else {
         throw Exception('거절 처리 실패');
       }
     } catch (e) {
-      print('게시글 거절 실패: $e');
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('거절 처리 중 오류가 발생했습니다: ${e.toString()}'),
-          backgroundColor: Colors.red,
-        ),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('거절 처리 중 오류가 발생했습니다: ${e.toString()}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     }
   }
 
@@ -280,7 +284,7 @@ class _AdminPostManagementPageState extends State<AdminPostManagementPage>
               boxShadow: isHighlighted
                   ? [
                       BoxShadow(
-                        color: AppTheme.primaryBlue.withOpacity(0.2),
+                        color: AppTheme.primaryBlue.withValues(alpha: 0.2),
                         blurRadius: 8,
                         offset: const Offset(0, 4),
                       ),
@@ -288,7 +292,7 @@ class _AdminPostManagementPageState extends State<AdminPostManagementPage>
                   : null,
             ),
             child: Card(
-              color: isHighlighted ? AppTheme.lightBlue.withOpacity(0.1) : null,
+              color: isHighlighted ? AppTheme.lightBlue.withValues(alpha: 0.1) : null,
               elevation: isHighlighted ? 4 : 1,
               margin: EdgeInsets.zero,
               shape: RoundedRectangleBorder(
@@ -443,7 +447,7 @@ class _AdminPostManagementPageState extends State<AdminPostManagementPage>
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
+        color: color.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(12),
       ),
       child: Text(

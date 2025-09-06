@@ -2,10 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'dart:math' as math; // min 함수 사용을 위해 추가
 import '../utils/app_theme.dart';
 import '../utils/config.dart';
-import '../widgets/app_card.dart';
 
 // 회원 가입 신청자 데이터 모델
 class SignupUser {
@@ -80,7 +78,7 @@ class AdminSignupManagement extends StatefulWidget {
   const AdminSignupManagement({super.key});
 
   @override
-  _AdminSignupManagementState createState() => _AdminSignupManagementState();
+  State createState() => _AdminSignupManagementState();
 }
 
 class _AdminSignupManagementState extends State<AdminSignupManagement> {
@@ -98,9 +96,6 @@ class _AdminSignupManagementState extends State<AdminSignupManagement> {
   Future<void> _loadToken() async {
     final prefs = await SharedPreferences.getInstance();
     final storedToken = prefs.getString('auth_token');
-    print(
-      "불러온 토큰: ${storedToken?.substring(0, math.min(10, storedToken.length)) ?? '없음'}...",
-    );
     setState(() {
       token = storedToken;
     });
@@ -134,7 +129,6 @@ class _AdminSignupManagementState extends State<AdminSignupManagement> {
 
       if (response.statusCode == 200) {
         final List<dynamic> data = json.decode(utf8.decode(response.bodyBytes));
-        print('Received raw data from server: $data');
         setState(() {
           pendingUsers =
               data
@@ -142,11 +136,10 @@ class _AdminSignupManagementState extends State<AdminSignupManagement> {
                     try {
                       return SignupUser.fromJson(userJson);
                     } catch (e) {
-                      print('SignupUser.fromJson 파싱 오류: $e, 데이터: $userJson');
                       return null;
                     }
                   })
-                  .where((user) => user != null && user!.status == '대기')
+                  .where((user) => user != null && user.status == '대기')
                   .cast<SignupUser>()
                   .toList();
           isLoading = false;
@@ -163,7 +156,6 @@ class _AdminSignupManagementState extends State<AdminSignupManagement> {
         errorMessage = '오류가 발생했습니다: $e';
         isLoading = false;
       });
-      print('fetchPendingUsers Error: $e');
     }
   }
 
@@ -205,23 +197,28 @@ class _AdminSignupManagementState extends State<AdminSignupManagement> {
         setState(() {
           pendingUsers.removeWhere((u) => u.id == user.id);
         });
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text("${user.name} 회원 가입 승인 완료")));
+        if (mounted) {
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(SnackBar(content: Text("${user.name} 회원 가입 승인 완료")));
+        }
       } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              "승인 실패: ${response.statusCode}\n${utf8.decode(response.bodyBytes)}",
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                "승인 실패: ${response.statusCode}\n${utf8.decode(response.bodyBytes)}",
+              ),
             ),
-          ),
-        );
+          );
+        }
       }
     } catch (e) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text("오류 발생: $e")));
-      print('approveUser Error: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text("오류 발생: $e")));
+      }
     }
   }
 
@@ -248,23 +245,28 @@ class _AdminSignupManagementState extends State<AdminSignupManagement> {
         setState(() {
           pendingUsers.removeWhere((u) => u.id == user.id);
         });
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text("${user.name} 회원 가입 거절 완료")));
+        if (mounted) {
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(SnackBar(content: Text("${user.name} 회원 가입 거절 완료")));
+        }
       } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              "거절 실패: ${response.statusCode}\n${utf8.decode(response.bodyBytes)}",
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                "거절 실패: ${response.statusCode}\n${utf8.decode(response.bodyBytes)}",
+              ),
             ),
-          ),
-        );
+          );
+        }
       }
     } catch (e) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text("오류 발생: $e")));
-      print('rejectUser Error: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text("오류 발생: $e")));
+      }
     }
   }
 
@@ -298,7 +300,7 @@ class _AdminSignupManagementState extends State<AdminSignupManagement> {
     int selectedUserType = user.userType;
     final TextTheme textTheme = Theme.of(context).textTheme;
     final ColorScheme colorScheme = Theme.of(context).colorScheme;
-    final _hospitalIdController = TextEditingController();
+    final hospitalIdController = TextEditingController();
 
     showDialog(
       context: context,
@@ -354,7 +356,7 @@ class _AdminSignupManagementState extends State<AdminSignupManagement> {
                     Padding(
                       padding: const EdgeInsets.only(top: 16.0),
                       child: TextField(
-                        controller: _hospitalIdController,
+                        controller: hospitalIdController,
                         decoration: InputDecoration(
                           labelText: '요양기관기호',
                           hintText: '병원 코드를 입력하세요.',
@@ -390,7 +392,7 @@ class _AdminSignupManagementState extends State<AdminSignupManagement> {
                     approveUser(
                       user,
                       selectedUserType,
-                      _hospitalIdController.text,
+                      hospitalIdController.text,
                     );
                   },
                   style: ElevatedButton.styleFrom(
@@ -547,13 +549,13 @@ class _AdminSignupManagementState extends State<AdminSignupManagement> {
                       color: Colors.white,
                       borderRadius: BorderRadius.circular(AppTheme.radius12),
                       elevation: 2,
-                      shadowColor: Colors.black.withOpacity(0.1),
+                      shadowColor: Colors.black.withValues(alpha: 0.1),
                       child: Container(
                         padding: const EdgeInsets.all(AppTheme.spacing16),
                         decoration: BoxDecoration(
                           borderRadius: BorderRadius.circular(AppTheme.radius12),
                           border: Border.all(
-                            color: AppTheme.lightGray.withOpacity(0.8),
+                            color: AppTheme.lightGray.withValues(alpha: 0.8),
                             width: 1,
                           ),
                         ),
@@ -609,7 +611,7 @@ class _AdminSignupManagementState extends State<AdminSignupManagement> {
                             Row(
                               children: [
                                 Expanded(
-                                  child: Container(
+                                  child: SizedBox(
                                     height: 44,
                                     child: ElevatedButton(
                                       onPressed: user.status == '대기'
@@ -635,7 +637,7 @@ class _AdminSignupManagementState extends State<AdminSignupManagement> {
                                 ),
                                 const SizedBox(width: AppTheme.spacing12),
                                 Expanded(
-                                  child: Container(
+                                  child: SizedBox(
                                     height: 44,
                                     child: ElevatedButton(
                                       onPressed: user.status == '대기'

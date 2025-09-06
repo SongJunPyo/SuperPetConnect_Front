@@ -46,24 +46,37 @@ class _UserColumnListScreenState extends State<UserColumnListScreen> {
       // 검색 필터링
       List<ColumnPost> filteredColumns = allColumns;
       if (searchQuery.isNotEmpty) {
-        filteredColumns = allColumns.where((column) {
-          return column.title.toLowerCase().contains(searchQuery.toLowerCase()) ||
-                 column.authorName.toLowerCase().contains(searchQuery.toLowerCase());
-        }).toList();
+        filteredColumns =
+            allColumns.where((column) {
+              return column.title.toLowerCase().contains(
+                    searchQuery.toLowerCase(),
+                  ) ||
+                  column.authorName.toLowerCase().contains(
+                    searchQuery.toLowerCase(),
+                  );
+            }).toList();
       }
 
       // 날짜 범위 필터
       if (startDate != null && endDate != null) {
-        filteredColumns = filteredColumns.where((column) {
-          final createdAt = column.createdAt;
-          return !createdAt.isBefore(startDate!) && !createdAt.isAfter(endDate!.add(const Duration(days: 1)));
-        }).toList();
+        filteredColumns =
+            filteredColumns.where((column) {
+              final createdAt = column.createdAt;
+              return !createdAt.isBefore(startDate!) &&
+                  !createdAt.isAfter(endDate!.add(const Duration(days: 1)));
+            }).toList();
       }
 
       // 정렬: 중요/공지 우선, 그 다음 최신순
       filteredColumns.sort((a, b) {
-        final aImportant = a.title.contains('[중요]') || a.title.contains('[공지]') || a.isImportant;
-        final bImportant = b.title.contains('[중요]') || b.title.contains('[공지]') || b.isImportant;
+        final aImportant =
+            a.title.contains('[중요]') ||
+            a.title.contains('[공지]') ||
+            a.isImportant;
+        final bImportant =
+            b.title.contains('[중요]') ||
+            b.title.contains('[공지]') ||
+            b.isImportant;
         if (aImportant && !bImportant) return -1;
         if (!aImportant && bImportant) return 1;
         return b.createdAt.compareTo(a.createdAt);
@@ -93,9 +106,10 @@ class _UserColumnListScreenState extends State<UserColumnListScreen> {
       context: context,
       firstDate: DateTime(2020),
       lastDate: DateTime.now(),
-      initialDateRange: startDate != null && endDate != null
-          ? DateTimeRange(start: startDate!, end: endDate!)
-          : null,
+      initialDateRange:
+          startDate != null && endDate != null
+              ? DateTimeRange(start: startDate!, end: endDate!)
+              : null,
       builder: (context, child) {
         return Theme(
           data: ThemeData.light().copyWith(
@@ -124,18 +138,6 @@ class _UserColumnListScreenState extends State<UserColumnListScreen> {
   }
 
   // 날짜/시간 표시 로직
-  String _getTimeDisplay(DateTime dateTime) {
-    final now = DateTime.now();
-    final difference = now.difference(dateTime);
-    
-    if (difference.inDays > 0) {
-      // 하루 이상 지나면 날짜로 표시
-      return DateFormat('yyyy.MM.dd').format(dateTime);
-    } else {
-      // 하루 안에는 시간으로 표시
-      return DateFormat('HH:mm').format(dateTime);
-    }
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -147,10 +149,7 @@ class _UserColumnListScreenState extends State<UserColumnListScreen> {
         ),
         title: const Text(
           '칼럼',
-          style: TextStyle(
-            fontWeight: FontWeight.bold,
-            color: Colors.black87,
-          ),
+          style: TextStyle(fontWeight: FontWeight.bold, color: Colors.black87),
         ),
         centerTitle: false,
         actions: [
@@ -191,33 +190,44 @@ class _UserColumnListScreenState extends State<UserColumnListScreen> {
                     ),
                     focusedBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
-                      borderSide: const BorderSide(color: AppTheme.primaryBlue, width: 2),
+                      borderSide: const BorderSide(
+                        color: AppTheme.primaryBlue,
+                        width: 2,
+                      ),
                     ),
                     filled: true,
                     fillColor: Colors.grey.shade50,
-                    suffixIcon: searchQuery.isNotEmpty
-                        ? IconButton(
-                            icon: const Icon(Icons.clear),
-                            onPressed: () {
-                              searchController.clear();
-                              _onSearchChanged('');
-                            },
-                          )
-                        : null,
+                    suffixIcon:
+                        searchQuery.isNotEmpty
+                            ? IconButton(
+                              icon: const Icon(Icons.clear),
+                              onPressed: () {
+                                searchController.clear();
+                                _onSearchChanged('');
+                              },
+                            )
+                            : null,
                   ),
                 ),
                 // 날짜 범위 표시
                 if (startDate != null && endDate != null) ...[
                   const SizedBox(height: 8),
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 8,
+                    ),
                     decoration: BoxDecoration(
-                      color: AppTheme.primaryBlue.withOpacity(0.1),
+                      color: AppTheme.primaryBlue.withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: Row(
                       children: [
-                        const Icon(Icons.date_range, size: 16, color: AppTheme.primaryBlue),
+                        const Icon(
+                          Icons.date_range,
+                          size: 16,
+                          color: AppTheme.primaryBlue,
+                        ),
                         const SizedBox(width: 8),
                         Text(
                           '${DateFormat('yyyy.MM.dd').format(startDate!)} - ${DateFormat('yyyy.MM.dd').format(endDate!)}',
@@ -228,7 +238,11 @@ class _UserColumnListScreenState extends State<UserColumnListScreen> {
                         ),
                         const Spacer(),
                         IconButton(
-                          icon: const Icon(Icons.close, color: AppTheme.primaryBlue, size: 18),
+                          icon: const Icon(
+                            Icons.close,
+                            color: AppTheme.primaryBlue,
+                            size: 18,
+                          ),
                           onPressed: _clearDateRange,
                           padding: EdgeInsets.zero,
                           constraints: const BoxConstraints(),
@@ -336,7 +350,7 @@ class _UserColumnListScreenState extends State<UserColumnListScreen> {
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
-        border: Border.all(color: AppTheme.lightGray.withOpacity(0.3)),
+        border: Border.all(color: AppTheme.lightGray.withValues(alpha: 0.3)),
       ),
       child: Column(
         children: [
@@ -345,177 +359,199 @@ class _UserColumnListScreenState extends State<UserColumnListScreen> {
             child: ListView.separated(
               padding: EdgeInsets.zero,
               itemCount: columns.length,
-              separatorBuilder: (context, index) => Container(
-                height: 1,
-                color: AppTheme.lightGray.withOpacity(0.2),
-                margin: const EdgeInsets.symmetric(horizontal: 16),
-              ),
+              separatorBuilder:
+                  (context, index) => Container(
+                    height: 1,
+                    color: AppTheme.lightGray.withValues(alpha: 0.2),
+                    margin: const EdgeInsets.symmetric(horizontal: 16),
+                  ),
               itemBuilder: (context, index) {
-                  final column = columns[index];
-                  final isImportant = column.title.contains('[중요]') || 
-                                     column.title.contains('[공지]') || 
-                                     column.isImportant;
-                  
-                  return InkWell(
-                    onTap: () {
-                      // TODO: 칼럼 상세 페이지로 이동
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text('칼럼 ${column.columnIdx} 상세 페이지 (준비 중)')),
-                      );
-                    },
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 15),
-                      child: Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          // 왼쪽: 순서 번호 (1.5번째 줄 위치)
-                          Container(
-                            width: 20,
-                            height: 50, // 전체 높이에 맞춤
-                            child: Center(
-                              child: Text(
-                                '${index + 1}',
-                                style: AppTheme.bodySmallStyle.copyWith(
-                                  color: AppTheme.textTertiary,
-                                  fontWeight: FontWeight.w500,
-                                  fontSize: 13,
-                                ),
-                                textAlign: TextAlign.center,
+                final column = columns[index];
+                final isImportant =
+                    column.title.contains('[중요]') ||
+                    column.title.contains('[공지]') ||
+                    column.isImportant;
+
+                return InkWell(
+                  onTap: () {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('칼럼 ${column.columnIdx} 상세 페이지 (준비 중)'),
+                      ),
+                    );
+                  },
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 15,
+                    ),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // 왼쪽: 순서 번호 (1.5번째 줄 위치)
+                        SizedBox(
+                          width: 20,
+                          height: 50, // 전체 높이에 맞춤
+                          child: Center(
+                            child: Text(
+                              '${index + 1}',
+                              style: AppTheme.bodySmallStyle.copyWith(
+                                color: AppTheme.textTertiary,
+                                fontWeight: FontWeight.w500,
+                                fontSize: 13,
                               ),
+                              textAlign: TextAlign.center,
                             ),
                           ),
-                          const SizedBox(width: 8),
-                          // 중앙: 메인 콘텐츠
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                // 첫 번째 줄: 뱃지 + 제목
-                                Row(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    if (isImportant) ...[
-                                      Container(
-                                        padding: const EdgeInsets.symmetric(
-                                          horizontal: 6,
-                                          vertical: 2,
-                                        ),
-                                        decoration: BoxDecoration(
-                                          color: AppTheme.error,
-                                          borderRadius: BorderRadius.circular(4),
-                                        ),
-                                        child: Text(
-                                          '중요',
-                                          style: AppTheme.bodySmallStyle.copyWith(
-                                            color: Colors.white,
-                                            fontWeight: FontWeight.bold,
-                                            fontSize: 10,
-                                          ),
-                                        ),
-                                      ),
-                                      const SizedBox(width: 8),
-                                    ],
-                                    Expanded(
-                                      child: MarqueeText(
-                                        text: column.title,
-                                        style: AppTheme.bodyMediumStyle.copyWith(
-                                          color: isImportant ? AppTheme.error : AppTheme.textPrimary,
-                                          fontWeight: isImportant ? FontWeight.w600 : FontWeight.w500,
-                                          fontSize: 14,
-                                        ),
-                                        animationDuration: const Duration(milliseconds: 4000),
-                                        pauseDuration: const Duration(milliseconds: 1000),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                                const SizedBox(height: 6),
-                                // 두 번째 줄: 작성자 이름
-                                Text(
-                                  column.authorName.length > 15
-                                      ? '${column.authorName.substring(0, 15)}..'
-                                      : column.authorName,
-                                  style: AppTheme.bodySmallStyle.copyWith(
-                                    color: AppTheme.textSecondary,
-                                    fontSize: 12,
-                                  ),
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                              ],
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          // 오른쪽: 날짜들 + 2줄 높이의 조회수 박스
-                          Row(
-                            mainAxisSize: MainAxisSize.min,
+                        ),
+                        const SizedBox(width: 8),
+                        // 중앙: 메인 콘텐츠
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              // 날짜 컬럼 (작성/수정일 세로 배치)
-                              Column(
-                                crossAxisAlignment: CrossAxisAlignment.end,
+                              // 첫 번째 줄: 뱃지 + 제목
+                              Row(
+                                crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  Text(
-                                    '작성: ${DateFormat('yy.MM.dd').format(column.createdAt)}',
-                                    style: AppTheme.bodySmallStyle.copyWith(
-                                      color: AppTheme.textTertiary,
-                                      fontSize: 11,
+                                  if (isImportant) ...[
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 6,
+                                        vertical: 2,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color: AppTheme.error,
+                                        borderRadius: BorderRadius.circular(4),
+                                      ),
+                                      child: Text(
+                                        '중요',
+                                        style: AppTheme.bodySmallStyle.copyWith(
+                                          color: Colors.white,
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 10,
+                                        ),
+                                      ),
                                     ),
-                                  ),
-                                  const SizedBox(height: 2),
-                                  Text(
-                                    '수정: ${DateFormat('yy.MM.dd').format(column.updatedAt)}',
-                                    style: AppTheme.bodySmallStyle.copyWith(
-                                      color: AppTheme.textTertiary,
-                                      fontSize: 11,
+                                    const SizedBox(width: 8),
+                                  ],
+                                  Expanded(
+                                    child: MarqueeText(
+                                      text: column.title,
+                                      style: AppTheme.bodyMediumStyle.copyWith(
+                                        color:
+                                            isImportant
+                                                ? AppTheme.error
+                                                : AppTheme.textPrimary,
+                                        fontWeight:
+                                            isImportant
+                                                ? FontWeight.w600
+                                                : FontWeight.w500,
+                                        fontSize: 14,
+                                      ),
+                                      animationDuration: const Duration(
+                                        milliseconds: 4000,
+                                      ),
+                                      pauseDuration: const Duration(
+                                        milliseconds: 1000,
+                                      ),
                                     ),
                                   ),
                                 ],
                               ),
-                              const SizedBox(width: 8),
-                              // 2줄 높이의 조회수 박스
-                              Container(
-                                height: 36,
-                                width: 40,
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 4,
-                                  vertical: 4,
+                              const SizedBox(height: 6),
+                              // 두 번째 줄: 작성자 이름
+                              Text(
+                                column.authorName.length > 15
+                                    ? '${column.authorName.substring(0, 15)}..'
+                                    : column.authorName,
+                                style: AppTheme.bodySmallStyle.copyWith(
+                                  color: AppTheme.textSecondary,
+                                  fontSize: 12,
                                 ),
-                                decoration: BoxDecoration(
-                                  color: AppTheme.mediumGray.withOpacity(0.2),
-                                  borderRadius: BorderRadius.circular(6),
-                                  border: Border.all(
-                                    color: AppTheme.lightGray.withOpacity(0.3),
-                                    width: 1,
-                                  ),
-                                ),
-                                child: Column(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    Icon(
-                                      Icons.visibility_outlined,
-                                      size: 10,
-                                      color: AppTheme.textTertiary,
-                                    ),
-                                    const SizedBox(height: 1),
-                                    Text(
-                                      NumberFormatUtil.formatViewCount(column.viewCount),
-                                      style: AppTheme.bodySmallStyle.copyWith(
-                                        color: AppTheme.textTertiary,
-                                        fontSize: 10,
-                                        fontWeight: FontWeight.w500,
-                                      ),
-                                      textAlign: TextAlign.center,
-                                    ),
-                                  ],
-                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
                               ),
                             ],
                           ),
-                        ],
-                      ),
+                        ),
+                        const SizedBox(width: 12),
+                        // 오른쪽: 날짜들 + 2줄 높이의 조회수 박스
+                        Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            // 날짜 컬럼 (작성/수정일 세로 배치)
+                            Column(
+                              crossAxisAlignment: CrossAxisAlignment.end,
+                              children: [
+                                Text(
+                                  '작성: ${DateFormat('yy.MM.dd').format(column.createdAt)}',
+                                  style: AppTheme.bodySmallStyle.copyWith(
+                                    color: AppTheme.textTertiary,
+                                    fontSize: 11,
+                                  ),
+                                ),
+                                const SizedBox(height: 2),
+                                Text(
+                                  '수정: ${DateFormat('yy.MM.dd').format(column.updatedAt)}',
+                                  style: AppTheme.bodySmallStyle.copyWith(
+                                    color: AppTheme.textTertiary,
+                                    fontSize: 11,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(width: 8),
+                            // 2줄 높이의 조회수 박스
+                            Container(
+                              height: 36,
+                              width: 40,
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 4,
+                                vertical: 4,
+                              ),
+                              decoration: BoxDecoration(
+                                color: AppTheme.mediumGray.withValues(
+                                  alpha: 0.2,
+                                ),
+                                borderRadius: BorderRadius.circular(6),
+                                border: Border.all(
+                                  color: AppTheme.lightGray.withValues(
+                                    alpha: 0.3,
+                                  ),
+                                  width: 1,
+                                ),
+                              ),
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(
+                                    Icons.visibility_outlined,
+                                    size: 10,
+                                    color: AppTheme.textTertiary,
+                                  ),
+                                  const SizedBox(height: 1),
+                                  Text(
+                                    NumberFormatUtil.formatViewCount(
+                                      column.viewCount,
+                                    ),
+                                    style: AppTheme.bodySmallStyle.copyWith(
+                                      color: AppTheme.textTertiary,
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                    textAlign: TextAlign.center,
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
                     ),
-                  );
+                  ),
+                );
               },
             ),
           ),

@@ -7,14 +7,14 @@ class HospitalColumnCreate extends StatefulWidget {
   const HospitalColumnCreate({super.key});
 
   @override
-  _HospitalColumnCreateState createState() => _HospitalColumnCreateState();
+  State createState() => _HospitalColumnCreateState();
 }
 
 class _HospitalColumnCreateState extends State<HospitalColumnCreate> {
   final _formKey = GlobalKey<FormState>();
   final TextEditingController _titleController = TextEditingController();
   final TextEditingController _contentController = TextEditingController();
-  bool _isPublished = false; // 기본값을 미발행으로 변경
+  final bool _isPublished = false; // 기본값을 미발행으로 변경
   bool _isLoading = false;
   bool _hasPermission = false;
   bool _isCheckingPermission = true;
@@ -76,7 +76,6 @@ class _HospitalColumnCreateState extends State<HospitalColumnCreate> {
         isPublished: _isPublished,
       );
 
-      print('DEBUG: 칼럼 작성 시도 - 제목: ${request.title}, 발행: ${request.isPublished} (미발행)');
 
       await HospitalColumnService.createColumn(request);
 
@@ -90,7 +89,6 @@ class _HospitalColumnCreateState extends State<HospitalColumnCreate> {
         );
       }
     } catch (e) {
-      print('ERROR: 칼럼 작성 UI 오류: $e');
       
       if (mounted) {
         setState(() {

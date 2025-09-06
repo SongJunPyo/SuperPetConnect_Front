@@ -1,4 +1,4 @@
-// hospital/donation_completion_dialog.dart
+// hospital/donation_completion_sheet.dart
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -7,21 +7,21 @@ import '../models/applied_donation_model.dart';
 import '../models/completed_donation_model.dart';
 import '../services/completed_donation_service.dart';
 
-class DonationCompletionDialog extends StatefulWidget {
+class DonationCompletionSheet extends StatefulWidget {
   final AppliedDonation appliedDonation;
   final Function(CompletedDonation) onCompleted;
 
-  const DonationCompletionDialog({
+  const DonationCompletionSheet({
     super.key,
     required this.appliedDonation,
     required this.onCompleted,
   });
 
   @override
-  State<DonationCompletionDialog> createState() => _DonationCompletionDialogState();
+  State<DonationCompletionSheet> createState() => _DonationCompletionSheetState();
 }
 
-class _DonationCompletionDialogState extends State<DonationCompletionDialog> {
+class _DonationCompletionSheetState extends State<DonationCompletionSheet> {
   final TextEditingController _bloodVolumeController = TextEditingController();
   DateTime selectedCompletedDate = DateTime.now();
   TimeOfDay selectedCompletedTime = TimeOfDay.now();
@@ -82,17 +82,33 @@ class _DonationCompletionDialogState extends State<DonationCompletionDialog> {
 
   @override
   Widget build(BuildContext context) {
-    return Dialog(
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(AppTheme.radius16),
+    return Container(
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
-      child: Container(
-        constraints: const BoxConstraints(maxHeight: 600, maxWidth: 400),
+      padding: EdgeInsets.only(
+        bottom: MediaQuery.of(context).viewInsets.bottom,
+      ),
+      child: SingleChildScrollView(
         padding: const EdgeInsets.all(AppTheme.spacing20),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisSize: MainAxisSize.min,
           children: [
+            // 핸들 바
+            Center(
+              child: Container(
+                width: 40,
+                height: 4,
+                margin: const EdgeInsets.only(bottom: AppTheme.spacing20),
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade300,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+            ),
+
             // 제목
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -303,7 +319,7 @@ class _DonationCompletionDialogState extends State<DonationCompletionDialog> {
               ],
             ),
 
-            const Spacer(),
+            const SizedBox(height: AppTheme.spacing24),
 
             // 완료 처리 버튼
             SizedBox(
@@ -313,6 +329,7 @@ class _DonationCompletionDialogState extends State<DonationCompletionDialog> {
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.green,
                   foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: AppTheme.spacing16),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(AppTheme.radius8),
                   ),
@@ -326,9 +343,10 @@ class _DonationCompletionDialogState extends State<DonationCompletionDialog> {
                           strokeWidth: 2,
                         ),
                       )
-                    : const Text('헌혈 완료 처리'),
+                    : const Text('헌혈 완료 처리', style: TextStyle(fontSize: 16)),
               ),
             ),
+            const SizedBox(height: AppTheme.spacing16),
           ],
         ),
       ),

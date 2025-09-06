@@ -12,7 +12,7 @@ class HospitalColumnEdit extends StatefulWidget {
   });
 
   @override
-  _HospitalColumnEditState createState() => _HospitalColumnEditState();
+  State createState() => _HospitalColumnEditState();
 }
 
 class _HospitalColumnEditState extends State<HospitalColumnEdit> {

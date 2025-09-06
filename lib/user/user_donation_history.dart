@@ -198,7 +198,7 @@ class _UserDonationHistoryScreenState extends State<UserDonationHistoryScreen> {
             Container(
               padding: const EdgeInsets.all(AppTheme.spacing12),
               decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.7),
+                color: Colors.white.withValues(alpha: 0.7),
                 borderRadius: BorderRadius.circular(AppTheme.radius8),
               ),
               child: Row(
@@ -245,10 +245,10 @@ class _UserDonationHistoryScreenState extends State<UserDonationHistoryScreen> {
     return Container(
       padding: const EdgeInsets.all(AppTheme.spacing12),
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.7),
+        color: Colors.white.withValues(alpha: 0.7),
         borderRadius: BorderRadius.circular(AppTheme.radius8),
         border: Border.all(
-          color: color.withOpacity(0.3),
+          color: color.withValues(alpha: 0.3),
           width: 1,
         ),
       ),
@@ -271,7 +271,7 @@ class _UserDonationHistoryScreenState extends State<UserDonationHistoryScreen> {
           Text(
             label,
             style: AppTheme.captionStyle.copyWith(
-              color: color.withOpacity(0.8),
+              color: color.withValues(alpha: 0.8),
             ),
           ),
         ],
@@ -292,13 +292,13 @@ class _UserDonationHistoryScreenState extends State<UserDonationHistoryScreen> {
         borderRadius: BorderRadius.circular(AppTheme.radius12),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: Colors.black.withValues(alpha: 0.05),
             blurRadius: 8,
             offset: const Offset(0, 2),
           ),
         ],
         border: Border.all(
-          color: AppTheme.lightGray.withOpacity(0.3),
+          color: AppTheme.lightGray.withValues(alpha: 0.3),
           width: 1,
         ),
       ),
