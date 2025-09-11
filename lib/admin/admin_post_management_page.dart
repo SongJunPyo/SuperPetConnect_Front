@@ -31,6 +31,7 @@ class _AdminPostManagementPageState extends State<AdminPostManagementPage>
   List<DonationPost> _pendingPosts = [];
   List<DonationPost> _approvedPosts = [];
   List<DonationPost> _rejectedPosts = [];
+  List<DonationPost> _completedPosts = [];
   bool _isLoading = true;
 
   @override
@@ -45,10 +46,12 @@ class _AdminPostManagementPageState extends State<AdminPostManagementPage>
       initialTabIndex = 1;
     } else if (widget.initialTab == 'rejected') {
       initialTabIndex = 2;
+    } else if (widget.initialTab == 'completed') {
+      initialTabIndex = 3;
     }
     
     _tabController = TabController(
-      length: 3,
+      length: 4,
       vsync: this,
       initialIndex: initialTabIndex,
     );
@@ -80,12 +83,14 @@ class _AdminPostManagementPageState extends State<AdminPostManagementPage>
         _fetchPostsByStatus('pending', token),
         _fetchPostsByStatus('approved', token),
         _fetchPostsByStatus('rejected', token),
+        _fetchPostsByStatus('completed', token),
       ]);
 
       setState(() {
         _pendingPosts = futures[0];
         _approvedPosts = futures[1];
         _rejectedPosts = futures[2];
+        _completedPosts = futures[3];
         _isLoading = false;
       });
     } catch (e) {
@@ -221,6 +226,7 @@ class _AdminPostManagementPageState extends State<AdminPostManagementPage>
                 Tab(text: '승인됨 (${_approvedPosts.length})'),
                 Tab(text: '승인 대기 (${_pendingPosts.length})'),
                 Tab(text: '거절됨 (${_rejectedPosts.length})'),
+                Tab(text: '헌혈완료 (${_completedPosts.length})'),
               ],
             ),
           ),
@@ -233,6 +239,7 @@ class _AdminPostManagementPageState extends State<AdminPostManagementPage>
                       _buildPostList(_approvedPosts, 'approved'),
                       _buildPostList(_pendingPosts, 'pending'),
                       _buildPostList(_rejectedPosts, 'rejected'),
+                      _buildPostList(_completedPosts, 'completed'),
                     ],
                   ),
           ),
@@ -439,6 +446,10 @@ class _AdminPostManagementPageState extends State<AdminPostManagementPage>
         color = AppTheme.error;
         text = '거절됨';
         break;
+      case 'completed':
+        color = Colors.purple;
+        text = '헌혈완료';
+        break;
       default:
         color = AppTheme.textSecondary;
         text = '알 수 없음';
@@ -468,6 +479,8 @@ class _AdminPostManagementPageState extends State<AdminPostManagementPage>
         return '승인 대기 중인';
       case 'rejected':
         return '거절된';
+      case 'completed':
+        return '헌혈 완료된';
       default:
         return '알 수 없는';
     }

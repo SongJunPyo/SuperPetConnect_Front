@@ -74,12 +74,14 @@ class Post {
 
 class TimeRange {
   final int id;
+  final String? date;
   final String time;
   final int team;
   final int approved;
 
   TimeRange({
     required this.id,
+    this.date,
     required this.time,
     required this.team,
     required this.approved,
@@ -88,6 +90,7 @@ class TimeRange {
   factory TimeRange.fromJson(Map<String, dynamic> json) {
     return TimeRange(
       id: json['id'],
+      date: json['date'],
       time: json['time'],
       team: json['team'],
       approved: json['approved'],

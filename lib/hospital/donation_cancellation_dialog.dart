@@ -70,10 +70,11 @@ class _DonationCancellationDialogState extends State<DonationCancellationDialog>
       child: Container(
         constraints: const BoxConstraints(maxHeight: 700, maxWidth: 400),
         padding: const EdgeInsets.all(AppTheme.spacing20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisSize: MainAxisSize.min,
-          children: [
+        child: SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
             // 제목
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -287,7 +288,7 @@ class _DonationCancellationDialogState extends State<DonationCancellationDialog>
               ),
             ),
 
-            const Spacer(),
+            const SizedBox(height: AppTheme.spacing20),
 
             // 버튼 영역
             Row(
@@ -297,6 +298,7 @@ class _DonationCancellationDialogState extends State<DonationCancellationDialog>
                     onPressed: () => Navigator.of(context).pop(),
                     style: OutlinedButton.styleFrom(
                       foregroundColor: AppTheme.textSecondary,
+                      padding: const EdgeInsets.symmetric(vertical: AppTheme.spacing16),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(AppTheme.radius8),
                       ),
@@ -311,6 +313,7 @@ class _DonationCancellationDialogState extends State<DonationCancellationDialog>
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.red,
                       foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: AppTheme.spacing16),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(AppTheme.radius8),
                       ),
@@ -329,7 +332,8 @@ class _DonationCancellationDialogState extends State<DonationCancellationDialog>
                 ),
               ],
             ),
-          ],
+            ],
+          ),
         ),
       ),
     );

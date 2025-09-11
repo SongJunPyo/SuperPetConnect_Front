@@ -33,7 +33,7 @@ class _HospitalPostCheckState extends State<HospitalPostCheck>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 4, vsync: this);
+    _tabController = TabController(length: 5, vsync: this);
     _tabController!.addListener(_handleTabChange);
     _searchController.addListener(_onSearchChanged);
     _loadPosts();
@@ -81,6 +81,10 @@ class _HospitalPostCheckState extends State<HospitalPostCheck>
         case 3:
           // 모집거절: status가 2인 게시글
           filtered = posts.where((post) => post.status == 2).toList();
+          break;
+        case 4:
+          // 헌혈완료: status가 4인 게시글 (완료된 게시글)
+          filtered = posts.where((post) => post.status == 4).toList();
           break;
         default:
           filtered = [];
@@ -258,63 +262,22 @@ class _HospitalPostCheckState extends State<HospitalPostCheck>
                   // 슬라이딩 탭
                   Container(
                     color: Colors.white,
-                    padding: const EdgeInsets.symmetric(vertical: 16.0),
                     child: TabBar(
                       controller: _tabController,
+                      isScrollable: false,
                       tabs: const [
-                        Tab(
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(Icons.hourglass_empty, size: 16),
-                              SizedBox(width: 4),
-                              Text('모집대기', style: TextStyle(fontSize: 12)),
-                            ],
-                          ),
-                        ),
-                        Tab(
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(Icons.play_arrow, size: 16),
-                              SizedBox(width: 4),
-                              Text('모집진행', style: TextStyle(fontSize: 12)),
-                            ],
-                          ),
-                        ),
-                        Tab(
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(Icons.stop, size: 16),
-                              SizedBox(width: 4),
-                              Text('모집마감', style: TextStyle(fontSize: 12)),
-                            ],
-                          ),
-                        ),
-                        Tab(
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(Icons.close, size: 16),
-                              SizedBox(width: 4),
-                              Text('모집거절', style: TextStyle(fontSize: 12)),
-                            ],
-                          ),
-                        ),
+                        Tab(text: '모집대기'),
+                        Tab(text: '모집진행'),
+                        Tab(text: '모집마감'),
+                        Tab(text: '모집거절'),
+                        Tab(text: '헌혈완료'),
                       ],
                       indicatorColor: Colors.black,
                       labelColor: Colors.black,
                       unselectedLabelColor: Colors.grey,
-                      labelStyle: const TextStyle(fontWeight: FontWeight.bold),
+                      labelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                      unselectedLabelStyle: const TextStyle(fontSize: 14),
                       indicatorWeight: 3.0,
-                      indicatorPadding: const EdgeInsets.symmetric(
-                        horizontal: 8.0,
-                      ),
                     ),
                   ),
 
@@ -375,6 +338,9 @@ class _HospitalPostCheckState extends State<HospitalPostCheck>
           break;
         case 3:
           emptyMessage = '거절된 게시글이 없습니다.';
+          break;
+        case 4:
+          emptyMessage = '헌혈 완료된 게시글이 없습니다.';
           break;
         default:
           emptyMessage = '게시글이 없습니다.';
@@ -1449,15 +1415,22 @@ class _PostDetailBottomSheetState extends State<PostDetailBottomSheet> {
       );
     }
 
-    // timeRanges를 날짜별로 그룹화
+    // timeRanges를 날짜별로 그룹화 (중복 제거)
     final Map<String, List<TimeRange>> groupedByDate = {};
+    final Set<String> seenTimeSlots = {}; // 중복 체크용
 
     for (final timeRange in widget.post.timeRanges) {
       final dateStr = timeRange.date ?? widget.post.createdDate;
-      if (!groupedByDate.containsKey(dateStr)) {
-        groupedByDate[dateStr] = [];
+      // 날짜+시간+팀으로 고유키 생성하여 중복 체크
+      final uniqueKey = '$dateStr-${timeRange.time}-${timeRange.team}';
+      
+      if (!seenTimeSlots.contains(uniqueKey)) {
+        seenTimeSlots.add(uniqueKey);
+        if (!groupedByDate.containsKey(dateStr)) {
+          groupedByDate[dateStr] = [];
+        }
+        groupedByDate[dateStr]!.add(timeRange);
       }
-      groupedByDate[dateStr]!.add(timeRange);
     }
 
     return Column(

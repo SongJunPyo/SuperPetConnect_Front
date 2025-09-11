@@ -1035,9 +1035,27 @@ class _AdminApprovedPostsScreenState extends State<AdminApprovedPostsScreen>
                           );
                         }
 
+                        // 중복 제거를 위한 Set 사용
+                        final Set<String> seenTimeSlots = {};
+                        final List<Map<String, dynamic>> uniqueTimeRanges = [];
+                        
+                        for (final timeRange in timeRanges) {
+                          final donationDate = timeRange['donation_date'] ?? timeRange['date'] ?? '';
+                          final time = timeRange['time'] ?? '';
+                          final team = timeRange['team'] ?? 0;
+                          
+                          // 날짜+시간+팀으로 고유키 생성하여 중복 체크
+                          final uniqueKey = '$donationDate-$time-$team';
+                          
+                          if (!seenTimeSlots.contains(uniqueKey)) {
+                            seenTimeSlots.add(uniqueKey);
+                            uniqueTimeRanges.add(timeRange as Map<String, dynamic>);
+                          }
+                        }
+                        
                         return Column(
                           children:
-                              timeRanges.map<Widget>((timeRange) {
+                              uniqueTimeRanges.map<Widget>((timeRange) {
                                 final donationDate =
                                     timeRange['donation_date'] ??
                                     timeRange['time'] ??

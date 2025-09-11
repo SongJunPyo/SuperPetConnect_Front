@@ -6,6 +6,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../utils/config.dart';
 import '../utils/app_theme.dart';
 import '../widgets/marquee_text.dart';
+import '../widgets/custom_tab_bar.dart';
 import 'package:intl/intl.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 
@@ -559,62 +560,14 @@ class _AdminPostCheckState extends State<AdminPostCheck>
                   Container(
                     color: Colors.white,
                     padding: const EdgeInsets.symmetric(vertical: 16.0),
-                    child: TabBar(
+                    child: CustomTabBar2.withIcons(
                       controller: _tabController,
-                      tabs: const [
-                        Tab(
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(Icons.hourglass_empty, size: 16),
-                              SizedBox(width: 4),
-                              Text('모집대기', style: TextStyle(fontSize: 12)),
-                            ],
-                          ),
-                        ),
-                        Tab(
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(Icons.play_arrow, size: 16),
-                              SizedBox(width: 4),
-                              Text('모집진행', style: TextStyle(fontSize: 12)),
-                            ],
-                          ),
-                        ),
-                        Tab(
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(Icons.stop, size: 16),
-                              SizedBox(width: 4),
-                              Text('모집마감', style: TextStyle(fontSize: 12)),
-                            ],
-                          ),
-                        ),
-                        Tab(
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(Icons.close, size: 16),
-                              SizedBox(width: 4),
-                              Text('모집거절', style: TextStyle(fontSize: 12)),
-                            ],
-                          ),
-                        ),
+                      tabs: [
+                        TabItemBuilder.withIcon(Icons.hourglass_empty, '모집대기'),
+                        TabItemBuilder.withIcon(Icons.play_arrow, '모집진행'),
+                        TabItemBuilder.withIcon(Icons.stop, '모집마감'),
+                        TabItemBuilder.withIcon(Icons.close, '모집거절'),
                       ],
-                      indicatorColor: Colors.black,
-                      labelColor: Colors.black,
-                      unselectedLabelColor: Colors.grey,
-                      labelStyle: const TextStyle(fontWeight: FontWeight.bold),
-                      indicatorWeight: 3.0,
-                      indicatorPadding: const EdgeInsets.symmetric(
-                        horizontal: 8.0,
-                      ),
                     ),
                   ),
 
@@ -1413,15 +1366,25 @@ class _AdminPostCheckState extends State<AdminPostCheck>
       );
     }
 
-    // timeRanges를 날짜별로 그룹화
+    // timeRanges를 날짜별로 그룹화 (중복 제거)
     final Map<String, List<Map<String, dynamic>>> groupedByDate = {};
+    final Set<String> seenTimeSlots = {}; // 중복 체크용
 
     for (final timeRange in timeRanges) {
       final dateStr = timeRange['donation_date'] ?? timeRange['date'] ?? 'N/A';
-      if (!groupedByDate.containsKey(dateStr)) {
-        groupedByDate[dateStr] = [];
+      final time = timeRange['time'] ?? '';
+      final team = timeRange['team'] ?? 0;
+      
+      // 날짜+시간+팀으로 고유키 생성하여 중복 체크
+      final uniqueKey = '$dateStr-$time-$team';
+      
+      if (!seenTimeSlots.contains(uniqueKey)) {
+        seenTimeSlots.add(uniqueKey);
+        if (!groupedByDate.containsKey(dateStr)) {
+          groupedByDate[dateStr] = [];
+        }
+        groupedByDate[dateStr]!.add(timeRange);
       }
-      groupedByDate[dateStr]!.add(timeRange);
     }
 
     return Column(

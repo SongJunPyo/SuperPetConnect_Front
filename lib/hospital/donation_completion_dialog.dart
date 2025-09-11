@@ -89,10 +89,11 @@ class _DonationCompletionDialogState extends State<DonationCompletionDialog> {
       child: Container(
         constraints: const BoxConstraints(maxHeight: 600, maxWidth: 400),
         padding: const EdgeInsets.all(AppTheme.spacing20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisSize: MainAxisSize.min,
-          children: [
+        child: SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
             // 제목
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -303,7 +304,7 @@ class _DonationCompletionDialogState extends State<DonationCompletionDialog> {
               ],
             ),
 
-            const Spacer(),
+            const SizedBox(height: AppTheme.spacing20),
 
             // 완료 처리 버튼
             SizedBox(
@@ -313,6 +314,7 @@ class _DonationCompletionDialogState extends State<DonationCompletionDialog> {
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.green,
                   foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: AppTheme.spacing16),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(AppTheme.radius8),
                   ),
@@ -329,7 +331,8 @@ class _DonationCompletionDialogState extends State<DonationCompletionDialog> {
                     : const Text('헌혈 완료 처리'),
               ),
             ),
-          ],
+            ],
+          ),
         ),
       ),
     );

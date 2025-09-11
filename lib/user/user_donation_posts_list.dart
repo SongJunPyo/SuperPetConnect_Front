@@ -6,6 +6,7 @@ import '../utils/app_theme.dart';
 import '../utils/config.dart';
 import '../services/dashboard_service.dart';
 import '../widgets/marquee_text.dart';
+import '../widgets/custom_tab_bar.dart';
 import 'package:intl/intl.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 
@@ -272,44 +273,43 @@ class _UserDonationPostsListScreenState
               Text('시간을 선택하세요:', style: AppTheme.bodyMediumStyle),
               const SizedBox(height: 12),
               // 실제 API에서 가져온 시간대 정보 표시
-              ...timeSlots
-                  .map(
-                    (timeSlot) => Container(
-                      width: double.infinity,
-                      margin: const EdgeInsets.only(bottom: 8),
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: AppTheme.lightGray.withValues(alpha: 0.3),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: InkWell(
-                        onTap: () {
-                          Navigator.of(context).pop();
-                          final postTimesIdx = timeSlot['post_times_idx'] ?? 0;
-                          final time = timeSlot['time'] ?? '';
-                          final datetime = timeSlot['datetime'] ?? '';
-                          _showDonationApplicationDialog(
-                            context,
-                            post,
-                            selectedDate,
-                            postTimesIdx,
-                            time,
-                            datetime,
-                          );
-                        },
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(vertical: 8),
-                          child: Text(
-                            _formatTime(timeSlot['time'] ?? ''),
-                            style: AppTheme.bodyMediumStyle.copyWith(
-                              fontWeight: FontWeight.w500,
-                            ),
-                            textAlign: TextAlign.center,
-                          ),
+              ...timeSlots.map(
+                (timeSlot) => Container(
+                  width: double.infinity,
+                  margin: const EdgeInsets.only(bottom: 8),
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: AppTheme.lightGray.withValues(alpha: 0.3),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: InkWell(
+                    onTap: () {
+                      Navigator.of(context).pop();
+                      final postTimesIdx = timeSlot['post_times_idx'] ?? 0;
+                      final time = timeSlot['time'] ?? '';
+                      final datetime = timeSlot['datetime'] ?? '';
+                      _showDonationApplicationDialog(
+                        context,
+                        post,
+                        selectedDate,
+                        postTimesIdx,
+                        time,
+                        datetime,
+                      );
+                    },
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 8),
+                      child: Text(
+                        _formatTime(timeSlot['time'] ?? ''),
+                        style: AppTheme.bodyMediumStyle.copyWith(
+                          fontWeight: FontWeight.w500,
                         ),
+                        textAlign: TextAlign.center,
                       ),
                     ),
                   ),
+                ),
+              ),
               const SizedBox(height: 16),
               SizedBox(
                 width: double.infinity,
@@ -1022,11 +1022,12 @@ class _UserDonationPostsListScreenState
                             ),
                             const SizedBox(width: 8),
                             Text(
-                              (displayPost.hospitalNickname?.isNotEmpty ?? false)
+                              (displayPost.hospitalNickname?.isNotEmpty ??
+                                      false)
                                   ? displayPost.hospitalNickname!
                                   : displayPost.hospitalName.isNotEmpty
-                                      ? displayPost.hospitalName
-                                      : '병원',
+                                  ? displayPost.hospitalName
+                                  : '병원',
                               style: AppTheme.bodyMediumStyle.copyWith(
                                 fontWeight: FontWeight.w600,
                               ),
@@ -1357,28 +1358,12 @@ class _UserDonationPostsListScreenState
           Container(
             color: Colors.white,
             padding: const EdgeInsets.symmetric(vertical: 16.0),
-            child: TabBar(
+            child: CustomTabBar2.standard(
               controller: _tabController,
-              tabs: const [
-                Tab(
-                  child: Padding(
-                    padding: EdgeInsets.symmetric(vertical: 12.0),
-                    child: Text('긴급'),
-                  ),
-                ),
-                Tab(
-                  child: Padding(
-                    padding: EdgeInsets.symmetric(vertical: 12.0),
-                    child: Text('정기'),
-                  ),
-                ),
+              tabs: [
+                TabItemBuilder.textOnly('긴급'),
+                TabItemBuilder.textOnly('정기'),
               ],
-              indicatorColor: Colors.black,
-              labelColor: Colors.black,
-              unselectedLabelColor: Colors.grey,
-              labelStyle: const TextStyle(fontWeight: FontWeight.bold),
-              indicatorWeight: 3.0,
-              indicatorPadding: const EdgeInsets.symmetric(horizontal: 8.0),
             ),
           ),
 
@@ -1632,9 +1617,33 @@ class _UserDonationPostsListScreenState
       return const SizedBox.shrink();
     }
 
+    // 중복 제거를 위한 처리
+    final Map<String, List<Map<String, dynamic>>> uniqueDates = {};
+    final Set<String> seenTimeSlots = {}; // 중복 체크용
+
+    for (final entry in post.availableDates!.entries) {
+      final dateStr = entry.key;
+      final timeSlots = entry.value;
+
+      uniqueDates[dateStr] = [];
+
+      for (final timeSlot in timeSlots) {
+        final time = timeSlot['time'] ?? '';
+        final team = timeSlot['team'] ?? 0;
+
+        // 날짜+시간+팀으로 고유키 생성하여 중복 체크
+        final uniqueKey = '$dateStr-$time-$team';
+
+        if (!seenTimeSlots.contains(uniqueKey)) {
+          seenTimeSlots.add(uniqueKey);
+          uniqueDates[dateStr]!.add(timeSlot);
+        }
+      }
+    }
+
     return Column(
       children:
-          post.availableDates!.entries.map((entry) {
+          uniqueDates.entries.map((entry) {
             final dateStr = entry.key;
             final timeSlots = entry.value;
 
@@ -2176,95 +2185,91 @@ class _DonationApplicationPageState extends State<DonationApplicationPage> {
           )
         else
           // 헌혈 가능한 반려동물만 표시
-          ...availablePets
-              .map(
-                (pet) => Container(
-                  margin: const EdgeInsets.only(bottom: 12),
-                  child: Material(
-                    color: Colors.transparent,
-                    child: InkWell(
-                      onTap: () {
-                        setState(() {
-                          selectedPet = pet;
-                        });
-                      },
+          ...availablePets.map(
+            (pet) => Container(
+              margin: const EdgeInsets.only(bottom: 12),
+              child: Material(
+                color: Colors.transparent,
+                child: InkWell(
+                  onTap: () {
+                    setState(() {
+                      selectedPet = pet;
+                    });
+                  },
+                  borderRadius: BorderRadius.circular(12),
+                  child: Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
                       borderRadius: BorderRadius.circular(12),
-                      child: Container(
-                        padding: const EdgeInsets.all(16),
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(
-                            color:
-                                selectedPet?['pet_idx'] == pet['pet_idx']
-                                    ? Colors.red
-                                    : Colors.grey.shade400,
-                            width:
-                                selectedPet?['pet_idx'] == pet['pet_idx']
-                                    ? 2
-                                    : 1,
-                          ),
-                          color: Colors.grey.shade100,
-                        ),
-                        child: Row(
-                          children: [
-                            // 동물 종류별 아이콘
-                            FaIcon(
-                              (pet['animal_type'] == 0 ||
-                                      (pet['animal_type'] == null &&
-                                          (pet['species'] == "개" ||
-                                              pet['species'] == "강아지")))
-                                  ? FontAwesomeIcons.dog
-                                  : FontAwesomeIcons.cat,
-                              color:
-                                  selectedPet?['pet_idx'] == pet['pet_idx']
-                                      ? Colors.red
-                                      : Colors.grey.shade600,
-                              size: 20,
-                            ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    pet['name']?.toString() ?? '알 수 없음',
-                                    style: AppTheme.bodyLargeStyle.copyWith(
-                                      fontWeight: FontWeight.bold,
-                                      color:
-                                          selectedPet?['pet_idx'] ==
-                                                  pet['pet_idx']
-                                              ? Colors.red
-                                              : AppTheme.textPrimary,
-                                    ),
-                                  ),
-                                  Text(
-                                    '${pet['age']?.toString() ?? '0'}세 • ${pet['weight']?.toString() ?? '0kg'} • ${pet['bloodType']?.toString() ?? ''}',
-                                    style: AppTheme.bodyMediumStyle.copyWith(
-                                      color: AppTheme.textSecondary,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                            // 수정 아이콘을 오른쪽 끝으로 이동
-                            GestureDetector(
-                              onTap: () {},
-                              child: Icon(
-                                Icons.edit,
-                                color: Colors.grey.shade600,
-                                size: 20,
-                              ),
-                            ),
-                            const SizedBox(width: 8),
-                            if (selectedPet?['pet_idx'] == pet['pet_idx'])
-                              Icon(Icons.check_circle, color: Colors.red),
-                          ],
-                        ),
+                      border: Border.all(
+                        color:
+                            selectedPet?['pet_idx'] == pet['pet_idx']
+                                ? Colors.red
+                                : Colors.grey.shade400,
+                        width:
+                            selectedPet?['pet_idx'] == pet['pet_idx'] ? 2 : 1,
                       ),
+                      color: Colors.grey.shade100,
+                    ),
+                    child: Row(
+                      children: [
+                        // 동물 종류별 아이콘
+                        FaIcon(
+                          (pet['animal_type'] == 0 ||
+                                  (pet['animal_type'] == null &&
+                                      (pet['species'] == "개" ||
+                                          pet['species'] == "강아지")))
+                              ? FontAwesomeIcons.dog
+                              : FontAwesomeIcons.cat,
+                          color:
+                              selectedPet?['pet_idx'] == pet['pet_idx']
+                                  ? Colors.red
+                                  : Colors.grey.shade600,
+                          size: 20,
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                pet['name']?.toString() ?? '알 수 없음',
+                                style: AppTheme.bodyLargeStyle.copyWith(
+                                  fontWeight: FontWeight.bold,
+                                  color:
+                                      selectedPet?['pet_idx'] == pet['pet_idx']
+                                          ? Colors.red
+                                          : AppTheme.textPrimary,
+                                ),
+                              ),
+                              Text(
+                                '${pet['age']?.toString() ?? '0'}세 • ${pet['weight']?.toString() ?? '0kg'} • ${pet['bloodType']?.toString() ?? ''}',
+                                style: AppTheme.bodyMediumStyle.copyWith(
+                                  color: AppTheme.textSecondary,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        // 수정 아이콘을 오른쪽 끝으로 이동
+                        GestureDetector(
+                          onTap: () {},
+                          child: Icon(
+                            Icons.edit,
+                            color: Colors.grey.shade600,
+                            size: 20,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        if (selectedPet?['pet_idx'] == pet['pet_idx'])
+                          Icon(Icons.check_circle, color: Colors.red),
+                      ],
                     ),
                   ),
                 ),
               ),
+            ),
+          ),
       ],
     );
   }
