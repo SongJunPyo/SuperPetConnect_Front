@@ -48,3 +48,6 @@ app.*.map.json
 .env
 
 SPC.sql
+서버에서 프론트로 온 메세지.txt
+프론트에서 서버로 보낼 메세지.txt
+CLAUDE.md

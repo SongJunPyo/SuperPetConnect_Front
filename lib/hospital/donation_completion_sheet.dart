@@ -2,6 +2,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import '../utils/app_theme.dart';
 import '../models/applied_donation_model.dart';
 import '../models/completed_donation_model.dart';
@@ -45,8 +46,8 @@ class _DonationCompletionSheetState extends State<DonationCompletionSheet> {
       );
       _bloodVolumeController.text = recommended.toStringAsFixed(1);
     } else {
-      // 기본값으로 200mL 설정
-      _bloodVolumeController.text = '200.0';
+      // 기본값으로 0.0 설정
+      _bloodVolumeController.text = '0.0';
     }
   }
 
@@ -121,14 +122,13 @@ class _DonationCompletionSheetState extends State<DonationCompletionSheet> {
                         '헌혈 완료 처리',
                         style: AppTheme.h3Style.copyWith(fontWeight: FontWeight.w700),
                       ),
-                      const SizedBox(height: 4),
+                      const SizedBox(height: 8),
                       Text(
-                        widget.appliedDonation.postTitle ?? '헌혈 요청',
+                        '${widget.appliedDonation.formattedDate} ${widget.appliedDonation.formattedTime}',
                         style: AppTheme.bodyMediumStyle.copyWith(
                           color: AppTheme.textSecondary,
+                          fontWeight: FontWeight.w500,
                         ),
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
                       ),
                     ],
                   ),
@@ -140,122 +140,231 @@ class _DonationCompletionSheetState extends State<DonationCompletionSheet> {
               ],
             ),
             const SizedBox(height: AppTheme.spacing20),
+            
+            // 구분선
+            Container(
+              height: 1,
+              color: Colors.grey.shade300,
+              margin: const EdgeInsets.only(bottom: AppTheme.spacing20),
+            ),
 
             // 반려동물 정보
             Container(
-              padding: const EdgeInsets.all(AppTheme.spacing16),
-              decoration: BoxDecoration(
-                color: AppTheme.lightBlue.withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(AppTheme.radius12),
-                border: Border.all(color: AppTheme.lightBlue),
-              ),
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(horizontal: 0),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  // 제목
                   Text(
                     '반려동물 정보',
+                    textAlign: TextAlign.left,
                     style: AppTheme.bodyLargeStyle.copyWith(
-                      fontWeight: FontWeight.w600,
-                      color: AppTheme.primaryBlue,
+                      fontWeight: FontWeight.bold,
+                      color: AppTheme.textPrimary,
                     ),
                   ),
-                  const SizedBox(height: AppTheme.spacing8),
+                  const SizedBox(height: 12),
+                  
+                  // 신청자
                   Row(
+                    mainAxisAlignment: MainAxisAlignment.start,
+                    crossAxisAlignment: CrossAxisAlignment.center,
                     children: [
-                      Icon(Icons.pets, size: 20, color: AppTheme.primaryBlue),
-                      const SizedBox(width: AppTheme.spacing8),
+                      SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: Center(
+                          child: FaIcon(
+                            FontAwesomeIcons.user,
+                            size: 16,
+                            color: Colors.black,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
                       Expanded(
                         child: Text(
-                          widget.appliedDonation.pet?.displayInfo ?? '반려동물 정보 없음',
-                          style: AppTheme.bodyMediumStyle,
+                          '신청자: ${widget.appliedDonation.userNickname ?? "정보 없음"}',
+                          style: AppTheme.bodyMediumStyle.copyWith(
+                            color: AppTheme.textPrimary,
+                          ),
                         ),
                       ),
                     ],
                   ),
-                  if (widget.appliedDonation.pet?.weightKg != null) ...[
-                    const SizedBox(height: AppTheme.spacing8),
-                    Text(
-                      '권장 헌혈량: ${CompletedDonation.getRecommendedBloodVolume(widget.appliedDonation.pet!.weightKg!).toStringAsFixed(1)}mL (체중 ${widget.appliedDonation.pet!.weightKg}kg 기준)',
-                      style: AppTheme.bodySmallStyle.copyWith(
-                        color: Colors.green.shade700,
-                        fontStyle: FontStyle.italic,
+                  const SizedBox(height: 12),
+                  
+                  // 반려동물
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.start,
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: Center(
+                          child: FaIcon(
+                            (widget.appliedDonation.pet?.animalTypeKr == '강아지') 
+                              ? FontAwesomeIcons.dog 
+                              : FontAwesomeIcons.cat,
+                            size: 16,
+                            color: Colors.black,
+                          ),
+                        ),
                       ),
-                    ),
-                  ],
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          '반려동물: ${widget.appliedDonation.pet?.name ?? "정보 없음"}(${widget.appliedDonation.pet?.breed ?? "품종 정보 없음"})',
+                          style: AppTheme.bodyMediumStyle.copyWith(
+                            color: AppTheme.textPrimary,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  
+                  // 혈액형
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.start,
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: Center(
+                          child: FaIcon(
+                            FontAwesomeIcons.droplet,
+                            size: 16,
+                            color: Colors.black,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          '혈액형: ${widget.appliedDonation.pet?.bloodType ?? "미등록"}',
+                          style: AppTheme.bodyMediumStyle.copyWith(
+                            color: AppTheme.textPrimary,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  
+                  // 몸무게
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.start,
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: Center(
+                          child: FaIcon(
+                            FontAwesomeIcons.weightScale,
+                            size: 16,
+                            color: Colors.black,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          '몸무게: ${widget.appliedDonation.pet?.weightKg ?? 0.0}kg',
+                          style: AppTheme.bodyMediumStyle.copyWith(
+                            color: AppTheme.textPrimary,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  
+                  // 나이
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.start,
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: Center(
+                          child: FaIcon(
+                            FontAwesomeIcons.cakeCandles,
+                            size: 16,
+                            color: Colors.black,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          '나이: ${widget.appliedDonation.pet?.age ?? 0}살',
+                          style: AppTheme.bodyMediumStyle.copyWith(
+                            color: AppTheme.textPrimary,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
                 ],
               ),
             ),
 
+            const SizedBox(height: AppTheme.spacing16),
+            const Divider(height: 1),
             const SizedBox(height: AppTheme.spacing20),
 
             // 헌혈량 입력
-            Text(
-              '헌혈량 (mL)',
-              style: AppTheme.bodyLargeStyle.copyWith(
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-            const SizedBox(height: AppTheme.spacing8),
-            TextField(
-              controller: _bloodVolumeController,
-              keyboardType: const TextInputType.numberWithOptions(decimal: true),
-              inputFormatters: [
-                FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d{0,2}')),
-              ],
-              decoration: InputDecoration(
-                hintText: '헌혈량을 입력하세요 (mL)',
-                suffixText: 'mL',
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(AppTheme.radius8),
-                ),
-                focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(AppTheme.radius8),
-                  borderSide: BorderSide(
-                    color: AppTheme.primaryBlue,
-                    width: 2,
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                Text(
+                  '헌혈량 (mL)',
+                  style: AppTheme.bodyLargeStyle.copyWith(
+                    fontWeight: FontWeight.w600,
                   ),
                 ),
-                errorBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(AppTheme.radius8),
-                  borderSide: const BorderSide(
-                    color: Colors.red,
-                    width: 2,
-                  ),
-                ),
-              ),
-              onChanged: (value) => _validateBloodVolume(),
-            ),
-
-            // 유효성 검사 메시지
-            if (validationMessage != null) ...[
-              const SizedBox(height: AppTheme.spacing8),
-              Container(
-                padding: const EdgeInsets.all(AppTheme.spacing12),
-                decoration: BoxDecoration(
-                  color: _getValidationColor().withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(AppTheme.radius8),
-                  border: Border.all(color: _getValidationColor()),
-                ),
-                child: Row(
-                  children: [
-                    Icon(
-                      _getValidationIcon(),
-                      size: 16,
-                      color: _getValidationColor(),
-                    ),
-                    const SizedBox(width: AppTheme.spacing8),
-                    Expanded(
-                      child: Text(
-                        validationMessage!,
-                        style: AppTheme.bodySmallStyle.copyWith(
-                          color: _getValidationColor(),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: TextField(
+                    controller: _bloodVolumeController,
+                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                    textAlign: TextAlign.right,
+                    inputFormatters: [
+                      FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d{0,2}')),
+                    ],
+                    decoration: InputDecoration(
+                      hintText: '헌혈량을 입력하세요 (mL)',
+                      suffixText: 'mL',
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(AppTheme.radius8),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(AppTheme.radius8),
+                        borderSide: BorderSide(
+                          color: AppTheme.primaryBlue,
+                          width: 2,
+                        ),
+                      ),
+                      errorBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(AppTheme.radius8),
+                        borderSide: const BorderSide(
+                          color: Colors.red,
+                          width: 2,
                         ),
                       ),
                     ),
-                  ],
+                    onChanged: (value) => _validateBloodVolume(),
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
+
 
             const SizedBox(height: AppTheme.spacing20),
 
@@ -311,7 +420,7 @@ class _DonationCompletionSheetState extends State<DonationCompletionSheet> {
                     },
                     icon: const Icon(Icons.access_time, size: 18),
                     label: Text(
-                      selectedCompletedTime.format(context),
+                      '${selectedCompletedTime.hour.toString().padLeft(2, '0')}:${selectedCompletedTime.minute.toString().padLeft(2, '0')}',
                       style: AppTheme.bodyMediumStyle,
                     ),
                   ),
@@ -324,22 +433,23 @@ class _DonationCompletionSheetState extends State<DonationCompletionSheet> {
             // 완료 처리 버튼
             SizedBox(
               width: double.infinity,
-              child: ElevatedButton(
+              child: OutlinedButton(
                 onPressed: _canSubmit() ? _completeBloodDonation : null,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.green,
-                  foregroundColor: Colors.white,
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: Colors.green.shade700,
+                  side: BorderSide(color: Colors.green.shade400),
+                  backgroundColor: Colors.green.shade50,
                   padding: const EdgeInsets.symmetric(vertical: AppTheme.spacing16),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(AppTheme.radius8),
                   ),
                 ),
                 child: isSubmitting 
-                    ? const SizedBox(
+                    ? SizedBox(
                         width: 20,
                         height: 20,
                         child: CircularProgressIndicator(
-                          color: Colors.white,
+                          color: Colors.green.shade700,
                           strokeWidth: 2,
                         ),
                       )
@@ -353,31 +463,6 @@ class _DonationCompletionSheetState extends State<DonationCompletionSheet> {
     );
   }
 
-  Color _getValidationColor() {
-    switch (validationLevel) {
-      case 'error':
-        return Colors.red;
-      case 'warning':
-        return Colors.orange;
-      case 'success':
-        return Colors.green;
-      default:
-        return Colors.grey;
-    }
-  }
-
-  IconData _getValidationIcon() {
-    switch (validationLevel) {
-      case 'error':
-        return Icons.error;
-      case 'warning':
-        return Icons.warning;
-      case 'success':
-        return Icons.check_circle;
-      default:
-        return Icons.info;
-    }
-  }
 
   bool _canSubmit() {
     if (isSubmitting) return false;

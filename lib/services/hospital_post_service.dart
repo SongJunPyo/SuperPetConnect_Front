@@ -161,7 +161,7 @@ class HospitalPostService {
       final postIdInt = int.tryParse(postId) ?? 0;
       
       final response = await http.get(
-        Uri.parse('$baseUrl/api/applied_donation/post/$postIdInt/applications'),
+        Uri.parse('$baseUrl/api/hospital/posts/$postIdInt/applicants'),
         headers: {
           'Authorization': 'Bearer $token',
           'Content-Type': 'application/json; charset=UTF-8',

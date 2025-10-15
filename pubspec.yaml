@@ -51,6 +51,8 @@ dependencies:
   web_socket_channel: ^2.4.0
   # 환경변수 관리
   flutter_dotenv: ^5.1.0
+  # 이미지 선택
+  image_picker: ^1.0.7
 
 dev_dependencies:
   flutter_test:

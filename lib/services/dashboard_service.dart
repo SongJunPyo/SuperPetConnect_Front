@@ -422,6 +422,8 @@ class DonationPost {
   final List<DonationPostDate>? donationDates; // 헌혈 날짜 목록 (기존 호환성)
   final Map<String, List<Map<String, dynamic>>>?
   availableDates; // 서버의 available_dates 구조
+  final int applicantCount; // 신청자 수
+  final String? userName; // 병원 담당자 이름
 
   DonationPost({
     required this.postIdx,
@@ -441,6 +443,8 @@ class DonationPost {
     this.updatedAt,
     this.donationDates,
     this.availableDates,
+    required this.applicantCount,
+    this.userName,
   });
 
   // 헌혈 예정일을 반환하는 getter (실제 헌혈 예정일 우선, 없으면 게시글 작성일)
@@ -492,8 +496,8 @@ class DonationPost {
       }
     }
 
-    // 3. 최상위 hospital_nickname 필드 확인
-    final topLevelNickname = json['hospital_nickname'];
+    // 3. 최상위 nickname, hospital_nickname 또는 hospitalNickname 필드 확인
+    final topLevelNickname = json['nickname'] ?? json['hospital_nickname'] ?? json['hospitalNickname'];
     if (topLevelNickname != null &&
         topLevelNickname.toString().trim().isNotEmpty &&
         topLevelNickname.toString().toLowerCase() != 'null') {
@@ -648,7 +652,7 @@ class DonationPost {
       emergencyBloodType:
           json['emergency_blood_type']?.toString() ??
           json['bloodType']?.toString(),
-      status: _parseIntSafely(json['status']) ?? 0,
+      status: _parseStatus(json['status']),
       types: typesValue,
       viewCount: _parseIntSafely(json['viewCount']) ?? 0,
       createdAt: _parseCreatedAt(json),
@@ -657,6 +661,8 @@ class DonationPost {
       updatedAt: null,
       availableDates: availableDates,
       donationDates: null,
+      applicantCount: _parseIntSafely(json['applicantCount'] ?? json['applicant_count']) ?? 0,
+      userName: json['userName']?.toString() ?? json['user_name']?.toString(),
     );
   }
 
@@ -666,6 +672,34 @@ class DonationPost {
     if (value is int) return value;
     if (value is String) return int.tryParse(value);
     return int.tryParse(value.toString());
+  }
+
+  // status 파싱 헬퍼 메서드 (string과 int 모두 처리)
+  static int _parseStatus(dynamic value) {
+    if (value == null) return 0;
+    if (value is int) return value;
+    if (value is String) {
+      // 공개 API의 string status를 int로 변환
+      switch (value.toLowerCase()) {
+        case '대기':
+          return 0;
+        case '모집중':
+        case '승인':
+          return 1;
+        case '거절':
+          return 2;
+        case '모집마감':
+        case '마감':
+          return 3;
+        case '완료':
+          return 3;
+        case '취소':
+          return 4;
+        default:
+          return int.tryParse(value) ?? 0;
+      }
+    }
+    return 0;
   }
 
   // _parseAvailableDates 함수 제거됨 (이미 위에서 처리)

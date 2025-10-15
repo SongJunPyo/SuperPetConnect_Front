@@ -15,6 +15,7 @@ class AppliedDonation {
   final DateTime? donationDate;
   final String? postTitle;
   final String? hospitalName;
+  final String? userNickname;
 
   AppliedDonation({
     this.appliedDonationIdx,
@@ -27,6 +28,7 @@ class AppliedDonation {
     this.donationDate,
     this.postTitle,
     this.hospitalName,
+    this.userNickname,
   });
 
   factory AppliedDonation.fromJson(Map<String, dynamic> json) {
@@ -47,6 +49,7 @@ class AppliedDonation {
           : null,
       postTitle: json['post_title'],
       hospitalName: json['hospital_name'],
+      userNickname: json['user_nickname'] ?? json['nickname'],
     );
   }
 
@@ -139,6 +142,7 @@ class AppliedDonation {
     DateTime? donationDate,
     String? postTitle,
     String? hospitalName,
+    String? userNickname,
   }) {
     return AppliedDonation(
       appliedDonationIdx: appliedDonationIdx ?? this.appliedDonationIdx,
@@ -151,6 +155,7 @@ class AppliedDonation {
       donationDate: donationDate ?? this.donationDate,
       postTitle: postTitle ?? this.postTitle,
       hospitalName: hospitalName ?? this.hospitalName,
+      userNickname: userNickname ?? this.userNickname,
     );
   }
 }
@@ -230,6 +235,8 @@ class Pet {
   final double? weightKg;
   final String? animalType;
   final int? age;
+  final String? species;
+  final String? breed;
 
   Pet({
     this.petIdx,
@@ -238,6 +245,8 @@ class Pet {
     this.weightKg,
     this.animalType,
     this.age,
+    this.species,
+    this.breed,
   });
 
   factory Pet.fromJson(Map<String, dynamic> json) {
@@ -247,7 +256,9 @@ class Pet {
       bloodType: json['blood_type'],
       weightKg: json['weight_kg']?.toDouble(),
       animalType: json['animal_type'],
-      age: json['age'],
+      age: json['age'] ?? json['age_number'],  // age 또는 age_number 필드 사용
+      species: json['species'],  // 이제 서버에서 "dog"/"cat"으로 제공
+      breed: json['breed'],  // 실제 품종 정보 (예: "골든 리트리버")
     );
   }
 
@@ -259,6 +270,8 @@ class Pet {
       'weight_kg': weightKg,
       'animal_type': animalType,
       'age': age,
+      'species': species,
+      'breed': breed,
     };
   }
 
@@ -276,9 +289,19 @@ class Pet {
   }
 
   String get animalTypeKr {
-    if (animalType == 'dog') return '강아지';
-    if (animalType == 'cat') return '고양이';
-    return animalType ?? '';
+    // species를 우선 사용 (서버에서 "dog"/"cat"으로 제공)
+    String typeSource = species ?? animalType ?? '';
+    if (typeSource == 'dog' || typeSource == '강아지' || typeSource == '개') return '강아지';
+    if (typeSource == 'cat' || typeSource == '고양이') return '고양이';
+    return typeSource.isEmpty ? '정보 없음' : typeSource;
+  }
+
+  // species getter - species 필드 우선 사용
+  String get speciesKr {
+    String sourceType = species ?? animalType ?? '';
+    if (sourceType == 'dog' || sourceType == '강아지' || sourceType == '개') return '강아지';
+    if (sourceType == 'cat' || sourceType == '고양이') return '고양이';
+    return sourceType.isEmpty ? '정보 없음' : sourceType;
   }
 }
 

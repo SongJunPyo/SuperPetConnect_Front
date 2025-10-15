@@ -793,7 +793,7 @@ class _AdminApprovedPostsScreenState extends State<AdminApprovedPostsScreen>
               itemBuilder: (context, index) {
                 final post = filteredPosts[index];
                 String postStatus = _getPostStatus(post['status']);
-                String postType = post['types'] == 1 ? '긴급' : '정기';
+                String postType = post['types'] == 0 ? '긴급' : '정기';
 
                 return _buildPostListItem(post, index, postStatus, postType);
               },

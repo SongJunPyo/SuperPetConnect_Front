@@ -7,7 +7,10 @@
       "Read(D:\\SuperPetConnect_Front/**)",
       "Bash(flutter pub:*)",
       "Bash(flutter analyze:*)",
-      "Read(//d/SuperPetConnect_Front/**)"
+      "Read(//d/SuperPetConnect_Front/**)",
+      "Bash(flutter clean:*)",
+      "Bash(gradlew:*)",
+      "Bash(./gradlew:*)"
     ],
     "deny": [],
     "ask": []

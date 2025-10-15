@@ -178,23 +178,9 @@ class _HospitalPostState extends State<HospitalPost> {
 
 
       if (response.statusCode == 201) {
-        // 게시글이 성공적으로 생성된 경우, 선택된 헌혈 날짜들도 추가
-        final responseData = jsonDecode(response.body);
-        final postIdx = responseData['postIdx'] ?? responseData['post_idx'];
-
-        if (postIdx != null && selectedDonationDatesWithTimes.isNotEmpty) {
-          try {
-            for (final dateWithTimes in selectedDonationDatesWithTimes) {
-              await DonationTimeService.createDateWithTimes(
-                postIdx,
-                dateWithTimes.donationDate,
-                dateWithTimes.times.map((t) => t.donationTime).toList(),
-              );
-            }
-          } catch (e) {
-            // 게시글은 성공했지만 날짜+시간 추가가 실패한 경우에도 성공으로 처리
-          }
-        }
+        // 게시글이 성공적으로 생성된 경우
+        // dateTimeSlots 필드로 서버에서 날짜+시간을 자동 생성하므로
+        // 추가 API 호출 불필요
 
         _showAlertDialog('성공', '게시글이 성공적으로 등록되었습니다.', () {
           Navigator.of(context).pop(); // 다이얼로그 닫기

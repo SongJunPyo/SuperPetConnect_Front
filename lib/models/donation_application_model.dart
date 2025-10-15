@@ -15,6 +15,7 @@ class DonationApplication {
   final String? selectedTime;    // selected_time
   final String? selectedTeam;    // selected_team
   final String? appliedDate;     // applied_date
+  final String? userNickname;    // user_nickname - 신청자 닉네임
 
   DonationApplication({
     required this.appliedDonationIdx,
@@ -30,6 +31,7 @@ class DonationApplication {
     this.selectedTime,
     this.selectedTeam,
     this.appliedDate,
+    this.userNickname,
   });
 
   factory DonationApplication.fromJson(Map<String, dynamic> json) {
@@ -47,6 +49,7 @@ class DonationApplication {
       selectedTime: json['selected_time'],
       selectedTeam: json['selected_team'],
       appliedDate: json['applied_date'],
+      userNickname: json['user_nickname'] ?? json['nickname'],
     );
   }
 
@@ -65,6 +68,7 @@ class DonationApplication {
       'selected_time': selectedTime,
       'selected_team': selectedTeam,
       'applied_date': appliedDate,
+      'user_nickname': userNickname,
     };
   }
 }
@@ -113,7 +117,7 @@ class DonationPet {
   }
 
   String get displayText => '$name ($bloodType)';
-  String get speciesKorean => species == 'dog' ? '반려견' : '반려묘';
+  String get speciesKorean => (species == 'dog' || species == '강아지' || species == '개') ? '반려견' : '반려묘';
   String get age => ageNumber <= 0 ? '1살 미만' : '$ageNumber살';
 }
 

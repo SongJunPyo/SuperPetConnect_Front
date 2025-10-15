@@ -7,8 +7,8 @@ import '../utils/app_theme.dart';
 import 'package:intl/intl.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import '../models/applied_donation_model.dart';
-import 'donation_completion_dialog.dart';
-import 'donation_cancellation_dialog.dart';
+import 'donation_completion_sheet.dart';
+import 'donation_cancellation_sheet.dart';
 
 class HospitalPostCheck extends StatefulWidget {
   const HospitalPostCheck({super.key});
@@ -275,7 +275,10 @@ class _HospitalPostCheckState extends State<HospitalPostCheck>
                       indicatorColor: Colors.black,
                       labelColor: Colors.black,
                       unselectedLabelColor: Colors.grey,
-                      labelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                      labelStyle: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 14,
+                      ),
                       unselectedLabelStyle: const TextStyle(fontSize: 14),
                       indicatorWeight: 3.0,
                     ),
@@ -501,7 +504,6 @@ class _HospitalPostCheckState extends State<HospitalPostCheck>
                 '${post.applicantCount > 99 ? '99+' : post.applicantCount}명',
                 style: AppTheme.bodySmallStyle.copyWith(
                   fontSize: 11,
-                  fontWeight: FontWeight.w600,
                   color: AppTheme.primaryBlue,
                 ),
                 textAlign: TextAlign.center,
@@ -656,7 +658,7 @@ class _PostDetailBottomSheetState extends State<PostDetailBottomSheet> {
     }
   }
 
-  // 헌혈 완료 다이얼로그 표시
+  // 헌혈 완료 바텀시트 표시
   void _showCompletionDialog(DonationApplication applicant) {
     // AppliedDonation 객체 생성
     final appliedDonation = AppliedDonation(
@@ -664,12 +666,16 @@ class _PostDetailBottomSheetState extends State<PostDetailBottomSheet> {
       petIdx: applicant.pet.petIdx,
       postTimesIdx: applicant.postTimesIdx,
       status: applicant.status,
+      userNickname: applicant.userNickname,
       pet: Pet(
         petIdx: applicant.pet.petIdx,
         name: applicant.pet.name,
         bloodType: applicant.pet.bloodType,
         weightKg: applicant.pet.weightKg,
         age: applicant.pet.ageNumber,
+        species: applicant.pet.species,
+        animalType: applicant.pet.species,
+        breed: applicant.pet.breed,
       ),
       donationTime:
           applicant.selectedTime != null
@@ -681,15 +687,19 @@ class _PostDetailBottomSheetState extends State<PostDetailBottomSheet> {
       hospitalName: widget.post.nickname,
     );
 
-    showDialog(
+    showModalBottomSheet(
       context: context,
-      barrierDismissible: false,
+      isScrollControlled: true,
+      isDismissible: false,
+      enableDrag: false,
+      backgroundColor: Colors.transparent,
       builder:
-          (context) => DonationCompletionDialog(
+          (context) => DonationCompletionSheet(
             appliedDonation: appliedDonation,
             onCompleted: (completedDonation) {
               // 완료 처리 후 목록 새로고침
               _loadApplicants();
+              Navigator.pop(context); // 바텀시트 닫기
               ScaffoldMessenger.of(context).showSnackBar(
                 const SnackBar(
                   content: Text('1차 헌혈 완료 처리되었습니다. 관리자 승인을 기다리고 있습니다.'),
@@ -701,7 +711,7 @@ class _PostDetailBottomSheetState extends State<PostDetailBottomSheet> {
     );
   }
 
-  // 헌혈 중단 다이얼로그 표시
+  // 헌혈 중단 바텀시트 표시
   void _showCancellationDialog(DonationApplication applicant) {
     // AppliedDonation 객체 생성
     final appliedDonation = AppliedDonation(
@@ -709,12 +719,16 @@ class _PostDetailBottomSheetState extends State<PostDetailBottomSheet> {
       petIdx: applicant.pet.petIdx,
       postTimesIdx: applicant.postTimesIdx,
       status: applicant.status,
+      userNickname: applicant.userNickname,
       pet: Pet(
         petIdx: applicant.pet.petIdx,
         name: applicant.pet.name,
         bloodType: applicant.pet.bloodType,
         weightKg: applicant.pet.weightKg,
         age: applicant.pet.ageNumber,
+        species: applicant.pet.species,
+        animalType: applicant.pet.species,
+        breed: applicant.pet.breed,
       ),
       donationTime:
           applicant.selectedTime != null
@@ -726,15 +740,19 @@ class _PostDetailBottomSheetState extends State<PostDetailBottomSheet> {
       hospitalName: widget.post.nickname,
     );
 
-    showDialog(
+    showModalBottomSheet(
       context: context,
-      barrierDismissible: false,
+      isScrollControlled: true,
+      isDismissible: false,
+      enableDrag: false,
+      backgroundColor: Colors.transparent,
       builder:
-          (context) => DonationCancellationDialog(
+          (context) => DonationCancellationSheet(
             appliedDonation: appliedDonation,
             onCancelled: (cancelledDonation) {
               // 중단 처리 후 목록 새로고침
               _loadApplicants();
+              Navigator.pop(context); // 바텀시트 닫기
               ScaffoldMessenger.of(context).showSnackBar(
                 const SnackBar(
                   content: Text('1차 헌혈 중단 처리되었습니다. 관리자 승인을 기다리고 있습니다.'),
@@ -847,44 +865,49 @@ class _PostDetailBottomSheetState extends State<PostDetailBottomSheet> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // 닉네임
+                    // 병원명과 등록일
                     Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Icon(
-                          Icons.business,
-                          size: 16,
-                          color: AppTheme.textSecondary,
-                        ),
-                        const SizedBox(width: 8),
-                        Text(
-                          widget.post.nickname,
-                          style: AppTheme.bodyMediumStyle.copyWith(
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                        const Spacer(),
-                        // 상태 표시
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 8.0,
-                            vertical: 4.0,
-                          ),
-                          decoration: BoxDecoration(
-                            color: _getStatusColor().withValues(alpha: 0.15),
-                            borderRadius: BorderRadius.circular(8.0),
-                          ),
-                          child: Text(
-                            _getStatusText(),
-                            style: AppTheme.bodySmallStyle.copyWith(
-                              fontWeight: FontWeight.w600,
-                              color: _getStatusColor(),
+                        // 병원명
+                        Row(
+                          children: [
+                            Icon(
+                              Icons.business,
+                              size: 16,
+                              color: AppTheme.textSecondary,
                             ),
+                            const SizedBox(width: 8),
+                            Text(
+                              '병원명: ',
+                              style: AppTheme.bodyMediumStyle.copyWith(
+                                fontWeight: FontWeight.w500,
+                                color: AppTheme.textPrimary,
+                              ),
+                            ),
+                            Text(
+                              widget.post.nickname,
+                              style: AppTheme.bodyMediumStyle.copyWith(
+                                fontWeight: FontWeight.w600,
+                                color: AppTheme.textPrimary,
+                              ),
+                            ),
+                          ],
+                        ),
+                        // 등록일 (가장 오른쪽)
+                        Text(
+                          DateFormat(
+                            'yy.MM.dd',
+                          ).format(DateTime.parse(widget.post.createdDate)),
+                          style: AppTheme.bodySmallStyle.copyWith(
+                            color: AppTheme.textSecondary,
                           ),
                         ),
                       ],
                     ),
                     const SizedBox(height: 8),
-                    // 이름
+
+                    // 담당자 이름
                     Row(
                       children: [
                         Icon(
@@ -894,14 +917,25 @@ class _PostDetailBottomSheetState extends State<PostDetailBottomSheet> {
                         ),
                         const SizedBox(width: 8),
                         Text(
-                          widget.post.name,
+                          '담당자: ',
                           style: AppTheme.bodyMediumStyle.copyWith(
                             fontWeight: FontWeight.w500,
+                            color: AppTheme.textPrimary,
+                          ),
+                        ),
+                        Expanded(
+                          child: Text(
+                            widget.post.name,
+                            style: AppTheme.bodyMediumStyle.copyWith(
+                              fontWeight: FontWeight.w600,
+                              color: AppTheme.textPrimary,
+                            ),
                           ),
                         ),
                       ],
                     ),
                     const SizedBox(height: 8),
+
                     // 주소
                     Row(
                       children: [
@@ -911,15 +945,25 @@ class _PostDetailBottomSheetState extends State<PostDetailBottomSheet> {
                           color: AppTheme.textSecondary,
                         ),
                         const SizedBox(width: 8),
+                        Text(
+                          '주소: ',
+                          style: AppTheme.bodyMediumStyle.copyWith(
+                            fontWeight: FontWeight.w600,
+                            color: AppTheme.textPrimary,
+                          ),
+                        ),
                         Expanded(
                           child: Text(
                             widget.post.location,
-                            style: AppTheme.bodyMediumStyle,
+                            style: AppTheme.bodyMediumStyle.copyWith(
+                              color: AppTheme.textPrimary,
+                            ),
                           ),
                         ),
                       ],
                     ),
                     const SizedBox(height: 8),
+
                     // 동물 종류
                     Row(
                       children: [
@@ -932,14 +976,25 @@ class _PostDetailBottomSheetState extends State<PostDetailBottomSheet> {
                         ),
                         const SizedBox(width: 8),
                         Text(
-                          widget.post.animalTypeText,
+                          '동물 종류: ',
                           style: AppTheme.bodyMediumStyle.copyWith(
                             fontWeight: FontWeight.w500,
+                            color: AppTheme.textPrimary,
+                          ),
+                        ),
+                        Expanded(
+                          child: Text(
+                            widget.post.animalTypeText,
+                            style: AppTheme.bodyMediumStyle.copyWith(
+                              fontWeight: FontWeight.w600,
+                              color: AppTheme.textPrimary,
+                            ),
                           ),
                         ),
                       ],
                     ),
                     const SizedBox(height: 8),
+
                     // 신청자 수
                     Row(
                       children: [
@@ -950,10 +1005,19 @@ class _PostDetailBottomSheetState extends State<PostDetailBottomSheet> {
                         ),
                         const SizedBox(width: 8),
                         Text(
-                          '${applicants.length}명',
+                          '신청자 수: ',
                           style: AppTheme.bodyMediumStyle.copyWith(
-                            fontWeight: FontWeight.w600,
-                            color: AppTheme.primaryBlue,
+                            fontWeight: FontWeight.w500,
+                            color: AppTheme.textPrimary,
+                          ),
+                        ),
+                        Expanded(
+                          child: Text(
+                            '${applicants.length}명',
+                            style: AppTheme.bodyMediumStyle.copyWith(
+                              fontWeight: FontWeight.w600,
+                              color: AppTheme.textPrimary,
+                            ),
                           ),
                         ),
                       ],
@@ -1028,23 +1092,6 @@ class _PostDetailBottomSheetState extends State<PostDetailBottomSheet> {
                         ),
                       ],
                       const SizedBox(height: 8),
-                      // 작성일
-                      Row(
-                        children: [
-                          Icon(
-                            Icons.calendar_today,
-                            size: 16,
-                            color: AppTheme.textSecondary,
-                          ),
-                          const SizedBox(width: 8),
-                          Text(
-                            _formatDateWithWeekday(widget.post.createdDate),
-                            style: AppTheme.bodyMediumStyle.copyWith(
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
-                        ],
-                      ),
 
                       const SizedBox(height: 24),
 
@@ -1054,41 +1101,6 @@ class _PostDetailBottomSheetState extends State<PostDetailBottomSheet> {
 
                       // 드롭다운 형태의 날짜/시간 선택 UI
                       _buildDateTimeDropdown(),
-
-                      const SizedBox(height: 24),
-
-                      // 신청자 목록
-                      Text(
-                        '신청자 목록 (${applicants.length}명)',
-                        style: AppTheme.h4Style,
-                      ),
-                      const SizedBox(height: 12),
-
-                      if (isLoading)
-                        const Center(child: CircularProgressIndicator())
-                      else if (errorMessage != null)
-                        Center(
-                          child: Text(
-                            '신청자 목록을 불러올 수 없습니다: $errorMessage',
-                            style: AppTheme.bodyMediumStyle.copyWith(
-                              color: Colors.red,
-                            ),
-                            textAlign: TextAlign.center,
-                          ),
-                        )
-                      else if (applicants.isEmpty)
-                        Center(
-                          child: Text(
-                            '아직 신청자가 없습니다',
-                            style: AppTheme.bodyMediumStyle.copyWith(
-                              color: Colors.grey,
-                            ),
-                          ),
-                        )
-                      else
-                        ...applicants.map(
-                          (applicant) => _buildApplicantCard(applicant),
-                        ),
                     ],
                   ),
                 ),
@@ -1101,209 +1113,196 @@ class _PostDetailBottomSheetState extends State<PostDetailBottomSheet> {
   }
 
   Widget _buildApplicantCard(DonationApplication applicant) {
-    return Card(
-      elevation: 1,
-      margin: const EdgeInsets.only(bottom: 8),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(8),
-        side: BorderSide(color: Colors.grey.shade200),
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.grey.shade200),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.04),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
       ),
-      child: Padding(
-        padding: const EdgeInsets.all(12.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // 상단: 반려동물 정보와 상태
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // 반려동물 아이콘
+              Container(
+                width: 48,
+                height: 48,
+                decoration: BoxDecoration(
+                  color: Colors.grey[200],
+                  borderRadius: BorderRadius.circular(24),
+                ),
+                child: Icon(
+                  applicant.pet.species == '강아지' || applicant.pet.species == '개'
+                      ? FontAwesomeIcons.dog
+                      : FontAwesomeIcons.cat,
+                  color: Colors.black,
+                  size: 24,
+                ),
+              ),
+              const SizedBox(width: 12),
+
+              // 반려동물 정보
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              // 신청자 닉네임
+                              Text(
+                                '신청자: ${applicant.userNickname ?? "정보 없음"}',
+                                style: AppTheme.bodyMediumStyle.copyWith(
+                                  fontWeight: FontWeight.w600,
+                                  color: AppTheme.textPrimary,
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              // 반려동물 이름
+                              Text(
+                                '반려동물: ${applicant.pet.name}',
+                                style: AppTheme.bodyMediumStyle.copyWith(
+                                  color: AppTheme.textSecondary,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        _buildStatusChip(applicant.status),
+                      ],
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      '${applicant.pet.breed ?? applicant.pet.speciesKorean} • ${applicant.pet.bloodType ?? "미등록"} • ${applicant.pet.weightKg}kg',
+                      style: AppTheme.bodyMediumStyle.copyWith(
+                        color: AppTheme.textSecondary,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+
+          // 신청 시간대 정보 (간소화)
+          if (applicant.selectedDate != null &&
+              applicant.selectedTime != null) ...[
+            const SizedBox(height: 16),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              decoration: BoxDecoration(
+                color: Colors.blue.shade50,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.access_time,
+                    size: 16,
+                    color: Colors.blue.shade600,
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    '${_formatDateWithWeekday(applicant.selectedDate!)} ${_formatTime(applicant.selectedTime!)}',
+                    style: AppTheme.bodyMediumStyle.copyWith(
+                      color: Colors.blue.shade700,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+
+          // 액션 버튼 또는 상태 메시지
+          if (applicant.status == 1) ...[
+            const SizedBox(height: 16),
             Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text(
-                  applicant.pet.name,
-                  style: AppTheme.bodyLargeStyle.copyWith(
-                    fontWeight: FontWeight.w600,
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: () => _showCancellationDialog(applicant),
+                    icon: const Icon(
+                      Icons.close,
+                      size: 18,
+                      color: Colors.black,
+                    ),
+                    label: const Text('헌혈 중단'),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: Colors.red.shade700,
+                      side: BorderSide(color: Colors.red.shade400),
+                      backgroundColor: Colors.red.shade50,
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                    ),
                   ),
                 ),
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 6.0,
-                    vertical: 2.0,
-                  ),
-                  decoration: BoxDecoration(
-                    color: _getApplicantStatusColor(
-                      applicant.status,
-                    ).withValues(alpha: 0.15),
-                    borderRadius: BorderRadius.circular(6.0),
-                  ),
-                  child: Text(
-                    _getApplicantStatusText(applicant.status),
-                    style: AppTheme.bodySmallStyle.copyWith(
-                      fontWeight: FontWeight.w600,
-                      color: _getApplicantStatusColor(applicant.status),
-                      fontSize: 10,
+                const SizedBox(width: 12),
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: () => _showCompletionDialog(applicant),
+                    icon: const Icon(
+                      Icons.check,
+                      size: 18,
+                      color: Colors.black,
+                    ),
+                    label: const Text('헌혈 완료'),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: Colors.green.shade700,
+                      side: BorderSide(color: Colors.green.shade400),
+                      backgroundColor: Colors.green.shade50,
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
                     ),
                   ),
                 ),
               ],
             ),
-            const SizedBox(height: 8),
-            Text(
-              '${applicant.pet.speciesKorean} • ${applicant.pet.bloodType ?? "미등록"} • ${applicant.pet.weightKg}kg • ${applicant.pet.age}',
-              style: AppTheme.bodySmallStyle.copyWith(
-                color: AppTheme.textSecondary,
-              ),
-            ),
-            // 신청한 시간대 정보 표시
-            if (applicant.selectedDate != null &&
-                applicant.selectedTime != null) ...[
-              const SizedBox(height: 8),
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: Colors.blue.shade50,
-                  borderRadius: BorderRadius.circular(6),
-                  border: Border.all(color: Colors.blue.shade200),
-                ),
-                child: Row(
-                  children: [
-                    Icon(Icons.schedule, size: 14, color: Colors.blue.shade700),
-                    const SizedBox(width: 6),
-                    Text(
-                      '신청 시간: ${_formatDateWithWeekday(applicant.selectedDate!)} ${_formatTime(applicant.selectedTime!)} (${applicant.selectedTeam?.toString() ?? "A"}팀)',
-                      style: AppTheme.bodySmallStyle.copyWith(
-                        color: Colors.blue.shade700,
-                        fontWeight: FontWeight.w500,
-                        fontSize: 11,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-            // 승인된 상태일 때만 완료/중단 버튼 표시
-            if (applicant.status == 1) ...[
-              const SizedBox(height: 12),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.end,
-                children: [
-                  // 헌혈 중단 버튼
-                  OutlinedButton.icon(
-                    onPressed: () => _showCancellationDialog(applicant),
-                    icon: const Icon(Icons.cancel_outlined, size: 16),
-                    label: const Text('헌혈 중단'),
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: Colors.orange,
-                      side: const BorderSide(color: Colors.orange),
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 6,
-                      ),
-                      textStyle: AppTheme.bodySmallStyle.copyWith(
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  // 헌혈 완료 버튼
-                  ElevatedButton.icon(
-                    onPressed: () => _showCompletionDialog(applicant),
-                    icon: const Icon(Icons.check_circle, size: 16),
-                    label: const Text('헌혈 완료'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.green,
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 6,
-                      ),
-                      textStyle: AppTheme.bodySmallStyle.copyWith(
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ],
-            // 완료대기/중단대기 상태 표시
-            if (applicant.status == 5 || applicant.status == 6) ...[
-              const SizedBox(height: 12),
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color:
-                      applicant.status == 5
-                          ? Colors.green.shade50
-                          : Colors.orange.shade50,
-                  borderRadius: BorderRadius.circular(6),
-                  border: Border.all(
-                    color:
-                        applicant.status == 5
-                            ? Colors.green.shade200
-                            : Colors.orange.shade200,
-                  ),
-                ),
-                child: Row(
-                  children: [
-                    Icon(
-                      applicant.status == 5
-                          ? Icons.hourglass_top
-                          : Icons.hourglass_bottom,
-                      size: 14,
-                      color:
-                          applicant.status == 5
-                              ? Colors.green.shade700
-                              : Colors.orange.shade700,
-                    ),
-                    const SizedBox(width: 6),
-                    Text(
-                      applicant.status == 5
-                          ? '관리자 승인 대기 중 (완료)'
-                          : '관리자 승인 대기 중 (중단)',
-                      style: AppTheme.bodySmallStyle.copyWith(
-                        color:
-                            applicant.status == 5
-                                ? Colors.green.shade700
-                                : Colors.orange.shade700,
-                        fontWeight: FontWeight.w500,
-                        fontSize: 11,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
           ],
-        ),
+        ],
       ),
     );
   }
 
-  String _getStatusText() {
-    switch (widget.post.status) {
-      case 0:
-        return '대기';
-      case 1:
-        return '승인';
-      case 2:
-        return '취소';
-      case 3:
-        return '완료';
-      default:
-        return '알 수 없음';
-    }
-  }
-
-  Color _getStatusColor() {
-    switch (widget.post.status) {
-      case 0:
-        return AppTheme.warning;
-      case 1:
-        return AppTheme.primaryBlue;
-      case 2:
-        return AppTheme.error;
-      case 3:
-        return AppTheme.success;
-      default:
-        return AppTheme.textPrimary;
-    }
+  Widget _buildStatusChip(int status) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: _getApplicantStatusColor(status).withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: _getApplicantStatusColor(status).withValues(alpha: 0.3),
+        ),
+      ),
+      child: Text(
+        _getApplicantStatusText(status),
+        style: TextStyle(
+          color: _getApplicantStatusColor(status),
+          fontSize: 11,
+          fontWeight: FontWeight.bold,
+        ),
+      ),
+    );
   }
 
   String _getApplicantStatusText(int status) {
@@ -1370,7 +1369,7 @@ class _PostDetailBottomSheetState extends State<PostDetailBottomSheet> {
     }
   }
 
-  // 시간 포맷팅 메서드
+  // 시간 포맷팅 메서드 - 24시간제
   String _formatTime(String time24) {
     if (time24.isEmpty) return '시간 미정';
 
@@ -1379,15 +1378,7 @@ class _PostDetailBottomSheetState extends State<PostDetailBottomSheet> {
       if (parts.length == 2) {
         final hour = int.parse(parts[0]);
         final minute = parts[1];
-        if (hour == 0) {
-          return '오전 12:$minute';
-        } else if (hour < 12) {
-          return '오전 ${hour.toString().padLeft(2, '0')}:$minute';
-        } else if (hour == 12) {
-          return '오후 12:$minute';
-        } else {
-          return '오후 ${(hour - 12).toString().padLeft(2, '0')}:$minute';
-        }
+        return '${hour.toString().padLeft(2, '0')}:$minute';
       }
     } catch (e) {
       return time24;
@@ -1423,7 +1414,7 @@ class _PostDetailBottomSheetState extends State<PostDetailBottomSheet> {
       final dateStr = timeRange.date ?? widget.post.createdDate;
       // 날짜+시간+팀으로 고유키 생성하여 중복 체크
       final uniqueKey = '$dateStr-${timeRange.time}-${timeRange.team}';
-      
+
       if (!seenTimeSlots.contains(uniqueKey)) {
         seenTimeSlots.add(uniqueKey);
         if (!groupedByDate.containsKey(dateStr)) {
@@ -1492,41 +1483,73 @@ class _PostDetailBottomSheetState extends State<PostDetailBottomSheet> {
                             horizontal: 20,
                             vertical: 4,
                           ),
-                          padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(
+                          child: Material(
                             color: Colors.grey.shade50,
                             borderRadius: BorderRadius.circular(8),
-                            border: Border.all(color: Colors.grey.shade200),
-                          ),
-                          child: Row(
-                            children: [
-                              Icon(
-                                Icons.access_time,
-                                size: 16,
-                                color: Colors.black,
-                              ),
-                              const SizedBox(width: 12),
-                              Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    '헌혈 시간',
-                                    style: AppTheme.bodySmallStyle.copyWith(
+                            child: InkWell(
+                              borderRadius: BorderRadius.circular(8),
+                              onTap:
+                                  () => _showApplicantsBottomSheet(
+                                    dateStr,
+                                    timeSlot,
+                                  ),
+                              child: Container(
+                                padding: const EdgeInsets.all(12),
+                                decoration: BoxDecoration(
+                                  borderRadius: BorderRadius.circular(8),
+                                  border: Border.all(
+                                    color: Colors.grey.shade200,
+                                  ),
+                                ),
+                                child: Row(
+                                  children: [
+                                    Icon(
+                                      Icons.access_time,
+                                      size: 16,
+                                      color: Colors.black,
+                                    ),
+                                    const SizedBox(width: 12),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            '헌혈 시간',
+                                            style: AppTheme.bodySmallStyle
+                                                .copyWith(
+                                                  color: Colors.grey[600],
+                                                  fontSize: 12,
+                                                ),
+                                          ),
+                                          const SizedBox(height: 2),
+                                          Text(
+                                            '${_formatTime(timeSlot.time)} (${_getApplicantCountForTimeSlot(dateStr, timeSlot)}명 신청)',
+                                            style: AppTheme.bodyMediumStyle
+                                                .copyWith(
+                                                  fontWeight: FontWeight.w600,
+                                                  color: AppTheme.textPrimary,
+                                                ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                    const SizedBox(width: 12),
+                                    Icon(
+                                      Icons.people_outline,
+                                      size: 20,
                                       color: Colors.grey[600],
-                                      fontSize: 12,
                                     ),
-                                  ),
-                                  const SizedBox(height: 2),
-                                  Text(
-                                    '${_formatTime(timeSlot.time)} (${timeSlot.team.toString()}팀)',
-                                    style: AppTheme.bodyMediumStyle.copyWith(
-                                      fontWeight: FontWeight.w600,
-                                      color: AppTheme.textPrimary,
+                                    const SizedBox(width: 4),
+                                    Icon(
+                                      Icons.arrow_forward_ios,
+                                      size: 14,
+                                      color: Colors.grey[400],
                                     ),
-                                  ),
-                                ],
+                                  ],
+                                ),
                               ),
-                            ],
+                            ),
                           ),
                         );
                       }).toList(),
@@ -1535,5 +1558,164 @@ class _PostDetailBottomSheetState extends State<PostDetailBottomSheet> {
             );
           }).toList(),
     );
+  }
+
+  // 특정 시간대의 신청자 목록을 보여주는 바텀시트
+  void _showApplicantsBottomSheet(String dateStr, TimeRange timeSlot) {
+    // 해당 시간대에 신청한 지원자들 필터링
+    final filteredApplicants =
+        applicants.where((applicant) {
+          final dateMatch = applicant.selectedDate == dateStr;
+          final timeMatch = applicant.selectedTime == timeSlot.time;
+
+          // 팀 매칭: timeSlot.team이 "1", "2" 형태인 경우 "A", "B"로 변환
+          String teamString = timeSlot.team;
+          if (RegExp(r'^\d+$').hasMatch(teamString)) {
+            // 숫자 문자열인 경우 (예: "1", "2")
+            final teamNum = int.tryParse(teamString);
+            if (teamNum != null && teamNum > 0) {
+              teamString = String.fromCharCode(64 + teamNum); // 1=A, 2=B, ...
+            }
+          }
+          final teamMatch = applicant.selectedTeam == teamString;
+
+          return dateMatch && timeMatch && teamMatch;
+        }).toList();
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder:
+          (context) => DraggableScrollableSheet(
+            initialChildSize: 0.7,
+            minChildSize: 0.5,
+            maxChildSize: 0.9,
+            expand: false,
+            builder: (context, scrollController) {
+              return Container(
+                decoration: const BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+                ),
+                child: Column(
+                  children: [
+                    // 헤더
+                    Container(
+                      padding: const EdgeInsets.all(20),
+                      decoration: BoxDecoration(
+                        border: Border(
+                          bottom: BorderSide(color: Colors.grey.shade200),
+                        ),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          // 드래그 핸들
+                          Center(
+                            child: Container(
+                              width: 40,
+                              height: 4,
+                              margin: const EdgeInsets.only(bottom: 20),
+                              decoration: BoxDecoration(
+                                color: Colors.grey.shade300,
+                                borderRadius: BorderRadius.circular(2),
+                              ),
+                            ),
+                          ),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      '신청자 목록',
+                                      style: AppTheme.h3Style.copyWith(
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      '${_formatDateWithWeekday(dateStr)} ${_formatTime(timeSlot.time)}',
+                                      style: AppTheme.bodyMediumStyle.copyWith(
+                                        color: AppTheme.textSecondary,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              IconButton(
+                                icon: const Icon(Icons.close),
+                                onPressed: () => Navigator.pop(context),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+
+                    // 신청자 목록
+                    Expanded(
+                      child:
+                          filteredApplicants.isEmpty
+                              ? Center(
+                                child: Column(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Icon(
+                                      Icons.people_outline,
+                                      size: 64,
+                                      color: Colors.grey[300],
+                                    ),
+                                    const SizedBox(height: 16),
+                                    Text(
+                                      '이 시간대에 신청한 사용자가 없습니다',
+                                      style: AppTheme.bodyMediumStyle.copyWith(
+                                        color: Colors.grey,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              )
+                              : ListView.builder(
+                                controller: scrollController,
+                                padding: const EdgeInsets.all(20),
+                                itemCount: filteredApplicants.length,
+                                itemBuilder: (context, index) {
+                                  return _buildApplicantCard(
+                                    filteredApplicants[index],
+                                  );
+                                },
+                              ),
+                    ),
+                  ],
+                ),
+              );
+            },
+          ),
+    );
+  }
+
+  // 특정 시간대의 신청자 수를 계산하는 함수
+  int _getApplicantCountForTimeSlot(String dateStr, TimeRange timeSlot) {
+    return applicants.where((applicant) {
+      final dateMatch = applicant.selectedDate == dateStr;
+      final timeMatch = applicant.selectedTime == timeSlot.time;
+
+      // 팀 매칭 로직 (showApplicantsBottomSheet와 동일)
+      String teamString = timeSlot.team;
+      if (RegExp(r'^\d+$').hasMatch(teamString)) {
+        final teamNum = int.tryParse(teamString);
+        if (teamNum != null && teamNum > 0) {
+          teamString = String.fromCharCode(64 + teamNum);
+        }
+      }
+      final teamMatch = applicant.selectedTeam == teamString;
+
+      return dateMatch && timeMatch && teamMatch;
+    }).length;
   }
 }

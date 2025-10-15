@@ -1,6 +1,7 @@
 // hospital/donation_cancellation_sheet.dart
 
 import 'package:flutter/material.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import '../utils/app_theme.dart';
 import '../models/applied_donation_model.dart';
 import '../models/cancelled_donation_model.dart';
@@ -23,39 +24,12 @@ class DonationCancellationSheet extends StatefulWidget {
 class _DonationCancellationSheetState extends State<DonationCancellationSheet> {
   final TextEditingController _reasonController = TextEditingController();
   bool isSubmitting = false;
-  String? validationMessage;
-  String? validationLevel;
-  List<String> reasonTemplates = [];
-  String? selectedTemplate;
 
   @override
   void initState() {
     super.initState();
-    _loadReasonTemplates();
   }
 
-  Future<void> _loadReasonTemplates() async {
-    try {
-      final templates = await CancelledDonationService.getReasonTemplatesForSubject(
-        CancelledSubject.hospital,
-      );
-      setState(() {
-        reasonTemplates = templates;
-      });
-    } catch (e) {
-      // 템플릿 로드 실패 시 무시
-    }
-  }
-
-  void _validateReason() {
-    final reason = _reasonController.text.trim();
-    final validation = CancelledDonationService.validateCancellationReason(reason);
-    
-    setState(() {
-      validationMessage = validation['message'];
-      validationLevel = validation['level'];
-    });
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -98,14 +72,13 @@ class _DonationCancellationSheetState extends State<DonationCancellationSheet> {
                         '헌혈 중단 처리',
                         style: AppTheme.h3Style.copyWith(fontWeight: FontWeight.w700),
                       ),
-                      const SizedBox(height: 4),
+                      const SizedBox(height: 8),
                       Text(
-                        widget.appliedDonation.postTitle ?? '헌혈 요청',
+                        '${widget.appliedDonation.formattedDate} ${widget.appliedDonation.formattedTime}',
                         style: AppTheme.bodyMediumStyle.copyWith(
                           color: AppTheme.textSecondary,
+                          fontWeight: FontWeight.w500,
                         ),
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
                       ),
                     ],
                   ),
@@ -117,93 +90,185 @@ class _DonationCancellationSheetState extends State<DonationCancellationSheet> {
               ],
             ),
             const SizedBox(height: AppTheme.spacing20),
+            
+            // 구분선
+            Container(
+              height: 1,
+              color: Colors.grey.shade300,
+              margin: const EdgeInsets.only(bottom: AppTheme.spacing20),
+            ),
 
             // 반려동물 정보
             Container(
-              padding: const EdgeInsets.all(AppTheme.spacing16),
-              decoration: BoxDecoration(
-                color: Colors.orange.shade50,
-                borderRadius: BorderRadius.circular(AppTheme.radius12),
-                border: Border.all(color: Colors.orange.shade200),
-              ),
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(horizontal: 0),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  // 제목
                   Text(
-                    '중단 대상 정보',
+                    '반려동물 정보',
+                    textAlign: TextAlign.left,
                     style: AppTheme.bodyLargeStyle.copyWith(
-                      fontWeight: FontWeight.w600,
-                      color: Colors.orange.shade700,
+                      fontWeight: FontWeight.bold,
+                      color: AppTheme.textPrimary,
                     ),
                   ),
-                  const SizedBox(height: AppTheme.spacing8),
+                  const SizedBox(height: 12),
+                  
+                  // 신청자
                   Row(
+                    mainAxisAlignment: MainAxisAlignment.start,
+                    crossAxisAlignment: CrossAxisAlignment.center,
                     children: [
-                      Icon(Icons.pets, size: 20, color: Colors.orange.shade600),
-                      const SizedBox(width: AppTheme.spacing8),
+                      SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: Center(
+                          child: FaIcon(
+                            FontAwesomeIcons.user,
+                            size: 16,
+                            color: Colors.black,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
                       Expanded(
                         child: Text(
-                          widget.appliedDonation.pet?.displayInfo ?? '반려동물 정보 없음',
-                          style: AppTheme.bodyMediumStyle,
+                          '신청자: ${widget.appliedDonation.userNickname ?? "정보 없음"}',
+                          style: AppTheme.bodyMediumStyle.copyWith(
+                            color: AppTheme.textPrimary,
+                          ),
                         ),
                       ),
                     ],
                   ),
-                  if (widget.appliedDonation.donationTime != null) ...[
-                    const SizedBox(height: AppTheme.spacing8),
-                    Row(
-                      children: [
-                        Icon(Icons.schedule, size: 20, color: Colors.orange.shade600),
-                        const SizedBox(width: AppTheme.spacing8),
-                        Text(
-                          '예정 시간: ${widget.appliedDonation.donationTime?.toString().substring(0, 16)}',
-                          style: AppTheme.bodySmallStyle,
+                  const SizedBox(height: 12),
+                  
+                  // 반려동물
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.start,
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: Center(
+                          child: FaIcon(
+                            (widget.appliedDonation.pet?.animalTypeKr == '강아지') 
+                              ? FontAwesomeIcons.dog 
+                              : FontAwesomeIcons.cat,
+                            size: 16,
+                            color: Colors.black,
+                          ),
                         ),
-                      ],
-                    ),
-                  ],
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          '반려동물: ${widget.appliedDonation.pet?.name ?? "정보 없음"}(${widget.appliedDonation.pet?.breed ?? "품종 정보 없음"})',
+                          style: AppTheme.bodyMediumStyle.copyWith(
+                            color: AppTheme.textPrimary,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  
+                  // 혈액형
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.start,
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: Center(
+                          child: FaIcon(
+                            FontAwesomeIcons.droplet,
+                            size: 16,
+                            color: Colors.black,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          '혈액형: ${widget.appliedDonation.pet?.bloodType ?? "미등록"}',
+                          style: AppTheme.bodyMediumStyle.copyWith(
+                            color: AppTheme.textPrimary,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  
+                  // 몸무게
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.start,
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: Center(
+                          child: FaIcon(
+                            FontAwesomeIcons.weightScale,
+                            size: 16,
+                            color: Colors.black,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          '몸무게: ${widget.appliedDonation.pet?.weightKg ?? 0.0}kg',
+                          style: AppTheme.bodyMediumStyle.copyWith(
+                            color: AppTheme.textPrimary,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  
+                  // 나이
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.start,
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: Center(
+                          child: FaIcon(
+                            FontAwesomeIcons.cakeCandles,
+                            size: 16,
+                            color: Colors.black,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          '나이: ${widget.appliedDonation.pet?.age ?? 0}살',
+                          style: AppTheme.bodyMediumStyle.copyWith(
+                            color: AppTheme.textPrimary,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
                 ],
               ),
             ),
 
-            const SizedBox(height: AppTheme.spacing20),
+            const SizedBox(height: AppTheme.spacing16),
+            const Divider(height: 1),
 
-            // 템플릿 선택 (있는 경우)
-            if (reasonTemplates.isNotEmpty) ...[
-              Text(
-                '빠른 선택',
-                style: AppTheme.bodyLargeStyle.copyWith(
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              const SizedBox(height: AppTheme.spacing8),
-              Wrap(
-                spacing: AppTheme.spacing8,
-                runSpacing: AppTheme.spacing8,
-                children: reasonTemplates.map((template) {
-                  final isSelected = selectedTemplate == template;
-                  return ChoiceChip(
-                    label: Text(template),
-                    selected: isSelected,
-                    onSelected: (selected) {
-                      setState(() {
-                        selectedTemplate = selected ? template : null;
-                        if (selected) {
-                          _reasonController.text = template;
-                          _validateReason();
-                        }
-                      });
-                    },
-                    selectedColor: AppTheme.primaryBlue.withValues(alpha: 0.2),
-                    labelStyle: TextStyle(
-                      color: isSelected ? AppTheme.primaryBlue : AppTheme.textPrimary,
-                      fontSize: 13,
-                    ),
-                  );
-                }).toList(),
-              ),
-              const SizedBox(height: AppTheme.spacing20),
-            ],
+            const SizedBox(height: AppTheme.spacing20),
 
             // 중단 사유 입력
             Text(
@@ -236,39 +301,8 @@ class _DonationCancellationSheetState extends State<DonationCancellationSheet> {
                   ),
                 ),
               ),
-              onChanged: (value) => _validateReason(),
             ),
 
-            // 유효성 검사 메시지
-            if (validationMessage != null) ...[
-              const SizedBox(height: AppTheme.spacing8),
-              Container(
-                padding: const EdgeInsets.all(AppTheme.spacing12),
-                decoration: BoxDecoration(
-                  color: _getValidationColor().withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(AppTheme.radius8),
-                  border: Border.all(color: _getValidationColor()),
-                ),
-                child: Row(
-                  children: [
-                    Icon(
-                      _getValidationIcon(),
-                      size: 16,
-                      color: _getValidationColor(),
-                    ),
-                    const SizedBox(width: AppTheme.spacing8),
-                    Expanded(
-                      child: Text(
-                        validationMessage!,
-                        style: AppTheme.bodySmallStyle.copyWith(
-                          color: _getValidationColor(),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
 
             const SizedBox(height: AppTheme.spacing24),
 
@@ -291,22 +325,23 @@ class _DonationCancellationSheetState extends State<DonationCancellationSheet> {
                 ),
                 const SizedBox(width: AppTheme.spacing12),
                 Expanded(
-                  child: ElevatedButton(
+                  child: OutlinedButton(
                     onPressed: _canSubmit() ? _cancelBloodDonation : null,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.orange,
-                      foregroundColor: Colors.white,
+                    style: OutlinedButton.styleFrom(
+                      backgroundColor: Colors.red.shade50,
+                      foregroundColor: Colors.red.shade700,
+                      side: BorderSide(color: Colors.red.shade400),
                       padding: const EdgeInsets.symmetric(vertical: AppTheme.spacing16),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(AppTheme.radius8),
                       ),
                     ),
                     child: isSubmitting 
-                        ? const SizedBox(
+                        ? SizedBox(
                             width: 20,
                             height: 20,
                             child: CircularProgressIndicator(
-                              color: Colors.white,
+                              color: Colors.red.shade700,
                               strokeWidth: 2,
                             ),
                           )
@@ -322,35 +357,9 @@ class _DonationCancellationSheetState extends State<DonationCancellationSheet> {
     );
   }
 
-  Color _getValidationColor() {
-    switch (validationLevel) {
-      case 'error':
-        return Colors.red;
-      case 'warning':
-        return Colors.orange;
-      case 'success':
-        return Colors.green;
-      default:
-        return Colors.grey;
-    }
-  }
-
-  IconData _getValidationIcon() {
-    switch (validationLevel) {
-      case 'error':
-        return Icons.error;
-      case 'warning':
-        return Icons.warning;
-      case 'success':
-        return Icons.check_circle;
-      default:
-        return Icons.info;
-    }
-  }
 
   bool _canSubmit() {
     if (isSubmitting) return false;
-    if (validationLevel == 'error') return false;
     
     final reason = _reasonController.text.trim();
     return reason.isNotEmpty && reason.length >= 2;

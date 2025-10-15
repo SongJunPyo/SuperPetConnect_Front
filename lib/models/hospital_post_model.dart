@@ -76,21 +76,30 @@ class HospitalPost {
               ? applicantCountRaw
               : int.tryParse(applicantCountRaw.toString()) ?? 0;
 
+      // ID 처리 - 병원 API는 string, 공개 API는 number
+      int finalPostIdx;
+      if (postIdx is String) {
+        finalPostIdx = int.tryParse(postIdx) ?? 0;
+      } else if (postIdx is int) {
+        finalPostIdx = postIdx;
+      } else {
+        finalPostIdx = 0;
+      }
+
       return HospitalPost(
-        postIdx:
-            postIdx is int ? postIdx : int.tryParse(postIdx.toString()) ?? 0,
+        postIdx: finalPostIdx,
         title: title,
-        nickname: json['nickname'] ?? '',
-        name: json['name'] ?? '',
+        nickname: json['nickname'] ?? json['hospitalNickname'] ?? '',
+        name: json['userName'] ?? json['name'] ?? '', // userName 필드 추가
         createdDate: createdDate,
         timeRanges: timeRanges,
         types: types,
-        bloodType: json['blood_type'],
+        bloodType: json['blood_type'] ?? json['bloodType'],
         location: json['location'] ?? '',
         content: json['content'] ?? '',
         status: status,
         applicantCount: applicantCount,
-        description: json['description'],
+        description: json['description'] ?? json['descriptions'],
         animalType: animalType,
         viewCount: json['viewCount'] ?? json['view_count'],
       );

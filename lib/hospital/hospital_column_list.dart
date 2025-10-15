@@ -15,7 +15,8 @@ class HospitalColumnList extends StatefulWidget {
   State createState() => _HospitalColumnListState();
 }
 
-class _HospitalColumnListState extends State<HospitalColumnList> with TickerProviderStateMixin {
+class _HospitalColumnListState extends State<HospitalColumnList>
+    with TickerProviderStateMixin {
   List<HospitalColumn> columns = [];
   bool isLoading = true;
   bool hasError = false;
@@ -26,7 +27,7 @@ class _HospitalColumnListState extends State<HospitalColumnList> with TickerProv
   late TabController _tabController;
   DateTime? startDate;
   DateTime? endDate;
-  
+
   @override
   void initState() {
     super.initState();
@@ -69,35 +70,49 @@ class _HospitalColumnListState extends State<HospitalColumnList> with TickerProv
         page: 1,
         pageSize: 50,
       );
-      
+
       var filteredColumns = allColumns.columns;
-      
+
       // 발행 상태 필터링
       if (publishedFilter != null) {
-        filteredColumns = filteredColumns.where((column) => column.isPublished == publishedFilter).toList();
+        filteredColumns =
+            filteredColumns
+                .where((column) => column.isPublished == publishedFilter)
+                .toList();
       }
-      
+
       // 검색 필터링
       if (searchQuery.isNotEmpty) {
-        filteredColumns = filteredColumns.where((column) {
-          return column.title.toLowerCase().contains(searchQuery.toLowerCase()) ||
-                 column.content.toLowerCase().contains(searchQuery.toLowerCase());
-        }).toList();
+        filteredColumns =
+            filteredColumns.where((column) {
+              return column.title.toLowerCase().contains(
+                    searchQuery.toLowerCase(),
+                  ) ||
+                  column.content.toLowerCase().contains(
+                    searchQuery.toLowerCase(),
+                  );
+            }).toList();
       }
-      
+
       // 날짜 범위 필터링
       if (startDate != null) {
-        filteredColumns = filteredColumns.where((column) {
-          return column.createdAt.isAfter(startDate!.subtract(const Duration(days: 1)));
-        }).toList();
+        filteredColumns =
+            filteredColumns.where((column) {
+              return column.createdAt.isAfter(
+                startDate!.subtract(const Duration(days: 1)),
+              );
+            }).toList();
       }
-      
+
       if (endDate != null) {
-        filteredColumns = filteredColumns.where((column) {
-          return column.createdAt.isBefore(endDate!.add(const Duration(days: 1)));
-        }).toList();
+        filteredColumns =
+            filteredColumns.where((column) {
+              return column.createdAt.isBefore(
+                endDate!.add(const Duration(days: 1)),
+              );
+            }).toList();
       }
-      
+
       setState(() {
         columns = filteredColumns;
         isLoading = false;
@@ -124,15 +139,16 @@ class _HospitalColumnListState extends State<HospitalColumnList> with TickerProv
       context: context,
       firstDate: DateTime(2020),
       lastDate: DateTime.now(),
-      initialDateRange: startDate != null && endDate != null
-          ? DateTimeRange(start: startDate!, end: endDate!)
-          : null,
+      initialDateRange:
+          startDate != null && endDate != null
+              ? DateTimeRange(start: startDate!, end: endDate!)
+              : null,
       builder: (context, child) {
         return Theme(
           data: Theme.of(context).copyWith(
-            colorScheme: Theme.of(context).colorScheme.copyWith(
-              primary: AppTheme.primaryBlue,
-            ),
+            colorScheme: Theme.of(
+              context,
+            ).colorScheme.copyWith(primary: AppTheme.primaryBlue),
           ),
           child: child!,
         );
@@ -182,7 +198,8 @@ class _HospitalColumnListState extends State<HospitalColumnList> with TickerProv
           IconButton(
             icon: const Icon(Icons.add),
             onPressed: () async {
-              final hasPermission = await HospitalColumnService.checkColumnPermission();
+              final hasPermission =
+                  await HospitalColumnService.checkColumnPermission();
               if (hasPermission) {
                 if (mounted) {
                   Navigator.push(
@@ -211,14 +228,10 @@ class _HospitalColumnListState extends State<HospitalColumnList> with TickerProv
         children: [
           TabBar(
             controller: _tabController,
-            labelColor: AppTheme.primaryBlue,
+            labelColor: AppTheme.black,
             unselectedLabelColor: AppTheme.textSecondary,
-            indicatorColor: AppTheme.primaryBlue,
-            tabs: const [
-              Tab(text: '전체'),
-              Tab(text: '공개안함'),
-              Tab(text: '공개'),
-            ],
+            indicatorColor: AppTheme.black,
+            tabs: const [Tab(text: '전체'), Tab(text: '공개안함'), Tab(text: '공개')],
           ),
           // 검색창
           Container(
@@ -237,33 +250,43 @@ class _HospitalColumnListState extends State<HospitalColumnList> with TickerProv
                   borderRadius: BorderRadius.circular(12),
                   borderSide: BorderSide(color: AppTheme.primaryBlue),
                 ),
-                suffixIcon: searchQuery.isNotEmpty
-                    ? IconButton(
-                        icon: const Icon(Icons.clear),
-                        onPressed: () {
-                          searchController.clear();
-                          _onSearchChanged('');
-                        },
-                      )
-                    : null,
+                suffixIcon:
+                    searchQuery.isNotEmpty
+                        ? IconButton(
+                          icon: const Icon(Icons.clear),
+                          onPressed: () {
+                            searchController.clear();
+                            _onSearchChanged('');
+                          },
+                        )
+                        : null,
               ),
             ),
           ),
-          
+
           // 날짜 범위 표시
           if (startDate != null || endDate != null)
             Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+              padding: const EdgeInsets.symmetric(
+                horizontal: 16.0,
+                vertical: 8.0,
+              ),
               child: Container(
                 padding: const EdgeInsets.all(12.0),
                 decoration: BoxDecoration(
                   color: AppTheme.lightBlue,
                   borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: AppTheme.primaryBlue.withValues(alpha: 0.3)),
+                  border: Border.all(
+                    color: AppTheme.primaryBlue.withValues(alpha: 0.3),
+                  ),
                 ),
                 child: Row(
                   children: [
-                    const Icon(Icons.date_range, color: AppTheme.primaryBlue, size: 18),
+                    const Icon(
+                      Icons.date_range,
+                      color: AppTheme.primaryBlue,
+                      size: 18,
+                    ),
                     const SizedBox(width: 8),
                     Expanded(
                       child: Text(
@@ -276,7 +299,11 @@ class _HospitalColumnListState extends State<HospitalColumnList> with TickerProv
                       ),
                     ),
                     IconButton(
-                      icon: const Icon(Icons.close, color: AppTheme.primaryBlue, size: 18),
+                      icon: const Icon(
+                        Icons.close,
+                        color: AppTheme.primaryBlue,
+                        size: 18,
+                      ),
                       onPressed: _clearDateRange,
                       padding: EdgeInsets.zero,
                       constraints: const BoxConstraints(),
@@ -285,11 +312,9 @@ class _HospitalColumnListState extends State<HospitalColumnList> with TickerProv
                 ),
               ),
             ),
-          
+
           // 콘텐츠
-          Expanded(
-            child: _buildContent(),
-          ),
+          Expanded(child: _buildContent()),
         ],
       ),
     );
@@ -316,24 +341,20 @@ class _HospitalColumnListState extends State<HospitalColumnList> with TickerProv
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(
-                Icons.error_outline,
-                size: 64,
-                color: Colors.red[300],
-              ),
+              Icon(Icons.error_outline, size: 64, color: Colors.red[300]),
               const SizedBox(height: 16),
               Text(
                 '오류가 발생했습니다',
-                style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                  color: Colors.red[500],
-                ),
+                style: Theme.of(
+                  context,
+                ).textTheme.titleLarge?.copyWith(color: Colors.red[500]),
               ),
               const SizedBox(height: 8),
               Text(
                 errorMessage,
-                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: Colors.grey[600],
-                ),
+                style: Theme.of(
+                  context,
+                ).textTheme.bodyMedium?.copyWith(color: Colors.grey[600]),
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 16),
@@ -350,11 +371,16 @@ class _HospitalColumnListState extends State<HospitalColumnList> with TickerProv
     if (columns.isEmpty) {
       String emptyMessage;
       if (publishedFilter == null) {
-        emptyMessage = searchQuery.isNotEmpty ? '검색 결과가 없습니다.' : '작성한 칼럼이 없습니다.';
+        emptyMessage =
+            searchQuery.isNotEmpty ? '검색 결과가 없습니다.' : '작성한 칼럼이 없습니다.';
       } else if (publishedFilter == true) {
-        emptyMessage = searchQuery.isNotEmpty ? '공개된 칼럼 중 검색 결과가 없습니다.' : '공개된 칼럼이 없습니다.';
+        emptyMessage =
+            searchQuery.isNotEmpty ? '공개된 칼럼 중 검색 결과가 없습니다.' : '공개된 칼럼이 없습니다.';
       } else {
-        emptyMessage = searchQuery.isNotEmpty ? '공개 대기 중인 칼럼 중 검색 결과가 없습니다.' : '공개 대기 중인 칼럼이 없습니다.';
+        emptyMessage =
+            searchQuery.isNotEmpty
+                ? '공개 대기 중인 칼럼 중 검색 결과가 없습니다.'
+                : '공개 대기 중인 칼럼이 없습니다.';
       }
 
       return Center(
@@ -363,31 +389,28 @@ class _HospitalColumnListState extends State<HospitalColumnList> with TickerProv
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(
-                Icons.article_outlined,
-                size: 64,
-                color: Colors.grey[300],
-              ),
+              Icon(Icons.article_outlined, size: 64, color: Colors.grey[300]),
               const SizedBox(height: 16),
               Text(
                 emptyMessage,
-                style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                  color: Colors.grey[500],
-                ),
+                style: Theme.of(
+                  context,
+                ).textTheme.titleLarge?.copyWith(color: Colors.grey[500]),
                 textAlign: TextAlign.center,
               ),
               if (publishedFilter == null && searchQuery.isEmpty) ...[
                 const SizedBox(height: 8),
                 Text(
                   '첫 번째 칼럼을 작성해보세요!',
-                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: Colors.grey[600],
-                  ),
+                  style: Theme.of(
+                    context,
+                  ).textTheme.bodyMedium?.copyWith(color: Colors.grey[600]),
                 ),
                 const SizedBox(height: 24),
                 ElevatedButton.icon(
                   onPressed: () async {
-                    final hasPermission = await HospitalColumnService.checkColumnPermission();
+                    final hasPermission =
+                        await HospitalColumnService.checkColumnPermission();
                     if (hasPermission) {
                       if (mounted) {
                         Navigator.push(
@@ -408,10 +431,10 @@ class _HospitalColumnListState extends State<HospitalColumnList> with TickerProv
                       }
                     }
                   },
-                  icon: const Icon(Icons.add),
+                  icon: const Icon(Icons.add, color: Colors.white),
                   label: const Text('칼럼 작성하기'),
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: AppTheme.primaryBlue,
+                    backgroundColor: AppTheme.black,
                     foregroundColor: Colors.white,
                     padding: const EdgeInsets.symmetric(
                       horizontal: 24,
@@ -427,17 +450,16 @@ class _HospitalColumnListState extends State<HospitalColumnList> with TickerProv
     }
 
     return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-      ),
+      decoration: BoxDecoration(color: Colors.white),
       child: ListView.separated(
         padding: EdgeInsets.zero,
         itemCount: columns.length,
-        separatorBuilder: (context, index) => Container(
-          height: 1,
-          color: AppTheme.lightGray.withValues(alpha: 0.2),
-          margin: const EdgeInsets.symmetric(horizontal: 16),
-        ),
+        separatorBuilder:
+            (context, index) => Container(
+              height: 1,
+              color: AppTheme.lightGray.withValues(alpha: 0.2),
+              margin: const EdgeInsets.symmetric(horizontal: 16),
+            ),
         itemBuilder: (context, index) {
           final column = columns[index];
           return _buildColumnItem(column, index);
@@ -452,9 +474,8 @@ class _HospitalColumnListState extends State<HospitalColumnList> with TickerProv
         Navigator.push(
           context,
           MaterialPageRoute(
-            builder: (context) => HospitalColumnDetail(
-              columnIdx: column.columnIdx,
-            ),
+            builder:
+                (context) => HospitalColumnDetail(columnIdx: column.columnIdx),
           ),
         ).then((_) => _loadMyColumns());
       },
@@ -500,7 +521,7 @@ class _HospitalColumnListState extends State<HospitalColumnList> with TickerProv
                   // 두 번째 줄: 병원명
                   Text(
                     column.hospitalName.length > 15
-                        ? '${column.hospitalName.substring(0, 15)}..' 
+                        ? '${column.hospitalName.substring(0, 15)}..'
                         : column.hospitalName,
                     style: AppTheme.bodySmallStyle.copyWith(
                       color: AppTheme.textSecondary,
@@ -548,14 +569,16 @@ class _HospitalColumnListState extends State<HospitalColumnList> with TickerProv
                     vertical: 2,
                   ),
                   decoration: BoxDecoration(
-                    color: column.isPublished
-                        ? AppTheme.success.withValues(alpha: 0.2)
-                        : AppTheme.warning.withValues(alpha: 0.2),
+                    color:
+                        column.isPublished
+                            ? AppTheme.success.withValues(alpha: 0.2)
+                            : AppTheme.warning.withValues(alpha: 0.2),
                     borderRadius: BorderRadius.circular(6),
                     border: Border.all(
-                      color: column.isPublished
-                          ? AppTheme.success.withValues(alpha: 0.3)
-                          : AppTheme.warning.withValues(alpha: 0.3),
+                      color:
+                          column.isPublished
+                              ? AppTheme.success.withValues(alpha: 0.3)
+                              : AppTheme.warning.withValues(alpha: 0.3),
                       width: 1,
                     ),
                   ),
@@ -566,12 +589,18 @@ class _HospitalColumnListState extends State<HospitalColumnList> with TickerProv
                       Icon(
                         column.isPublished ? Icons.check_circle : Icons.pending,
                         size: 10,
-                        color: column.isPublished ? AppTheme.success : AppTheme.warning,
+                        color:
+                            column.isPublished
+                                ? AppTheme.success
+                                : AppTheme.warning,
                       ),
                       Text(
                         column.isPublished ? '공개' : '대기',
                         style: AppTheme.bodySmallStyle.copyWith(
-                          color: column.isPublished ? AppTheme.success : AppTheme.warning,
+                          color:
+                              column.isPublished
+                                  ? AppTheme.success
+                                  : AppTheme.warning,
                           fontSize: 8,
                           fontWeight: FontWeight.w500,
                         ),

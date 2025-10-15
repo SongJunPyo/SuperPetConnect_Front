@@ -49,6 +49,7 @@ class _AdminUserCheckState extends State<AdminUserCheck>
   void _onTabChanged() {
     if (_tabController.indexIsChanging) {
       setState(() {
+        users = []; // 탭 변경 시 리스트를 미리 비워서 이전 데이터 접근 방지
         currentPage = 1;
         searchQuery = '';
         searchController.clear();
@@ -73,6 +74,7 @@ class _AdminUserCheckState extends State<AdminUserCheck>
   Future<void> _loadUsers() async {
     try {
       setState(() {
+        users = []; // 로딩 시작 시 리스트 비우기
         isLoading = true;
         errorMessage = null;
       });
@@ -364,6 +366,10 @@ class _AdminUserCheckState extends State<AdminUserCheck>
             padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 0),
             itemCount: users.length,
             itemBuilder: (context, index) {
+              // 인덱스 범위 체크 추가
+              if (index >= users.length) {
+                return const SizedBox.shrink();
+              }
               final user = users[index];
               return _buildUserListItem(user, index);
             },

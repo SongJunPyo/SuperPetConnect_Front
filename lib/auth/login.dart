@@ -290,10 +290,11 @@ class _LoginScreenState extends State<LoginScreen> {
                 },
               ),
               const SizedBox(height: AppTheme.spacing32),
-              AppPrimaryButton(
+              AppButton(
                 text: '로그인',
                 onPressed: _login,
                 size: AppButtonSize.large,
+                customColor: AppTheme.textPrimary,
               ),
               const SizedBox(height: AppTheme.spacing20),
               Row(
@@ -302,7 +303,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   TextButton(
                     onPressed: _signUp,
                     style: TextButton.styleFrom(
-                      foregroundColor: AppTheme.primaryBlue,
+                      foregroundColor: AppTheme.textSecondary,
                       padding: const EdgeInsets.symmetric(
                         horizontal: AppTheme.spacing12,
                         vertical: AppTheme.spacing8,
@@ -312,7 +313,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       '회원가입',
                       style: AppTheme.bodyLargeStyle.copyWith(
                         fontWeight: FontWeight.w600,
-                        color: AppTheme.primaryBlue,
+                        color: AppTheme.textSecondary,
                       ),
                     ),
                   ),
@@ -341,85 +342,6 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                 ],
               ),
-
-              const SizedBox(height: AppTheme.spacing40),
-              Text(
-                '개발용 임시 이동 버튼',
-                style: AppTheme.h3Style.copyWith(color: AppTheme.error),
-              ),
-              const SizedBox(height: AppTheme.spacing16),
-              Row(
-                children: [
-                  Expanded(
-                    child: AppButton(
-                      text: '관리자 토큰',
-                      onPressed: () {
-                        Navigator.pushAndRemoveUntil(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => const FcmTokenScreen(),
-                          ),
-                          (route) => false,
-                        );
-                      },
-                      customColor: AppTheme.success,
-                      size: AppButtonSize.small,
-                    ),
-                  ),
-                  const SizedBox(width: AppTheme.spacing8),
-                  Expanded(
-                    child: AppButton(
-                      text: '사용자',
-                      onPressed: () {
-                        Navigator.pushAndRemoveUntil(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => const UserDashboard(),
-                          ),
-                          (route) => false,
-                        );
-                      },
-                      customColor: AppTheme.warning,
-                      size: AppButtonSize.small,
-                    ),
-                  ),
-                  const SizedBox(width: AppTheme.spacing8),
-                  Expanded(
-                    child: AppButton(
-                      text: '병원',
-                      onPressed: () {
-                        Navigator.pushAndRemoveUntil(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => const HospitalDashboard(),
-                          ),
-                          (route) => false,
-                        );
-                      },
-                      customColor: AppTheme.warning,
-                      size: AppButtonSize.small,
-                    ),
-                  ),
-                  const SizedBox(width: AppTheme.spacing8),
-                  Expanded(
-                    child: AppButton(
-                      text: '관리자',
-                      onPressed: () {
-                        Navigator.pushAndRemoveUntil(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => const AdminDashboard(),
-                          ),
-                          (route) => false,
-                        );
-                      },
-                      customColor: AppTheme.warning,
-                      size: AppButtonSize.small,
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: AppTheme.spacing20),
             ],
           ),
         ),
