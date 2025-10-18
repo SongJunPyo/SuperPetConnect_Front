@@ -283,7 +283,7 @@ class _AdminNoticeCreateScreenState extends State<AdminNoticeCreateScreen> {
                           _targetAudience = value!;
                         });
                       },
-                      activeColor: AppTheme.primaryBlue,
+                      activeColor: AppTheme.black,
                       contentPadding: EdgeInsets.zero,
                     ),
                     RadioListTile<int>(
@@ -309,7 +309,7 @@ class _AdminNoticeCreateScreenState extends State<AdminNoticeCreateScreen> {
                           _targetAudience = value!;
                         });
                       },
-                      activeColor: AppTheme.primaryBlue,
+                      activeColor: AppTheme.warning,
                       contentPadding: EdgeInsets.zero,
                     ),
                     RadioListTile<int>(
@@ -322,7 +322,7 @@ class _AdminNoticeCreateScreenState extends State<AdminNoticeCreateScreen> {
                           _targetAudience = value!;
                         });
                       },
-                      activeColor: AppTheme.primaryBlue,
+                      activeColor: AppTheme.success,
                       contentPadding: EdgeInsets.zero,
                     ),
                   ],
@@ -350,7 +350,7 @@ class _AdminNoticeCreateScreenState extends State<AdminNoticeCreateScreen> {
                                   : 1; // 체크되면 뱃지 표시(0), 아니면 숨김(1)
                         });
                       },
-                      activeColor: AppTheme.primaryBlue,
+                      activeColor: AppTheme.black,
                     ),
                     Expanded(
                       child: Column(
@@ -394,7 +394,7 @@ class _AdminNoticeCreateScreenState extends State<AdminNoticeCreateScreen> {
                             _isActive = value ?? true;
                           });
                         },
-                        activeColor: AppTheme.primaryBlue,
+                        activeColor: AppTheme.black,
                       ),
                       Expanded(
                         child: Column(
@@ -427,7 +427,7 @@ class _AdminNoticeCreateScreenState extends State<AdminNoticeCreateScreen> {
               ElevatedButton(
                 onPressed: _isLoading ? null : _submitNotice,
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: AppTheme.primaryBlue,
+                  backgroundColor: AppTheme.black,
                   foregroundColor: Colors.white,
                   padding: const EdgeInsets.symmetric(
                     vertical: AppTheme.spacing16,

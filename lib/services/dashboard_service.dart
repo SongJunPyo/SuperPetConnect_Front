@@ -258,54 +258,72 @@ class DashboardService {
         '$baseUrl/api/public/notices/',
       ];
 
-      for (String endpoint in apiEndpoints) {
-        try {
-          final uri = Uri.parse(
-            endpoint,
-          ).replace(queryParameters: {'limit': limit.toString()});
+      final queryCandidates = [
+        {
+          'notice_limit': limit.toString(),
+        },
+        {
+          'page': '1',
+          'notice_limit': limit.toString(),
+        },
+        {
+          'page': '1',
+          'page_size': limit.toString(),
+        },
+        {
+          'limit': limit.toString(),
+        },
+        null,
+      ];
 
-          final response = await http
-              .get(
-                uri,
-                headers: {
-                  'Content-Type': 'application/json',
-                  'Accept': 'application/json',
-                  'Cache-Control': 'no-cache, no-store, must-revalidate',
-                  'Pragma': 'no-cache',
-                  'Expires': '0',
-                },
-              )
-              .timeout(const Duration(seconds: 15));
+      for (final endpoint in apiEndpoints) {
+        for (final queryParams in queryCandidates) {
+          try {
+            final uri =
+                queryParams != null
+                    ? Uri.parse(endpoint).replace(queryParameters: queryParams)
+                    : Uri.parse(endpoint);
 
-          // 응답을 JSON으로 파싱하여 구조 확인
-          if (response.statusCode == 200) {
-            try {
-              final rawData = jsonDecode(utf8.decode(response.bodyBytes));
-              List<dynamic> noticesData;
-              if (rawData is Map<String, dynamic>) {
-                noticesData = rawData['notices'] ?? rawData['data'] ?? [];
-              } else if (rawData is List) {
-                noticesData = rawData;
-              } else {
-                noticesData = [];
+            final response = await http
+                .get(
+                  uri,
+                  headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json',
+                    'Cache-Control': 'no-cache, no-store, must-revalidate',
+                    'Pragma': 'no-cache',
+                    'Expires': '0',
+                  },
+                )
+                .timeout(const Duration(seconds: 15));
+
+            if (response.statusCode == 200) {
+              try {
+                final rawData = jsonDecode(utf8.decode(response.bodyBytes));
+                List<dynamic> noticesData;
+                if (rawData is Map<String, dynamic>) {
+                  noticesData = rawData['notices'] ?? rawData['data'] ?? [];
+                } else if (rawData is List) {
+                  noticesData = rawData;
+                } else {
+                  noticesData = [];
+                }
+
+                if (noticesData.isNotEmpty) {
+                  final notices =
+                      noticesData.map((item) => NoticePost.fromJson(item)).toList();
+                  return notices;
+                }
+              } catch (e) {
+                continue;
               }
-              if (noticesData.isNotEmpty) {
-                // 공지사항 데이터가 존재함
-              }
-
-              final notices =
-                  noticesData.map((item) => NoticePost.fromJson(item)).toList();
-
-              return notices;
-            } catch (e) {
-              continue; // 다음 엔드포인트 시도
+            } else {
+              continue;
             }
-          } else {
-            continue; // 다음 엔드포인트 시도
+          } catch (e) {
+            if (kIsWeb && e.toString().contains('XMLHttpRequest')) {}
+            continue;
           }
-        } catch (e) {
-          if (kIsWeb && e.toString().contains('XMLHttpRequest')) {}
-          continue; // 다음 엔드포인트 시도
         }
       }
 
@@ -830,6 +848,7 @@ class ColumnPost {
   final String authorNickname;
   final int viewCount;
   final String contentPreview;
+  final String? columnUrl;
   final bool isImportant;
   final DateTime createdAt;
   final DateTime updatedAt;
@@ -841,6 +860,7 @@ class ColumnPost {
     required this.authorNickname,
     required this.viewCount,
     required this.contentPreview,
+    this.columnUrl,
     required this.isImportant,
     required this.createdAt,
     required this.updatedAt,
@@ -859,6 +879,7 @@ class ColumnPost {
               : '닉네임 없음',
       viewCount: json['view_count'] ?? 0,
       contentPreview: json['content'] ?? '', // content_preview 제거됨, content 사용
+      columnUrl: json['column_url'] ?? json['columnUrl'],
       isImportant: json['is_important'] ?? false,
       createdAt: DateTime.tryParse(json['created_at'] ?? '') ?? DateTime.now(),
       updatedAt: DateTime.tryParse(json['updated_at'] ?? '') ?? DateTime.now(),
@@ -876,6 +897,7 @@ class ColumnPost {
         isImportant: false,
         contentPreview:
             "반려동물 헌혈은 응급상황에서 생명을 구하는 중요한 의료행위입니다. 건강한 반려동물의 헌혈이 다른 동물의 생명을 구할 수 있습니다...",
+        columnUrl: "https://example.com/columns/1",
         viewCount: 245,
         createdAt: DateTime.now().subtract(Duration(days: 1)),
         updatedAt: DateTime.now().subtract(Duration(days: 1)),
@@ -888,6 +910,7 @@ class ColumnPost {
         isImportant: true,
         contentPreview:
             "헌혈을 위해서는 반려동물의 건강상태 확인이 필수입니다. 충분한 수분 섭취와 스트레스 관리가 중요합니다...",
+        columnUrl: "https://example.com/columns/2",
         viewCount: 189,
         createdAt: DateTime.now().subtract(Duration(days: 2)),
         updatedAt: DateTime.now().subtract(Duration(days: 2)),
@@ -899,6 +922,7 @@ class ColumnPost {
         authorNickname: "대구수의클리닉",
         isImportant: false,
         contentPreview: "헌혈 후에는 충분한 휴식과 영양 공급이 필요합니다. 24시간 동안 격한 운동은 피해주세요...",
+        columnUrl: null,
         viewCount: 156,
         createdAt: DateTime.now().subtract(Duration(days: 3)),
         updatedAt: DateTime.now().subtract(Duration(days: 3)),
@@ -911,6 +935,7 @@ class ColumnPost {
         isImportant: false,
         contentPreview:
             "헌혈을 위해서는 정확한 혈액형 검사가 필수입니다. DEA 1.1 검사를 통해 안전한 헌혈이 가능합니다...",
+        columnUrl: "https://example.com/columns/4",
         viewCount: 198,
         createdAt: DateTime.now().subtract(Duration(days: 4)),
         updatedAt: DateTime.now().subtract(Duration(days: 4)),
@@ -926,6 +951,7 @@ class NoticePost {
   final String title;
   final int noticeImportant; // 0=긴급, 1=정기 (int로 변경)
   final String contentPreview;
+  final String? noticeUrl;
   final int targetAudience;
   final String authorEmail;
   final String authorName;
@@ -939,6 +965,7 @@ class NoticePost {
     required this.title,
     required this.noticeImportant,
     required this.contentPreview,
+    this.noticeUrl,
     required this.targetAudience,
     required this.authorEmail,
     required this.authorName,
@@ -956,6 +983,7 @@ class NoticePost {
         json['notice_important'],
       ), // 0=긴급, 1=정기
       contentPreview: json['content'] ?? '', // content_preview 제거됨, content 사용
+      noticeUrl: json['notice_url'] ?? json['noticeUrl'],
       targetAudience: json['target_audience'] ?? json['targetAudience'] ?? 0,
       authorEmail: json['author_email'] ?? json['authorEmail'] ?? '',
       authorName: json['author_name'] ?? '작성자',
@@ -1002,6 +1030,7 @@ class NoticePost {
         authorNickname: "관리자",
         noticeImportant: 0,
         targetAudience: 0,
+        noticeUrl: "https://example.com/system-check",
         contentPreview:
             "2025년 8월 15일 02:00~04:00 시스템 점검이 예정되어 있습니다. 해당 시간 동안 서비스 이용이 제한될 수 있습니다...",
         viewCount: 512,
@@ -1016,6 +1045,7 @@ class NoticePost {
         authorNickname: "관리자",
         noticeImportant: 1,
         targetAudience: 1,
+        noticeUrl: "https://example.com/certification",
         contentPreview:
             "헌혈 완료 후 디지털 인증서를 발급받을 수 있는 기능이 추가되었습니다. 마이페이지에서 확인하실 수 있습니다...",
         viewCount: 387,
@@ -1030,6 +1060,7 @@ class NoticePost {
         authorNickname: "관리자",
         noticeImportant: 1,
         targetAudience: 2,
+        noticeUrl: null,
         contentPreview:
             "긴급 헌혈 요청 시 더 빠른 알림을 위해 푸시 알림 시스템을 개선했습니다. 설정에서 알림을 활성화해주세요...",
         viewCount: 298,

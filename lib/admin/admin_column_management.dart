@@ -128,34 +128,9 @@ class _AdminColumnManagementState extends State<AdminColumnManagement> with Tick
         column.columnIdx,
       );
 
-      setState(() {
-        final index = columns.indexWhere((c) => c.columnIdx == column.columnIdx);
-        if (index != -1) {
-          columns[index] = updatedColumn;
-        }
-      });
-
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              updatedColumn.isPublished
-                  ? '칼럼이 공개되었습니다.'
-                  : '칼럼 공개가 해제되었습니다.',
-            ),
-            backgroundColor: Colors.green,
-          ),
-        );
-      }
+      await _loadAllColumns();
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('오류: ${e.toString().replaceAll('Exception: ', '')}'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
+      debugPrint('칼럼 공개 상태 변경 실패: $e');
     }
   }
 
@@ -296,12 +271,23 @@ class _AdminColumnManagementState extends State<AdminColumnManagement> with Tick
                     ),
                   ),
                   // 제목
-                  Text(
-                    column.title,
-                    style: AppTheme.h3Style.copyWith(
-                      fontWeight: FontWeight.bold,
-                      color: AppTheme.textPrimary,
-                    ),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          column.title,
+                          style: AppTheme.h3Style.copyWith(
+                            fontWeight: FontWeight.bold,
+                            color: AppTheme.textPrimary,
+                          ),
+                        ),
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.close, color: Colors.black),
+                        tooltip: '닫기',
+                        onPressed: () => Navigator.pop(context),
+                      ),
+                    ],
                   ),
                   const SizedBox(height: 8),
                   // 메타 정보
@@ -323,18 +309,22 @@ class _AdminColumnManagementState extends State<AdminColumnManagement> with Tick
                         ),
                       ),
                       const SizedBox(width: 8),
-                      Text(
-                        column.authorNickname ?? column.hospitalName,
-                        style: AppTheme.bodySmallStyle.copyWith(
-                          color: AppTheme.textSecondary,
+                      Expanded(
+                        child: Text(
+                          column.authorNickname ?? column.hospitalName,
+                          style: AppTheme.bodySmallStyle.copyWith(
+                            color: AppTheme.textSecondary,
+                          ),
+                          overflow: TextOverflow.ellipsis,
                         ),
                       ),
                       const SizedBox(width: 8),
                       Text(
-                        DateFormat('yyyy-MM-dd HH:mm').format(column.createdAt),
+                        '작성: ${DateFormat('yyyy-MM-dd HH:mm').format(column.createdAt)}',
                         style: AppTheme.bodySmallStyle.copyWith(
                           color: AppTheme.textTertiary,
                         ),
+                        textAlign: TextAlign.right,
                       ),
                     ],
                   ),
@@ -398,12 +388,13 @@ class _AdminColumnManagementState extends State<AdminColumnManagement> with Tick
                           icon: Icon(
                             column.isPublished ? Icons.unpublished : Icons.publish,
                             size: 16,
+                            color: Colors.black,
                           ),
                           label: Text(column.isPublished ? '공개 해제' : '공개 승인'),
                           style: OutlinedButton.styleFrom(
-                            foregroundColor: column.isPublished ? Colors.orange : Colors.green,
+                            foregroundColor: Colors.black,
                             side: BorderSide(
-                              color: column.isPublished ? Colors.orange : Colors.green,
+                              color: column.isPublished ? Colors.red : Colors.green,
                               width: 2,
                             ),
                             shape: RoundedRectangleBorder(
@@ -422,10 +413,11 @@ class _AdminColumnManagementState extends State<AdminColumnManagement> with Tick
                           icon: const Icon(
                             Icons.edit,
                             size: 16,
+                            color: Colors.black,
                           ),
                           label: const Text('수정'),
                           style: OutlinedButton.styleFrom(
-                            foregroundColor: AppTheme.primaryBlue,
+                            foregroundColor: Colors.black,
                             side: const BorderSide(
                               color: AppTheme.primaryBlue,
                               width: 2,

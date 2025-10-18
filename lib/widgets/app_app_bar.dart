@@ -93,6 +93,7 @@ class AppDashboardAppBar extends StatelessWidget
   Widget build(BuildContext context) {
     return AppAppBar(
       onBackPressed: onBackPressed,
+      showBackButton: onBackPressed != null,
       actions: [
         // 알림 버튼
         Stack(

@@ -1,20 +1,23 @@
 import 'package:flutter/material.dart';
-import '../utils/app_theme.dart';
-import '../models/notice_model.dart';
-import '../services/dashboard_service.dart';
 import 'package:intl/intl.dart';
-import '../widgets/marquee_text.dart';
-import '../utils/number_format_util.dart';
 import 'package:url_launcher/url_launcher.dart';
 
-class UserNoticeListScreen extends StatefulWidget {
-  const UserNoticeListScreen({super.key});
+import '../models/notice_model.dart';
+import '../services/dashboard_service.dart';
+import '../utils/app_theme.dart';
+import '../utils/number_format_util.dart';
+import '../widgets/app_app_bar.dart';
+import '../widgets/marquee_text.dart';
+
+class HospitalNoticeListScreen extends StatefulWidget {
+  const HospitalNoticeListScreen({super.key});
 
   @override
-  State<UserNoticeListScreen> createState() => _UserNoticeListScreenState();
+  State<HospitalNoticeListScreen> createState() =>
+      _HospitalNoticeListScreenState();
 }
 
-class _UserNoticeListScreenState extends State<UserNoticeListScreen> {
+class _HospitalNoticeListScreenState extends State<HospitalNoticeListScreen> {
   List<Notice> notices = [];
   bool isLoading = true;
   String? errorMessage;
@@ -42,87 +45,69 @@ class _UserNoticeListScreenState extends State<UserNoticeListScreen> {
         errorMessage = null;
       });
 
-      // 대시보드와 동일한 API 사용 (서버 제한: 최대 50)
-      final noticesData = await DashboardService.getPublicNotices(limit: 50);
+      final noticePosts = await DashboardService.getPublicNotices(limit: 50);
 
-      // 사용자에게 노출할 공지 (전체/사용자 대상만)
-      final visibleNoticePosts =
-          noticesData.where(
-            (noticePost) =>
-                noticePost.targetAudience == 0 ||
-                noticePost.targetAudience == 3,
-          );
-
-      // NoticePost를 Notice로 변환
       List<Notice> allNotices =
-          visibleNoticePosts.map((noticePost) {
-            final displayNickname =
-                (noticePost.authorNickname != null &&
-                        noticePost.authorNickname.toLowerCase() != '닉네임 없음')
-                    ? noticePost.authorNickname
-                    : noticePost.authorName;
+          noticePosts
+              .where(
+                (notice) =>
+                    notice.targetAudience == 0 || notice.targetAudience == 2,
+              )
+              .map((notice) {
+        final displayNickname =
+            (notice.authorNickname != null &&
+                    notice.authorNickname!.toLowerCase() != '닉네임 없음')
+                ? notice.authorNickname
+                : notice.authorName;
 
-            return Notice(
-              noticeIdx: noticePost.noticeIdx,
-              accountIdx: 0, // DashboardService에서 제공하지 않는 필드
-              title: noticePost.title,
-              content: noticePost.contentPreview,
-              noticeImportant: noticePost.noticeImportant,
-              noticeActive: true,
-              createdAt: noticePost.createdAt,
-              updatedAt: noticePost.updatedAt,
-              authorEmail: noticePost.authorEmail,
-              authorName: noticePost.authorName,
-              authorNickname: displayNickname,
-              viewCount: noticePost.viewCount,
-              targetAudience: noticePost.targetAudience,
-              noticeUrl: noticePost.noticeUrl,
-            );
-          }).toList();
+        return Notice(
+          noticeIdx: notice.noticeIdx,
+          accountIdx: 0,
+          title: notice.title,
+          content: notice.contentPreview,
+          noticeImportant: notice.noticeImportant,
+          noticeActive: true,
+          createdAt: notice.createdAt,
+          updatedAt: notice.updatedAt,
+          authorEmail: notice.authorEmail,
+          authorName: notice.authorName,
+          authorNickname: displayNickname,
+          viewCount: notice.viewCount,
+          targetAudience: notice.targetAudience,
+          noticeUrl: notice.noticeUrl,
+        );
+      }).toList();
 
-      // 검색 필터링 적용
       if (searchQuery.isNotEmpty) {
-        allNotices =
-            allNotices.where((notice) {
-              final titleMatch = notice.title.toLowerCase().contains(
-                searchQuery.toLowerCase(),
-              );
-              final nickname = (notice.authorNickname ?? notice.authorName);
-              final authorMatch = notice.authorName.toLowerCase().contains(
-                searchQuery.toLowerCase(),
-              );
-              final nicknameMatch = nickname.toLowerCase().contains(
-                searchQuery.toLowerCase(),
-              );
-              return titleMatch || authorMatch || nicknameMatch;
-            }).toList();
+        allNotices = allNotices.where((notice) {
+          final nickname = notice.authorNickname ?? notice.authorName;
+          return notice.title.toLowerCase().contains(searchQuery.toLowerCase()) ||
+              notice.authorName.toLowerCase().contains(searchQuery.toLowerCase()) ||
+              nickname.toLowerCase().contains(searchQuery.toLowerCase());
+        }).toList();
       }
 
-      // 날짜 범위 필터
       if (startDate != null && endDate != null) {
-        allNotices =
-            allNotices.where((notice) {
-              final createdAt = notice.createdAt;
-              return !createdAt.isBefore(startDate!) &&
-                  !createdAt.isAfter(endDate!.add(const Duration(days: 1)));
-            }).toList();
+        allNotices = allNotices.where((notice) {
+          final createdAt = notice.createdAt;
+          return !createdAt.isBefore(startDate!) &&
+              !createdAt.isAfter(endDate!.add(const Duration(days: 1)));
+        }).toList();
       }
 
-      // 뱃지가 있는 공지를 상단에, 그 다음 최신순으로 정렬
       allNotices.sort((a, b) {
-        // 뱃지가 있는 공지 우선 정렬
         if (a.showBadge && !b.showBadge) return -1;
         if (!a.showBadge && b.showBadge) return 1;
-
-        // 같은 조건이면 최신순 정렬
         return b.createdAt.compareTo(a.createdAt);
       });
 
+      if (!mounted) return;
       setState(() {
         notices = allNotices;
         isLoading = false;
       });
     } catch (e) {
+      if (!mounted) return;
       setState(() {
         errorMessage = e.toString();
         isLoading = false;
@@ -148,14 +133,16 @@ class _UserNoticeListScreenState extends State<UserNoticeListScreen> {
               : null,
       builder: (context, child) {
         return Theme(
-          data: ThemeData.light().copyWith(
-            primaryColor: AppTheme.primaryBlue,
-            colorScheme: ColorScheme.light(primary: AppTheme.primaryBlue),
+          data: Theme.of(context).copyWith(
+            colorScheme: Theme.of(context).colorScheme.copyWith(
+                  primary: AppTheme.primaryBlue,
+                ),
           ),
           child: child!,
         );
       },
     );
+
     if (picked != null) {
       setState(() {
         startDate = picked.start;
@@ -173,32 +160,30 @@ class _UserNoticeListScreenState extends State<UserNoticeListScreen> {
     _loadNotices();
   }
 
-  void _showNoticeDetail(Notice notice) async {
-    // 상세 조회 API 호출 (조회수 자동 증가)
-    final noticeDetail = await DashboardService.getNoticeDetail(
-      notice.noticeIdx,
-    );
+  Future<void> _showNoticeDetail(Notice notice) async {
+    NoticePost? noticeDetail;
+    try {
+      noticeDetail = await DashboardService.getNoticeDetail(notice.noticeIdx);
+    } catch (_) {}
 
-    if (noticeDetail != null) {
-      // 목록의 조회수를 업데이트된 값으로 반영
+    if (noticeDetail != null && mounted) {
       setState(() {
-        final index = notices.indexWhere(
-          (n) => n.noticeIdx == notice.noticeIdx,
-        );
-        if (index != -1) {
+        final idx = notices.indexWhere((n) => n.noticeIdx == notice.noticeIdx);
+        if (idx != -1) {
+          final detailNickname = noticeDetail!.authorNickname;
           final displayNickname =
-              (noticeDetail.authorNickname != null &&
-                      noticeDetail.authorNickname!.toLowerCase() != '닉네임 없음')
-                  ? noticeDetail.authorNickname
+              (detailNickname != null &&
+                      detailNickname.toLowerCase() != '닉네임 없음')
+                  ? detailNickname
                   : noticeDetail.authorName;
 
-          notices[index] = Notice(
-            noticeIdx: notices[index].noticeIdx,
-            accountIdx: notices[index].accountIdx,
+          notices[idx] = Notice(
+            noticeIdx: notices[idx].noticeIdx,
+            accountIdx: notices[idx].accountIdx,
             title: noticeDetail.title,
             content: noticeDetail.contentPreview,
             noticeImportant: noticeDetail.noticeImportant,
-            noticeActive: notices[index].noticeActive,
+            noticeActive: notices[idx].noticeActive,
             createdAt: noticeDetail.createdAt,
             updatedAt: noticeDetail.updatedAt,
             authorEmail: noticeDetail.authorEmail,
@@ -219,10 +204,14 @@ class _UserNoticeListScreenState extends State<UserNoticeListScreen> {
     final DateTime createdAt = noticeDetail?.createdAt ?? notice.createdAt;
     final DateTime updatedAt = noticeDetail?.updatedAt ?? notice.updatedAt;
     final int viewCount = noticeDetail?.viewCount ?? notice.viewCount ?? 0;
+    final detailNickname = noticeDetail?.authorNickname;
     final String authorName =
-        noticeDetail?.authorNickname ??
-        notice.authorNickname ??
-        notice.authorName;
+        (detailNickname != null &&
+                detailNickname.toLowerCase() != '닉네임 없음')
+            ? detailNickname
+            : noticeDetail?.authorName ??
+                notice.authorNickname ??
+                notice.authorName;
     final String title = noticeDetail?.title ?? notice.title;
     final String content = noticeDetail?.contentPreview ?? notice.content;
     final String? noticeUrl = noticeDetail?.noticeUrl ?? notice.noticeUrl;
@@ -242,7 +231,10 @@ class _UserNoticeListScreenState extends State<UserNoticeListScreen> {
           expand: false,
           builder: (context, scrollController) {
             return Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+              padding: const EdgeInsets.symmetric(
+                horizontal: 20,
+                vertical: 16,
+              ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -288,9 +280,7 @@ class _UserNoticeListScreenState extends State<UserNoticeListScreen> {
                         ),
                         decoration: BoxDecoration(
                           color:
-                              isImportant
-                                  ? AppTheme.error
-                                  : AppTheme.primaryBlue,
+                              isImportant ? AppTheme.error : AppTheme.primaryBlue,
                           borderRadius: BorderRadius.circular(6),
                         ),
                         child: Text(
@@ -362,7 +352,7 @@ class _UserNoticeListScreenState extends State<UserNoticeListScreen> {
                           Icons.open_in_new,
                           color: Colors.black,
                         ),
-                        label: const Text('링크 열기'),
+                        label: const Text('관련 링크 열기'),
                         style: ElevatedButton.styleFrom(
                           backgroundColor: Colors.grey,
                           foregroundColor: Colors.black,
@@ -416,34 +406,12 @@ class _UserNoticeListScreenState extends State<UserNoticeListScreen> {
     );
   }
 
-  String _getTargetAudienceText(int targetAudience) {
-    switch (targetAudience) {
-      case 0:
-        return '전체';
-      case 2:
-        return '병원';
-      case 3:
-        return '사용자';
-      default:
-        return '전체';
-    }
-  }
-
-  // 날짜/시간 표시 로직
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          onPressed: () => Navigator.of(context).pop(),
-        ),
-        title: const Text(
-          '공지사항',
-          style: TextStyle(fontWeight: FontWeight.bold, color: Colors.black87),
-        ),
-        centerTitle: false,
+      appBar: AppAppBar(
+        title: '공지사항',
+        showBackButton: true,
         actions: [
           IconButton(
             icon: const Icon(Icons.date_range),
@@ -465,7 +433,6 @@ class _UserNoticeListScreenState extends State<UserNoticeListScreen> {
       ),
       body: Column(
         children: [
-          // 검색창 및 필터 표시
           Container(
             padding: const EdgeInsets.all(16.0),
             child: Column(
@@ -489,19 +456,17 @@ class _UserNoticeListScreenState extends State<UserNoticeListScreen> {
                     ),
                     filled: true,
                     fillColor: Colors.grey.shade50,
-                    suffixIcon:
-                        searchQuery.isNotEmpty
-                            ? IconButton(
-                              icon: const Icon(Icons.clear),
-                              onPressed: () {
-                                searchController.clear();
-                                _onSearchChanged('');
-                              },
-                            )
-                            : null,
+                    suffixIcon: searchQuery.isNotEmpty
+                        ? IconButton(
+                            icon: const Icon(Icons.clear),
+                            onPressed: () {
+                              searchController.clear();
+                              _onSearchChanged('');
+                            },
+                          )
+                        : null,
                   ),
                 ),
-                // 날짜 범위 표시
                 if (startDate != null && endDate != null) ...[
                   const SizedBox(height: 8),
                   Container(
@@ -532,8 +497,8 @@ class _UserNoticeListScreenState extends State<UserNoticeListScreen> {
                         IconButton(
                           icon: const Icon(
                             Icons.close,
-                            color: AppTheme.primaryBlue,
                             size: 18,
+                            color: AppTheme.primaryBlue,
                           ),
                           onPressed: _clearDateRange,
                           padding: EdgeInsets.zero,
@@ -612,36 +577,35 @@ class _UserNoticeListScreenState extends State<UserNoticeListScreen> {
     }
 
     return Container(
-      decoration: BoxDecoration(color: Colors.white),
+      decoration: const BoxDecoration(color: Colors.white),
       child: ListView.separated(
         padding: EdgeInsets.zero,
         itemCount: notices.length,
-        separatorBuilder:
-            (context, index) => Container(
-              height: 1,
-              color: AppTheme.lightGray.withValues(alpha: 0.2),
-              margin: const EdgeInsets.symmetric(horizontal: 16),
-            ),
+        separatorBuilder: (context, index) => Container(
+          height: 1,
+          color: AppTheme.lightGray.withValues(alpha: 0.2),
+          margin: const EdgeInsets.symmetric(horizontal: 16),
+        ),
         itemBuilder: (context, index) {
           final notice = notices[index];
 
           return InkWell(
             onTap: () => _showNoticeDetail(notice),
             child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              padding: const EdgeInsets.symmetric(
+                horizontal: 16,
+                vertical: 12,
+              ),
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // 중앙: 메인 콘텐츠
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        // 첫 번째 줄: 순서 번호 + 뱃지 + 제목
                         Row(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            // 순서 번호
                             SizedBox(
                               width: 20,
                               child: Text(
@@ -680,34 +644,27 @@ class _UserNoticeListScreenState extends State<UserNoticeListScreen> {
                               child: MarqueeText(
                                 text: notice.title,
                                 style: AppTheme.bodyMediumStyle.copyWith(
-                                  color:
-                                      notice.showBadge
-                                          ? AppTheme.error
-                                          : AppTheme.textPrimary,
-                                  fontWeight:
-                                      notice.showBadge
-                                          ? FontWeight.w600
-                                          : FontWeight.w500,
+                                  color: notice.showBadge
+                                      ? AppTheme.error
+                                      : AppTheme.textPrimary,
+                                  fontWeight: notice.showBadge
+                                      ? FontWeight.w600
+                                      : FontWeight.w500,
                                   fontSize: 14,
                                 ),
-                                animationDuration: const Duration(
-                                  milliseconds: 4000,
-                                ),
-                                pauseDuration: const Duration(
-                                  milliseconds: 1000,
-                                ),
+                                animationDuration:
+                                    const Duration(milliseconds: 4000),
+                                pauseDuration:
+                                    const Duration(milliseconds: 1000),
                               ),
                             ),
                           ],
                         ),
                         const SizedBox(height: 6),
-                        // 두 번째 줄: 작성자 닉네임
                         Padding(
                           padding: const EdgeInsets.only(left: 28),
                           child: Text(
-                            (notice.authorNickname ?? notice.authorName)
-                                        .length >
-                                    15
+                            (notice.authorNickname ?? notice.authorName).length > 15
                                 ? '${(notice.authorNickname ?? notice.authorName).substring(0, 15)}..'
                                 : (notice.authorNickname ?? notice.authorName),
                             style: AppTheme.bodySmallStyle.copyWith(
@@ -722,11 +679,9 @@ class _UserNoticeListScreenState extends State<UserNoticeListScreen> {
                     ),
                   ),
                   const SizedBox(width: 12),
-                  // 오른쪽: 날짜들 + 2줄 높이의 조회수 박스
                   Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      // 날짜 컬럼 (작성/수정일 세로 배치)
                       Column(
                         crossAxisAlignment: CrossAxisAlignment.end,
                         children: [
@@ -748,7 +703,6 @@ class _UserNoticeListScreenState extends State<UserNoticeListScreen> {
                         ],
                       ),
                       const SizedBox(width: 8),
-                      // 2줄 높이의 조회수 박스
                       Container(
                         height: 36,
                         width: 40,

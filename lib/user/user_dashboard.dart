@@ -23,6 +23,7 @@ import '../utils/config.dart';
 import '../widgets/region_selection_sheet.dart';
 import '../models/region_model.dart';
 import '../utils/text_personalization_util.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class UserDashboard extends StatefulWidget {
   const UserDashboard({super.key});
@@ -312,8 +313,8 @@ class _UserDashboardState extends State<UserDashboard>
 
       // 칼럼과 공지사항은 별도로 로딩
       final futures = await Future.wait([
-        DashboardService.getPublicColumns(limit: 10),
-        DashboardService.getPublicNotices(limit: 10),
+        DashboardService.getPublicColumns(limit: 50),
+        DashboardService.getPublicNotices(limit: 50),
       ]);
 
       final columnPosts = futures[0] as List<ColumnPost>;
@@ -341,6 +342,7 @@ class _UserDashboardState extends State<UserDashboard>
               createdAt: column.createdAt,
               updatedAt: column.updatedAt,
               authorNickname: column.authorNickname, // 병원 닉네임
+              columnUrl: column.columnUrl,
             );
           }).toList();
 
@@ -374,6 +376,7 @@ class _UserDashboardState extends State<UserDashboard>
                   authorNickname: notice.authorNickname, // 작성자 닉네임
                   viewCount: notice.viewCount,
                   targetAudience: notice.targetAudience,
+                  noticeUrl: notice.noticeUrl,
                 );
               })
               .toList();
@@ -387,8 +390,8 @@ class _UserDashboardState extends State<UserDashboard>
       if (!mounted) return;
       setState(() {
         donations = sortedDonations.take(10).toList();
-        columns = sortedColumns.take(10).toList();
-        notices = sortedNotices.take(10).toList();
+        columns = sortedColumns;
+        notices = sortedNotices;
         isLoadingDashboard = false;
         isLoadingDonations = false;
         isLoadingColumns = false;
@@ -545,9 +548,9 @@ class _UserDashboardState extends State<UserDashboard>
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Icon(Icons.article, size: 20),
+                      Icon(Icons.announcement, size: 20),
                       SizedBox(width: 8),
-                      Text('칼럼'),
+                      Text('공지사항'),
                     ],
                   ),
                 ),
@@ -555,9 +558,9 @@ class _UserDashboardState extends State<UserDashboard>
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Icon(Icons.announcement, size: 20),
+                      Icon(Icons.article, size: 20),
                       SizedBox(width: 8),
-                      Text('공지사항'),
+                      Text('칼럼'),
                     ],
                   ),
                 ),
@@ -587,8 +590,8 @@ class _UserDashboardState extends State<UserDashboard>
               controller: _tabController,
               children: [
                 _buildBloodDonationBoard(), // 헌혈 모집 게시판 내용
-                _buildColumnBoard(), // 칼럼 게시판 내용
                 _buildNoticeBoard(), // 공지사항 게시판 내용
+                _buildColumnBoard(), // 칼럼 게시판 내용
               ],
             ),
           ),
@@ -1027,13 +1030,7 @@ class _UserDashboardState extends State<UserDashboard>
                     column.title.contains('[공지]');
 
                 return InkWell(
-                  onTap: () {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text('칼럼 ${column.columnIdx} 상세 페이지 (준비 중)'),
-                      ),
-                    );
-                  },
+                  onTap: () => _showColumnBottomSheet(column),
                   child: Container(
                     padding: const EdgeInsets.symmetric(
                       horizontal: 12,
@@ -1219,6 +1216,204 @@ class _UserDashboardState extends State<UserDashboard>
           ),
         ],
       ),
+    );
+  }
+
+  void _showColumnBottomSheet(HospitalColumn column) {
+    final String? columnUrl = column.columnUrl;
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) {
+        return DraggableScrollableSheet(
+          initialChildSize: 0.85,
+          minChildSize: 0.5,
+          maxChildSize: 0.95,
+          expand: false,
+          builder: (context, scrollController) {
+            return Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Center(
+                    child: Container(
+                      width: 40,
+                      height: 4,
+                      margin: const EdgeInsets.only(bottom: 20),
+                      decoration: BoxDecoration(
+                        color: Colors.grey[300],
+                        borderRadius: BorderRadius.circular(2),
+                      ),
+                    ),
+                  ),
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(
+                        child: Text(
+                          TextPersonalizationUtil.personalizeTitle(
+                            title: column.title,
+                            userName: userName,
+                            userNickname: userNickname,
+                          ),
+                          style: AppTheme.h3Style.copyWith(
+                            fontWeight: FontWeight.bold,
+                            color: AppTheme.textPrimary,
+                          ),
+                        ),
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.close, color: Colors.black87),
+                        onPressed: () => Navigator.pop(context),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 4,
+                        ),
+                        decoration: BoxDecoration(
+                          color:
+                              column.title.contains('[중요]') ||
+                                      column.title.contains('[공지]')
+                                  ? AppTheme.error
+                                  : AppTheme.warning,
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: Text(
+                          column.title.contains('[중요]') ||
+                                  column.title.contains('[공지]')
+                              ? '중요'
+                              : '칼럼',
+                          style: AppTheme.bodySmallStyle.copyWith(
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 10,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          column.authorNickname ?? column.hospitalName,
+                          style: AppTheme.bodySmallStyle.copyWith(
+                            color: AppTheme.textSecondary,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        '작성: ${DateFormat('yyyy-MM-dd HH:mm').format(column.createdAt)}',
+                        style: AppTheme.bodySmallStyle.copyWith(
+                          color: AppTheme.textTertiary,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  const Divider(),
+                  const SizedBox(height: 16),
+                  Expanded(
+                    child: SingleChildScrollView(
+                      controller: scrollController,
+                      child: Text(
+                        column.content,
+                        style: AppTheme.bodyMediumStyle.copyWith(
+                          height: 1.6,
+                          color: AppTheme.textPrimary,
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  if (columnUrl != null && columnUrl.isNotEmpty) ...[
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton.icon(
+                        onPressed: () async {
+                          final uri = Uri.parse(columnUrl);
+                          if (await canLaunchUrl(uri)) {
+                            await launchUrl(
+                              uri,
+                              mode: LaunchMode.externalApplication,
+                            );
+                          } else if (mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text('링크를 열 수 없습니다.'),
+                                backgroundColor: AppTheme.error,
+                              ),
+                            );
+                          }
+                        },
+                        icon: const Icon(
+                          Icons.open_in_new,
+                          color: Colors.black,
+                        ),
+                        label: const Text('관련 링크 열기'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.grey,
+                          foregroundColor: Colors.black,
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                  ],
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.grey[50],
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(
+                          Icons.visibility_outlined,
+                          size: 16,
+                          color: Colors.grey[600],
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          '조회수 ${NumberFormatUtil.formatViewCount(column.viewCount)}회',
+                          style: AppTheme.bodySmallStyle.copyWith(
+                            color: Colors.grey[600],
+                          ),
+                        ),
+                        const Spacer(),
+                        if (!column.updatedAt.isAtSameMomentAs(
+                          column.createdAt,
+                        ))
+                          Text(
+                            '수정: ${DateFormat('yyyy-MM-dd HH:mm').format(column.updatedAt)}',
+                            style: AppTheme.bodySmallStyle.copyWith(
+                              color: Colors.grey[600],
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
     );
   }
 
@@ -1576,6 +1771,27 @@ class _UserDashboardState extends State<UserDashboard>
 
     if (!mounted) return;
 
+    final bool isImportant =
+        (noticeDetail?.noticeImportant ?? notice.noticeImportant) == 0;
+    final DateTime createdAt = noticeDetail?.createdAt ?? notice.createdAt;
+    final DateTime updatedAt = noticeDetail?.updatedAt ?? notice.updatedAt;
+    final int viewCount = noticeDetail?.viewCount ?? notice.viewCount ?? 0;
+    final String authorName =
+        noticeDetail?.authorNickname ??
+        notice.authorNickname ??
+        notice.authorName;
+    final String title = TextPersonalizationUtil.personalizeTitle(
+      title: noticeDetail?.title ?? notice.title,
+      userName: userName,
+      userNickname: userNickname,
+    );
+    final String content = TextPersonalizationUtil.personalizeContent(
+      content: noticeDetail?.contentPreview ?? notice.content,
+      userName: userName,
+      userNickname: userNickname,
+    );
+    final String? noticeUrl = noticeDetail?.noticeUrl ?? notice.noticeUrl;
+
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -1585,128 +1801,173 @@ class _UserDashboardState extends State<UserDashboard>
       ),
       builder: (BuildContext context) {
         return DraggableScrollableSheet(
-          initialChildSize: 0.7,
+          initialChildSize: 0.85,
           minChildSize: 0.5,
           maxChildSize: 0.95,
           expand: false,
           builder: (context, scrollController) {
-            return Container(
-              decoration: const BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-              ),
+            return Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
               child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // 핸들 바
-                  Container(
-                    width: 40,
-                    height: 4,
-                    margin: const EdgeInsets.symmetric(vertical: 12),
-                    decoration: BoxDecoration(
-                      color: Colors.grey[300],
-                      borderRadius: BorderRadius.circular(2),
+                  Center(
+                    child: Container(
+                      width: 40,
+                      height: 4,
+                      margin: const EdgeInsets.only(bottom: 20),
+                      decoration: BoxDecoration(
+                        color: Colors.grey[300],
+                        borderRadius: BorderRadius.circular(2),
+                      ),
                     ),
                   ),
-                  // 제목 영역
-                  Container(
-                    padding: const EdgeInsets.fromLTRB(20, 8, 20, 16),
-                    child: Row(
-                      children: [
-                        if (notice.showBadge) ...[
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 8,
-                              vertical: 4,
-                            ),
-                            decoration: BoxDecoration(
-                              color: AppTheme.error,
-                              borderRadius: BorderRadius.circular(6),
-                            ),
-                            child: Text(
-                              notice.badgeText,
-                              style: AppTheme.bodySmallStyle.copyWith(
-                                color: Colors.white,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                        ],
-                        Expanded(
-                          child: Text(
-                            TextPersonalizationUtil.personalizeTitle(
-                              title: noticeDetail?.title ?? notice.title,
-                              userName: userName,
-                              userNickname: userNickname,
-                            ),
-                            style: AppTheme.h3Style.copyWith(
-                              color:
-                                  notice.showBadge
-                                      ? AppTheme.error
-                                      : AppTheme.textPrimary,
-                              fontWeight: FontWeight.bold,
-                            ),
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(
+                        child: Text(
+                          title,
+                          style: AppTheme.h3Style.copyWith(
+                            fontWeight: FontWeight.bold,
+                            color:
+                                isImportant
+                                    ? AppTheme.error
+                                    : AppTheme.textPrimary,
                           ),
                         ),
-                        IconButton(
-                          icon: const Icon(Icons.close),
-                          onPressed: () => Navigator.pop(context),
-                        ),
-                      ],
-                    ),
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.close, color: Colors.black87),
+                        onPressed: () => Navigator.pop(context),
+                      ),
+                    ],
                   ),
-                  const Divider(height: 1),
-                  // 메타 정보
-                  Container(
-                    padding: const EdgeInsets.all(20),
-                    child: Row(
-                      children: [
-                        Text(
-                          '${notice.authorNickname ?? notice.authorName} • ',
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 4,
+                        ),
+                        decoration: BoxDecoration(
+                          color:
+                              isImportant ? AppTheme.error : AppTheme.primaryBlue,
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: Text(
+                          isImportant ? '공지' : '알림',
+                          style: AppTheme.bodySmallStyle.copyWith(
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 10,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          authorName,
                           style: AppTheme.bodySmallStyle.copyWith(
                             color: AppTheme.textSecondary,
                           ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                         ),
-                        Text(
-                          DateFormat(
-                            'yyyy년 MM월 dd일',
-                          ).format(noticeDetail?.createdAt ?? notice.createdAt),
-                          style: AppTheme.bodySmallStyle.copyWith(
-                            color: AppTheme.textSecondary,
-                          ),
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        '작성: ${DateFormat('yyyy-MM-dd HH:mm').format(createdAt)}',
+                        style: AppTheme.bodySmallStyle.copyWith(
+                          color: AppTheme.textTertiary,
                         ),
-                        const Spacer(),
-                        Icon(
-                          Icons.visibility_outlined,
-                          size: 16,
-                          color: AppTheme.textSecondary,
-                        ),
-                        const SizedBox(width: 4),
-                        Text(
-                          NumberFormatUtil.formatViewCount(
-                            noticeDetail?.viewCount ?? notice.viewCount ?? 0,
-                          ),
-                          style: AppTheme.bodySmallStyle.copyWith(
-                            color: AppTheme.textSecondary,
-                          ),
-                        ),
-                      ],
-                    ),
+                      ),
+                    ],
                   ),
-                  // 내용
+                  const SizedBox(height: 16),
+                  const Divider(),
+                  const SizedBox(height: 16),
                   Expanded(
                     child: SingleChildScrollView(
                       controller: scrollController,
-                      padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
                       child: Text(
-                        TextPersonalizationUtil.personalizeContent(
-                          content:
-                              noticeDetail?.contentPreview ?? notice.content,
-                          userName: userName,
-                          userNickname: userNickname,
+                        content,
+                        style: AppTheme.bodyMediumStyle.copyWith(
+                          height: 1.6,
+                          color: AppTheme.textPrimary,
                         ),
-                        style: AppTheme.bodyMediumStyle.copyWith(height: 1.6),
                       ),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  if (noticeUrl != null && noticeUrl.isNotEmpty) ...[
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton.icon(
+                        onPressed: () async {
+                          final uri = Uri.parse(noticeUrl);
+                          if (await canLaunchUrl(uri)) {
+                            await launchUrl(
+                              uri,
+                              mode: LaunchMode.externalApplication,
+                            );
+                          } else if (mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text('링크를 열 수 없습니다.'),
+                                backgroundColor: AppTheme.error,
+                              ),
+                            );
+                          }
+                        },
+                        icon: const Icon(
+                          Icons.open_in_new,
+                          color: Colors.black,
+                        ),
+                        label: const Text('링크 열기'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.grey,
+                          foregroundColor: Colors.black,
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                  ],
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.grey[50],
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(
+                          Icons.visibility_outlined,
+                          size: 16,
+                          color: Colors.grey[600],
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          '조회수 ${NumberFormatUtil.formatViewCount(viewCount)}회',
+                          style: AppTheme.bodySmallStyle.copyWith(
+                            color: Colors.grey[600],
+                          ),
+                        ),
+                        const Spacer(),
+                        if (!updatedAt.isAtSameMomentAs(createdAt))
+                          Text(
+                            '수정: ${DateFormat('yyyy-MM-dd HH:mm').format(updatedAt)}',
+                            style: AppTheme.bodySmallStyle.copyWith(
+                              color: Colors.grey[600],
+                            ),
+                          ),
+                      ],
                     ),
                   ),
                 ],

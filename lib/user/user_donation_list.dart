@@ -473,15 +473,7 @@ class _UserDonationListScreenState extends State<UserDonationListScreen> {
                 final donation = donations[index];
 
                 return InkWell(
-                  onTap: () {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text(
-                          '헌혈 모집글 ${donation.postIdx} 상세 페이지 (준비 중)',
-                        ),
-                      ),
-                    );
-                  },
+                  onTap: () => _showDonationBottomSheet(donation),
                   child: Container(
                     padding: const EdgeInsets.symmetric(
                       horizontal: 12,
@@ -663,6 +655,261 @@ class _UserDonationListScreenState extends State<UserDonationListScreen> {
           ),
         ],
       ),
+    );
+  }
+
+  Future<void> _showDonationBottomSheet(DonationPost donation) async {
+    final detail = await DashboardService.getDonationPostDetail(
+      donation.postIdx,
+    );
+
+    if (!mounted) return;
+
+    final post = detail ?? donation;
+    final bool isUrgent = post.isUrgent;
+    final DateTime createdAt = post.createdAt;
+    final DateTime updatedAt = post.updatedAt ?? post.createdAt;
+    final String hospitalName = post.hospitalNickname ?? post.hospitalName;
+    final String location = post.location;
+    final String bloodType = post.displayBloodType;
+    final String donationDatesText = post.donationDatesText;
+    final String applicantText =
+        NumberFormatUtil.formatViewCount(post.applicantCount);
+    final String viewCountText =
+        NumberFormatUtil.formatViewCount(post.viewCount);
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) {
+        return DraggableScrollableSheet(
+          initialChildSize: 0.9,
+          minChildSize: 0.6,
+          maxChildSize: 0.95,
+          expand: false,
+          builder: (context, scrollController) {
+            return Padding(
+              padding: const EdgeInsets.symmetric(
+                horizontal: 20,
+                vertical: 16,
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Center(
+                    child: Container(
+                      width: 40,
+                      height: 4,
+                      margin: const EdgeInsets.only(bottom: 20),
+                      decoration: BoxDecoration(
+                        color: Colors.grey[300],
+                        borderRadius: BorderRadius.circular(2),
+                      ),
+                    ),
+                  ),
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(
+                        child: Text(
+                          post.title,
+                          style: AppTheme.h3Style.copyWith(
+                            fontWeight: FontWeight.bold,
+                            color:
+                                isUrgent ? AppTheme.error : AppTheme.textPrimary,
+                          ),
+                        ),
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.close, color: Colors.black87),
+                        onPressed: () => Navigator.pop(context),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 4,
+                        ),
+                        decoration: BoxDecoration(
+                          color:
+                              isUrgent ? AppTheme.error : AppTheme.primaryBlue,
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: Text(
+                          isUrgent ? '긴급' : '정기',
+                          style: AppTheme.bodySmallStyle.copyWith(
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 10,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          hospitalName,
+                          style: AppTheme.bodySmallStyle.copyWith(
+                            color: AppTheme.textSecondary,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        DateFormat('yyyy-MM-dd HH:mm').format(createdAt),
+                        style: AppTheme.bodySmallStyle.copyWith(
+                          color: AppTheme.textTertiary,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.grey[50],
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Icon(
+                              Icons.location_on_outlined,
+                              size: 16,
+                              color: AppTheme.primaryBlue,
+                            ),
+                            const SizedBox(width: 6),
+                            Expanded(
+                              child: Text(
+                                location,
+                                style: AppTheme.bodySmallStyle.copyWith(
+                                  color: AppTheme.textSecondary,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 10),
+                        Row(
+                          children: [
+                            Icon(
+                              Icons.opacity,
+                              size: 16,
+                              color: AppTheme.primaryBlue,
+                            ),
+                            const SizedBox(width: 6),
+                            Text(
+                              '필요 혈액형 : $bloodType',
+                              style: AppTheme.bodySmallStyle.copyWith(
+                                color: AppTheme.textSecondary,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 10),
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Icon(
+                              Icons.event_available,
+                              size: 16,
+                              color: AppTheme.primaryBlue,
+                            ),
+                            const SizedBox(width: 6),
+                            Expanded(
+                              child: Text(
+                                donationDatesText,
+                                style: AppTheme.bodySmallStyle.copyWith(
+                                  color: AppTheme.textSecondary,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 10),
+                        Row(
+                          children: [
+                            Icon(
+                              Icons.people_outline,
+                              size: 16,
+                              color: AppTheme.primaryBlue,
+                            ),
+                            const SizedBox(width: 6),
+                            Text(
+                              '신청자 $applicantText명',
+                              style: AppTheme.bodySmallStyle.copyWith(
+                                color: AppTheme.textSecondary,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  Expanded(
+                    child: SingleChildScrollView(
+                      controller: scrollController,
+                      child: Text(
+                        post.description,
+                        style: AppTheme.bodyMediumStyle.copyWith(
+                          height: 1.6,
+                          color: AppTheme.textPrimary,
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.grey[50],
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(
+                          Icons.visibility_outlined,
+                          size: 16,
+                          color: Colors.grey[600],
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          '조회수 ${viewCountText}회',
+                          style: AppTheme.bodySmallStyle.copyWith(
+                            color: Colors.grey[600],
+                          ),
+                        ),
+                        const Spacer(),
+                        if (!updatedAt.isAtSameMomentAs(createdAt))
+                          Text(
+                            '수정: ${DateFormat('yyyy-MM-dd HH:mm').format(updatedAt)}',
+                            style: AppTheme.bodySmallStyle.copyWith(
+                              color: Colors.grey[600],
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
     );
   }
 }

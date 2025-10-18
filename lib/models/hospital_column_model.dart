@@ -3,6 +3,7 @@ class HospitalColumn {
   final String title;
   final String content;
   final bool isPublished;
+  final String? columnUrl;
   final DateTime createdAt;
   final DateTime updatedAt;
   final int hospitalIdx;
@@ -20,6 +21,7 @@ class HospitalColumn {
     required this.hospitalIdx,
     required this.hospitalName,
     this.authorNickname,
+    this.columnUrl,
     this.viewCount = 0,
   });
 
@@ -40,6 +42,9 @@ class HospitalColumn {
       authorNickname: (json['hospital_nickname'] != null && json['hospital_nickname'].toString() != 'null' && json['hospital_nickname'].toString().isNotEmpty) 
           ? json['hospital_nickname'] 
           : '닉네임 없음',
+      columnUrl: (json['column_url'] != null && json['column_url'].toString().isNotEmpty)
+          ? json['column_url']
+          : null,
       viewCount: json['view_count'] ?? 0,
     );
   }
@@ -55,6 +60,7 @@ class HospitalColumn {
       'hospital_idx': hospitalIdx,
       'hospital_name': hospitalName,
       'author_nickname': authorNickname ?? '',
+      'column_url': columnUrl,
       'view_count': viewCount,
     };
   }
@@ -64,35 +70,47 @@ class HospitalColumnCreateRequest {
   final String title;
   final String content;
   final bool isPublished;
+  final String? columnUrl;
 
   HospitalColumnCreateRequest({
     required this.title,
     required this.content,
     this.isPublished = true,
+    this.columnUrl,
   });
 
   Map<String, dynamic> toJson() {
-    return {
+    final Map<String, dynamic> data = {
       'title': title,
       'content': content,
       'is_published': isPublished,
     };
+    if (columnUrl != null && columnUrl!.isNotEmpty) {
+      data['column_url'] = columnUrl;
+    }
+    return data;
   }
 }
 
 class HospitalColumnUpdateRequest {
   final String? title;
   final String? content;
+  final bool? isPublished;
+  final String? columnUrl;
 
   HospitalColumnUpdateRequest({
     this.title,
     this.content,
+    this.isPublished,
+    this.columnUrl,
   });
 
   Map<String, dynamic> toJson() {
     final Map<String, dynamic> data = {};
     if (title != null) data['title'] = title;
     if (content != null) data['content'] = content;
+    if (isPublished != null) data['is_published'] = isPublished;
+    if (columnUrl != null) data['column_url'] = columnUrl;
     return data;
   }
 }

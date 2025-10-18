@@ -4,6 +4,7 @@ import '../services/dashboard_service.dart';
 import 'package:intl/intl.dart';
 import '../widgets/marquee_text.dart';
 import '../utils/number_format_util.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class UserColumnListScreen extends StatefulWidget {
   const UserColumnListScreen({super.key});
@@ -27,6 +28,199 @@ class _UserColumnListScreenState extends State<UserColumnListScreen> {
     _loadColumns();
   }
 
+  void _showColumnBottomSheet(ColumnPost column) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) {
+        return DraggableScrollableSheet(
+          initialChildSize: 0.85,
+          minChildSize: 0.5,
+          maxChildSize: 0.95,
+          expand: false,
+          builder: (context, scrollController) {
+            return Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Center(
+                    child: Container(
+                      width: 40,
+                      height: 4,
+                      margin: const EdgeInsets.only(bottom: 20),
+                      decoration: BoxDecoration(
+                        color: Colors.grey[300],
+                        borderRadius: BorderRadius.circular(2),
+                      ),
+                    ),
+                  ),
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(
+                        child: Text(
+                          column.title,
+                          style: AppTheme.h3Style.copyWith(
+                            fontWeight: FontWeight.bold,
+                            color:
+                                column.isImportant
+                                    ? AppTheme.error
+                                    : AppTheme.textPrimary,
+                          ),
+                        ),
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.close, color: Colors.black87),
+                        onPressed: () => Navigator.pop(context),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 4,
+                        ),
+                        decoration: BoxDecoration(
+                          color:
+                              column.isImportant
+                                  ? AppTheme.error
+                                  : AppTheme.warning,
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: Text(
+                          column.isImportant ? '중요' : '칼럼',
+                          style: AppTheme.bodySmallStyle.copyWith(
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 10,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          column.authorNickname,
+                          style: AppTheme.bodySmallStyle.copyWith(
+                            color: AppTheme.textSecondary,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        '작성: ${DateFormat('yyyy-MM-dd HH:mm').format(column.createdAt)}',
+                        style: AppTheme.bodySmallStyle.copyWith(
+                          color: AppTheme.textTertiary,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  const Divider(),
+                  const SizedBox(height: 16),
+                  Expanded(
+                    child: SingleChildScrollView(
+                      controller: scrollController,
+                      child: Text(
+                        column.contentPreview,
+                        style: AppTheme.bodyMediumStyle.copyWith(
+                          height: 1.6,
+                          color: AppTheme.textPrimary,
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  if (column.columnUrl != null &&
+                      column.columnUrl!.isNotEmpty) ...[
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton.icon(
+                        onPressed: () async {
+                          final uri = Uri.parse(column.columnUrl!);
+                          if (await canLaunchUrl(uri)) {
+                            await launchUrl(
+                              uri,
+                              mode: LaunchMode.externalApplication,
+                            );
+                          } else if (mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text('링크를 열 수 없습니다.'),
+                                backgroundColor: AppTheme.error,
+                              ),
+                            );
+                          }
+                        },
+                        icon: const Icon(
+                          Icons.open_in_new,
+                          color: Colors.black,
+                        ),
+                        label: const Text('링크 열기'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.grey,
+                          foregroundColor: Colors.black,
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                  ],
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.grey[50],
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(
+                          Icons.visibility_outlined,
+                          size: 16,
+                          color: Colors.grey[600],
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          '조회수 ${NumberFormatUtil.formatViewCount(column.viewCount)}회',
+                          style: AppTheme.bodySmallStyle.copyWith(
+                            color: Colors.grey[600],
+                          ),
+                        ),
+                        const Spacer(),
+                        if (!column.updatedAt.isAtSameMomentAs(
+                          column.createdAt,
+                        ))
+                          Text(
+                            '수정: ${DateFormat('yyyy-MM-dd HH:mm').format(column.updatedAt)}',
+                            style: AppTheme.bodySmallStyle.copyWith(
+                              color: Colors.grey[600],
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
   @override
   void dispose() {
     searchController.dispose();
@@ -48,12 +242,15 @@ class _UserColumnListScreenState extends State<UserColumnListScreen> {
       if (searchQuery.isNotEmpty) {
         filteredColumns =
             allColumns.where((column) {
-              return column.title.toLowerCase().contains(
-                    searchQuery.toLowerCase(),
-                  ) ||
-                  column.authorName.toLowerCase().contains(
-                    searchQuery.toLowerCase(),
-                  );
+          return column.title.toLowerCase().contains(
+                searchQuery.toLowerCase(),
+              ) ||
+              column.authorName.toLowerCase().contains(
+                searchQuery.toLowerCase(),
+              ) ||
+              column.authorNickname
+                  .toLowerCase()
+                  .contains(searchQuery.toLowerCase());
             }).toList();
       }
 
@@ -373,13 +570,7 @@ class _UserColumnListScreenState extends State<UserColumnListScreen> {
                     column.isImportant;
 
                 return InkWell(
-                  onTap: () {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text('칼럼 ${column.columnIdx} 상세 페이지 (준비 중)'),
-                      ),
-                    );
-                  },
+                  onTap: () => _showColumnBottomSheet(column),
                   child: Container(
                     padding: const EdgeInsets.symmetric(
                       horizontal: 12,
@@ -460,11 +651,11 @@ class _UserColumnListScreenState extends State<UserColumnListScreen> {
                                 ],
                               ),
                               const SizedBox(height: 6),
-                              // 두 번째 줄: 작성자 이름
+                              // 두 번째 줄: 작성자 닉네임
                               Text(
-                                column.authorName.length > 15
-                                    ? '${column.authorName.substring(0, 15)}..'
-                                    : column.authorName,
+                                column.authorNickname.length > 15
+                                    ? '${column.authorNickname.substring(0, 15)}..'
+                                    : column.authorNickname,
                                 style: AppTheme.bodySmallStyle.copyWith(
                                   color: AppTheme.textSecondary,
                                   fontSize: 12,

@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import '../utils/app_theme.dart';
 import '../models/notice_model.dart';
 import '../services/notice_service.dart';
@@ -25,7 +25,7 @@ class _AdminNoticeListScreenState extends State<AdminNoticeListScreen>
   TextEditingController searchController = TextEditingController();
   DateTime? startDate;
   DateTime? endDate;
-  
+
   // 슬라이딩 탭 관련
   TabController? _tabController;
   int _currentTabIndex = 0; // 0: 공지, 1: 비공지
@@ -78,46 +78,54 @@ class _AdminNoticeListScreenState extends State<AdminNoticeListScreen>
       });
     }
   }
-  
+
   // 필터링된 공지사항 업데이트
   void _updateFilteredNotices() {
     List<Notice> filtered = notices;
-    
+
     // 탭에 따른 필터링 (notice_important 활용)
     if (_currentTabIndex == 0) {
-      // 공지 탭: notice_important가 0(긴급/공지)인 공지만  
-      filtered = filtered.where((notice) => notice.noticeImportant == 0).toList();
+      // 공지 탭: notice_important가 0(긴급/공지)인 공지만
+      filtered =
+          filtered.where((notice) => notice.noticeImportant == 0).toList();
     } else {
       // 비공지 탭: notice_important가 1(정기/비공지)인 공지만
-      filtered = filtered.where((notice) => notice.noticeImportant == 1).toList();
+      filtered =
+          filtered.where((notice) => notice.noticeImportant == 1).toList();
     }
-    
+
     // 검색 필터링
     if (searchQuery.isNotEmpty) {
-      filtered = filtered.where((notice) {
-        final titleMatch = notice.title.toLowerCase().contains(searchQuery.toLowerCase());
-        final authorMatch = (notice.authorNickname ?? notice.authorName).toLowerCase().contains(searchQuery.toLowerCase());
-        return titleMatch || authorMatch;
-      }).toList();
+      filtered =
+          filtered.where((notice) {
+            final titleMatch = notice.title.toLowerCase().contains(
+              searchQuery.toLowerCase(),
+            );
+            final authorMatch = (notice.authorNickname ?? notice.authorName)
+                .toLowerCase()
+                .contains(searchQuery.toLowerCase());
+            return titleMatch || authorMatch;
+          }).toList();
     }
-    
+
     // 날짜 범위 필터
     if (startDate != null && endDate != null) {
-      filtered = filtered.where((notice) {
-        final createdAt = notice.createdAt;
-        return !createdAt.isBefore(startDate!) && 
-               !createdAt.isAfter(endDate!.add(const Duration(days: 1)));
-      }).toList();
+      filtered =
+          filtered.where((notice) {
+            final createdAt = notice.createdAt;
+            return !createdAt.isBefore(startDate!) &&
+                !createdAt.isAfter(endDate!.add(const Duration(days: 1)));
+          }).toList();
     }
-    
+
     // 정렬 (최신순)
     filtered.sort((a, b) => b.createdAt.compareTo(a.createdAt));
-    
+
     setState(() {
       filteredNotices = filtered;
     });
   }
-  
+
   // 검색 처리
   void _onSearchChanged(String value) {
     setState(() {
@@ -125,28 +133,29 @@ class _AdminNoticeListScreenState extends State<AdminNoticeListScreen>
     });
     _updateFilteredNotices();
   }
-  
+
   // 날짜 범위 선택
   Future<void> _selectDateRange() async {
     final DateTimeRange? picked = await showDateRangePicker(
       context: context,
       firstDate: DateTime(2020),
       lastDate: DateTime.now(),
-      initialDateRange: (startDate != null && endDate != null)
-          ? DateTimeRange(start: startDate!, end: endDate!)
-          : null,
+      initialDateRange:
+          (startDate != null && endDate != null)
+              ? DateTimeRange(start: startDate!, end: endDate!)
+              : null,
       builder: (context, child) {
         return Theme(
           data: Theme.of(context).copyWith(
-            colorScheme: Theme.of(context).colorScheme.copyWith(
-              primary: AppTheme.primaryBlue,
-            ),
+            colorScheme: Theme.of(
+              context,
+            ).colorScheme.copyWith(primary: AppTheme.primaryBlue),
           ),
           child: child!,
         );
       },
     );
-    
+
     if (picked != null) {
       setState(() {
         startDate = picked.start;
@@ -155,7 +164,7 @@ class _AdminNoticeListScreenState extends State<AdminNoticeListScreen>
       _updateFilteredNotices();
     }
   }
-  
+
   // 날짜 범위 초기화
   void _clearDateRange() {
     setState(() {
@@ -177,7 +186,9 @@ class _AdminNoticeListScreenState extends State<AdminNoticeListScreen>
           SnackBar(
             content: Text('공지글이 $statusText되었습니다.'),
             backgroundColor:
-                updatedNotice.noticeActive ? AppTheme.success : AppTheme.mediumGray,
+                updatedNotice.noticeActive
+                    ? AppTheme.success
+                    : AppTheme.mediumGray,
           ),
         );
         _loadNotices(); // 목록 새로고침
@@ -196,25 +207,88 @@ class _AdminNoticeListScreenState extends State<AdminNoticeListScreen>
 
   Future<void> _deleteNotice(Notice notice) async {
     // 확인 다이얼로그
-    final confirmed = await showDialog<bool>(
+    final confirmed = await showModalBottomSheet<bool>(
       context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
       builder: (BuildContext context) {
-        return AlertDialog(
-          title: const Text('공지글 삭제'),
-          content: Text(
-            '\'${notice.title}\'을(를) 삭제하시겠습니까?\n\n삭제된 공지글은 복구할 수 없습니다.',
+        return Container(
+          padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Center(
+                child: Container(
+                  width: 40,
+                  height: 4,
+                  margin: const EdgeInsets.only(bottom: 20),
+                  decoration: BoxDecoration(
+                    color: Colors.grey[300],
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              ),
+              Text(
+                '공지글 삭제',
+                style: AppTheme.h3Style.copyWith(fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 16),
+              Text.rich(
+                TextSpan(
+                  children: [
+                    TextSpan(
+                      text: '\'${notice.title}\'을(를)\n',
+                      style: AppTheme.bodyLargeStyle.copyWith(
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    TextSpan(
+                      text: '삭제하면 복구할 수 없습니다. 정말 삭제하시겠습니까?',
+                      style: AppTheme.bodyLargeStyle.copyWith(
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 24),
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton(
+                      onPressed: () => Navigator.pop(context, false),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: AppTheme.textSecondary,
+                        side: BorderSide(color: AppTheme.lightGray),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                      ),
+                      child: const Text('취소'),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: ElevatedButton(
+                      onPressed: () => Navigator.pop(context, true),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppTheme.error,
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                      ),
+                      child: const Text('삭제'),
+                    ),
+                  ),
+                ],
+              ),
+            ],
           ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(false),
-              child: const Text('취소'),
-            ),
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(true),
-              style: TextButton.styleFrom(foregroundColor: AppTheme.error),
-              child: const Text('삭제'),
-            ),
-          ],
         );
       },
     );
@@ -225,12 +299,6 @@ class _AdminNoticeListScreenState extends State<AdminNoticeListScreen>
       await NoticeService.deleteNotice(notice.noticeIdx);
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('공지글이 삭제되었습니다.'),
-            backgroundColor: Colors.green,
-          ),
-        );
         _loadNotices(); // 목록 새로고침
       }
     } catch (e) {
@@ -276,20 +344,47 @@ class _AdminNoticeListScreenState extends State<AdminNoticeListScreen>
                       ),
                     ),
                   ),
-                  // 제목
-                  Text(
-                    notice.title,
-                    style: AppTheme.h3Style.copyWith(
-                      fontWeight: FontWeight.bold,
-                      color: AppTheme.textPrimary,
-                    ),
+                  // 제목 + 닫기 버튼
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(
+                        child: Text(
+                          notice.title,
+                          style: AppTheme.h3Style.copyWith(
+                            fontWeight: FontWeight.bold,
+                            color: AppTheme.textPrimary,
+                          ),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.delete),
+                        color: AppTheme.error,
+                        tooltip: '삭제',
+                        onPressed: () {
+                          Navigator.of(context).pop();
+                          _deleteNotice(notice);
+                        },
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.close),
+                        color: AppTheme.textSecondary,
+                        tooltip: '닫기',
+                        onPressed: () => Navigator.of(context).pop(),
+                      ),
+                    ],
                   ),
                   const SizedBox(height: 8),
                   // 메타 정보
                   Row(
                     children: [
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 4,
+                        ),
                         decoration: BoxDecoration(
                           color: _getTargetAudienceColor(notice.targetAudience),
                           borderRadius: BorderRadius.circular(4),
@@ -304,17 +399,23 @@ class _AdminNoticeListScreenState extends State<AdminNoticeListScreen>
                         ),
                       ),
                       const SizedBox(width: 8),
-                      Text(
-                        notice.authorNickname ?? notice.authorName,
-                        style: AppTheme.bodySmallStyle.copyWith(
-                          color: AppTheme.textSecondary,
+                      Expanded(
+                        child: Text(
+                          notice.authorNickname ?? notice.authorName,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: AppTheme.bodySmallStyle.copyWith(
+                            color: AppTheme.textSecondary,
+                          ),
                         ),
                       ),
                       const SizedBox(width: 8),
                       Text(
-                        DateFormat('yyyy-MM-dd HH:mm').format(notice.createdAt),
+                        '작성: ${DateFormat('yyyy-MM-dd HH:mm').format(notice.createdAt)}',
+                        textAlign: TextAlign.right,
                         style: AppTheme.bodySmallStyle.copyWith(
                           color: AppTheme.textTertiary,
+                          fontWeight: FontWeight.w500,
                         ),
                       ),
                     ],
@@ -337,7 +438,8 @@ class _AdminNoticeListScreenState extends State<AdminNoticeListScreen>
                   ),
                   const SizedBox(height: 16),
                   // URL 버튼 (URL이 있을 경우에만 표시)
-                  if (notice.noticeUrl != null && notice.noticeUrl!.isNotEmpty) ...[
+                  if (notice.noticeUrl != null &&
+                      notice.noticeUrl!.isNotEmpty) ...[
                     SizedBox(
                       width: double.infinity,
                       child: ElevatedButton.icon(
@@ -360,11 +462,14 @@ class _AdminNoticeListScreenState extends State<AdminNoticeListScreen>
                             }
                           }
                         },
-                        icon: const Icon(Icons.open_in_new),
+                        icon: const Icon(
+                          Icons.open_in_new,
+                          color: Colors.black,
+                        ),
                         label: const Text('링크 열기'),
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.green,
-                          foregroundColor: Colors.white,
+                          backgroundColor: Colors.grey,
+                          foregroundColor: Colors.black,
                           padding: const EdgeInsets.symmetric(vertical: 12),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(8),
@@ -382,10 +487,10 @@ class _AdminNoticeListScreenState extends State<AdminNoticeListScreen>
                         Navigator.pop(context); // 바텀시트 닫기
                         _navigateToEditNotice(notice); // 수정 페이지로 이동
                       },
-                      icon: const Icon(Icons.edit),
+                      icon: const Icon(Icons.edit, color: Colors.white),
                       label: const Text('수정하기'),
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: AppTheme.primaryBlue,
+                        backgroundColor: AppTheme.black,
                         foregroundColor: Colors.white,
                         padding: const EdgeInsets.symmetric(vertical: 12),
                         shape: RoundedRectangleBorder(
@@ -407,17 +512,25 @@ class _AdminNoticeListScreenState extends State<AdminNoticeListScreen>
                       children: [
                         Row(
                           children: [
-                            Icon(Icons.visibility_outlined, size: 16, color: Colors.grey[600]),
+                            Icon(
+                              Icons.visibility_outlined,
+                              size: 16,
+                              color: Colors.grey[600],
+                            ),
                             const SizedBox(width: 4),
                             Text(
                               '조회수 ${notice.viewCount ?? 0}회',
-                              style: AppTheme.bodySmallStyle.copyWith(color: Colors.grey[600]),
+                              style: AppTheme.bodySmallStyle.copyWith(
+                                color: Colors.grey[600],
+                              ),
                             ),
                             const Spacer(),
                             if (notice.updatedAt != notice.createdAt) ...[
                               Text(
                                 '수정: ${DateFormat('yyyy-MM-dd HH:mm').format(notice.updatedAt)}',
-                                style: AppTheme.bodySmallStyle.copyWith(color: Colors.grey[600]),
+                                style: AppTheme.bodySmallStyle.copyWith(
+                                  color: Colors.grey[600],
+                                ),
                               ),
                             ],
                           ],
@@ -439,9 +552,10 @@ class _AdminNoticeListScreenState extends State<AdminNoticeListScreen>
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) => AdminNoticeCreateScreen(
-          editNotice: notice, // 수정할 공지사항 전달
-        ),
+        builder:
+            (context) => AdminNoticeCreateScreen(
+              editNotice: notice, // 수정할 공지사항 전달
+            ),
       ),
     ).then((_) {
       _loadNotices(); // 수정 후 목록 새로고침
@@ -462,9 +576,11 @@ class _AdminNoticeListScreenState extends State<AdminNoticeListScreen>
         return '전체';
     }
   }
-  
+
   Color _getTargetAudienceColor(int targetAudience) {
     switch (targetAudience) {
+      case 1:
+        return AppTheme.primaryBlue; // 관리자
       case 2:
         return Colors.orange; // 병원: 주황색
       case 3:
@@ -566,33 +682,44 @@ class _AdminNoticeListScreenState extends State<AdminNoticeListScreen>
                     ),
                     focusedBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
-                      borderSide: const BorderSide(color: AppTheme.primaryBlue, width: 2),
+                      borderSide: const BorderSide(
+                        color: AppTheme.primaryBlue,
+                        width: 2,
+                      ),
                     ),
                     filled: true,
                     fillColor: Colors.grey.shade50,
-                    suffixIcon: searchQuery.isNotEmpty
-                        ? IconButton(
-                            icon: const Icon(Icons.clear),
-                            onPressed: () {
-                              searchController.clear();
-                              _onSearchChanged('');
-                            },
-                          )
-                        : null,
+                    suffixIcon:
+                        searchQuery.isNotEmpty
+                            ? IconButton(
+                              icon: const Icon(Icons.clear),
+                              onPressed: () {
+                                searchController.clear();
+                                _onSearchChanged('');
+                              },
+                            )
+                            : null,
                   ),
                 ),
                 // 날짜 범위 표시
                 if (startDate != null && endDate != null) ...[
                   const SizedBox(height: 8),
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 8,
+                    ),
                     decoration: BoxDecoration(
                       color: AppTheme.primaryBlue.withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: Row(
                       children: [
-                        const Icon(Icons.date_range, size: 16, color: AppTheme.primaryBlue),
+                        const Icon(
+                          Icons.date_range,
+                          size: 16,
+                          color: AppTheme.primaryBlue,
+                        ),
                         const SizedBox(width: 8),
                         Text(
                           '${DateFormat('yyyy.MM.dd').format(startDate!)} - ${DateFormat('yyyy.MM.dd').format(endDate!)}',
@@ -603,7 +730,11 @@ class _AdminNoticeListScreenState extends State<AdminNoticeListScreen>
                         ),
                         const Spacer(),
                         IconButton(
-                          icon: const Icon(Icons.close, color: AppTheme.primaryBlue, size: 18),
+                          icon: const Icon(
+                            Icons.close,
+                            color: AppTheme.primaryBlue,
+                            size: 18,
+                          ),
                           onPressed: _clearDateRange,
                           padding: EdgeInsets.zero,
                           constraints: const BoxConstraints(),
@@ -681,59 +812,67 @@ class _AdminNoticeListScreenState extends State<AdminNoticeListScreen>
     }
 
     return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-      ),
+      decoration: BoxDecoration(color: Colors.white),
       child: ListView.separated(
         padding: EdgeInsets.zero,
         itemCount: filteredNotices.length,
-        separatorBuilder: (context, index) => Container(
-          height: 1,
-          color: AppTheme.lightGray.withValues(alpha: 0.2),
-          margin: const EdgeInsets.symmetric(horizontal: 16),
-        ),
+        separatorBuilder:
+            (context, index) => Container(
+              height: 1,
+              color: AppTheme.lightGray.withValues(alpha: 0.2),
+              margin: const EdgeInsets.symmetric(horizontal: 16),
+            ),
         itemBuilder: (context, index) {
           final notice = filteredNotices[index];
-          
+
           return InkWell(
             onTap: () => _showNoticeDetail(notice),
             onLongPress: () {
               // 길게 누르면 옵션 메뉴 표시
               showModalBottomSheet(
                 context: context,
-                builder: (context) => SafeArea(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      ListTile(
-                        leading: const Icon(Icons.edit),
-                        title: const Text('수정'),
-                        onTap: () {
-                          Navigator.pop(context);
-                          _navigateToEditNotice(notice);
-                        },
+                builder:
+                    (context) => SafeArea(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          ListTile(
+                            leading: const Icon(Icons.edit),
+                            title: const Text('수정'),
+                            onTap: () {
+                              Navigator.pop(context);
+                              _navigateToEditNotice(notice);
+                            },
+                          ),
+                          ListTile(
+                            leading: Icon(
+                              notice.noticeActive
+                                  ? Icons.visibility_off
+                                  : Icons.visibility,
+                            ),
+                            title: Text(notice.noticeActive ? '비활성화' : '활성화'),
+                            onTap: () {
+                              Navigator.pop(context);
+                              _toggleNoticeActive(notice);
+                            },
+                          ),
+                          ListTile(
+                            leading: const Icon(
+                              Icons.delete,
+                              color: Colors.red,
+                            ),
+                            title: const Text(
+                              '삭제',
+                              style: TextStyle(color: Colors.red),
+                            ),
+                            onTap: () {
+                              Navigator.pop(context);
+                              _deleteNotice(notice);
+                            },
+                          ),
+                        ],
                       ),
-                      ListTile(
-                        leading: Icon(
-                          notice.noticeActive ? Icons.visibility_off : Icons.visibility,
-                        ),
-                        title: Text(notice.noticeActive ? '비활성화' : '활성화'),
-                        onTap: () {
-                          Navigator.pop(context);
-                          _toggleNoticeActive(notice);
-                        },
-                      ),
-                      ListTile(
-                        leading: const Icon(Icons.delete, color: Colors.red),
-                        title: const Text('삭제', style: TextStyle(color: Colors.red)),
-                        onTap: () {
-                          Navigator.pop(context);
-                          _deleteNotice(notice);
-                        },
-                      ),
-                    ],
-                  ),
-                ),
+                    ),
               );
             },
             child: Container(
@@ -757,7 +896,9 @@ class _AdminNoticeListScreenState extends State<AdminNoticeListScreen>
                                 vertical: 2,
                               ),
                               decoration: BoxDecoration(
-                                color: _getTargetAudienceColor(notice.targetAudience),
+                                color: _getTargetAudienceColor(
+                                  notice.targetAudience,
+                                ),
                                 borderRadius: BorderRadius.circular(4),
                               ),
                               child: Text(
@@ -779,8 +920,12 @@ class _AdminNoticeListScreenState extends State<AdminNoticeListScreen>
                                   fontWeight: FontWeight.w500,
                                   fontSize: 14,
                                 ),
-                                animationDuration: const Duration(milliseconds: 4000),
-                                pauseDuration: const Duration(milliseconds: 1000),
+                                animationDuration: const Duration(
+                                  milliseconds: 4000,
+                                ),
+                                pauseDuration: const Duration(
+                                  milliseconds: 1000,
+                                ),
                               ),
                             ),
                           ],
@@ -792,9 +937,12 @@ class _AdminNoticeListScreenState extends State<AdminNoticeListScreen>
                             // 닉네임 (작성자 닉네임)
                             Expanded(
                               child: Text(
-                                (notice.authorNickname ?? notice.authorName).length > 15
+                                (notice.authorNickname ?? notice.authorName)
+                                            .length >
+                                        15
                                     ? '${(notice.authorNickname ?? notice.authorName).substring(0, 15)}..'
-                                    : (notice.authorNickname ?? notice.authorName),
+                                    : (notice.authorNickname ??
+                                        notice.authorName),
                                 style: AppTheme.bodySmallStyle.copyWith(
                                   color: AppTheme.textSecondary,
                                   fontSize: 12,
@@ -862,7 +1010,9 @@ class _AdminNoticeListScreenState extends State<AdminNoticeListScreen>
                             ),
                             const SizedBox(height: 1),
                             Text(
-                              NumberFormatUtil.formatViewCount(notice.viewCount ?? 0),
+                              NumberFormatUtil.formatViewCount(
+                                notice.viewCount ?? 0,
+                              ),
                               style: AppTheme.bodySmallStyle.copyWith(
                                 color: AppTheme.textTertiary,
                                 fontSize: 10,
