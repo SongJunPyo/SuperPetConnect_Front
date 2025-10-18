@@ -124,6 +124,121 @@ class _AdminPostManagementPageState extends State<AdminPostManagementPage>
     }
   }
 
+  void _showApproveBottomSheet(DonationPost post) {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) => Container(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            // 핸들바
+            Center(
+              child: Container(
+                width: 40,
+                height: 4,
+                margin: const EdgeInsets.only(bottom: 20),
+                decoration: BoxDecoration(
+                  color: Colors.grey[300],
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+            ),
+
+            // 제목
+            Text(
+              '게시글 승인',
+              style: AppTheme.h3Style.copyWith(
+                fontWeight: FontWeight.bold,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 16),
+
+            // 내용
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: AppTheme.lightGray.withValues(alpha: 0.3),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    post.title,
+                    style: AppTheme.bodyLargeStyle.copyWith(
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    '병원: ${post.hospitalName}',
+                    style: AppTheme.bodyMediumStyle.copyWith(
+                      color: AppTheme.textSecondary,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 24),
+
+            Text(
+              '이 게시글을 승인하시겠습니까?',
+              style: AppTheme.bodyMediumStyle.copyWith(
+                color: AppTheme.textSecondary,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 24),
+
+            // 버튼들
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton(
+                    onPressed: () => Navigator.pop(context),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: AppTheme.textSecondary,
+                      side: BorderSide(color: AppTheme.lightGray),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                    ),
+                    child: const Text('취소'),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: ElevatedButton(
+                    onPressed: () {
+                      Navigator.pop(context);
+                      _approvePost(post.postIdx);
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppTheme.success,
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                    ),
+                    child: const Text('승인'),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Future<void> _approvePost(int postIdx) async {
     try {
       final prefs = await SharedPreferences.getInstance();
@@ -141,14 +256,6 @@ class _AdminPostManagementPageState extends State<AdminPostManagementPage>
       );
 
       if (response.statusCode == 200) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('게시글이 승인되었습니다.'),
-              backgroundColor: Colors.green,
-            ),
-          );
-        }
         _loadPosts(); // 목록 새로고침
       } else {
         throw Exception('승인 처리 실패');
@@ -163,6 +270,121 @@ class _AdminPostManagementPageState extends State<AdminPostManagementPage>
         );
       }
     }
+  }
+
+  void _showRejectBottomSheet(DonationPost post) {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) => Container(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            // 핸들바
+            Center(
+              child: Container(
+                width: 40,
+                height: 4,
+                margin: const EdgeInsets.only(bottom: 20),
+                decoration: BoxDecoration(
+                  color: Colors.grey[300],
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+            ),
+
+            // 제목
+            Text(
+              '게시글 거절',
+              style: AppTheme.h3Style.copyWith(
+                fontWeight: FontWeight.bold,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 16),
+
+            // 내용
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: AppTheme.lightGray.withValues(alpha: 0.3),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    post.title,
+                    style: AppTheme.bodyLargeStyle.copyWith(
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    '병원: ${post.hospitalName}',
+                    style: AppTheme.bodyMediumStyle.copyWith(
+                      color: AppTheme.textSecondary,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 24),
+
+            Text(
+              '이 게시글을 거절하시겠습니까?',
+              style: AppTheme.bodyMediumStyle.copyWith(
+                color: AppTheme.textSecondary,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 24),
+
+            // 버튼들
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton(
+                    onPressed: () => Navigator.pop(context),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: AppTheme.textSecondary,
+                      side: BorderSide(color: AppTheme.lightGray),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                    ),
+                    child: const Text('취소'),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: ElevatedButton(
+                    onPressed: () {
+                      Navigator.pop(context);
+                      _rejectPost(post.postIdx);
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppTheme.error,
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                    ),
+                    child: const Text('거절'),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   Future<void> _rejectPost(int postIdx) async {
@@ -182,14 +404,6 @@ class _AdminPostManagementPageState extends State<AdminPostManagementPage>
       );
 
       if (response.statusCode == 200) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('게시글이 거절되었습니다.'),
-              backgroundColor: Colors.orange,
-            ),
-          );
-        }
         _loadPosts(); // 목록 새로고침
       } else {
         throw Exception('거절 처리 실패');
@@ -391,7 +605,7 @@ class _AdminPostManagementPageState extends State<AdminPostManagementPage>
                         children: [
                           Expanded(
                             child: ElevatedButton(
-                              onPressed: () => _approvePost(post.postIdx),
+                              onPressed: () => _showApproveBottomSheet(post),
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: AppTheme.success,
                                 foregroundColor: Colors.white,
@@ -405,7 +619,7 @@ class _AdminPostManagementPageState extends State<AdminPostManagementPage>
                           const SizedBox(width: 12),
                           Expanded(
                             child: OutlinedButton(
-                              onPressed: () => _rejectPost(post.postIdx),
+                              onPressed: () => _showRejectBottomSheet(post),
                               style: OutlinedButton.styleFrom(
                                 foregroundColor: AppTheme.error,
                                 side: BorderSide(color: AppTheme.error),

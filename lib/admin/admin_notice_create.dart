@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import '../utils/app_theme.dart';
 import '../widgets/app_app_bar.dart';
 import '../models/notice_model.dart';
@@ -18,6 +18,7 @@ class _AdminNoticeCreateScreenState extends State<AdminNoticeCreateScreen> {
   final _formKey = GlobalKey<FormState>();
   final _titleController = TextEditingController();
   final _contentController = TextEditingController();
+  final _urlController = TextEditingController();
   int _isImportant = 1; // 0=뱃지 표시, 1=뱃지 숨김, 기본값은 숨김
   bool _isActive = true;
   bool _isLoading = false;
@@ -31,6 +32,7 @@ class _AdminNoticeCreateScreenState extends State<AdminNoticeCreateScreen> {
     if (isEditMode) {
       _titleController.text = widget.editNotice!.title;
       _contentController.text = widget.editNotice!.content;
+      _urlController.text = widget.editNotice!.noticeUrl ?? '';
       _isImportant = widget.editNotice!.noticeImportant;
       _isActive = widget.editNotice!.noticeActive;
       _targetAudience = widget.editNotice!.targetAudience;
@@ -41,6 +43,7 @@ class _AdminNoticeCreateScreenState extends State<AdminNoticeCreateScreen> {
   void dispose() {
     _titleController.dispose();
     _contentController.dispose();
+    _urlController.dispose();
     super.dispose();
   }
 
@@ -62,6 +65,10 @@ class _AdminNoticeCreateScreenState extends State<AdminNoticeCreateScreen> {
           noticeImportant: _isImportant,
           noticeActive: _isActive,
           targetAudience: _targetAudience,
+          noticeUrl:
+              _urlController.text.trim().isEmpty
+                  ? null
+                  : _urlController.text.trim(),
         );
 
         await NoticeService.updateNotice(
@@ -85,6 +92,10 @@ class _AdminNoticeCreateScreenState extends State<AdminNoticeCreateScreen> {
           content: _contentController.text.trim(),
           noticeImportant: _isImportant,
           targetAudience: _targetAudience,
+          noticeUrl:
+              _urlController.text.trim().isEmpty
+                  ? null
+                  : _urlController.text.trim(),
         );
 
         await NoticeService.createNotice(createRequest);
@@ -202,6 +213,49 @@ class _AdminNoticeCreateScreenState extends State<AdminNoticeCreateScreen> {
               ),
               const SizedBox(height: AppTheme.spacing24),
 
+              // URL 입력 (선택사항)
+              Text(
+                'URL (선택)',
+                style: AppTheme.bodyLargeStyle.copyWith(
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const SizedBox(height: AppTheme.spacing8),
+              TextFormField(
+                controller: _urlController,
+                decoration: InputDecoration(
+                  hintText: 'https://example.com (네이버 카페 등)',
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(AppTheme.radius8),
+                    borderSide: const BorderSide(color: AppTheme.lightGray),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(AppTheme.radius8),
+                    borderSide: const BorderSide(color: AppTheme.primaryBlue),
+                  ),
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: AppTheme.spacing16,
+                    vertical: AppTheme.spacing12,
+                  ),
+                  prefixIcon: const Icon(Icons.link),
+                ),
+                keyboardType: TextInputType.url,
+                validator: (value) {
+                  if (value != null && value.trim().isNotEmpty) {
+                    // URL 형식 검증
+                    final urlPattern = RegExp(
+                      r'^https?://[\w\-]+(\.[\w\-]+)+[/#?]?.*$',
+                      caseSensitive: false,
+                    );
+                    if (!urlPattern.hasMatch(value.trim())) {
+                      return '올바른 URL 형식이 아닙니다 (http:// 또는 https://로 시작해야 합니다)';
+                    }
+                  }
+                  return null;
+                },
+              ),
+              const SizedBox(height: AppTheme.spacing24),
+
               // 공지 대상 선택
               Text(
                 '공지 대상',
@@ -290,7 +344,10 @@ class _AdminNoticeCreateScreenState extends State<AdminNoticeCreateScreen> {
                       value: _isImportant == 0, // 0=뱃지 표시이면 체크
                       onChanged: (value) {
                         setState(() {
-                          _isImportant = (value ?? false) ? 0 : 1; // 체크되면 뱃지 표시(0), 아니면 숨김(1)
+                          _isImportant =
+                              (value ?? false)
+                                  ? 0
+                                  : 1; // 체크되면 뱃지 표시(0), 아니면 숨김(1)
                         });
                       },
                       activeColor: AppTheme.primaryBlue,

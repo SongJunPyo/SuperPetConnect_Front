@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'dart:ui' as ui;
 import '../models/hospital_post_model.dart';
 import '../models/donation_application_model.dart';
+import '../models/post_time_item_model.dart';
 import '../services/hospital_post_service.dart';
 import '../utils/app_theme.dart';
 import 'package:intl/intl.dart';
@@ -21,6 +22,10 @@ class _HospitalPostCheckState extends State<HospitalPostCheck>
     with SingleTickerProviderStateMixin {
   List<HospitalPost> posts = [];
   List<HospitalPost> filteredPosts = [];
+  List<PostTimeItem> postTimeItems = [];
+  List<PostTimeItem> filteredPostTimeItems = [];
+  List<RejectedPost> rejectedPosts = [];
+  List<RejectedPost> filteredRejectedPosts = [];
   bool isLoading = true;
   String? errorMessage;
   final TextEditingController _searchController = TextEditingController();
@@ -45,7 +50,8 @@ class _HospitalPostCheckState extends State<HospitalPostCheck>
       setState(() {
         _currentTabIndex = _tabController!.index;
       });
-      _filterPosts();
+      // 탭이 변경되면 해당 탭의 데이터를 로드
+      _loadPosts();
     }
   }
 
@@ -62,60 +68,147 @@ class _HospitalPostCheckState extends State<HospitalPostCheck>
 
   void _filterPosts() {
     setState(() {
-      List<HospitalPost> filtered;
-
       // 탭별 필터링
       switch (_currentTabIndex) {
         case 0:
           // 모집대기: status가 0인 게시글
-          filtered = posts.where((post) => post.status == 0).toList();
+          filteredPosts = posts.where((post) => post.status == 0).toList();
+
+          // 검색어 필터링
+          if (_searchController.text.isNotEmpty) {
+            filteredPosts = filteredPosts
+                .where((post) => post.title.toLowerCase().contains(
+                      _searchController.text.toLowerCase(),
+                    ))
+                .toList();
+          }
+
+          // 날짜 필터링
+          if (selectedDate != null) {
+            filteredPosts = filteredPosts
+                .where((post) => _isSameDay(
+                      DateTime.parse(post.createdDate),
+                      selectedDate!,
+                    ))
+                .toList();
+          }
           break;
+
         case 1:
-          // 모집진행: status가 1인 게시글
-          filtered = posts.where((post) => post.status == 1).toList();
+          // 헌혈모집: status가 1인 게시글 (모집 진행 중)
+          filteredPosts = posts.where((post) => post.status == 1).toList();
+
+          // 검색어 필터링
+          if (_searchController.text.isNotEmpty) {
+            filteredPosts = filteredPosts
+                .where((post) => post.title.toLowerCase().contains(
+                      _searchController.text.toLowerCase(),
+                    ))
+                .toList();
+          }
+
+          // 날짜 필터링
+          if (selectedDate != null) {
+            filteredPosts = filteredPosts
+                .where((post) => _isSameDay(
+                      DateTime.parse(post.createdDate),
+                      selectedDate!,
+                    ))
+                .toList();
+          }
           break;
+
         case 2:
-          // 모집마감: status가 3인 게시글
-          filtered = posts.where((post) => post.status == 3).toList();
+          // 모집마감: 시간대별로 분해하여 applicant_status=3인 시간대만 표시
+          filteredPostTimeItems = postTimeItems.toList();
+
+          // 검색어 필터링
+          if (_searchController.text.isNotEmpty) {
+            filteredPostTimeItems = filteredPostTimeItems
+                .where((item) => item.postTitle.toLowerCase().contains(
+                      _searchController.text.toLowerCase(),
+                    ))
+                .toList();
+          }
+
+          // 날짜 필터링
+          if (selectedDate != null) {
+            filteredPostTimeItems = filteredPostTimeItems
+                .where((item) => _isSameDay(
+                      DateTime.parse(item.date),
+                      selectedDate!,
+                    ))
+                .toList();
+          }
           break;
+
         case 3:
-          // 모집거절: status가 2인 게시글
-          filtered = posts.where((post) => post.status == 2).toList();
+          // 헌혈완료: 시간대별로 분해하여 applicant_status=7인 시간대만 표시
+          filteredPostTimeItems = postTimeItems.toList();
+
+          // 검색어 필터링
+          if (_searchController.text.isNotEmpty) {
+            filteredPostTimeItems = filteredPostTimeItems
+                .where((item) => item.postTitle.toLowerCase().contains(
+                      _searchController.text.toLowerCase(),
+                    ))
+                .toList();
+          }
+
+          // 날짜 필터링
+          if (selectedDate != null) {
+            filteredPostTimeItems = filteredPostTimeItems
+                .where((item) => _isSameDay(
+                      DateTime.parse(item.date),
+                      selectedDate!,
+                    ))
+                .toList();
+          }
           break;
+
         case 4:
-          // 헌혈완료: status가 4인 게시글 (완료된 게시글)
-          filtered = posts.where((post) => post.status == 4).toList();
+          // 헌혈취소: 모집거절 게시글 + 시간대별 취소/거절 항목
+          filteredRejectedPosts = rejectedPosts.toList();
+          filteredPostTimeItems = postTimeItems.toList();
+
+          // 검색어 필터링 - 모집거절 게시글
+          if (_searchController.text.isNotEmpty) {
+            filteredRejectedPosts = filteredRejectedPosts
+                .where((post) => post.title.toLowerCase().contains(
+                      _searchController.text.toLowerCase(),
+                    ))
+                .toList();
+
+            filteredPostTimeItems = filteredPostTimeItems
+                .where((item) => item.postTitle.toLowerCase().contains(
+                      _searchController.text.toLowerCase(),
+                    ))
+                .toList();
+          }
+
+          // 날짜 필터링
+          if (selectedDate != null) {
+            filteredRejectedPosts = filteredRejectedPosts
+                .where((post) => _isSameDay(
+                      DateTime.parse(post.createdDate),
+                      selectedDate!,
+                    ))
+                .toList();
+
+            filteredPostTimeItems = filteredPostTimeItems
+                .where((item) => _isSameDay(
+                      DateTime.parse(item.date),
+                      selectedDate!,
+                    ))
+                .toList();
+          }
           break;
+
         default:
-          filtered = [];
+          filteredPosts = [];
+          filteredPostTimeItems = [];
+          filteredRejectedPosts = [];
       }
-
-      // 검색어 필터링
-      if (_searchController.text.isNotEmpty) {
-        filtered =
-            filtered
-                .where(
-                  (post) => post.title.toLowerCase().contains(
-                    _searchController.text.toLowerCase(),
-                  ),
-                )
-                .toList();
-      }
-
-      // 날짜 필터링
-      if (selectedDate != null) {
-        filtered =
-            filtered
-                .where(
-                  (post) => _isSameDay(
-                    DateTime.parse(post.createdDate),
-                    selectedDate!,
-                  ),
-                )
-                .toList();
-      }
-
-      filteredPosts = filtered;
     });
   }
 
@@ -134,14 +227,86 @@ class _HospitalPostCheckState extends State<HospitalPostCheck>
         });
       }
 
-      final loadedPosts =
-          await HospitalPostService.getHospitalPostsForCurrentUser();
+      // 탭에 따라 다른 API 호출
+      switch (_currentTabIndex) {
+        case 0:
+        case 1:
+          // 모집대기, 헌혈모집: 기존 게시글 API 사용
+          final loadedPosts =
+              await HospitalPostService.getHospitalPostsForCurrentUser();
+          if (mounted) {
+            setState(() {
+              posts = loadedPosts;
+              isLoading = false;
+            });
+          }
+          break;
+
+        case 2:
+          // 모집마감: applicant_status=3만 조회 (완료대기 5, 중단대기 6 제외)
+          // post_status=3이고 applicant_status=3인 시간대만 표시
+          final loadedPostTimes = await HospitalPostService.getPostTimes(
+            applicantStatus: 3,
+            postStatus: 3,
+          );
+          if (mounted) {
+            setState(() {
+              postTimeItems = loadedPostTimes;
+              isLoading = false;
+            });
+          }
+          break;
+
+        case 3:
+          // 헌혈완료: applicant_status=7, post_status=3
+          final loadedPostTimes = await HospitalPostService.getPostTimes(
+            applicantStatus: 7,
+            postStatus: 3,
+          );
+          if (mounted) {
+            setState(() {
+              postTimeItems = loadedPostTimes;
+              isLoading = false;
+            });
+          }
+          break;
+
+        case 4:
+          // 헌혈취소: 모집거절 게시글 + 취소/거절된 시간대
+          // 모집거절 게시글 조회 (서비스 계층에서 422 에러 시 자동으로 대체 방법 사용)
+          final loadedRejectedPosts = await HospitalPostService.getRejectedPosts();
+
+          // applicant_status=2 (거절) 또는 4 (취소)인 시간대
+          final rejectedTimeItems = await HospitalPostService.getPostTimes(
+            applicantStatus: 2,
+          );
+          final cancelledTimeItems = await HospitalPostService.getPostTimes(
+            applicantStatus: 4,
+          );
+
+          if (mounted) {
+            setState(() {
+              rejectedPosts = loadedRejectedPosts;
+              // 거절과 취소 시간대 합치기
+              postTimeItems = [...rejectedTimeItems, ...cancelledTimeItems];
+              isLoading = false;
+            });
+          }
+          break;
+
+        default:
+          // 기본적으로 전체 게시글 로드
+          final loadedPosts =
+              await HospitalPostService.getHospitalPostsForCurrentUser();
+          if (mounted) {
+            setState(() {
+              posts = loadedPosts;
+              isLoading = false;
+            });
+          }
+      }
 
       if (mounted) {
-        setState(() {
-          posts = loadedPosts;
-          isLoading = false;
-        });
         _filterPosts();
       }
     } catch (e) {
@@ -174,7 +339,7 @@ class _HospitalPostCheckState extends State<HospitalPostCheck>
   String _formatDate(String dateString) {
     try {
       DateTime date = DateTime.parse(dateString);
-      return DateFormat('yyyy.MM.dd').format(date);
+      return DateFormat('MM.dd').format(date);
     } catch (e) {
       return dateString;
     }
@@ -267,10 +432,10 @@ class _HospitalPostCheckState extends State<HospitalPostCheck>
                       isScrollable: false,
                       tabs: const [
                         Tab(text: '모집대기'),
-                        Tab(text: '모집진행'),
+                        Tab(text: '헌혈모집'),
                         Tab(text: '모집마감'),
-                        Tab(text: '모집거절'),
                         Tab(text: '헌혈완료'),
+                        Tab(text: '헌혈취소'),
                       ],
                       indicatorColor: Colors.black,
                       labelColor: Colors.black,
@@ -327,23 +492,39 @@ class _HospitalPostCheckState extends State<HospitalPostCheck>
       );
     }
 
-    if (filteredPosts.isEmpty) {
+    // 탭에 따라 다른 데이터 소스 확인
+    bool isEmpty = false;
+    int itemCount = 0;
+
+    if (_currentTabIndex == 0 || _currentTabIndex == 1) {
+      isEmpty = filteredPosts.isEmpty;
+      itemCount = filteredPosts.length;
+    } else if (_currentTabIndex == 4) {
+      isEmpty =
+          filteredPostTimeItems.isEmpty && filteredRejectedPosts.isEmpty;
+      itemCount = filteredPostTimeItems.length + filteredRejectedPosts.length;
+    } else {
+      isEmpty = filteredPostTimeItems.isEmpty;
+      itemCount = filteredPostTimeItems.length;
+    }
+
+    if (isEmpty) {
       String emptyMessage;
       switch (_currentTabIndex) {
         case 0:
           emptyMessage = '승인 대기 중인 게시글이 없습니다.';
           break;
         case 1:
-          emptyMessage = '모집 진행 중인 게시글이 없습니다.';
+          emptyMessage = '헌혈 모집 중인 게시글이 없습니다.';
           break;
         case 2:
-          emptyMessage = '모집 마감된 게시글이 없습니다.';
+          emptyMessage = '모집 마감된 시간대가 없습니다.';
           break;
         case 3:
-          emptyMessage = '거절된 게시글이 없습니다.';
+          emptyMessage = '헌혈 완료된 시간대가 없습니다.';
           break;
         case 4:
-          emptyMessage = '헌혈 완료된 게시글이 없습니다.';
+          emptyMessage = '헌혈 취소된 시간대가 없습니다.';
           break;
         default:
           emptyMessage = '게시글이 없습니다.';
@@ -366,69 +547,93 @@ class _HospitalPostCheckState extends State<HospitalPostCheck>
       color: AppTheme.primaryBlue,
       child: ListView.builder(
         padding: EdgeInsets.zero,
-        itemCount: filteredPosts.length + 1, // 헤더 포함
+        itemCount: itemCount + 1, // 헤더 포함
         itemBuilder: (context, index) {
           // 첫 번째 아이템은 헤더
           if (index == 0) {
-            return Container(
-              padding: const EdgeInsets.symmetric(
-                horizontal: 16.0,
-                vertical: 12.0,
-              ),
-              decoration: BoxDecoration(
-                color: Colors.grey.shade100,
-                border: Border(
-                  bottom: BorderSide(color: Colors.grey.shade400, width: 2),
-                ),
-              ),
-              child: Row(
-                children: [
-                  SizedBox(
-                    width: 70,
-                    child: Text(
-                      '구분',
-                      style: AppTheme.bodyMediumStyle.copyWith(
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ),
-                  Expanded(
-                    child: Text(
-                      '제목',
-                      style: AppTheme.bodyMediumStyle.copyWith(
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ),
-                  SizedBox(
-                    width: 80,
-                    child: Text(
-                      '작성일',
-                      style: AppTheme.bodyMediumStyle.copyWith(
-                        fontWeight: FontWeight.w600,
-                      ),
-                      textAlign: TextAlign.center,
-                    ),
-                  ),
-                  SizedBox(
-                    width: 70,
-                    child: Text(
-                      '신청자',
-                      style: AppTheme.bodyMediumStyle.copyWith(
-                        fontWeight: FontWeight.w600,
-                      ),
-                      textAlign: TextAlign.center,
-                    ),
-                  ),
-                ],
-              ),
-            );
+            return _buildHeaderRow();
           }
 
           // 나머지는 게시글 아이템
-          final post = filteredPosts[index - 1];
-          return _buildPostListItem(post);
+          if (_currentTabIndex == 0 || _currentTabIndex == 1) {
+            // 일반 게시글
+            final post = filteredPosts[index - 1];
+            return _buildPostListItem(post);
+          } else if (_currentTabIndex == 4) {
+            // 헌혈취소: 모집거절 게시글 + 시간대별 항목
+            final rejectedCount = filteredRejectedPosts.length;
+            if (index - 1 < rejectedCount) {
+              // 모집거절 게시글
+              final rejectedPost = filteredRejectedPosts[index - 1];
+              return _buildRejectedPostListItem(rejectedPost);
+            } else {
+              // 시간대별 취소/거절 항목
+              final timeItem =
+                  filteredPostTimeItems[index - 1 - rejectedCount];
+              return _buildPostTimeListItem(timeItem);
+            }
+          } else {
+            // 시간대별 게시글 (모집마감, 헌혈완료)
+            final timeItem = filteredPostTimeItems[index - 1];
+            return _buildPostTimeListItem(timeItem);
+          }
         },
+      ),
+    );
+  }
+
+  Widget _buildHeaderRow() {
+    return Container(
+      padding: const EdgeInsets.symmetric(
+        horizontal: 16.0,
+        vertical: 12.0,
+      ),
+      decoration: BoxDecoration(
+        color: Colors.grey.shade100,
+        border: Border(
+          bottom: BorderSide(color: Colors.grey.shade400, width: 2),
+        ),
+      ),
+      child: Row(
+        children: [
+          SizedBox(
+            width: 70,
+            child: Text(
+              '구분',
+              style: AppTheme.bodyMediumStyle.copyWith(
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+          Expanded(
+            child: Text(
+              '제목',
+              style: AppTheme.bodyMediumStyle.copyWith(
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+          SizedBox(
+            width: 80,
+            child: Text(
+              _currentTabIndex == 2 || _currentTabIndex == 3 ? '시간대' : '작성일',
+              style: AppTheme.bodyMediumStyle.copyWith(
+                fontWeight: FontWeight.w600,
+              ),
+              textAlign: TextAlign.center,
+            ),
+          ),
+          SizedBox(
+            width: 70,
+            child: Text(
+              _currentTabIndex >= 2 ? '신청자' : '신청자',
+              style: AppTheme.bodyMediumStyle.copyWith(
+                fontWeight: FontWeight.w600,
+              ),
+              textAlign: TextAlign.center,
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -504,7 +709,201 @@ class _HospitalPostCheckState extends State<HospitalPostCheck>
                 '${post.applicantCount > 99 ? '99+' : post.applicantCount}명',
                 style: AppTheme.bodySmallStyle.copyWith(
                   fontSize: 11,
-                  color: AppTheme.primaryBlue,
+                  color: Colors.grey[600],
+                ),
+                textAlign: TextAlign.center,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPostTimeListItem(PostTimeItem item) {
+    // 헌혈취소 탭에서는 상태에 따라 뱃지 표시
+    String badgeText;
+    Color badgeColor;
+    Color badgeBgColor;
+
+    if (_currentTabIndex == 4) {
+      // 헌혈취소 탭: applicant_status에 따라 뱃지 표시
+      if (item.applicantStatus == 4) {
+        badgeText = '취소';
+        badgeColor = Colors.grey;
+        badgeBgColor = Colors.grey.withAlpha(51);
+      } else if (item.applicantStatus == 2) {
+        badgeText = '거절';
+        badgeColor = Colors.red;
+        badgeBgColor = Colors.red.withAlpha(51);
+      } else {
+        badgeText = item.typeText;
+        badgeColor = item.isUrgent ? Colors.red : Colors.blue;
+        badgeBgColor = item.isUrgent ? Colors.red.withAlpha(38) : Colors.blue.withAlpha(38);
+      }
+    } else {
+      // 다른 탭: 긴급/정기 표시
+      badgeText = item.typeText;
+      badgeColor = item.isUrgent ? Colors.red : Colors.blue;
+      badgeBgColor = item.isUrgent ? Colors.red.withAlpha(38) : Colors.blue.withAlpha(38);
+    }
+
+    // 헌혈취소 탭에서는 작성일, 다른 탭에서는 시간대
+    String dateDisplay;
+    if (_currentTabIndex == 4) {
+      dateDisplay = _formatDate(item.createdDate);
+    } else {
+      dateDisplay = '${item.date.substring(5)}\n${item.time}';
+    }
+
+    return InkWell(
+      onTap: () => _showPostTimeBottomSheet(item),
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 14.0, horizontal: 16.0),
+        margin: const EdgeInsets.symmetric(vertical: 1.0),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          border: Border(
+            bottom: BorderSide(color: Colors.grey.shade200, width: 1),
+          ),
+        ),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            // 구분 (뱃지)
+            Container(
+              width: 70,
+              alignment: Alignment.centerLeft,
+              child: Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 8.0,
+                  vertical: 4.0,
+                ),
+                decoration: BoxDecoration(
+                  color: badgeBgColor,
+                  borderRadius: BorderRadius.circular(6.0),
+                ),
+                child: Text(
+                  badgeText,
+                  style: AppTheme.bodySmallStyle.copyWith(
+                    fontWeight: FontWeight.w600,
+                    color: badgeColor,
+                    fontSize: 11,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+              ),
+            ),
+            // 제목
+            Expanded(
+              child: Container(
+                padding: const EdgeInsets.only(left: 8.0, right: 8.0),
+                alignment: Alignment.centerLeft,
+                child: _buildMarqueeText(item.postTitle),
+              ),
+            ),
+            // 시간대 또는 작성일
+            Container(
+              width: 80,
+              alignment: Alignment.center,
+              child: Text(
+                dateDisplay,
+                style: AppTheme.bodySmallStyle.copyWith(
+                  fontSize: _currentTabIndex == 4 ? 11 : 10,
+                  color: Colors.grey[600],
+                  height: _currentTabIndex == 4 ? 1.0 : 1.3,
+                ),
+                textAlign: TextAlign.center,
+              ),
+            ),
+            // 신청자 수
+            Container(
+              width: 70,
+              alignment: Alignment.center,
+              child: Text(
+                item.applicantNickname != null ? '1명' : '-',
+                style: AppTheme.bodySmallStyle.copyWith(
+                  fontSize: 11,
+                  color: Colors.grey[600],
+                ),
+                textAlign: TextAlign.center,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildRejectedPostListItem(RejectedPost post) {
+    return InkWell(
+      onTap: () => _showRejectedPostBottomSheet(post),
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 14.0, horizontal: 16.0),
+        margin: const EdgeInsets.symmetric(vertical: 1.0),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          border: Border(
+            bottom: BorderSide(color: Colors.grey.shade200, width: 1),
+          ),
+        ),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            // 구분 (뱃지)
+            Container(
+              width: 70,
+              alignment: Alignment.centerLeft,
+              child: Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 8.0,
+                  vertical: 4.0,
+                ),
+                decoration: BoxDecoration(
+                  color: Colors.red.withAlpha(51),
+                  borderRadius: BorderRadius.circular(6.0),
+                ),
+                child: Text(
+                  '거절',
+                  style: AppTheme.bodySmallStyle.copyWith(
+                    fontWeight: FontWeight.w600,
+                    color: Colors.red,
+                    fontSize: 11,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+              ),
+            ),
+            // 제목
+            Expanded(
+              child: Container(
+                padding: const EdgeInsets.only(left: 8.0, right: 8.0),
+                alignment: Alignment.centerLeft,
+                child: _buildMarqueeText(post.title),
+              ),
+            ),
+            // 작성일
+            Container(
+              width: 80,
+              alignment: Alignment.center,
+              child: Text(
+                _formatDate(post.createdDate),
+                style: AppTheme.bodySmallStyle.copyWith(
+                  fontSize: 11,
+                  color: Colors.grey[600],
+                ),
+                textAlign: TextAlign.center,
+              ),
+            ),
+            // 빈 칸
+            Container(
+              width: 70,
+              alignment: Alignment.center,
+              child: Text(
+                '-',
+                style: AppTheme.bodySmallStyle.copyWith(
+                  fontSize: 11,
+                  color: Colors.grey[600],
                 ),
                 textAlign: TextAlign.center,
               ),
@@ -561,6 +960,595 @@ class _HospitalPostCheckState extends State<HospitalPostCheck>
               _loadPosts(); // 삭제 후 목록 새로고침
             },
           ),
+    );
+  }
+
+  void _showPostTimeBottomSheet(PostTimeItem item) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) => DraggableScrollableSheet(
+        initialChildSize: 0.7,
+        minChildSize: 0.5,
+        maxChildSize: 0.95,
+        expand: false,
+        builder: (context, scrollController) {
+          return Container(
+            decoration: const BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+            ),
+            child: Column(
+              children: [
+                // 핸들 바
+                Container(
+                  width: 40,
+                  height: 4,
+                  margin: const EdgeInsets.symmetric(vertical: 12),
+                  decoration: BoxDecoration(
+                    color: Colors.grey[300],
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+                // 헤더
+                Container(
+                  padding: const EdgeInsets.fromLTRB(20, 8, 20, 16),
+                  child: Row(
+                    children: [
+                      // 긴급/정기 뱃지
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 4,
+                        ),
+                        decoration: BoxDecoration(
+                          color: item.isUrgent
+                              ? Colors.red.withAlpha(38)
+                              : Colors.blue.withAlpha(38),
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: Text(
+                          item.typeText,
+                          style: AppTheme.bodySmallStyle.copyWith(
+                            color: item.isUrgent ? Colors.red : Colors.blue,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              item.postTitle,
+                              style: AppTheme.h3Style.copyWith(
+                                color: item.isUrgent ? Colors.red : AppTheme.textPrimary,
+                                fontWeight: FontWeight.bold,
+                              ),
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ],
+                        ),
+                      ),
+                      // X 버튼
+                      IconButton(
+                        icon: const Icon(Icons.close, color: Colors.black),
+                        onPressed: () => Navigator.pop(context),
+                        tooltip: '닫기',
+                      ),
+                    ],
+                  ),
+                ),
+                const Divider(height: 1),
+                // 메타 정보
+                Container(
+                  padding: const EdgeInsets.all(20),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // 병원명과 등록일
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          // 병원명
+                          Row(
+                            children: [
+                              Icon(
+                                Icons.business,
+                                size: 16,
+                                color: AppTheme.textSecondary,
+                              ),
+                              const SizedBox(width: 8),
+                              Text(
+                                '병원명: ',
+                                style: AppTheme.bodyMediumStyle.copyWith(
+                                  fontWeight: FontWeight.w500,
+                                  color: AppTheme.textPrimary,
+                                ),
+                              ),
+                              Text(
+                                item.hospitalNickname,
+                                style: AppTheme.bodyMediumStyle.copyWith(
+                                  fontWeight: FontWeight.w600,
+                                  color: AppTheme.textPrimary,
+                                ),
+                              ),
+                            ],
+                          ),
+                          // 등록일 (가장 오른쪽)
+                          Text(
+                            DateFormat('yy.MM.dd').format(DateTime.parse(item.createdDate)),
+                            style: AppTheme.bodySmallStyle.copyWith(
+                              color: AppTheme.textSecondary,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      // 주소
+                      Row(
+                        children: [
+                          Icon(
+                            Icons.location_on,
+                            size: 16,
+                            color: AppTheme.textSecondary,
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            '주소: ',
+                            style: AppTheme.bodyMediumStyle.copyWith(
+                              fontWeight: FontWeight.w600,
+                              color: AppTheme.textPrimary,
+                            ),
+                          ),
+                          Expanded(
+                            child: Text(
+                              item.location,
+                              style: AppTheme.bodyMediumStyle.copyWith(
+                                color: AppTheme.textPrimary,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      // 헌혈 날짜
+                      Row(
+                        children: [
+                          Icon(
+                            Icons.calendar_today,
+                            size: 16,
+                            color: AppTheme.textSecondary,
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            '헌혈 날짜: ',
+                            style: AppTheme.bodyMediumStyle.copyWith(
+                              fontWeight: FontWeight.w500,
+                              color: AppTheme.textPrimary,
+                            ),
+                          ),
+                          Expanded(
+                            child: Text(
+                              item.date,
+                              style: AppTheme.bodyMediumStyle.copyWith(
+                                fontWeight: FontWeight.w600,
+                                color: AppTheme.textPrimary,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      // 헌혈 시간
+                      Row(
+                        children: [
+                          Icon(
+                            Icons.access_time,
+                            size: 16,
+                            color: AppTheme.textSecondary,
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            '헌혈 시간: ',
+                            style: AppTheme.bodyMediumStyle.copyWith(
+                              fontWeight: FontWeight.w500,
+                              color: AppTheme.textPrimary,
+                            ),
+                          ),
+                          Expanded(
+                            child: Text(
+                              item.time,
+                              style: AppTheme.bodyMediumStyle.copyWith(
+                                fontWeight: FontWeight.w600,
+                                color: AppTheme.textPrimary,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      if (item.postDescription != null && item.postDescription!.isNotEmpty) ...[
+                        const SizedBox(height: 12),
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: AppTheme.veryLightGray,
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(
+                              color: AppTheme.lightGray.withAlpha(128),
+                            ),
+                          ),
+                          child: Text(
+                            item.postDescription!,
+                            style: AppTheme.bodyMediumStyle.copyWith(
+                              color: AppTheme.textPrimary,
+                              height: 1.4,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+                // 신청자 정보 (있는 경우)
+                if (item.applicantNickname != null)
+                  Expanded(
+                    child: SingleChildScrollView(
+                      controller: scrollController,
+                      padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text('신청자 정보', style: AppTheme.h4Style),
+                          const SizedBox(height: 12),
+                          Container(
+                            padding: const EdgeInsets.all(16),
+                            decoration: BoxDecoration(
+                              color: Colors.grey.shade50,
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(color: Colors.grey.shade200),
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                _buildInfoRow(
+                                  Icons.person,
+                                  '신청자',
+                                  item.applicantNickname!,
+                                ),
+                                if (item.petName != null) ...[
+                                  const SizedBox(height: 12),
+                                  _buildInfoRow(
+                                    Icons.pets,
+                                    '반려동물',
+                                    '${item.petName} (${item.animalTypeText ?? "정보없음"})',
+                                  ),
+                                ],
+                                if (item.bloodType != null) ...[
+                                  const SizedBox(height: 12),
+                                  _buildInfoRow(
+                                    Icons.bloodtype,
+                                    '혈액형',
+                                    item.bloodType!,
+                                  ),
+                                ],
+                                if (item.applicantStatus != null) ...[
+                                  const SizedBox(height: 12),
+                                  Row(
+                                    children: [
+                                      const Icon(Icons.info_outline, size: 16),
+                                      const SizedBox(width: 8),
+                                      const Text('상태: '),
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 8,
+                                          vertical: 2,
+                                        ),
+                                        decoration: BoxDecoration(
+                                          color: _getStatusColor(item.applicantStatus!)
+                                              .withAlpha(51),
+                                          borderRadius: BorderRadius.circular(4),
+                                        ),
+                                        child: Text(
+                                          item.applicantStatusText ?? '알 수 없음',
+                                          style: TextStyle(
+                                            color: _getStatusColor(item.applicantStatus!),
+                                            fontWeight: FontWeight.w600,
+                                            fontSize: 12,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ],
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  )
+                else
+                  const SizedBox(height: 20),
+              ],
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildInfoRow(IconData icon, String label, String value) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Icon(icon, size: 16, color: AppTheme.textSecondary),
+        const SizedBox(width: 8),
+        Text(
+          '$label: ',
+          style: AppTheme.bodyMediumStyle.copyWith(
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        Expanded(
+          child: Text(
+            value,
+            style: AppTheme.bodyMediumStyle,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Color _getStatusColor(int status) {
+    switch (status) {
+      case 0:
+        return AppTheme.warning;
+      case 1:
+        return AppTheme.success;
+      case 2:
+        return AppTheme.error;
+      case 3:
+        return AppTheme.primaryBlue;
+      case 4:
+        return Colors.grey;
+      case 5:
+        return Colors.green;
+      case 6:
+        return Colors.orange;
+      case 7:
+        return Colors.blue;
+      default:
+        return AppTheme.textPrimary;
+    }
+  }
+
+  void _showRejectedPostBottomSheet(RejectedPost post) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) => DraggableScrollableSheet(
+        initialChildSize: 0.6,
+        minChildSize: 0.4,
+        maxChildSize: 0.9,
+        expand: false,
+        builder: (context, scrollController) {
+          return Container(
+            decoration: const BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+            ),
+            child: Column(
+              children: [
+                // 핸들 바
+                Container(
+                  width: 40,
+                  height: 4,
+                  margin: const EdgeInsets.symmetric(vertical: 12),
+                  decoration: BoxDecoration(
+                    color: Colors.grey[300],
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+                // 헤더
+                Container(
+                  padding: const EdgeInsets.fromLTRB(20, 8, 20, 16),
+                  child: Row(
+                    children: [
+                      // 거절 뱃지
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 4,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Colors.red.withAlpha(51),
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: Text(
+                          '모집거절',
+                          style: AppTheme.bodySmallStyle.copyWith(
+                            color: Colors.red,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              post.title,
+                              style: AppTheme.h3Style.copyWith(
+                                color: Colors.red,
+                                fontWeight: FontWeight.bold,
+                              ),
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ],
+                        ),
+                      ),
+                      // X 버튼
+                      IconButton(
+                        icon: const Icon(Icons.close, color: Colors.black),
+                        onPressed: () => Navigator.pop(context),
+                        tooltip: '닫기',
+                      ),
+                    ],
+                  ),
+                ),
+                const Divider(height: 1),
+                // 메타 정보
+                Expanded(
+                  child: SingleChildScrollView(
+                    controller: scrollController,
+                    padding: const EdgeInsets.all(20),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // 작성일과 거절일
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Row(
+                              children: [
+                                Icon(
+                                  Icons.calendar_today,
+                                  size: 16,
+                                  color: AppTheme.textSecondary,
+                                ),
+                                const SizedBox(width: 8),
+                                Text(
+                                  '작성일: ',
+                                  style: AppTheme.bodyMediumStyle.copyWith(
+                                    fontWeight: FontWeight.w500,
+                                    color: AppTheme.textPrimary,
+                                  ),
+                                ),
+                                Text(
+                                  DateFormat('yy.MM.dd').format(DateTime.parse(post.createdDate)),
+                                  style: AppTheme.bodyMediumStyle.copyWith(
+                                    fontWeight: FontWeight.w600,
+                                    color: AppTheme.textPrimary,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            if (post.rejectedDate != null)
+                              Row(
+                                children: [
+                                  Icon(
+                                    Icons.block,
+                                    size: 16,
+                                    color: Colors.red,
+                                  ),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    '거절: ${DateFormat('yy.MM.dd').format(DateTime.parse(post.rejectedDate!))}',
+                                    style: AppTheme.bodySmallStyle.copyWith(
+                                      color: Colors.red,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                          ],
+                        ),
+                        if (post.description != null && post.description!.isNotEmpty) ...[
+                          const SizedBox(height: 16),
+                          Container(
+                            width: double.infinity,
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: AppTheme.veryLightGray,
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(
+                                color: AppTheme.lightGray.withAlpha(128),
+                              ),
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  '게시글 설명',
+                                  style: AppTheme.bodyMediumStyle.copyWith(
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                                const SizedBox(height: 8),
+                                Text(
+                                  post.description!,
+                                  style: AppTheme.bodyMediumStyle.copyWith(
+                                    color: AppTheme.textPrimary,
+                                    height: 1.4,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                        if (post.rejectionReason != null &&
+                            post.rejectionReason!.isNotEmpty) ...[
+                          const SizedBox(height: 16),
+                          Container(
+                            width: double.infinity,
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: Colors.red.shade50,
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(color: Colors.red.shade200),
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  children: [
+                                    Icon(
+                                      Icons.warning_amber_rounded,
+                                      size: 20,
+                                      color: Colors.red.shade700,
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Text(
+                                      '거절 사유',
+                                      style: AppTheme.bodyMediumStyle.copyWith(
+                                        fontWeight: FontWeight.w700,
+                                        color: Colors.red.shade700,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 8),
+                                Text(
+                                  post.rejectionReason!,
+                                  style: AppTheme.bodyMediumStyle.copyWith(
+                                    color: Colors.red.shade900,
+                                    height: 1.4,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          );
+        },
+      ),
     );
   }
 }
@@ -1184,7 +2172,9 @@ class _PostDetailBottomSheetState extends State<PostDetailBottomSheet> {
                             ],
                           ),
                         ),
-                        _buildStatusChip(applicant.status),
+                        // status가 유효한 경우에만 칩 표시 (0-6)
+                        if (applicant.status >= 0 && applicant.status <= 6)
+                          _buildStatusChip(applicant.status),
                       ],
                     ),
                     const SizedBox(height: 4),
@@ -1563,7 +2553,7 @@ class _PostDetailBottomSheetState extends State<PostDetailBottomSheet> {
   // 특정 시간대의 신청자 목록을 보여주는 바텀시트
   void _showApplicantsBottomSheet(String dateStr, TimeRange timeSlot) {
     // 해당 시간대에 신청한 지원자들 필터링
-    final filteredApplicants =
+    List<DonationApplication> filteredApplicants =
         applicants.where((applicant) {
           final dateMatch = applicant.selectedDate == dateStr;
           final timeMatch = applicant.selectedTime == timeSlot.time;
@@ -1701,7 +2691,7 @@ class _PostDetailBottomSheetState extends State<PostDetailBottomSheet> {
 
   // 특정 시간대의 신청자 수를 계산하는 함수
   int _getApplicantCountForTimeSlot(String dateStr, TimeRange timeSlot) {
-    return applicants.where((applicant) {
+    var filtered = applicants.where((applicant) {
       final dateMatch = applicant.selectedDate == dateStr;
       final timeMatch = applicant.selectedTime == timeSlot.time;
 
@@ -1716,6 +2706,8 @@ class _PostDetailBottomSheetState extends State<PostDetailBottomSheet> {
       final teamMatch = applicant.selectedTeam == teamString;
 
       return dateMatch && timeMatch && teamMatch;
-    }).length;
+    });
+
+    return filtered.length;
   }
 }

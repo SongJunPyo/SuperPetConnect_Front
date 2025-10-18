@@ -10,7 +10,8 @@
       "Read(//d/SuperPetConnect_Front/**)",
       "Bash(flutter clean:*)",
       "Bash(gradlew:*)",
-      "Bash(./gradlew:*)"
+      "Bash(./gradlew:*)",
+      "Bash(cat:*)"
     ],
     "deny": [],
     "ask": []

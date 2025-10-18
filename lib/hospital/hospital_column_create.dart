@@ -79,7 +79,7 @@ class _HospitalColumnCreateState extends State<HospitalColumnCreate> {
           mainAxisSize: MainAxisSize.min,
           children: [
             ListTile(
-              leading: const Icon(Icons.photo_library, color: AppTheme.primaryBlue),
+              leading: const Icon(Icons.photo_library, color: Colors.black),
               title: const Text('갤러리에서 선택'),
               onTap: () {
                 Navigator.pop(context);
@@ -87,7 +87,7 @@ class _HospitalColumnCreateState extends State<HospitalColumnCreate> {
               },
             ),
             ListTile(
-              leading: const Icon(Icons.camera_alt, color: AppTheme.primaryBlue),
+              leading: const Icon(Icons.camera_alt, color: Colors.black),
               title: const Text('카메라로 촬영'),
               onTap: () {
                 Navigator.pop(context);
@@ -404,7 +404,7 @@ class _HospitalColumnCreateState extends State<HospitalColumnCreate> {
                                       onPressed: _showImageSourceBottomSheet,
                                       icon: const Icon(
                                         Icons.image,
-                                        color: AppTheme.primaryBlue,
+                                        color: Colors.black,
                                       ),
                                       tooltip: '이미지 추가',
                                     ),

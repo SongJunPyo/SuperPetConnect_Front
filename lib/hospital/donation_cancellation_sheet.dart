@@ -28,6 +28,10 @@ class _DonationCancellationSheetState extends State<DonationCancellationSheet> {
   @override
   void initState() {
     super.initState();
+    // 텍스트 변경 감지를 위한 리스너 추가
+    _reasonController.addListener(() {
+      setState(() {});
+    });
   }
 
 
@@ -395,19 +399,9 @@ class _DonationCancellationSheetState extends State<DonationCancellationSheet> {
           petName: widget.appliedDonation.pet?.name,
           postTitle: widget.appliedDonation.postTitle,
         );
-        
+
         widget.onCancelled(tempCancelledDonation);
         Navigator.of(context).pop();
-        
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              result['message'] ?? '1차 중단 처리되었습니다! 관리자 승인 후 최종 취소됩니다.'
-            ),
-            backgroundColor: Colors.orange,
-            duration: const Duration(seconds: 4),
-          ),
-        );
       }
     } catch (e) {
       if (mounted) {

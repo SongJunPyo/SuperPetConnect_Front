@@ -4,20 +4,29 @@ class DonationPostTime {
   final int? postTimesId; // PK
   final int postDatesIdx; // FK to donation_post_dates table
   final DateTime donationTime; // 헌혈 시간
+  final int status; // 시간대 상태 (0: 모집중, 1: 마감)
 
   DonationPostTime({
     this.postTimesId,
     required this.postDatesIdx,
     required this.donationTime,
+    this.status = 0, // 기본값: 모집중
   });
 
   factory DonationPostTime.fromJson(Map<String, dynamic> json) {
     return DonationPostTime(
-      postTimesId: json['post_times_id'],
+      postTimesId: json['post_times_id'] ?? json['post_times_idx'],
       postDatesIdx: json['post_dates_idx'],
       donationTime: DateTime.parse(json['donation_time']),
+      status: json['status'] ?? 0, // API 응답에서 status 파싱
     );
   }
+
+  // 시간대가 마감되었는지 확인
+  bool get isClosed => status == 1;
+
+  // 시간대가 모집중인지 확인
+  bool get isOpen => status == 0;
 
   Map<String, dynamic> toJson() {
     return {

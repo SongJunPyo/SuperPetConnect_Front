@@ -6,6 +6,7 @@ import 'admin_notice_create.dart';
 import 'package:intl/intl.dart';
 import '../widgets/marquee_text.dart';
 import '../utils/number_format_util.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class AdminNoticeListScreen extends StatefulWidget {
   const AdminNoticeListScreen({super.key});
@@ -335,6 +336,44 @@ class _AdminNoticeListScreenState extends State<AdminNoticeListScreen>
                     ),
                   ),
                   const SizedBox(height: 16),
+                  // URL 버튼 (URL이 있을 경우에만 표시)
+                  if (notice.noticeUrl != null && notice.noticeUrl!.isNotEmpty) ...[
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton.icon(
+                        onPressed: () async {
+                          final url = notice.noticeUrl!;
+                          final uri = Uri.parse(url);
+                          if (await canLaunchUrl(uri)) {
+                            await launchUrl(
+                              uri,
+                              mode: LaunchMode.externalApplication,
+                            );
+                          } else {
+                            if (context.mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text('링크를 열 수 없습니다'),
+                                  backgroundColor: AppTheme.error,
+                                ),
+                              );
+                            }
+                          }
+                        },
+                        icon: const Icon(Icons.open_in_new),
+                        label: const Text('링크 열기'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.green,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                  ],
                   // 수정 버튼
                   SizedBox(
                     width: double.infinity,

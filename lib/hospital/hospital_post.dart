@@ -614,16 +614,6 @@ class _HospitalPostState extends State<HospitalPost> {
                   padding: const EdgeInsets.all(AppTheme.spacing20),
                   child: Column(
                     children: [
-                      TextField(
-                        controller: _titleController,
-                        decoration: _buildInputDecoration(
-                          context,
-                          "게시글 제목",
-                          Icons.title,
-                        ),
-                      ),
-                      const SizedBox(height: 20),
-
                       // 지역 입력 (수정 가능한 텍스트 필드)
                       TextField(
                         controller: _locationController,
@@ -712,6 +702,16 @@ class _HospitalPostState extends State<HospitalPost> {
                         ),
                         const SizedBox(height: 20),
                       ],
+
+                      TextField(
+                        controller: _titleController,
+                        decoration: _buildInputDecoration(
+                          context,
+                          "게시글 제목",
+                          Icons.title,
+                        ),
+                      ),
+                      const SizedBox(height: 20),
 
                       // 추가 설명 입력
                       TextField(

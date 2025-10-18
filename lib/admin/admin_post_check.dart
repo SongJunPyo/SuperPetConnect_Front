@@ -444,13 +444,40 @@ class _AdminPostCheckState extends State<AdminPostCheck>
                     createdAt = createdAt.substring(0, 10);
                   }
 
-                  // 제목에서 동물 종류 추출
+                  // 동물 종류 추출 - API 응답에서 우선 추출, 없으면 제목에서 추출
                   String animalType = 'unknown';
+
+                  // 1순위: pet 정보에서 추출
+                  if (app['pet'] != null) {
+                    final petAnimalType = app['pet']['animal_type']?.toString() ??
+                                         app['pet']['species']?.toString() ?? '';
+                    if (petAnimalType == '0' || petAnimalType.toLowerCase() == 'dog' || petAnimalType == '강아지') {
+                      animalType = 'dog';
+                    } else if (petAnimalType == '1' || petAnimalType.toLowerCase() == 'cat' || petAnimalType == '고양이') {
+                      animalType = 'cat';
+                    }
+                  }
+
+                  // 2순위: animal_type 필드에서 추출
+                  if (animalType == 'unknown' && app['animal_type'] != null) {
+                    final apiAnimalType = app['animal_type'].toString();
+                    if (apiAnimalType == '0' || apiAnimalType.toLowerCase() == 'dog') {
+                      animalType = 'dog';
+                    } else if (apiAnimalType == '1' || apiAnimalType.toLowerCase() == 'cat') {
+                      animalType = 'cat';
+                    }
+                  }
+
+                  // 제목 정보 추출
                   String title = app['post_title']?.toString() ?? '';
-                  if (title.contains('강아지')) {
-                    animalType = 'dog';
-                  } else if (title.contains('고양이')) {
-                    animalType = 'cat';
+
+                  // 3순위: 제목에서 추출
+                  if (animalType == 'unknown') {
+                    if (title.contains('강아지')) {
+                      animalType = 'dog';
+                    } else if (title.contains('고양이')) {
+                      animalType = 'cat';
+                    }
                   }
 
                   // 제목에서 긴급/정기 구분 추출
@@ -813,13 +840,40 @@ class _AdminPostCheckState extends State<AdminPostCheck>
             // applied_donation 데이터를 posts 형태로 변환하여 기존 UI에서 사용 가능하게 함
             posts =
                 allApplications.map((app) {
-                  // 제목에서 동물 종류 추출
+                  // 동물 종류 추출 - API 응답에서 우선 추출, 없으면 제목에서 추출
                   String animalType = 'unknown';
+
+                  // 1순위: pet 정보에서 추출
+                  if (app['pet'] != null) {
+                    final petAnimalType = app['pet']['animal_type']?.toString() ??
+                                         app['pet']['species']?.toString() ?? '';
+                    if (petAnimalType == '0' || petAnimalType.toLowerCase() == 'dog' || petAnimalType == '강아지') {
+                      animalType = 'dog';
+                    } else if (petAnimalType == '1' || petAnimalType.toLowerCase() == 'cat' || petAnimalType == '고양이') {
+                      animalType = 'cat';
+                    }
+                  }
+
+                  // 2순위: animal_type 필드에서 추출
+                  if (animalType == 'unknown' && app['animal_type'] != null) {
+                    final apiAnimalType = app['animal_type'].toString();
+                    if (apiAnimalType == '0' || apiAnimalType.toLowerCase() == 'dog') {
+                      animalType = 'dog';
+                    } else if (apiAnimalType == '1' || apiAnimalType.toLowerCase() == 'cat') {
+                      animalType = 'cat';
+                    }
+                  }
+
+                  // 제목 정보 추출
                   String title = app['post_title']?.toString() ?? '';
-                  if (title.contains('강아지')) {
-                    animalType = 'dog';
-                  } else if (title.contains('고양이')) {
-                    animalType = 'cat';
+
+                  // 3순위: 제목에서 추출
+                  if (animalType == 'unknown') {
+                    if (title.contains('강아지')) {
+                      animalType = 'dog';
+                    } else if (title.contains('고양이')) {
+                      animalType = 'cat';
+                    }
                   }
 
                   // 제목에서 긴급/정기 구분 추출
@@ -1159,35 +1213,94 @@ class _AdminPostCheckState extends State<AdminPostCheck>
     bool approve,
     String title,
   ) async {
-    final result = await showDialog<bool>(
+    final result = await showModalBottomSheet<bool>(
       context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
       builder: (BuildContext context) {
-        return AlertDialog(
-          title: Text(
-            approve ? '게시글 승인' : '게시글 거절',
-            style: TextStyle(
-              fontWeight: FontWeight.bold,
-              color: approve ? Colors.green : Colors.red,
-            ),
-          ),
-          content: Text(
-            '정말로 "$title" 게시글을 ${approve ? '승인' : '거절'}하시겠습니까?',
-            style: const TextStyle(fontSize: 16),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(false),
-              child: const Text('취소', style: TextStyle(color: Colors.grey)),
-            ),
-            ElevatedButton(
-              onPressed: () => Navigator.of(context).pop(true),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: approve ? Colors.green : Colors.red,
-                foregroundColor: Colors.white,
+        return Container(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              // 핸들바
+              Center(
+                child: Container(
+                  width: 40,
+                  height: 4,
+                  margin: const EdgeInsets.only(bottom: 20),
+                  decoration: BoxDecoration(
+                    color: Colors.grey[300],
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
               ),
-              child: Text(approve ? '승인' : '거절'),
-            ),
-          ],
+
+              // 제목
+              Text(
+                approve ? '게시글 승인' : '게시글 거절',
+                style: AppTheme.h3Style.copyWith(
+                  fontWeight: FontWeight.bold,
+                ),
+                textAlign: TextAlign.left,
+              ),
+              const SizedBox(height: 16),
+
+              // 내용
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: AppTheme.lightGray.withValues(alpha: 0.3),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Text(
+                  title,
+                  style: AppTheme.bodyLargeStyle.copyWith(
+                    fontWeight: FontWeight.w600,
+                  ),
+                  textAlign: TextAlign.left,
+                ),
+              ),
+              const SizedBox(height: 24),
+
+              // 버튼들
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton(
+                      onPressed: () => Navigator.of(context).pop(false),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: AppTheme.textSecondary,
+                        side: BorderSide(color: AppTheme.lightGray),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                      ),
+                      child: const Text('취소'),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: ElevatedButton(
+                      onPressed: () => Navigator.of(context).pop(true),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: approve ? AppTheme.success : AppTheme.error,
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                      ),
+                      child: Text(approve ? '승인' : '거절'),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
         );
       },
     );
@@ -1220,14 +1333,6 @@ class _AdminPostCheckState extends State<AdminPostCheck>
 
       if (response.statusCode == 200) {
         _fetchDataForCurrentTab();
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(approve ? "게시글이 승인되었습니다." : "게시글이 거절되었습니다."),
-              backgroundColor: approve ? Colors.green : Colors.orange,
-            ),
-          );
-        }
       } else if (response.statusCode == 401) {
         if (mounted) {
           setState(() {
@@ -1850,8 +1955,10 @@ class _AdminPostCheckState extends State<AdminPostCheck>
         animalType == '고양이' ||
         animalType == '1') {
       animalTypeKorean = '고양이';
+    } else if (animalType == 'unknown' || animalType.isEmpty) {
+      animalTypeKorean = '정보 없음';
     } else {
-      animalTypeKorean = animalType.isEmpty ? '정보 없음' : animalType;
+      animalTypeKorean = animalType;
     }
 
     showModalBottomSheet(

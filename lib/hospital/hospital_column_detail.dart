@@ -137,14 +137,12 @@ class _HospitalColumnDetailState extends State<HospitalColumnDetail> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text(
-          '칼럼 상세',
-          style: TextStyle(
-            fontWeight: FontWeight.bold,
-            color: Colors.black87,
-          ),
+        backgroundColor: Colors.white,
+        elevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_ios, size: 20),
+          onPressed: () => Navigator.pop(context),
         ),
-        centerTitle: false,
         actions: [
           if (column != null)
             PopupMenuButton<String>(
@@ -170,7 +168,7 @@ class _HospitalColumnDetailState extends State<HospitalColumnDetail> {
                   value: 'edit',
                   child: Row(
                     children: [
-                      Icon(Icons.edit, size: 20),
+                      Icon(Icons.edit, size: 20, color: Colors.black),
                       SizedBox(width: 8),
                       Text('수정'),
                     ],
@@ -254,98 +252,52 @@ class _HospitalColumnDetailState extends State<HospitalColumnDetail> {
 
     return SingleChildScrollView(
       child: Padding(
-        padding: const EdgeInsets.all(16.0),
+        padding: const EdgeInsets.symmetric(
+          horizontal: 20.0,
+          vertical: 16.0,
+        ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // 발행 상태 카드
-            Card(
-              color: Colors.white,
-              elevation: 2,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-                side: BorderSide(
-                  color: Colors.grey.shade200,
-                  width: 1,
-                ),
-              ),
-              child: Padding(
-                padding: const EdgeInsets.all(16.0),
-                child: Row(
-                  children: [
-                    Icon(
-                      column!.isPublished ? Icons.public : Icons.edit_note,
-                      color: column!.isPublished ? Colors.green : Colors.orange,
-                      size: 24,
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            column!.isPublished ? '발행됨' : '임시저장',
-                            style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                              fontWeight: FontWeight.bold,
-                              color: column!.isPublished ? Colors.green : Colors.orange,
-                            ),
-                          ),
-                          Text(
-                            column!.isPublished 
-                                ? '모든 사용자가 볼 수 있습니다' 
-                                : '아직 공개되지 않았습니다',
-                            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                              color: Colors.grey[600],
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
+            // 칼럼 상세 타이틀
+            Text("칼럼 상세", style: AppTheme.h3Style),
             const SizedBox(height: 16),
 
-            // 제목 카드
-            Card(
-              color: Colors.white,
-              elevation: 2,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-                side: BorderSide(
-                  color: Colors.grey.shade200,
+            // 제목 섹션
+            Container(
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(AppTheme.radius16),
+                border: Border.all(
+                  color: AppTheme.lightGray.withValues(alpha: 0.5),
                   width: 1,
                 ),
               ),
               child: Padding(
-                padding: const EdgeInsets.all(16.0),
+                padding: const EdgeInsets.all(AppTheme.spacing20),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      '제목',
-                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
+                    Text('제목', style: AppTheme.h4Style),
+                    const SizedBox(height: 12),
                     Container(
                       width: double.infinity,
                       padding: const EdgeInsets.all(16.0),
                       decoration: BoxDecoration(
                         color: Colors.grey.shade50,
-                        borderRadius: BorderRadius.circular(12),
+                        borderRadius: BorderRadius.circular(10),
                         border: Border.all(color: Colors.grey.shade300),
                       ),
                       child: Text(
                         column!.title,
-                        style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                        style: AppTheme.bodyLargeStyle.copyWith(
                           color: Colors.black87,
+                          fontWeight: FontWeight.w500,
                         ),
                       ),
                     ),
                     const SizedBox(height: 16),
+                    // 메타 정보
                     Row(
                       children: [
                         Icon(
@@ -356,7 +308,7 @@ class _HospitalColumnDetailState extends State<HospitalColumnDetail> {
                         const SizedBox(width: 4),
                         Text(
                           column!.hospitalName,
-                          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          style: AppTheme.bodyMediumStyle.copyWith(
                             color: Colors.grey[600],
                             fontWeight: FontWeight.w500,
                           ),
@@ -370,7 +322,7 @@ class _HospitalColumnDetailState extends State<HospitalColumnDetail> {
                         const SizedBox(width: 4),
                         Text(
                           '조회 ${column!.viewCount}',
-                          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          style: AppTheme.bodySmallStyle.copyWith(
                             color: Colors.grey[600],
                           ),
                         ),
@@ -387,7 +339,7 @@ class _HospitalColumnDetailState extends State<HospitalColumnDetail> {
                         const SizedBox(width: 4),
                         Text(
                           DateFormat('yyyy-MM-dd HH:mm').format(column!.createdAt),
-                          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          style: AppTheme.bodySmallStyle.copyWith(
                             color: Colors.grey[600],
                           ),
                         ),
@@ -405,54 +357,68 @@ class _HospitalColumnDetailState extends State<HospitalColumnDetail> {
                           const SizedBox(width: 4),
                           Text(
                             '수정: ${DateFormat('yyyy-MM-dd HH:mm').format(column!.updatedAt)}',
-                            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                            style: AppTheme.bodySmallStyle.copyWith(
                               color: Colors.grey[600],
                             ),
                           ),
                         ],
                       ),
                     ],
+                    const SizedBox(height: 8),
+                    // 발행 상태
+                    Row(
+                      children: [
+                        Icon(
+                          column!.isPublished ? Icons.public : Icons.edit_note,
+                          size: 16,
+                          color: column!.isPublished ? Colors.green : Colors.orange,
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          column!.isPublished ? '발행됨' : '임시저장',
+                          style: AppTheme.bodySmallStyle.copyWith(
+                            color: column!.isPublished ? Colors.green : Colors.orange,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
+                    ),
                   ],
                 ),
               ),
             ),
+
             const SizedBox(height: 16),
 
-            // 내용 카드
-            Card(
-              color: Colors.white,
-              elevation: 2,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-                side: BorderSide(
-                  color: Colors.grey.shade200,
+            // 내용 섹션
+            Container(
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(AppTheme.radius16),
+                border: Border.all(
+                  color: AppTheme.lightGray.withValues(alpha: 0.5),
                   width: 1,
                 ),
               ),
               child: Padding(
-                padding: const EdgeInsets.all(16.0),
+                padding: const EdgeInsets.all(AppTheme.spacing20),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      '내용',
-                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
+                    Text('내용', style: AppTheme.h4Style),
+                    const SizedBox(height: 12),
                     Container(
                       width: double.infinity,
                       padding: const EdgeInsets.all(16.0),
                       constraints: const BoxConstraints(minHeight: 200),
                       decoration: BoxDecoration(
                         color: Colors.grey.shade50,
-                        borderRadius: BorderRadius.circular(12),
+                        borderRadius: BorderRadius.circular(10),
                         border: Border.all(color: Colors.grey.shade300),
                       ),
                       child: Text(
                         column!.content,
-                        style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                        style: AppTheme.bodyLargeStyle.copyWith(
                           height: 1.6,
                           color: Colors.black87,
                         ),
@@ -462,34 +428,7 @@ class _HospitalColumnDetailState extends State<HospitalColumnDetail> {
                 ),
               ),
             ),
-            const SizedBox(height: 24),
-
-            // 액션 버튼들
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton.icon(
-                onPressed: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => HospitalColumnEdit(
-                        column: column!,
-                      ),
-                    ),
-                  ).then((_) => _loadColumnDetail());
-                },
-                icon: const Icon(Icons.edit, size: 20, color: Colors.white),
-                label: const Text('수정'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppTheme.primaryBlue,
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                ),
-              ),
-            ),
+            const SizedBox(height: 20),
           ],
         ),
       ),

@@ -53,6 +53,8 @@ dependencies:
   flutter_dotenv: ^5.1.0
   # 이미지 선택
   image_picker: ^1.0.7
+  # URL 링크 열기
+  url_launcher: ^6.2.0
 
 dev_dependencies:
   flutter_test:

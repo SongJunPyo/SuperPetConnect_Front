@@ -12,6 +12,7 @@ class Notice {
   final String? authorNickname; // JOIN을 통해 제공 (nullable)
   final int? viewCount;
   final int targetAudience; // 0: 전체, 1: 관리자, 2: 병원, 3: 사용자
+  final String? noticeUrl; // 공지글 관련 URL (선택)
 
   Notice({
     required this.noticeIdx,
@@ -27,6 +28,7 @@ class Notice {
     this.authorNickname,
     this.viewCount,
     required this.targetAudience,
+    this.noticeUrl,
   });
 
   factory Notice.fromJson(Map<String, dynamic> json) {
@@ -41,11 +43,12 @@ class Notice {
       updatedAt: DateTime.parse(json['updated_at']),
       authorEmail: json['author_email'] ?? '',
       authorName: json['author_name'] ?? '작성자',
-      authorNickname: (json['author_nickname'] != null && json['author_nickname'].toString() != 'null' && json['author_nickname'].toString().isNotEmpty) 
-          ? json['author_nickname'] 
+      authorNickname: (json['author_nickname'] != null && json['author_nickname'].toString() != 'null' && json['author_nickname'].toString().isNotEmpty)
+          ? json['author_nickname']
           : '닉네임 없음',
       viewCount: json['view_count'] ?? json['viewCount'],
       targetAudience: json['target_audience'] ?? 0,
+      noticeUrl: json['notice_url'],
     );
   }
   
@@ -81,6 +84,7 @@ class Notice {
       'author_nickname': authorNickname ?? '',
       'view_count': viewCount ?? 0,
       'target_audience': targetAudience,
+      'notice_url': noticeUrl,
     };
   }
 }
@@ -90,12 +94,14 @@ class NoticeCreateRequest {
   final String content;
   final int noticeImportant;
   final int targetAudience;
+  final String? noticeUrl;
 
   NoticeCreateRequest({
     required this.title,
     required this.content,
     this.noticeImportant = 1, // 기본값은 뱃지 숨김(1)
     this.targetAudience = 0,
+    this.noticeUrl,
   });
 
   Map<String, dynamic> toJson() {
@@ -104,6 +110,7 @@ class NoticeCreateRequest {
       'content': content,
       'notice_important': noticeImportant,
       'target_audience': targetAudience,
+      if (noticeUrl != null && noticeUrl!.isNotEmpty) 'notice_url': noticeUrl,
     };
   }
 }
@@ -114,6 +121,7 @@ class NoticeUpdateRequest {
   final int? noticeImportant;
   final bool? noticeActive;
   final int? targetAudience;
+  final String? noticeUrl;
 
   NoticeUpdateRequest({
     this.title,
@@ -121,6 +129,7 @@ class NoticeUpdateRequest {
     this.noticeImportant,
     this.noticeActive,
     this.targetAudience,
+    this.noticeUrl,
   });
 
   Map<String, dynamic> toJson() {
@@ -131,6 +140,7 @@ class NoticeUpdateRequest {
     if (noticeImportant != null) data['notice_important'] = noticeImportant;
     if (noticeActive != null) data['notice_active'] = noticeActive;
     if (targetAudience != null) data['target_audience'] = targetAudience;
+    if (noticeUrl != null) data['notice_url'] = noticeUrl;
 
     return data;
   }

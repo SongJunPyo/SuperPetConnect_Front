@@ -355,19 +355,21 @@ class _DonationApplicationDialogState extends State<DonationApplicationDialog> {
     final stats = timeSlotStats[time.postTimesId];
     final isFullyBooked = stats?.isFullyBooked(5) ?? false; // 기본 수용인원 5명
     final applicationsCount = stats?.totalApplications ?? 0;
-    
+    final isClosed = time.isClosed; // 시간대 마감 여부 (status = 1)
+    final isDisabled = isClosed || isFullyBooked; // 마감되었거나 정원 초과
+
     return Container(
       decoration: BoxDecoration(
-        color: isSelected 
+        color: isSelected
             ? AppTheme.primaryBlue.withValues(alpha: 0.1)
-            : isFullyBooked 
+            : isDisabled
                 ? Colors.grey.shade100
                 : Colors.white,
         borderRadius: BorderRadius.circular(AppTheme.radius8),
         border: Border.all(
-          color: isSelected 
+          color: isSelected
               ? AppTheme.primaryBlue
-              : isFullyBooked 
+              : isDisabled
                   ? Colors.grey
                   : AppTheme.lightGray,
           width: isSelected ? 2 : 1,
@@ -376,7 +378,16 @@ class _DonationApplicationDialogState extends State<DonationApplicationDialog> {
       child: Material(
         color: Colors.transparent,
         child: InkWell(
-          onTap: isFullyBooked ? null : () {
+          onTap: isDisabled ? () {
+            // 마감된 시간대 클릭 시 안내 메시지 표시
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(isClosed ? '이미 마감된 시간대입니다.' : '정원이 마감된 시간대입니다.'),
+                backgroundColor: Colors.orange.shade700,
+                duration: const Duration(seconds: 2),
+              ),
+            );
+          } : () {
             setState(() {
               selectedTime = time;
             });
@@ -391,24 +402,26 @@ class _DonationApplicationDialogState extends State<DonationApplicationDialog> {
                   time.formatted12Hour,
                   style: AppTheme.bodyMediumStyle.copyWith(
                     fontWeight: FontWeight.w600,
-                    color: isFullyBooked 
+                    color: isDisabled
                         ? Colors.grey
-                        : isSelected 
-                            ? AppTheme.primaryBlue 
+                        : isSelected
+                            ? AppTheme.primaryBlue
                             : AppTheme.textPrimary,
                   ),
                 ),
                 const SizedBox(height: 2),
                 Text(
-                  isFullyBooked 
-                      ? '마감' 
-                      : applicationsCount > 0 
-                          ? '$applicationsCount명 신청'
-                          : '신청 가능',
+                  isClosed
+                      ? '마감'
+                      : isFullyBooked
+                          ? '마감'
+                          : applicationsCount > 0
+                              ? '$applicationsCount명 신청'
+                              : '신청 가능',
                   style: AppTheme.captionStyle.copyWith(
-                    color: isFullyBooked 
+                    color: isDisabled
                         ? Colors.red
-                        : applicationsCount > 0 
+                        : applicationsCount > 0
                             ? Colors.orange.shade700
                             : Colors.green.shade700,
                     fontSize: 10,
@@ -427,7 +440,7 @@ class _DonationApplicationDialogState extends State<DonationApplicationDialog> {
     final availablePets = widget.userPets.where((pet) {
       // 동물 종류 매칭 (새로운 animal_type 필드 사용)
       bool animalTypeMatch = pet.animalType == widget.animalType;
-      
+
       // animal_type이 null인 경우 기존 species로 매칭 (하위 호환성)
       if (pet.animalType == null) {
         if (widget.animalType == 0) { // 강아지
@@ -436,13 +449,14 @@ class _DonationApplicationDialogState extends State<DonationApplicationDialog> {
           animalTypeMatch = pet.species == '고양이';
         }
       }
-      
+
       return animalTypeMatch;
     }).toList();
-    
+
     return availablePets.isNotEmpty &&
-           selectedPet != null && 
-           selectedTime != null && 
+           selectedPet != null &&
+           selectedTime != null &&
+           !selectedTime!.isClosed && // 마감된 시간대는 신청 불가
            !isSubmitting;
   }
 

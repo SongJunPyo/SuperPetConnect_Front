@@ -172,8 +172,8 @@ class HospitalColumnService {
       if (response.statusCode == 200) {
         final data = jsonDecode(utf8.decode(response.bodyBytes));
         return HospitalColumn.fromJson(data);
-      } else if (response.statusCode == 404) {
-        // 404인 경우 "내 칼럼" 목록에서 찾아보기
+      } else if (response.statusCode == 404 || response.statusCode == 403) {
+        // 404 또는 403인 경우 "내 칼럼" 목록에서 찾아보기
         try {
           final myColumns = await getMyColumns(page: 1, pageSize: 50);
           final targetColumn = myColumns.columns.firstWhere(
@@ -181,6 +181,9 @@ class HospitalColumnService {
           );
           return targetColumn;
         } catch (e) {
+          if (response.statusCode == 403) {
+            throw Exception('칼럼 조회 권한이 없습니다. 작성자만 조회할 수 있습니다.');
+          }
           throw Exception('칼럼을 찾을 수 없습니다.');
         }
       } else {
