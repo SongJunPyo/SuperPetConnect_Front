@@ -39,22 +39,33 @@ class TimeFormatUtils {
 }
 
 class DashboardService {
-  static String get baseUrl => Config.serverUrl;
+  static const int dashboardDonationLimit = 11;
+  static const int dashboardColumnLimit = 11;
+  static const int dashboardNoticeLimit = 11;
+  static const int detailListPageSize = 15;
 
+  static String get baseUrl => Config.serverUrl;
 
   // 통합 메인 대시보드 API
   static Future<DashboardResponse> getDashboardData({
-    int donationLimit = 10,
-    int columnLimit = 10,
-    int noticeLimit = 10,
+    int donationLimit = dashboardDonationLimit,
+    int columnLimit = dashboardColumnLimit,
+    int noticeLimit = dashboardNoticeLimit,
   }) async {
     try {
+      final queryParameters = <String, String>{};
+      if (donationLimit != dashboardDonationLimit) {
+        queryParameters['donation_limit'] = donationLimit.toString();
+      }
+      if (columnLimit != dashboardColumnLimit) {
+        queryParameters['column_limit'] = columnLimit.toString();
+      }
+      if (noticeLimit != dashboardNoticeLimit) {
+        queryParameters['notice_limit'] = noticeLimit.toString();
+      }
+
       final uri = Uri.parse('$baseUrl/api/main/dashboard').replace(
-        queryParameters: {
-          'donation_limit': donationLimit.toString(),
-          'column_limit': columnLimit.toString(),
-          'notice_limit': noticeLimit.toString(),
-        },
+        queryParameters: queryParameters.isNotEmpty ? queryParameters : null,
       );
 
       final response = await http.get(
@@ -117,7 +128,7 @@ class DashboardService {
 
   // 개별 API: 헌혈 모집글
   static Future<List<DonationPost>> getPublicPosts({
-    int limit = 10,
+    int limit = 11,
     String? region,
     String? subRegion,
   }) async {
@@ -167,170 +178,220 @@ class DashboardService {
   }
 
   // 개별 API: 공개 칼럼
-  static Future<List<ColumnPost>> getPublicColumns({int limit = 10}) async {
-    // 웹에서 CORS 문제 임시 해결: 목 데이터 반환
+  static Future<List<ColumnPost>> getPublicColumns({
+    int limit = dashboardColumnLimit,
+  }) async {
     if (kIsWeb) {
       return ColumnPost._getMockColumnData(limit);
     }
 
     try {
-      // 먼저 다른 엔드포인트들을 시도해보자
-      List<String> apiEndpoints = [
-        '$baseUrl/api/public/columns',
-        '$baseUrl/api/columns',
-        '$baseUrl/api/hospital/public/columns',
-      ];
-
-      for (String endpoint in apiEndpoints) {
-        try {
-          final uri = Uri.parse(endpoint).replace(
-            queryParameters: {'page': '1', 'page_size': limit.toString()},
-          );
-
-          final response = await http
-              .get(
-                uri,
-                headers: {
-                  'Content-Type': 'application/json',
-                  'Accept': 'application/json',
-                  'Cache-Control': 'no-cache, no-store, must-revalidate',
-                  'Pragma': 'no-cache',
-                  'Expires': '0',
-                },
-              )
-              .timeout(const Duration(seconds: 15));
-
-          // 응답을 JSON으로 파싱하여 구조 확인
-          if (response.statusCode == 200) {
-            try {
-              final rawData = jsonDecode(utf8.decode(response.bodyBytes));
-
-              List<dynamic> columnsData;
-              if (rawData is Map<String, dynamic>) {
-                columnsData = rawData['columns'] ?? rawData['data'] ?? [];
-              } else if (rawData is List) {
-                columnsData = rawData;
-              } else {
-                columnsData = [];
-              }
-
-              if (columnsData.isNotEmpty) {
-                // 컬럼 데이터가 존재함
-              }
-
-              final columns =
-                  columnsData.map((item) => ColumnPost.fromJson(item)).toList();
-              return columns;
-            } catch (e) {
-              continue; // 다음 엔드포인트 시도
-            }
-          } else {
-            continue; // 다음 엔드포인트 시도
-          }
-        } catch (e) {
-          if (kIsWeb && e.toString().contains('XMLHttpRequest')) {}
-          continue; // 다음 엔드포인트 시도
-        }
-      }
-
-      return [];
-    } catch (e) {
+      final pageSize = limit.clamp(1, detailListPageSize).toInt();
+      final response = await fetchColumnsPage(page: 1, pageSize: pageSize);
+      return response.columns.take(limit).toList();
+    } catch (_) {
       return [];
     }
   }
 
+  static Future<PaginatedColumnsResult> fetchColumnsPage({
+    int page = 1,
+    int pageSize = detailListPageSize,
+  }) async {
+    if (kIsWeb) {
+      final columns = ColumnPost._getMockColumnData(pageSize);
+      return PaginatedColumnsResult(
+        columns: columns,
+        pagination: PaginationMeta.singlePage(
+          currentPage: page,
+          pageSize: pageSize,
+          totalCount: columns.length,
+        ),
+      );
+    }
+
+    final endpoints = [
+      '$baseUrl/api/public/columns',
+      '$baseUrl/api/columns',
+      '$baseUrl/api/hospital/public/columns',
+    ];
+
+    final queryParameters = <String, String>{};
+    if (page > 1) {
+      queryParameters['page'] = page.toString();
+    }
+    if (pageSize != detailListPageSize) {
+      queryParameters['page_size'] = pageSize.toString();
+    }
+
+    for (final endpoint in endpoints) {
+      try {
+        final uri = Uri.parse(endpoint).replace(
+          queryParameters: queryParameters.isNotEmpty ? queryParameters : null,
+        );
+
+        final response = await http
+            .get(
+              uri,
+              headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json',
+                'Cache-Control': 'no-cache, no-store, must-revalidate',
+                'Pragma': 'no-cache',
+                'Expires': '0',
+              },
+            )
+            .timeout(const Duration(seconds: 15));
+
+        if (response.statusCode == 200) {
+          final rawData = jsonDecode(utf8.decode(response.bodyBytes));
+          final columnsData =
+              (rawData is Map<String, dynamic> ? rawData['columns'] : null) ??
+              (rawData is List ? rawData : []) ??
+              [];
+
+          final paginationJson =
+              rawData is Map<String, dynamic> ? rawData['pagination'] : null;
+
+          final columns =
+              (columnsData as List).map((item) {
+                return ColumnPost.fromJson(
+                  (item as Map).cast<String, dynamic>(),
+                );
+              }).toList();
+
+          final pagination =
+              paginationJson is Map<String, dynamic>
+                  ? PaginationMeta.fromJson(paginationJson)
+                  : PaginationMeta.derived(
+                    currentPage: page,
+                    pageSize: pageSize,
+                    itemCount: columns.length,
+                  );
+
+          return PaginatedColumnsResult(
+            columns: columns,
+            pagination: pagination,
+          );
+        }
+      } catch (e) {
+        if (kIsWeb && e.toString().contains('XMLHttpRequest')) {
+          break;
+        }
+        continue;
+      }
+    }
+
+    throw Exception('칼럼 목록을 불러오지 못했습니다.');
+  }
+
   // 개별 API: 공개 공지사항
-  static Future<List<NoticePost>> getPublicNotices({int limit = 10}) async {
+  static Future<List<NoticePost>> getPublicNotices({
+    int limit = dashboardNoticeLimit,
+  }) async {
     // 웹에서 CORS 문제 임시 해결: 목 데이터 반환
     if (kIsWeb) {
       return NoticePost._getMockNoticeData(limit);
     }
 
-    // 서버 제한: 최대 50
-    if (limit > 50) {
-      limit = 50;
-    }
     try {
-      // 여러 엔드포인트를 시도해보자
-      List<String> apiEndpoints = [
-        '$baseUrl/api/public/notices',
-        '$baseUrl/api/notices',
-        '$baseUrl/api/public/notices/',
-      ];
-
-      final queryCandidates = [
-        {
-          'notice_limit': limit.toString(),
-        },
-        {
-          'page': '1',
-          'notice_limit': limit.toString(),
-        },
-        {
-          'page': '1',
-          'page_size': limit.toString(),
-        },
-        {
-          'limit': limit.toString(),
-        },
-        null,
-      ];
-
-      for (final endpoint in apiEndpoints) {
-        for (final queryParams in queryCandidates) {
-          try {
-            final uri =
-                queryParams != null
-                    ? Uri.parse(endpoint).replace(queryParameters: queryParams)
-                    : Uri.parse(endpoint);
-
-            final response = await http
-                .get(
-                  uri,
-                  headers: {
-                    'Content-Type': 'application/json',
-                    'Accept': 'application/json',
-                    'Cache-Control': 'no-cache, no-store, must-revalidate',
-                    'Pragma': 'no-cache',
-                    'Expires': '0',
-                  },
-                )
-                .timeout(const Duration(seconds: 15));
-
-            if (response.statusCode == 200) {
-              try {
-                final rawData = jsonDecode(utf8.decode(response.bodyBytes));
-                List<dynamic> noticesData;
-                if (rawData is Map<String, dynamic>) {
-                  noticesData = rawData['notices'] ?? rawData['data'] ?? [];
-                } else if (rawData is List) {
-                  noticesData = rawData;
-                } else {
-                  noticesData = [];
-                }
-
-                if (noticesData.isNotEmpty) {
-                  final notices =
-                      noticesData.map((item) => NoticePost.fromJson(item)).toList();
-                  return notices;
-                }
-              } catch (e) {
-                continue;
-              }
-            } else {
-              continue;
-            }
-          } catch (e) {
-            if (kIsWeb && e.toString().contains('XMLHttpRequest')) {}
-            continue;
-          }
-        }
-      }
-
-      return [];
-    } catch (e) {
+      final pageSize = limit.clamp(1, detailListPageSize).toInt();
+      final response = await fetchNoticesPage(page: 1, pageSize: pageSize);
+      return response.notices.take(limit).toList();
+    } catch (_) {
       return [];
     }
+  }
+
+  static Future<PaginatedNoticesResult> fetchNoticesPage({
+    int page = 1,
+    int pageSize = detailListPageSize,
+  }) async {
+    if (kIsWeb) {
+      final notices = NoticePost._getMockNoticeData(pageSize);
+      return PaginatedNoticesResult(
+        notices: notices,
+        pagination: PaginationMeta.singlePage(
+          currentPage: page,
+          pageSize: pageSize,
+          totalCount: notices.length,
+        ),
+      );
+    }
+
+    final endpoints = [
+      '$baseUrl/api/public/notices',
+      '$baseUrl/api/notices',
+      '$baseUrl/api/public/notices/',
+    ];
+
+    final queryParameters = <String, String>{};
+    if (page > 1) {
+      queryParameters['page'] = page.toString();
+    }
+    if (pageSize != detailListPageSize) {
+      queryParameters['page_size'] = pageSize.toString();
+    }
+
+    for (final endpoint in endpoints) {
+      try {
+        final uri = Uri.parse(endpoint).replace(
+          queryParameters: queryParameters.isNotEmpty ? queryParameters : null,
+        );
+
+        final response = await http
+            .get(
+              uri,
+              headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json',
+                'Cache-Control': 'no-cache, no-store, must-revalidate',
+                'Pragma': 'no-cache',
+                'Expires': '0',
+              },
+            )
+            .timeout(const Duration(seconds: 15));
+
+        if (response.statusCode == 200) {
+          final rawData = jsonDecode(utf8.decode(response.bodyBytes));
+          final noticesData =
+              (rawData is Map<String, dynamic> ? rawData['notices'] : null) ??
+              (rawData is List ? rawData : []) ??
+              [];
+
+          final paginationJson =
+              rawData is Map<String, dynamic> ? rawData['pagination'] : null;
+
+          final notices =
+              (noticesData as List).map((item) {
+                return NoticePost.fromJson(
+                  (item as Map).cast<String, dynamic>(),
+                );
+              }).toList();
+
+          final pagination =
+              paginationJson is Map<String, dynamic>
+                  ? PaginationMeta.fromJson(paginationJson)
+                  : PaginationMeta.derived(
+                    currentPage: page,
+                    pageSize: pageSize,
+                    itemCount: notices.length,
+                  );
+
+          return PaginatedNoticesResult(
+            notices: notices,
+            pagination: pagination,
+          );
+        }
+      } catch (e) {
+        if (kIsWeb && e.toString().contains('XMLHttpRequest')) {
+          break;
+        }
+        continue;
+      }
+    }
+
+    throw Exception('공지 목록을 불러오지 못했습니다.');
   }
 
   // 개별 공지사항 상세 조회 API (조회수 자동 증가)
@@ -515,7 +576,10 @@ class DonationPost {
     }
 
     // 3. 최상위 nickname, hospital_nickname 또는 hospitalNickname 필드 확인
-    final topLevelNickname = json['nickname'] ?? json['hospital_nickname'] ?? json['hospitalNickname'];
+    final topLevelNickname =
+        json['nickname'] ??
+        json['hospital_nickname'] ??
+        json['hospitalNickname'];
     if (topLevelNickname != null &&
         topLevelNickname.toString().trim().isNotEmpty &&
         topLevelNickname.toString().toLowerCase() != 'null') {
@@ -679,7 +743,9 @@ class DonationPost {
       updatedAt: null,
       availableDates: availableDates,
       donationDates: null,
-      applicantCount: _parseIntSafely(json['applicantCount'] ?? json['applicant_count']) ?? 0,
+      applicantCount:
+          _parseIntSafely(json['applicantCount'] ?? json['applicant_count']) ??
+          0,
       userName: json['userName']?.toString() ?? json['user_name']?.toString(),
     );
   }
@@ -1070,6 +1136,121 @@ class NoticePost {
     ];
 
     return mockNotices.take(limit).cast<NoticePost>().toList();
+  }
+}
+
+class PaginatedColumnsResult {
+  final List<ColumnPost> columns;
+  final PaginationMeta pagination;
+
+  PaginatedColumnsResult({required this.columns, required this.pagination});
+}
+
+class PaginatedNoticesResult {
+  final List<NoticePost> notices;
+  final PaginationMeta pagination;
+
+  PaginatedNoticesResult({required this.notices, required this.pagination});
+}
+
+class PaginationMeta {
+  final int currentPage;
+  final int pageSize;
+  final int totalCount;
+  final int totalPages;
+  final bool hasNext;
+  final bool hasPrev;
+  final bool isEnd;
+
+  const PaginationMeta({
+    required this.currentPage,
+    required this.pageSize,
+    required this.totalCount,
+    required this.totalPages,
+    required this.hasNext,
+    required this.hasPrev,
+    required this.isEnd,
+  });
+
+  factory PaginationMeta.fromJson(Map<String, dynamic> json) {
+    final hasNextValue = _toBool(json['has_next'] ?? json['hasNext']);
+    final hasPrevValue = _toBool(json['has_prev'] ?? json['hasPrev']);
+    final isEndRaw = json['is_end'] ?? json['isEnd'];
+    final isEndValue = isEndRaw != null ? _toBool(isEndRaw) : !hasNextValue;
+    return PaginationMeta(
+      currentPage: _toInt(json['current_page'] ?? json['page'], fallback: 1),
+      pageSize: _toInt(
+        json['page_size'] ?? json['pageSize'],
+        fallback: DashboardService.detailListPageSize,
+      ),
+      totalCount: _toInt(
+        json['total_count'] ?? json['totalCount'],
+        fallback: 0,
+      ),
+      totalPages: _toInt(
+        json['total_pages'] ?? json['totalPages'],
+        fallback: 0,
+      ),
+      hasNext: hasNextValue,
+      hasPrev: hasPrevValue,
+      isEnd: isEndValue,
+    );
+  }
+
+  factory PaginationMeta.derived({
+    required int currentPage,
+    required int pageSize,
+    required int itemCount,
+  }) {
+    final hasNextValue = itemCount >= pageSize;
+    return PaginationMeta(
+      currentPage: currentPage,
+      pageSize: pageSize,
+      totalCount: (currentPage - 1) * pageSize + itemCount,
+      totalPages: hasNextValue ? currentPage + 1 : currentPage,
+      hasNext: hasNextValue,
+      hasPrev: currentPage > 1,
+      isEnd: !hasNextValue,
+    );
+  }
+
+  factory PaginationMeta.singlePage({
+    required int currentPage,
+    required int pageSize,
+    required int totalCount,
+  }) {
+    return PaginationMeta(
+      currentPage: currentPage,
+      pageSize: pageSize,
+      totalCount: totalCount,
+      totalPages: 1,
+      hasNext: false,
+      hasPrev: false,
+      isEnd: true,
+    );
+  }
+
+  bool get noMoreData => isEnd;
+
+  static bool _toBool(dynamic value) {
+    if (value == null) return false;
+    if (value is bool) return value;
+    if (value is num) return value != 0;
+    if (value is String) {
+      final lower = value.toLowerCase();
+      return lower == 'true' || lower == '1';
+    }
+    return false;
+  }
+
+  static int _toInt(dynamic value, {required int fallback}) {
+    if (value == null) return fallback;
+    if (value is int) return value;
+    if (value is num) return value.toInt();
+    if (value is String) {
+      return int.tryParse(value) ?? fallback;
+    }
+    return fallback;
   }
 }
 

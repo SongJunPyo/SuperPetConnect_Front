@@ -157,8 +157,12 @@ class _HospitalDashboardState extends State<HospitalDashboard>
     try {
       // 개별 API들을 직접 사용
       final futures = await Future.wait([
-        DashboardService.getPublicColumns(limit: 50),
-        DashboardService.getPublicNotices(limit: 50),
+        DashboardService.getPublicColumns(
+          limit: DashboardService.dashboardColumnLimit,
+        ),
+        DashboardService.getPublicNotices(
+          limit: DashboardService.dashboardNoticeLimit,
+        ),
       ]);
 
       final columnPosts = futures[0] as List<ColumnPost>;
@@ -194,6 +198,9 @@ class _HospitalDashboardState extends State<HospitalDashboard>
         if (!aImportant && bImportant) return 1;
         return b.createdAt.compareTo(a.createdAt);
       });
+
+      final topColumns =
+          sortedColumns.take(DashboardService.dashboardColumnLimit).toList();
 
       // 공지사항 필터링 및 정렬 (청중 타겟이 전체(0) 또는 병원(2)만)
       final sortedNotices =
@@ -233,9 +240,12 @@ class _HospitalDashboardState extends State<HospitalDashboard>
         return b.createdAt.compareTo(a.createdAt);
       });
 
+      final topNotices =
+          sortedNotices.take(DashboardService.dashboardNoticeLimit).toList();
+
       setState(() {
-        columns = sortedColumns;
-        notices = sortedNotices;
+        columns = topColumns;
+        notices = topNotices;
         isLoadingDashboard = false;
         isLoadingColumns = false;
         isLoadingNotices = false;

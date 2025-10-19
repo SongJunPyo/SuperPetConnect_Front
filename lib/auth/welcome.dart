@@ -305,8 +305,12 @@ class _WelcomeScreenState extends State<WelcomeScreen>
 
     try {
       final futures = await Future.wait([
-        DashboardService.getPublicColumns(limit: 50),
-        DashboardService.getPublicNotices(limit: 50),
+        DashboardService.getPublicColumns(
+          limit: DashboardService.dashboardColumnLimit,
+        ),
+        DashboardService.getPublicNotices(
+          limit: DashboardService.dashboardNoticeLimit,
+        ),
       ]);
 
       final columnPosts = futures[0] as List<ColumnPost>;
@@ -343,6 +347,9 @@ class _WelcomeScreenState extends State<WelcomeScreen>
         if (!aImportant && bImportant) return 1;
         return b.createdAt.compareTo(a.createdAt);
       });
+
+      final topColumns =
+          sortedColumns.take(DashboardService.dashboardColumnLimit).toList();
 
       // 공지사항 변환 (청중 타겟이 전체(0) 또는 사용자(3)만 필터링)
       final sortedNotices =
@@ -385,8 +392,10 @@ class _WelcomeScreenState extends State<WelcomeScreen>
 
       if (!mounted) return;
       setState(() {
-        columns = sortedColumns;
-        notices = List<Notice>.from(sortedNotices);
+        columns = topColumns;
+        notices = List<Notice>.from(
+          sortedNotices.take(DashboardService.dashboardNoticeLimit),
+        );
         isLoadingColumns = false;
         isLoadingNotices = false;
       });

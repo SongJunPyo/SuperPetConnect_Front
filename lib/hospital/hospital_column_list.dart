@@ -23,71 +23,26 @@ class _HospitalColumnListState extends State<HospitalColumnList> {
   TextEditingController searchController = TextEditingController();
   DateTime? startDate;
   DateTime? endDate;
+  final List<ColumnPost> _allColumns = [];
+  late final ScrollController _scrollController;
+  int _currentPage = 1;
+  bool _hasNextPage = true;
+  bool _isLoadingMore = false;
+  bool _isEndOfList = false;
 
   @override
   void initState() {
     super.initState();
+    _scrollController = ScrollController()..addListener(_onScroll);
     _loadColumns();
   }
 
   @override
   void dispose() {
+    _scrollController.removeListener(_onScroll);
+    _scrollController.dispose();
     searchController.dispose();
     super.dispose();
-  }
-
-  Future<void> _loadColumns() async {
-    try {
-      setState(() {
-        isLoading = true;
-        errorMessage = null;
-      });
-
-      final allColumns = await DashboardService.getPublicColumns(limit: 50);
-
-      List<ColumnPost> filteredColumns = allColumns;
-
-      if (searchQuery.isNotEmpty) {
-        filteredColumns = filteredColumns.where((column) {
-          final nickname = column.authorNickname.toLowerCase() != '닉네임 없음'
-              ? column.authorNickname
-              : column.authorName;
-          return column.title.toLowerCase().contains(searchQuery.toLowerCase()) ||
-              column.authorName.toLowerCase().contains(searchQuery.toLowerCase()) ||
-              nickname.toLowerCase().contains(searchQuery.toLowerCase());
-        }).toList();
-      }
-
-      if (startDate != null && endDate != null) {
-        filteredColumns = filteredColumns.where((column) {
-          final createdAt = column.createdAt;
-          return !createdAt.isBefore(startDate!) &&
-              !createdAt.isAfter(endDate!.add(const Duration(days: 1)));
-        }).toList();
-      }
-
-      filteredColumns.sort((a, b) {
-        final aImportant =
-            a.title.contains('[중요]') || a.title.contains('[공지]') || a.isImportant;
-        final bImportant =
-            b.title.contains('[중요]') || b.title.contains('[공지]') || b.isImportant;
-        if (aImportant && !bImportant) return -1;
-        if (!aImportant && bImportant) return 1;
-        return b.createdAt.compareTo(a.createdAt);
-      });
-
-      if (!mounted) return;
-      setState(() {
-        columns = filteredColumns;
-        isLoading = false;
-      });
-    } catch (e) {
-      if (!mounted) return;
-      setState(() {
-        errorMessage = e.toString();
-        isLoading = false;
-      });
-    }
   }
 
   void _onSearchChanged(String query) {
@@ -362,7 +317,7 @@ class _HospitalColumnListState extends State<HospitalColumnList> {
                   ),
                   const SizedBox(height: 24),
                   ElevatedButton.icon(
-                    onPressed: _loadColumns,
+                    onPressed: () => _loadColumns(),
                     icon: const Icon(Icons.refresh),
                     label: const Text('다시 시도'),
                     style: ElevatedButton.styleFrom(
@@ -412,6 +367,10 @@ class _HospitalColumnListState extends State<HospitalColumnList> {
       );
     }
 
+    final bool showLoadingTile = _isLoadingMore;
+    final bool showEndTile = !_isLoadingMore && _isEndOfList;
+    final int itemCount = columns.length + (showLoadingTile ? 1 : 0) + (showEndTile ? 1 : 0);
+
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
@@ -421,14 +380,22 @@ class _HospitalColumnListState extends State<HospitalColumnList> {
         children: [
           Expanded(
             child: ListView.separated(
+              controller: _scrollController,
               padding: EdgeInsets.zero,
-              itemCount: columns.length,
+              itemCount: itemCount,
               separatorBuilder: (context, index) => Container(
                 height: 1,
                 color: AppTheme.lightGray.withValues(alpha: 0.2),
                 margin: const EdgeInsets.symmetric(horizontal: 16),
               ),
               itemBuilder: (context, index) {
+                if (index >= columns.length) {
+                  if (showLoadingTile && index == columns.length) {
+                    return _buildBottomLoader();
+                  }
+                  return _buildEndOfListMessage();
+                }
+
                 final column = columns[index];
                 final isImportant =
                     column.title.contains('[중요]') ||
@@ -627,7 +594,7 @@ class _HospitalColumnListState extends State<HospitalColumnList> {
             ),
           IconButton(
             icon: const Icon(Icons.refresh),
-            onPressed: _loadColumns,
+            onPressed: () => _loadColumns(),
             tooltip: '새로고침',
           ),
         ],
@@ -714,7 +681,7 @@ class _HospitalColumnListState extends State<HospitalColumnList> {
           ),
           Expanded(
             child: RefreshIndicator(
-              onRefresh: _loadColumns,
+              onRefresh: () => _loadColumns(),
               color: AppTheme.primaryBlue,
               child: _buildContent(),
             ),
@@ -722,5 +689,151 @@ class _HospitalColumnListState extends State<HospitalColumnList> {
         ],
       ),
     );
+  }
+
+  Widget _buildBottomLoader() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 16),
+      child: Center(
+        child: SizedBox(
+          width: 24,
+          height: 24,
+          child: CircularProgressIndicator(
+            strokeWidth: 3,
+            color: AppTheme.primaryBlue,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildEndOfListMessage() {
+    if (!_isEndOfList) {
+      return const SizedBox.shrink();
+    }
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 12),
+      child: Center(
+        child: Text(
+          '더 이상 불러올 칼럼이 없습니다.',
+          style: AppTheme.bodySmallStyle.copyWith(
+            color: AppTheme.textTertiary,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _loadColumns({bool reset = true}) async {
+    if (reset) {
+      setState(() {
+        isLoading = true;
+        errorMessage = null;
+        _currentPage = 1;
+        _hasNextPage = true;
+        _isEndOfList = false;
+        _allColumns.clear();
+        columns = [];
+      });
+    } else {
+      if (!_hasNextPage || _isLoadingMore) {
+        return;
+      }
+      setState(() {
+        _isLoadingMore = true;
+        errorMessage = null;
+      });
+    }
+
+    try {
+      final response = await DashboardService.fetchColumnsPage(
+        page: _currentPage,
+        pageSize: DashboardService.detailListPageSize,
+      );
+
+      final fetchedColumns = response.columns;
+      for (final column in fetchedColumns) {
+        final exists = _allColumns.any(
+          (stored) => stored.columnIdx == column.columnIdx,
+        );
+        if (!exists) {
+          _allColumns.add(column);
+        }
+      }
+
+      final filteredColumns = _applyFilters(_allColumns);
+      final pagination = response.pagination;
+
+      if (!mounted) return;
+      setState(() {
+        columns = filteredColumns;
+        isLoading = false;
+        _isLoadingMore = false;
+        _isEndOfList = pagination.isEnd;
+        _hasNextPage = pagination.hasNext;
+        _currentPage = pagination.hasNext
+            ? pagination.currentPage + 1
+            : pagination.currentPage;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        errorMessage = e.toString();
+        if (reset) {
+          isLoading = false;
+        }
+        _isLoadingMore = false;
+        _hasNextPage = false;
+      });
+    }
+  }
+
+  void _onScroll() {
+    if (!_scrollController.hasClients || _isLoadingMore || !_hasNextPage) {
+      return;
+    }
+    final threshold = _scrollController.position.maxScrollExtent - 200;
+    if (_scrollController.position.pixels >= threshold) {
+      _loadColumns(reset: false);
+    }
+  }
+
+  List<ColumnPost> _applyFilters(List<ColumnPost> source) {
+    Iterable<ColumnPost> filtered = source;
+
+    if (searchQuery.isNotEmpty) {
+      final lowered = searchQuery.toLowerCase();
+      filtered = filtered.where((column) {
+        final nickname =
+            column.authorNickname.toLowerCase() != '닉네임 없음'
+                ? column.authorNickname.toLowerCase()
+                : column.authorName.toLowerCase();
+        return column.title.toLowerCase().contains(lowered) ||
+            column.authorName.toLowerCase().contains(lowered) ||
+            nickname.contains(lowered);
+      });
+    }
+
+    if (startDate != null && endDate != null) {
+      filtered = filtered.where((column) {
+        final createdAt = column.createdAt;
+        return !createdAt.isBefore(startDate!) &&
+            !createdAt.isAfter(endDate!.add(const Duration(days: 1)));
+      });
+    }
+
+    final sorted = filtered.toList()
+      ..sort((a, b) {
+        final aImportant =
+            a.title.contains('[중요]') || a.title.contains('[공지]') || a.isImportant;
+        final bImportant =
+            b.title.contains('[중요]') || b.title.contains('[공지]') || b.isImportant;
+        if (aImportant && !bImportant) return -1;
+        if (!aImportant && bImportant) return 1;
+        return b.createdAt.compareTo(a.createdAt);
+      });
+
+    return sorted;
   }
 }

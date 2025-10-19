@@ -25,92 +25,92 @@ class _HospitalNoticeListScreenState extends State<HospitalNoticeListScreen> {
   TextEditingController searchController = TextEditingController();
   DateTime? startDate;
   DateTime? endDate;
+  final List<Notice> _allNotices = [];
+  late final ScrollController _scrollController;
+  int _currentPage = 1;
+  bool _hasNextPage = true;
+  bool _isLoadingMore = false;
+  bool _isEndOfList = false;
 
   @override
   void initState() {
     super.initState();
+    _scrollController = ScrollController()..addListener(_onScroll);
     _loadNotices();
   }
 
   @override
   void dispose() {
+    _scrollController.removeListener(_onScroll);
+    _scrollController.dispose();
     searchController.dispose();
     super.dispose();
   }
 
-  Future<void> _loadNotices() async {
-    try {
+  Future<void> _loadNotices({bool reset = true}) async {
+    if (reset) {
       setState(() {
         isLoading = true;
         errorMessage = null;
+        _currentPage = 1;
+        _hasNextPage = true;
+        _isEndOfList = false;
+        _allNotices.clear();
+        notices = [];
       });
+    } else {
+      if (!_hasNextPage || _isLoadingMore) {
+        return;
+      }
+      setState(() {
+        _isLoadingMore = true;
+        errorMessage = null;
+      });
+    }
 
-      final noticePosts = await DashboardService.getPublicNotices(limit: 50);
+    try {
+      final response = await DashboardService.fetchNoticesPage(
+        page: _currentPage,
+        pageSize: DashboardService.detailListPageSize,
+      );
 
-      List<Notice> allNotices =
-          noticePosts
-              .where(
-                (notice) =>
-                    notice.targetAudience == 0 || notice.targetAudience == 2,
-              )
-              .map((notice) {
-        final displayNickname =
-            (notice.authorNickname != null &&
-                    notice.authorNickname!.toLowerCase() != '닉네임 없음')
-                ? notice.authorNickname
-                : notice.authorName;
+      final visibleNotices = response.notices.where(
+        (noticePost) =>
+            noticePost.targetAudience == 0 || noticePost.targetAudience == 2,
+      );
 
-        return Notice(
-          noticeIdx: notice.noticeIdx,
-          accountIdx: 0,
-          title: notice.title,
-          content: notice.contentPreview,
-          noticeImportant: notice.noticeImportant,
-          noticeActive: true,
-          createdAt: notice.createdAt,
-          updatedAt: notice.updatedAt,
-          authorEmail: notice.authorEmail,
-          authorName: notice.authorName,
-          authorNickname: displayNickname,
-          viewCount: notice.viewCount,
-          targetAudience: notice.targetAudience,
-          noticeUrl: notice.noticeUrl,
-        );
-      }).toList();
+      final mappedNotices = visibleNotices.map(_mapToNotice).toList();
 
-      if (searchQuery.isNotEmpty) {
-        allNotices = allNotices.where((notice) {
-          final nickname = notice.authorNickname ?? notice.authorName;
-          return notice.title.toLowerCase().contains(searchQuery.toLowerCase()) ||
-              notice.authorName.toLowerCase().contains(searchQuery.toLowerCase()) ||
-              nickname.toLowerCase().contains(searchQuery.toLowerCase());
-        }).toList();
+      for (final notice in mappedNotices) {
+        final exists = _allNotices.any((stored) => stored.noticeIdx == notice.noticeIdx);
+        if (!exists) {
+          _allNotices.add(notice);
+        }
       }
 
-      if (startDate != null && endDate != null) {
-        allNotices = allNotices.where((notice) {
-          final createdAt = notice.createdAt;
-          return !createdAt.isBefore(startDate!) &&
-              !createdAt.isAfter(endDate!.add(const Duration(days: 1)));
-        }).toList();
-      }
-
-      allNotices.sort((a, b) {
-        if (a.showBadge && !b.showBadge) return -1;
-        if (!a.showBadge && b.showBadge) return 1;
-        return b.createdAt.compareTo(a.createdAt);
-      });
+      final filtered = _applyFilters(_allNotices);
+      final pagination = response.pagination;
 
       if (!mounted) return;
       setState(() {
-        notices = allNotices;
+        notices = filtered;
         isLoading = false;
+        _isLoadingMore = false;
+        _isEndOfList = pagination.isEnd;
+        _hasNextPage = pagination.hasNext;
+        _currentPage = pagination.hasNext
+            ? pagination.currentPage + 1
+            : pagination.currentPage;
       });
     } catch (e) {
       if (!mounted) return;
       setState(() {
         errorMessage = e.toString();
-        isLoading = false;
+        if (reset) {
+          isLoading = false;
+        }
+        _isLoadingMore = false;
+        _hasNextPage = false;
       });
     }
   }
@@ -160,6 +160,72 @@ class _HospitalNoticeListScreenState extends State<HospitalNoticeListScreen> {
     _loadNotices();
   }
 
+  void _onScroll() {
+    if (!_scrollController.hasClients || _isLoadingMore || !_hasNextPage) {
+      return;
+    }
+    final threshold = _scrollController.position.maxScrollExtent - 200;
+    if (_scrollController.position.pixels >= threshold) {
+      _loadNotices(reset: false);
+    }
+  }
+
+  List<Notice> _applyFilters(List<Notice> source) {
+    Iterable<Notice> filtered = source;
+
+    if (searchQuery.isNotEmpty) {
+      final lowered = searchQuery.toLowerCase();
+      filtered = filtered.where((notice) {
+        final nickname = (notice.authorNickname ?? notice.authorName).toLowerCase();
+        return notice.title.toLowerCase().contains(lowered) ||
+            notice.authorName.toLowerCase().contains(lowered) ||
+            nickname.contains(lowered);
+      });
+    }
+
+    if (startDate != null && endDate != null) {
+      filtered = filtered.where((notice) {
+        final createdAt = notice.createdAt;
+        return !createdAt.isBefore(startDate!) &&
+            !createdAt.isAfter(endDate!.add(const Duration(days: 1)));
+      });
+    }
+
+    final sorted = filtered.toList()
+      ..sort((a, b) {
+        if (a.showBadge && !b.showBadge) return -1;
+        if (!a.showBadge && b.showBadge) return 1;
+        return b.createdAt.compareTo(a.createdAt);
+      });
+
+    return sorted;
+  }
+
+  Notice _mapToNotice(NoticePost noticePost) {
+    final displayNickname =
+        (noticePost.authorNickname.isNotEmpty &&
+                noticePost.authorNickname.toLowerCase() != '닉네임 없음')
+            ? noticePost.authorNickname
+            : noticePost.authorName;
+
+    return Notice(
+      noticeIdx: noticePost.noticeIdx,
+      accountIdx: 0,
+      title: noticePost.title,
+      content: noticePost.contentPreview,
+      noticeImportant: noticePost.noticeImportant,
+      noticeActive: true,
+      createdAt: noticePost.createdAt,
+      updatedAt: noticePost.updatedAt,
+      authorEmail: noticePost.authorEmail,
+      authorName: noticePost.authorName,
+      authorNickname: displayNickname,
+      viewCount: noticePost.viewCount,
+      targetAudience: noticePost.targetAudience,
+      noticeUrl: noticePost.noticeUrl,
+    );
+  }
+
   Future<void> _showNoticeDetail(Notice notice) async {
     NoticePost? noticeDetail;
     try {
@@ -168,32 +234,16 @@ class _HospitalNoticeListScreenState extends State<HospitalNoticeListScreen> {
 
     if (noticeDetail != null && mounted) {
       setState(() {
+        final updatedNotice = _mapToNotice(noticeDetail!);
         final idx = notices.indexWhere((n) => n.noticeIdx == notice.noticeIdx);
         if (idx != -1) {
-          final detailNickname = noticeDetail!.authorNickname;
-          final displayNickname =
-              (detailNickname != null &&
-                      detailNickname.toLowerCase() != '닉네임 없음')
-                  ? detailNickname
-                  : noticeDetail.authorName;
-
-          notices[idx] = Notice(
-            noticeIdx: notices[idx].noticeIdx,
-            accountIdx: notices[idx].accountIdx,
-            title: noticeDetail.title,
-            content: noticeDetail.contentPreview,
-            noticeImportant: noticeDetail.noticeImportant,
-            noticeActive: notices[idx].noticeActive,
-            createdAt: noticeDetail.createdAt,
-            updatedAt: noticeDetail.updatedAt,
-            authorEmail: noticeDetail.authorEmail,
-            authorName: noticeDetail.authorName,
-            authorNickname: displayNickname,
-            viewCount: noticeDetail.viewCount,
-            targetAudience: noticeDetail.targetAudience,
-            noticeUrl: noticeDetail.noticeUrl,
-          );
+          notices[idx] = updatedNotice;
         }
+        final allIdx = _allNotices.indexWhere((n) => n.noticeIdx == notice.noticeIdx);
+        if (allIdx != -1) {
+          _allNotices[allIdx] = updatedNotice;
+        }
+        notices = _applyFilters(_allNotices);
       });
     }
 
@@ -426,7 +476,7 @@ class _HospitalNoticeListScreenState extends State<HospitalNoticeListScreen> {
             ),
           IconButton(
             icon: const Icon(Icons.refresh),
-            onPressed: _loadNotices,
+            onPressed: () => _loadNotices(),
             tooltip: '새로고침',
           ),
         ],
@@ -513,7 +563,7 @@ class _HospitalNoticeListScreenState extends State<HospitalNoticeListScreen> {
           ),
           Expanded(
             child: RefreshIndicator(
-              onRefresh: _loadNotices,
+              onRefresh: () => _loadNotices(),
               color: AppTheme.primaryBlue,
               child: _buildContent(),
             ),
@@ -546,7 +596,7 @@ class _HospitalNoticeListScreenState extends State<HospitalNoticeListScreen> {
             ),
             const SizedBox(height: 24),
             ElevatedButton.icon(
-              onPressed: _loadNotices,
+              onPressed: () => _loadNotices(),
               icon: const Icon(Icons.refresh),
               label: const Text('다시 시도'),
               style: ElevatedButton.styleFrom(
@@ -576,17 +626,29 @@ class _HospitalNoticeListScreenState extends State<HospitalNoticeListScreen> {
       );
     }
 
+    final bool showLoadingTile = _isLoadingMore;
+    final bool showEndTile = !_isLoadingMore && _isEndOfList;
+    final int itemCount = notices.length + (showLoadingTile ? 1 : 0) + (showEndTile ? 1 : 0);
+
     return Container(
       decoration: const BoxDecoration(color: Colors.white),
       child: ListView.separated(
+        controller: _scrollController,
         padding: EdgeInsets.zero,
-        itemCount: notices.length,
+        itemCount: itemCount,
         separatorBuilder: (context, index) => Container(
           height: 1,
           color: AppTheme.lightGray.withValues(alpha: 0.2),
           margin: const EdgeInsets.symmetric(horizontal: 16),
         ),
         itemBuilder: (context, index) {
+          if (index >= notices.length) {
+            if (showLoadingTile && index == notices.length) {
+              return _buildBottomLoader();
+            }
+            return _buildEndOfListMessage();
+          }
+
           final notice = notices[index];
 
           return InkWell(
@@ -744,11 +806,45 @@ class _HospitalNoticeListScreenState extends State<HospitalNoticeListScreen> {
                       ),
                     ],
                   ),
-                ],
-              ),
-            ),
-          );
+                    ],
+                  ),
+                ),
+              );
         },
+      ),
+    );
+  }
+
+  Widget _buildBottomLoader() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 16),
+      child: Center(
+        child: SizedBox(
+          width: 24,
+          height: 24,
+          child: CircularProgressIndicator(
+            strokeWidth: 3,
+            color: AppTheme.primaryBlue,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildEndOfListMessage() {
+    if (!_isEndOfList) {
+      return const SizedBox.shrink();
+    }
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 12),
+      child: Center(
+        child: Text(
+          '더 이상 불러올 공지가 없습니다.',
+          style: AppTheme.bodySmallStyle.copyWith(
+            color: AppTheme.textTertiary,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
       ),
     );
   }

@@ -313,8 +313,12 @@ class _UserDashboardState extends State<UserDashboard>
 
       // 칼럼과 공지사항은 별도로 로딩
       final futures = await Future.wait([
-        DashboardService.getPublicColumns(limit: 50),
-        DashboardService.getPublicNotices(limit: 50),
+        DashboardService.getPublicColumns(
+          limit: DashboardService.dashboardColumnLimit,
+        ),
+        DashboardService.getPublicNotices(
+          limit: DashboardService.dashboardNoticeLimit,
+        ),
       ]);
 
       final columnPosts = futures[0] as List<ColumnPost>;
@@ -354,6 +358,9 @@ class _UserDashboardState extends State<UserDashboard>
         return b.createdAt.compareTo(a.createdAt);
       });
 
+      final topColumns =
+          sortedColumns.take(DashboardService.dashboardColumnLimit).toList();
+
       // 공지사항 필터링 및 정렬 (청중 타겟이 전체(0) 또는 사용자(3)만)
       final sortedNotices =
           noticePosts
@@ -387,11 +394,14 @@ class _UserDashboardState extends State<UserDashboard>
         return b.createdAt.compareTo(a.createdAt);
       });
 
+      final topNotices =
+          sortedNotices.take(DashboardService.dashboardNoticeLimit).toList();
+
       if (!mounted) return;
       setState(() {
         donations = sortedDonations.take(10).toList();
-        columns = sortedColumns;
-        notices = sortedNotices;
+        columns = topColumns;
+        notices = topNotices;
         isLoadingDashboard = false;
         isLoadingDonations = false;
         isLoadingColumns = false;

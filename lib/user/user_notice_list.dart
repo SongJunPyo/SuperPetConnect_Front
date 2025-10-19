@@ -22,110 +22,92 @@ class _UserNoticeListScreenState extends State<UserNoticeListScreen> {
   TextEditingController searchController = TextEditingController();
   DateTime? startDate;
   DateTime? endDate;
+  final List<Notice> _allNotices = [];
+  late final ScrollController _scrollController;
+  int _currentPage = 1;
+  bool _hasNextPage = true;
+  bool _isLoadingMore = false;
+  bool _isEndOfList = false;
 
   @override
   void initState() {
     super.initState();
+    _scrollController = ScrollController()..addListener(_onScroll);
     _loadNotices();
   }
 
   @override
   void dispose() {
+    _scrollController.removeListener(_onScroll);
+    _scrollController.dispose();
     searchController.dispose();
     super.dispose();
   }
 
-  Future<void> _loadNotices() async {
-    try {
+  Future<void> _loadNotices({bool reset = true}) async {
+    if (reset) {
       setState(() {
         isLoading = true;
         errorMessage = null;
+        _currentPage = 1;
+        _hasNextPage = true;
+        _isEndOfList = false;
+        _allNotices.clear();
+        notices = [];
       });
-
-      // 대시보드와 동일한 API 사용 (서버 제한: 최대 50)
-      final noticesData = await DashboardService.getPublicNotices(limit: 50);
-
-      // 사용자에게 노출할 공지 (전체/사용자 대상만)
-      final visibleNoticePosts =
-          noticesData.where(
-            (noticePost) =>
-                noticePost.targetAudience == 0 ||
-                noticePost.targetAudience == 3,
-          );
-
-      // NoticePost를 Notice로 변환
-      List<Notice> allNotices =
-          visibleNoticePosts.map((noticePost) {
-            final displayNickname =
-                (noticePost.authorNickname != null &&
-                        noticePost.authorNickname.toLowerCase() != '닉네임 없음')
-                    ? noticePost.authorNickname
-                    : noticePost.authorName;
-
-            return Notice(
-              noticeIdx: noticePost.noticeIdx,
-              accountIdx: 0, // DashboardService에서 제공하지 않는 필드
-              title: noticePost.title,
-              content: noticePost.contentPreview,
-              noticeImportant: noticePost.noticeImportant,
-              noticeActive: true,
-              createdAt: noticePost.createdAt,
-              updatedAt: noticePost.updatedAt,
-              authorEmail: noticePost.authorEmail,
-              authorName: noticePost.authorName,
-              authorNickname: displayNickname,
-              viewCount: noticePost.viewCount,
-              targetAudience: noticePost.targetAudience,
-              noticeUrl: noticePost.noticeUrl,
-            );
-          }).toList();
-
-      // 검색 필터링 적용
-      if (searchQuery.isNotEmpty) {
-        allNotices =
-            allNotices.where((notice) {
-              final titleMatch = notice.title.toLowerCase().contains(
-                searchQuery.toLowerCase(),
-              );
-              final nickname = (notice.authorNickname ?? notice.authorName);
-              final authorMatch = notice.authorName.toLowerCase().contains(
-                searchQuery.toLowerCase(),
-              );
-              final nicknameMatch = nickname.toLowerCase().contains(
-                searchQuery.toLowerCase(),
-              );
-              return titleMatch || authorMatch || nicknameMatch;
-            }).toList();
+    } else {
+      if (!_hasNextPage || _isLoadingMore) {
+        return;
       }
-
-      // 날짜 범위 필터
-      if (startDate != null && endDate != null) {
-        allNotices =
-            allNotices.where((notice) {
-              final createdAt = notice.createdAt;
-              return !createdAt.isBefore(startDate!) &&
-                  !createdAt.isAfter(endDate!.add(const Duration(days: 1)));
-            }).toList();
-      }
-
-      // 뱃지가 있는 공지를 상단에, 그 다음 최신순으로 정렬
-      allNotices.sort((a, b) {
-        // 뱃지가 있는 공지 우선 정렬
-        if (a.showBadge && !b.showBadge) return -1;
-        if (!a.showBadge && b.showBadge) return 1;
-
-        // 같은 조건이면 최신순 정렬
-        return b.createdAt.compareTo(a.createdAt);
-      });
-
       setState(() {
-        notices = allNotices;
+        _isLoadingMore = true;
+        errorMessage = null;
+      });
+    }
+
+    try {
+      final response = await DashboardService.fetchNoticesPage(
+        page: _currentPage,
+        pageSize: DashboardService.detailListPageSize,
+      );
+
+      final visibleNoticePosts = response.notices.where(
+        (noticePost) =>
+            noticePost.targetAudience == 0 || noticePost.targetAudience == 3,
+      );
+
+      final mappedNotices = visibleNoticePosts.map(_mapToNotice).toList();
+
+      for (final notice in mappedNotices) {
+        final exists = _allNotices.any((stored) => stored.noticeIdx == notice.noticeIdx);
+        if (!exists) {
+          _allNotices.add(notice);
+        }
+      }
+
+      final filteredNotices = _applyFilters(_allNotices);
+      final pagination = response.pagination;
+
+      if (!mounted) return;
+      setState(() {
+        notices = filteredNotices;
         isLoading = false;
+        _isLoadingMore = false;
+        _isEndOfList = pagination.isEnd;
+        _hasNextPage = pagination.hasNext;
+        _currentPage = pagination.hasNext
+            ? pagination.currentPage + 1
+            : pagination.currentPage;
       });
     } catch (e) {
+      if (!mounted) return;
       setState(() {
         errorMessage = e.toString();
-        isLoading = false;
+        if (reset) {
+          isLoading = false;
+        }
+        _isLoadingMore = false;
+        _hasNextPage = false;
       });
     }
   }
@@ -171,6 +153,72 @@ class _UserNoticeListScreenState extends State<UserNoticeListScreen> {
       endDate = null;
     });
     _loadNotices();
+  }
+
+  void _onScroll() {
+    if (!_scrollController.hasClients || _isLoadingMore || !_hasNextPage) {
+      return;
+    }
+    final threshold = _scrollController.position.maxScrollExtent - 200;
+    if (_scrollController.position.pixels >= threshold) {
+      _loadNotices(reset: false);
+    }
+  }
+
+  List<Notice> _applyFilters(List<Notice> source) {
+    Iterable<Notice> filtered = source;
+
+    if (searchQuery.isNotEmpty) {
+      final lowered = searchQuery.toLowerCase();
+      filtered = filtered.where((notice) {
+        final nickname = (notice.authorNickname ?? notice.authorName).toLowerCase();
+        return notice.title.toLowerCase().contains(lowered) ||
+            notice.authorName.toLowerCase().contains(lowered) ||
+            nickname.contains(lowered);
+      });
+    }
+
+    if (startDate != null && endDate != null) {
+      filtered = filtered.where((notice) {
+        final createdAt = notice.createdAt;
+        return !createdAt.isBefore(startDate!) &&
+            !createdAt.isAfter(endDate!.add(const Duration(days: 1)));
+      });
+    }
+
+    final sorted = filtered.toList()
+      ..sort((a, b) {
+        if (a.showBadge && !b.showBadge) return -1;
+        if (!a.showBadge && b.showBadge) return 1;
+        return b.createdAt.compareTo(a.createdAt);
+      });
+
+    return sorted;
+  }
+
+  Notice _mapToNotice(NoticePost noticePost) {
+    final displayNickname =
+        (noticePost.authorNickname.isNotEmpty &&
+                noticePost.authorNickname.toLowerCase() != '닉네임 없음')
+            ? noticePost.authorNickname
+            : noticePost.authorName;
+
+    return Notice(
+      noticeIdx: noticePost.noticeIdx,
+      accountIdx: 0,
+      title: noticePost.title,
+      content: noticePost.contentPreview,
+      noticeImportant: noticePost.noticeImportant,
+      noticeActive: true,
+      createdAt: noticePost.createdAt,
+      updatedAt: noticePost.updatedAt,
+      authorEmail: noticePost.authorEmail,
+      authorName: noticePost.authorName,
+      authorNickname: displayNickname,
+      viewCount: noticePost.viewCount,
+      targetAudience: noticePost.targetAudience,
+      noticeUrl: noticePost.noticeUrl,
+    );
   }
 
   void _showNoticeDetail(Notice notice) async {
@@ -458,7 +506,7 @@ class _UserNoticeListScreenState extends State<UserNoticeListScreen> {
             ),
           IconButton(
             icon: const Icon(Icons.refresh),
-            onPressed: _loadNotices,
+            onPressed: () => _loadNotices(),
             tooltip: '새로고침',
           ),
         ],
@@ -548,7 +596,7 @@ class _UserNoticeListScreenState extends State<UserNoticeListScreen> {
           ),
           Expanded(
             child: RefreshIndicator(
-              onRefresh: _loadNotices,
+              onRefresh: () => _loadNotices(),
               color: AppTheme.primaryBlue,
               child: _buildContent(),
             ),
@@ -581,7 +629,7 @@ class _UserNoticeListScreenState extends State<UserNoticeListScreen> {
             ),
             const SizedBox(height: 24),
             ElevatedButton.icon(
-              onPressed: _loadNotices,
+              onPressed: () => _loadNotices(),
               icon: const Icon(Icons.refresh),
               label: const Text('다시 시도'),
               style: ElevatedButton.styleFrom(
@@ -611,11 +659,16 @@ class _UserNoticeListScreenState extends State<UserNoticeListScreen> {
       );
     }
 
+    final bool showLoadingTile = _isLoadingMore;
+    final bool showEndTile = !_isLoadingMore && _isEndOfList;
+    final int itemCount = notices.length + (showLoadingTile ? 1 : 0) + (showEndTile ? 1 : 0);
+
     return Container(
       decoration: BoxDecoration(color: Colors.white),
       child: ListView.separated(
+        controller: _scrollController,
         padding: EdgeInsets.zero,
-        itemCount: notices.length,
+        itemCount: itemCount,
         separatorBuilder:
             (context, index) => Container(
               height: 1,
@@ -623,6 +676,13 @@ class _UserNoticeListScreenState extends State<UserNoticeListScreen> {
               margin: const EdgeInsets.symmetric(horizontal: 16),
             ),
         itemBuilder: (context, index) {
+          if (index >= notices.length) {
+            if (showLoadingTile && index == notices.length) {
+              return _buildBottomLoader();
+            }
+            return _buildEndOfListMessage();
+          }
+
           final notice = notices[index];
 
           return InkWell(
@@ -632,16 +692,13 @@ class _UserNoticeListScreenState extends State<UserNoticeListScreen> {
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // 중앙: 메인 콘텐츠
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        // 첫 번째 줄: 순서 번호 + 뱃지 + 제목
                         Row(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            // 순서 번호
                             SizedBox(
                               width: 20,
                               child: Text(
@@ -690,24 +747,17 @@ class _UserNoticeListScreenState extends State<UserNoticeListScreen> {
                                           : FontWeight.w500,
                                   fontSize: 14,
                                 ),
-                                animationDuration: const Duration(
-                                  milliseconds: 4000,
-                                ),
-                                pauseDuration: const Duration(
-                                  milliseconds: 1000,
-                                ),
+                                animationDuration: const Duration(milliseconds: 4000),
+                                pauseDuration: const Duration(milliseconds: 1000),
                               ),
                             ),
                           ],
                         ),
                         const SizedBox(height: 6),
-                        // 두 번째 줄: 작성자 닉네임
                         Padding(
                           padding: const EdgeInsets.only(left: 28),
                           child: Text(
-                            (notice.authorNickname ?? notice.authorName)
-                                        .length >
-                                    15
+                            (notice.authorNickname ?? notice.authorName).length > 15
                                 ? '${(notice.authorNickname ?? notice.authorName).substring(0, 15)}..'
                                 : (notice.authorNickname ?? notice.authorName),
                             style: AppTheme.bodySmallStyle.copyWith(
@@ -722,11 +772,9 @@ class _UserNoticeListScreenState extends State<UserNoticeListScreen> {
                     ),
                   ),
                   const SizedBox(width: 12),
-                  // 오른쪽: 날짜들 + 2줄 높이의 조회수 박스
                   Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      // 날짜 컬럼 (작성/수정일 세로 배치)
                       Column(
                         crossAxisAlignment: CrossAxisAlignment.end,
                         children: [
@@ -748,14 +796,10 @@ class _UserNoticeListScreenState extends State<UserNoticeListScreen> {
                         ],
                       ),
                       const SizedBox(width: 8),
-                      // 2줄 높이의 조회수 박스
                       Container(
                         height: 36,
                         width: 40,
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 4,
-                          vertical: 4,
-                        ),
+                        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
                         decoration: BoxDecoration(
                           color: AppTheme.mediumGray.withValues(alpha: 0.2),
                           borderRadius: BorderRadius.circular(6),
@@ -775,9 +819,7 @@ class _UserNoticeListScreenState extends State<UserNoticeListScreen> {
                             ),
                             const SizedBox(height: 1),
                             Text(
-                              NumberFormatUtil.formatViewCount(
-                                notice.viewCount ?? 0,
-                              ),
+                              NumberFormatUtil.formatViewCount(notice.viewCount ?? 0),
                               style: AppTheme.bodySmallStyle.copyWith(
                                 color: AppTheme.textTertiary,
                                 fontSize: 10,
@@ -795,6 +837,40 @@ class _UserNoticeListScreenState extends State<UserNoticeListScreen> {
             ),
           );
         },
+      ),
+    );
+  }
+
+  Widget _buildBottomLoader() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 16),
+      child: Center(
+        child: SizedBox(
+          width: 24,
+          height: 24,
+          child: CircularProgressIndicator(
+            strokeWidth: 3,
+            color: AppTheme.primaryBlue,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildEndOfListMessage() {
+    if (!_isEndOfList) {
+      return const SizedBox.shrink();
+    }
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 12),
+      child: Center(
+        child: Text(
+          '더 이상 불러올 공지가 없습니다.',
+          style: AppTheme.bodySmallStyle.copyWith(
+            color: AppTheme.textTertiary,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
       ),
     );
   }
