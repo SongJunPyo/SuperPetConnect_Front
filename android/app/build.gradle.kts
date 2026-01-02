@@ -36,7 +36,18 @@ android {
         release {
             // TODO: Add your own signing config for the release build.
             // Signing with the debug keys for now, so `flutter run --release` works.
+            
+            // 🔐 디버그 키로 임시 서명
             signingConfig = signingConfigs.getByName("debug")
+
+            // ⚙️ 안정성을 위한 설정
+            isMinifyEnabled = false
+            isShrinkResources = false
+
+            // ⚡ 릴리스 최적화 시 문제 방지 (Impeller 관련)
+            ndk {
+                abiFilters += listOf("armeabi-v7a", "arm64-v8a")
+            }
         }
     }
 }

@@ -79,6 +79,11 @@ Future<void> showGlobalLocalNotification(RemoteMessage message) async {
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
+  // 🔥 release 모드에서도 print() 로그 보이게
+  const bool kReleaseMode = bool.fromEnvironment('dart.vm.product');
+  if (kReleaseMode) {
+    debugPrint = (String? message, {int? wrapWidth}) => print(message);
+  }
   // 0. 환경변수 로드 (가장 먼저)
   try {
     await dotenv.load(fileName: ".env");
