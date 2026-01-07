@@ -3,7 +3,6 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
-import 'package:web_socket_channel/io.dart';
 import '../models/notification_model.dart';
 import '../utils/config.dart';
 import 'notification_converter.dart';
@@ -80,7 +79,7 @@ class WebSocketHandler {
 
       debugPrint('[WebSocketHandler] 연결 시도: $wsUrl');
 
-      _channel = IOWebSocketChannel.connect(
+      _channel = WebSocketChannel.connect(
         Uri.parse(wsUrl),
       );
 

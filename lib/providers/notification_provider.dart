@@ -70,7 +70,11 @@ class NotificationProvider extends ChangeNotifier {
   /// Provider 초기화
   /// 앱 시작 시 또는 로그인 후 호출됩니다.
   Future<void> initialize() async {
-    if (_isInitialized) return;
+    debugPrint('[NotificationProvider] initialize() 호출 - isInitialized: $_isInitialized');
+    if (_isInitialized) {
+      debugPrint('[NotificationProvider] 이미 초기화됨, 건너뜀');
+      return;
+    }
 
     _setLoading(true);
     _connectionStatus = ConnectionStatus.connecting;
@@ -96,17 +100,23 @@ class NotificationProvider extends ChangeNotifier {
       // 실시간 알림 스트림 구독
       _setupRealtimeSubscription();
 
-      // 초기 알림 목록 로드
+      // 초기 알림 목록 로드 (로딩 상태 해제 후 호출)
+      debugPrint('[NotificationProvider] loadNotifications 호출 전');
+      _isLoading = false;
       await loadNotifications(refresh: true);
+      debugPrint('[NotificationProvider] loadNotifications 완료 - 알림 수: ${_notifications.length}');
 
       _isInitialized = true;
       _connectionStatus = ConnectionStatus.connected;
+      _isLoading = false;
+      debugPrint('[NotificationProvider] 초기화 완료 - isInitialized: $_isInitialized, connectionStatus: $_connectionStatus');
+      notifyListeners(); // 초기화 완료 후 UI 갱신
     } catch (e) {
       _errorMessage = '알림 시스템 초기화 실패: $e';
       _connectionStatus = ConnectionStatus.error;
+      _isLoading = false;
       debugPrint('[NotificationProvider] 초기화 실패: $e');
-    } finally {
-      _setLoading(false);
+      notifyListeners(); // 에러 상태 UI 갱신
     }
   }
 
@@ -202,7 +212,9 @@ class NotificationProvider extends ChangeNotifier {
 
   /// 알림 목록 새로고침
   Future<void> refresh() async {
+    debugPrint('[NotificationProvider] refresh() 호출');
     await loadNotifications(refresh: true);
+    debugPrint('[NotificationProvider] refresh() 완료 - 알림 수: ${_notifications.length}');
   }
 
   /// 다음 페이지 로드
