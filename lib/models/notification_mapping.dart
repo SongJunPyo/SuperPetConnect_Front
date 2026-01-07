@@ -133,6 +133,7 @@ class ServerNotificationData {
   final String body;
   final Map<String, dynamic> data;
   final int timestamp;
+  final int? notificationId;
 
   ServerNotificationData({
     required this.type,
@@ -140,6 +141,7 @@ class ServerNotificationData {
     required this.body,
     required this.data,
     required this.timestamp,
+    this.notificationId,
   });
 
   factory ServerNotificationData.fromJson(Map<String, dynamic> json) {
@@ -148,8 +150,14 @@ class ServerNotificationData {
       title: json['title'] ?? '',
       body: json['body'] ?? '',
       data: Map<String, dynamic>.from(json['data'] ?? {}),
-      timestamp: json['timestamp'] ?? DateTime.now().millisecondsSinceEpoch,
+      timestamp: json['timestamp'] ?? DateTime.now().millisecondsSinceEpoch ~/ 1000,
+      notificationId: json['notification_id'] ?? json['id'],
     );
+  }
+
+  /// data에서 related_id 추출 (post_id, application_id, column_id 등)
+  int? get relatedId {
+    return data['post_id'] ?? data['application_id'] ?? data['column_id'] ?? data['user_id'];
   }
 
   Map<String, dynamic> toJson() {
@@ -159,6 +167,7 @@ class ServerNotificationData {
       'body': body,
       'data': data,
       'timestamp': timestamp,
+      if (notificationId != null) 'notification_id': notificationId,
     };
   }
 }

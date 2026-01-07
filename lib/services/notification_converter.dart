@@ -58,6 +58,12 @@ class NotificationConverter {
     UserType userType,
   ) {
     try {
+      // pong 메시지 무시
+      if (data['type'] == 'pong') {
+        debugPrint('[NotificationConverter] pong 메시지 무시');
+        return null;
+      }
+
       final serverNotification = ServerNotificationData.fromJson(data);
 
       if (!ServerNotificationMapping.isNotificationForUserType(
@@ -73,10 +79,14 @@ class NotificationConverter {
       );
       if (clientType == null) return null;
 
+      // notification_id 우선, 없으면 timestamp 사용
+      final notificationId = serverNotification.notificationId ??
+          serverNotification.timestamp;
+
       return createNotificationByUserType(
         userType: userType,
         clientType: clientType,
-        notificationId: data['id'] ?? DateTime.now().millisecondsSinceEpoch,
+        notificationId: notificationId,
         title: serverNotification.title,
         content: serverNotification.body,
         relatedData: serverNotification.data,

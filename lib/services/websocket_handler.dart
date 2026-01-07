@@ -68,19 +68,20 @@ class WebSocketHandler {
         return;
       }
 
-      // WebSocket URL 구성
+      // WebSocket URL 구성 (쿼리 파라미터 방식 인증)
       String wsUrl = Config.serverUrl
           .replaceAll('http://', 'ws://')
           .replaceAll('https://', 'wss://');
       if (!wsUrl.endsWith('/ws')) {
         wsUrl = '$wsUrl/ws';
       }
+      // 토큰을 쿼리 파라미터로 전달 (브라우저 WebSocket은 커스텀 헤더 미지원)
+      wsUrl = '$wsUrl?token=$token';
 
       debugPrint('[WebSocketHandler] 연결 시도: $wsUrl');
 
       _channel = IOWebSocketChannel.connect(
         Uri.parse(wsUrl),
-        headers: {'Authorization': 'Bearer $token'},
       );
 
       // 연결 리스너 등록
