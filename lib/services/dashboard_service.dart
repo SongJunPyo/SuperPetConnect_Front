@@ -181,10 +181,6 @@ class DashboardService {
   static Future<List<ColumnPost>> getPublicColumns({
     int limit = dashboardColumnLimit,
   }) async {
-    if (kIsWeb) {
-      return ColumnPost._getMockColumnData(limit);
-    }
-
     try {
       final pageSize = limit.clamp(1, detailListPageSize).toInt();
       final response = await fetchColumnsPage(page: 1, pageSize: pageSize);
@@ -198,18 +194,6 @@ class DashboardService {
     int page = 1,
     int pageSize = detailListPageSize,
   }) async {
-    if (kIsWeb) {
-      final columns = ColumnPost._getMockColumnData(pageSize);
-      return PaginatedColumnsResult(
-        columns: columns,
-        pagination: PaginationMeta.singlePage(
-          currentPage: page,
-          pageSize: pageSize,
-          totalCount: columns.length,
-        ),
-      );
-    }
-
     final endpoints = [
       '$baseUrl/api/public/columns',
       '$baseUrl/api/columns',
@@ -289,11 +273,6 @@ class DashboardService {
   static Future<List<NoticePost>> getPublicNotices({
     int limit = dashboardNoticeLimit,
   }) async {
-    // 웹에서 CORS 문제 임시 해결: 목 데이터 반환
-    if (kIsWeb) {
-      return NoticePost._getMockNoticeData(limit);
-    }
-
     try {
       final pageSize = limit.clamp(1, detailListPageSize).toInt();
       final response = await fetchNoticesPage(page: 1, pageSize: pageSize);
@@ -307,18 +286,6 @@ class DashboardService {
     int page = 1,
     int pageSize = detailListPageSize,
   }) async {
-    if (kIsWeb) {
-      final notices = NoticePost._getMockNoticeData(pageSize);
-      return PaginatedNoticesResult(
-        notices: notices,
-        pagination: PaginationMeta.singlePage(
-          currentPage: page,
-          pageSize: pageSize,
-          totalCount: notices.length,
-        ),
-      );
-    }
-
     final endpoints = [
       '$baseUrl/api/public/notices',
       '$baseUrl/api/notices',
@@ -951,65 +918,6 @@ class ColumnPost {
       updatedAt: DateTime.tryParse(json['updated_at'] ?? '') ?? DateTime.now(),
     );
   }
-
-  // 웹 CORS 문제 해결용 목 데이터
-  static List<ColumnPost> _getMockColumnData(int limit) {
-    final mockColumns = [
-      ColumnPost(
-        columnIdx: 1,
-        title: "반려동물 헌혈의 중요성",
-        authorName: "서울동물병원",
-        authorNickname: "서울동물병원",
-        isImportant: false,
-        contentPreview:
-            "반려동물 헌혈은 응급상황에서 생명을 구하는 중요한 의료행위입니다. 건강한 반려동물의 헌혈이 다른 동물의 생명을 구할 수 있습니다...",
-        columnUrl: "https://example.com/columns/1",
-        viewCount: 245,
-        createdAt: DateTime.now().subtract(Duration(days: 1)),
-        updatedAt: DateTime.now().subtract(Duration(days: 1)),
-      ),
-      ColumnPost(
-        columnIdx: 2,
-        title: "헌혈 전 준비사항",
-        authorName: "부산반려동물병원",
-        authorNickname: "부산반려동물병원",
-        isImportant: true,
-        contentPreview:
-            "헌혈을 위해서는 반려동물의 건강상태 확인이 필수입니다. 충분한 수분 섭취와 스트레스 관리가 중요합니다...",
-        columnUrl: "https://example.com/columns/2",
-        viewCount: 189,
-        createdAt: DateTime.now().subtract(Duration(days: 2)),
-        updatedAt: DateTime.now().subtract(Duration(days: 2)),
-      ),
-      ColumnPost(
-        columnIdx: 3,
-        title: "헌혈 후 관리 방법",
-        authorName: "대구수의클리닉",
-        authorNickname: "대구수의클리닉",
-        isImportant: false,
-        contentPreview: "헌혈 후에는 충분한 휴식과 영양 공급이 필요합니다. 24시간 동안 격한 운동은 피해주세요...",
-        columnUrl: null,
-        viewCount: 156,
-        createdAt: DateTime.now().subtract(Duration(days: 3)),
-        updatedAt: DateTime.now().subtract(Duration(days: 3)),
-      ),
-      ColumnPost(
-        columnIdx: 4,
-        title: "반려동물 혈액형 검사의 필요성",
-        authorName: "광주동물병원",
-        authorNickname: "광주동물병원",
-        isImportant: false,
-        contentPreview:
-            "헌혈을 위해서는 정확한 혈액형 검사가 필수입니다. DEA 1.1 검사를 통해 안전한 헌혈이 가능합니다...",
-        columnUrl: "https://example.com/columns/4",
-        viewCount: 198,
-        createdAt: DateTime.now().subtract(Duration(days: 4)),
-        updatedAt: DateTime.now().subtract(Duration(days: 4)),
-      ),
-    ];
-
-    return mockColumns.take(limit).cast<ColumnPost>().toList();
-  }
 }
 
 class NoticePost {
@@ -1085,58 +993,6 @@ class NoticePost {
   // notice_important 필드를 이용한 헬퍼 메서드 (0=뱃지 표시, 1=뱃지 숨김)
   bool get showBadge => noticeImportant == 0;
   String get badgeText => '공지';
-
-  static List<NoticePost> _getMockNoticeData(int limit) {
-    final mockNotices = [
-      NoticePost(
-        noticeIdx: 1,
-        title: "시스템 점검 안내",
-        authorName: "관리자",
-        authorEmail: "admin@superpetconnect.com",
-        authorNickname: "관리자",
-        noticeImportant: 0,
-        targetAudience: 0,
-        noticeUrl: "https://example.com/system-check",
-        contentPreview:
-            "2025년 8월 15일 02:00~04:00 시스템 점검이 예정되어 있습니다. 해당 시간 동안 서비스 이용이 제한될 수 있습니다...",
-        viewCount: 512,
-        createdAt: DateTime.now().subtract(Duration(hours: 2)),
-        updatedAt: DateTime.now().subtract(Duration(hours: 2)),
-      ),
-      NoticePost(
-        noticeIdx: 2,
-        title: "헌혈 인증서 발급 기능 추가",
-        authorName: "관리자",
-        authorEmail: "admin@superpetconnect.com",
-        authorNickname: "관리자",
-        noticeImportant: 1,
-        targetAudience: 1,
-        noticeUrl: "https://example.com/certification",
-        contentPreview:
-            "헌혈 완료 후 디지털 인증서를 발급받을 수 있는 기능이 추가되었습니다. 마이페이지에서 확인하실 수 있습니다...",
-        viewCount: 387,
-        createdAt: DateTime.now().subtract(Duration(days: 1)),
-        updatedAt: DateTime.now().subtract(Duration(days: 1)),
-      ),
-      NoticePost(
-        noticeIdx: 3,
-        title: "긴급 헌혈 요청 알림 개선",
-        authorName: "관리자",
-        authorEmail: "admin@superpetconnect.com",
-        authorNickname: "관리자",
-        noticeImportant: 1,
-        targetAudience: 2,
-        noticeUrl: null,
-        contentPreview:
-            "긴급 헌혈 요청 시 더 빠른 알림을 위해 푸시 알림 시스템을 개선했습니다. 설정에서 알림을 활성화해주세요...",
-        viewCount: 298,
-        createdAt: DateTime.now().subtract(Duration(days: 2)),
-        updatedAt: DateTime.now().subtract(Duration(days: 2)),
-      ),
-    ];
-
-    return mockNotices.take(limit).cast<NoticePost>().toList();
-  }
 }
 
 class PaginatedColumnsResult {
