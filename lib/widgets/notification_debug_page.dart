@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'dart:async';
-import '../services/websocket_notification_service.dart';
+import '../services/unified_notification_manager.dart';
+import '../services/websocket_handler.dart';
 import '../services/notification_list_service.dart';
 import '../models/notification_model.dart';
 import '../utils/app_theme.dart';
@@ -14,9 +16,9 @@ class NotificationDebugPage extends StatefulWidget {
 }
 
 class _NotificationDebugPageState extends State<NotificationDebugPage> {
-  bool _isWebSocketConnected = false;
+  bool _isConnected = false;
   final List<String> _debugLogs = [];
-  StreamSubscription<bool>? _connectionSubscription;
+  StreamSubscription<NotificationConnectionStatus>? _connectionSubscription;
   StreamSubscription<NotificationModel>? _notificationSubscription;
   int _receivedNotificationCount = 0;
 
@@ -35,16 +37,18 @@ class _NotificationDebugPageState extends State<NotificationDebugPage> {
   }
 
   void _setupDebugListeners() {
-    // WebSocket 연결 상태 리스너
-    _connectionSubscription = NotificationListService.connectionStatus.listen((isConnected) {
+    final manager = UnifiedNotificationManager.instance;
+
+    // 연결 상태 리스너
+    _connectionSubscription = manager.connectionStatusStream.listen((status) {
       setState(() {
-        _isWebSocketConnected = isConnected;
+        _isConnected = status == NotificationConnectionStatus.connected;
       });
-      _addDebugLog('WebSocket 연결 상태: ${isConnected ? "연결됨" : "연결끊김"}');
+      _addDebugLog('연결 상태: ${_getStatusText(status)}');
     });
 
     // 실시간 알림 리스너
-    _notificationSubscription = NotificationListService.realTimeNotifications.listen((notification) {
+    _notificationSubscription = manager.notificationStream.listen((notification) {
       setState(() {
         _receivedNotificationCount++;
       });
@@ -52,12 +56,33 @@ class _NotificationDebugPageState extends State<NotificationDebugPage> {
     });
   }
 
+  String _getStatusText(NotificationConnectionStatus status) {
+    switch (status) {
+      case NotificationConnectionStatus.connected:
+        return '연결됨';
+      case NotificationConnectionStatus.connecting:
+        return '연결 중...';
+      case NotificationConnectionStatus.disconnected:
+        return '연결끊김';
+      case NotificationConnectionStatus.error:
+        return '오류';
+    }
+  }
+
   void _checkConnectionStatus() {
-    final webSocketService = WebSocketNotificationService.instance;
-    setState(() {
-      _isWebSocketConnected = webSocketService.isConnected;
-    });
-    _addDebugLog('초기 WebSocket 연결 상태: ${_isWebSocketConnected ? "연결됨" : "연결끊김"}');
+    if (kIsWeb) {
+      final wsHandler = WebSocketHandler.instance;
+      setState(() {
+        _isConnected = wsHandler.isConnected;
+      });
+      _addDebugLog('초기 WebSocket 연결 상태: ${_isConnected ? "연결됨" : "연결끊김"}');
+    } else {
+      // 모바일에서는 FCM 사용 (항상 연결된 것으로 간주)
+      setState(() {
+        _isConnected = true;
+      });
+      _addDebugLog('FCM 알림 시스템 활성화됨 (모바일)');
+    }
   }
 
   void _addDebugLog(String message) {
@@ -72,36 +97,38 @@ class _NotificationDebugPageState extends State<NotificationDebugPage> {
 
   Future<void> _testApiConnection() async {
     _addDebugLog('API 연결 테스트 시작...');
-    
+
     try {
       // 관리자 알림 조회 테스트
       final adminResponse = await NotificationListService.getAdminNotifications(limit: 1);
       _addDebugLog('관리자 API 테스트: ${adminResponse.notifications.length}개 알림');
-      
+
       // 병원 알림 조회 테스트
       final hospitalResponse = await NotificationListService.getHospitalNotifications(limit: 1);
       _addDebugLog('병원 API 테스트: ${hospitalResponse.notifications.length}개 알림');
-      
+
       // 사용자 알림 조회 테스트
       final userResponse = await NotificationListService.getUserNotifications(limit: 1);
       _addDebugLog('사용자 API 테스트: ${userResponse.notifications.length}개 알림');
-      
+
       // 읽지 않은 알림 수 조회 테스트
       final unreadCount = await NotificationListService.getUnreadCount();
       _addDebugLog('읽지 않은 알림 수: $unreadCount개');
-      
+
       _addDebugLog('모든 API 연결 테스트 완료');
     } catch (e) {
       _addDebugLog('API 테스트 오류: $e');
     }
   }
 
-  Future<void> _reconnectWebSocket() async {
-    _addDebugLog('WebSocket 재연결 시도...');
-    final webSocketService = WebSocketNotificationService.instance;
-    webSocketService.disconnect();
-    await Future.delayed(const Duration(seconds: 1));
-    await webSocketService.initialize();
+  Future<void> _reconnect() async {
+    if (kIsWeb) {
+      _addDebugLog('WebSocket 재연결 시도...');
+      await UnifiedNotificationManager.instance.reconnectWebSocket();
+    } else {
+      _addDebugLog('FCM 토큰 갱신 시도...');
+      await UnifiedNotificationManager.instance.updateTokenAfterLogin();
+    }
   }
 
   void _clearLogs() {
@@ -140,14 +167,16 @@ class _NotificationDebugPageState extends State<NotificationDebugPage> {
                     Row(
                       children: [
                         Icon(
-                          _isWebSocketConnected ? Icons.wifi : Icons.wifi_off,
-                          color: _isWebSocketConnected ? Colors.green : Colors.red,
+                          _isConnected ? Icons.wifi : Icons.wifi_off,
+                          color: _isConnected ? Colors.green : Colors.red,
                         ),
                         const SizedBox(width: 8),
                         Text(
-                          'WebSocket: ${_isWebSocketConnected ? "연결됨" : "연결끊김"}',
+                          kIsWeb
+                              ? 'WebSocket: ${_isConnected ? "연결됨" : "연결끊김"}'
+                              : 'FCM: ${_isConnected ? "활성화" : "비활성화"}',
                           style: TextStyle(
-                            color: _isWebSocketConnected ? Colors.green : Colors.red,
+                            color: _isConnected ? Colors.green : Colors.red,
                             fontWeight: FontWeight.w600,
                           ),
                         ),
@@ -161,13 +190,21 @@ class _NotificationDebugPageState extends State<NotificationDebugPage> {
                         Text('수신된 실시간 알림: $_receivedNotificationCount개'),
                       ],
                     ),
+                    const SizedBox(height: 8),
+                    Row(
+                      children: [
+                        Icon(Icons.phone_android, color: AppTheme.primaryBlue),
+                        const SizedBox(width: 8),
+                        Text('플랫폼: ${kIsWeb ? "웹 (WebSocket)" : "모바일 (FCM)"}'),
+                      ],
+                    ),
                   ],
                 ),
               ),
             ),
-            
+
             const SizedBox(height: 16),
-            
+
             // 테스트 버튼들
             Row(
               children: [
@@ -185,9 +222,9 @@ class _NotificationDebugPageState extends State<NotificationDebugPage> {
                 const SizedBox(width: 12),
                 Expanded(
                   child: ElevatedButton.icon(
-                    onPressed: _reconnectWebSocket,
+                    onPressed: _reconnect,
                     icon: const Icon(Icons.refresh),
-                    label: const Text('WS 재연결'),
+                    label: Text(kIsWeb ? 'WS 재연결' : 'FCM 갱신'),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.orange,
                       foregroundColor: Colors.white,
@@ -196,9 +233,9 @@ class _NotificationDebugPageState extends State<NotificationDebugPage> {
                 ),
               ],
             ),
-            
+
             const SizedBox(height: 16),
-            
+
             // 로그 섹션
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -214,9 +251,9 @@ class _NotificationDebugPageState extends State<NotificationDebugPage> {
                 ),
               ],
             ),
-            
+
             const SizedBox(height: 8),
-            
+
             // 로그 리스트
             Expanded(
               child: Container(

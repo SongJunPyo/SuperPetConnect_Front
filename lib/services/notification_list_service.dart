@@ -6,38 +6,24 @@ import '../models/notification_model.dart';
 import '../models/notification_types.dart';
 import '../models/notification_mapping.dart';
 import '../utils/config.dart';
-import 'websocket_notification_service.dart';
 
+/// 알림 목록 REST API 서비스
+///
+/// 알림 목록 조회, 읽음 처리 등 REST API 호출을 담당합니다.
+/// 실시간 알림은 NotificationProvider + UnifiedNotificationManager에서 처리합니다.
 class NotificationListService {
   static String get _baseUrl => '${Config.serverUrl}/api/notifications';
-  
-  // WebSocket 서비스 인스턴스
-  static WebSocketNotificationService get _webSocketService => 
-      WebSocketNotificationService.instance;
 
   // 공통 헤더 생성
   static Future<Map<String, String>> _getHeaders() async {
     final prefs = await SharedPreferences.getInstance();
     final token = prefs.getString('auth_token');
-    
+
     return {
       'Authorization': 'Bearer ${token ?? ''}',
       'Content-Type': 'application/json; charset=UTF-8',
     };
   }
-
-  /// 알림 서비스 초기화 (WebSocket 연결 포함)
-  static Future<void> initialize() async {
-    await _webSocketService.initialize();
-  }
-
-  /// 실시간 알림 스트림 가져오기
-  static Stream<NotificationModel> get realTimeNotifications => 
-      _webSocketService.notifications;
-      
-  /// WebSocket 연결 상태 스트림
-  static Stream<bool> get connectionStatus => 
-      _webSocketService.connectionStatus;
 
   // 관리자 알림 조회
   static Future<NotificationListResponse> getAdminNotifications({

@@ -8,7 +8,7 @@ import 'dart:convert';
 import '../main.dart' as main_app;
 import '../models/notification_model.dart';
 import '../models/notification_types.dart';
-import 'websocket_notification_service.dart';
+import 'unified_notification_manager.dart';
 
 class NotificationService {
   static final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
@@ -172,6 +172,9 @@ class NotificationService {
   }
   
   static Future<void> _updateFCMToken() async {
+    // 웹에서는 FCM 토큰 처리 건너뜀 (WebSocket 사용)
+    if (kIsWeb) return;
+
     try {
       final token = await FirebaseMessaging.instance.getToken();
       if (token != null) {
@@ -445,8 +448,8 @@ class NotificationService {
       final notification = _convertFCMToNotificationModel(message, userType);
       
       if (notification != null) {
-        // WebSocket 서비스의 스트림에 추가
-        WebSocketNotificationService.instance.addFCMNotificationToStream(notification);
+        // 통합 알림 관리자의 스트림에 추가
+        UnifiedNotificationManager.instance.addNotification(notification);
       }
     } catch (e) {
       // 알림 처리 실패 시 로그 출력
