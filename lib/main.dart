@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:connect/auth/welcome.dart'; // 파일명 변경: welcome_screen.dart -> welcome.dart
 import 'package:flutter_dotenv/flutter_dotenv.dart'; // 환경변수 관리
+import 'package:provider/provider.dart'; // 상태 관리
 
 import 'package:firebase_core/firebase_core.dart'; // Firebase Core 임포트
 import 'package:connect/firebase_options.dart'; // Firebase 설정 파일 임포트 (필요 시)
@@ -19,6 +20,8 @@ import 'package:connect/web/web_router.dart';
 // 알림 서비스
 import 'package:connect/services/notification_service.dart';
 import 'package:connect/services/notification_list_service.dart';
+// Provider
+import 'package:connect/providers/notification_provider.dart';
 // 관리자 페이지
 import 'package:connect/admin/admin_post_management_page.dart';
 // 병원 페이지
@@ -204,7 +207,13 @@ void main() async {
   // 7. 통합 알림 서비스 초기화 (WebSocket 연결 포함)
   await NotificationListService.initialize();
 
-  runApp(const MyApp());
+  // 8. Provider와 함께 앱 실행
+  runApp(
+    ChangeNotifierProvider(
+      create: (_) => NotificationProvider(),
+      child: const MyApp(),
+    ),
+  );
 }
 
 // SnackBar를 표시하기 위해 Navigator의 context를 전역적으로 접근하기 위한 Key

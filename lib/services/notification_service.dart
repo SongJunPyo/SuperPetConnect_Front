@@ -15,10 +15,13 @@ class NotificationService {
   
   static Future<void> initialize() async {
     if (kIsWeb) return;
-    
+
     // FCM 토큰 가져오기 및 서버 전송
     await _updateFCMToken();
-    
+
+    // FCM 토큰 갱신 리스너 등록 (토큰 만료/갱신 시 자동으로 서버에 전송)
+    setupTokenRefreshListener();
+
     // 포그라운드 메시지 리스너
     FirebaseMessaging.onMessage.listen((RemoteMessage message) {
       

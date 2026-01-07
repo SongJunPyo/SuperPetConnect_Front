@@ -38,7 +38,7 @@ dependencies:
   kpostal: 1.1.0
   http: ^1.4.0
   shared_preferences: ^2.2.2
-  interval_time_picker: ^3.0.3+9  #병원 게시판 등록할때 시간
+  interval_time_picker: ^4.0.0+12  #병원 게시판 등록할때 시간
   firebase_messaging: ^15.0.4 #FCM 메시지를 주고받기 위한 핵심 패키지
   firebase_core: ^3.5.0  #모든 Firebase 서비스를 사용하기 위한 기본 패키지
   flutter_local_notifications: ^17.0.0 # 앱이 포그라운드/백그라운드일 때 시스템 트레이에 알림을 표시하기 위한 패키지
@@ -55,6 +55,8 @@ dependencies:
   image_picker: ^1.0.7
   # URL 링크 열기
   url_launcher: ^6.2.0
+  # 상태 관리
+  provider: ^6.1.2
 
 dev_dependencies:
   flutter_test:
