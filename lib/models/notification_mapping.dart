@@ -29,11 +29,28 @@ class ServerNotificationMapping {
     'donation_post_approved': {
       UserType.hospital: HospitalNotificationType.postApproved,
     },
-    
+
+    'donation_post_rejected': {
+      UserType.hospital: HospitalNotificationType.postRejected,
+    },
+
     'column_approved': {
       UserType.hospital: HospitalNotificationType.columnApproved,
     },
-    
+
+    'column_rejected': {
+      UserType.hospital: HospitalNotificationType.columnRejected,
+    },
+
+    'donation_application': {
+      UserType.hospital: HospitalNotificationType.recruitmentDeadline, // 새 헌혈 신청 접수
+    },
+
+    // === 관리자용 컬럼 승인 요청 ===
+    'column_approval': {
+      UserType.admin: AdminNotificationType.columnApprovalRequest,
+    },
+
     // === 사용자가 받는 알림들 ===
     'account_approved': {
       UserType.user: UserNotificationType.systemNotice,
@@ -46,8 +63,16 @@ class ServerNotificationMapping {
     'application_approved': {
       UserType.user: UserNotificationType.systemNotice,
     },
-    
+
     'application_rejected': {
+      UserType.user: UserNotificationType.systemNotice,
+    },
+
+    'donation_application_approved': {
+      UserType.user: UserNotificationType.systemNotice,
+    },
+
+    'donation_application_rejected': {
       UserType.user: UserNotificationType.systemNotice,
     },
   };
