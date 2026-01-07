@@ -4,6 +4,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../models/notification_model.dart';
 import '../models/notification_types.dart';
 import '../services/notification_list_service.dart';
+import '../services/unified_notification_manager.dart';
 
 /// 알림 연결 상태
 enum ConnectionStatus {
@@ -11,6 +12,20 @@ enum ConnectionStatus {
   connecting,
   connected,
   error,
+}
+
+/// NotificationConnectionStatus를 ConnectionStatus로 변환
+ConnectionStatus _convertConnectionStatus(NotificationConnectionStatus status) {
+  switch (status) {
+    case NotificationConnectionStatus.disconnected:
+      return ConnectionStatus.disconnected;
+    case NotificationConnectionStatus.connecting:
+      return ConnectionStatus.connecting;
+    case NotificationConnectionStatus.connected:
+      return ConnectionStatus.connected;
+    case NotificationConnectionStatus.error:
+      return ConnectionStatus.error;
+  }
 }
 
 /// 알림 상태 관리 Provider
@@ -34,7 +49,10 @@ class NotificationProvider extends ChangeNotifier {
 
   // 스트림 구독
   StreamSubscription<NotificationModel>? _notificationSubscription;
-  StreamSubscription<bool>? _connectionSubscription;
+  StreamSubscription<NotificationConnectionStatus>? _connectionSubscription;
+
+  // 통합 알림 관리자
+  UnifiedNotificationManager? _notificationManager;
 
   // === Getters ===
   List<NotificationModel> get notifications => List.unmodifiable(_notifications);
@@ -71,7 +89,11 @@ class NotificationProvider extends ChangeNotifier {
 
       _currentUserType = UserTypeMapper.fromDbType(accountType);
 
-      // 실시간 알림 스트림 구독 (웹: WebSocket, 모바일: FCM을 통해 추가됨)
+      // 통합 알림 관리자 초기화 (플랫폼별 FCM/WebSocket 자동 선택)
+      _notificationManager = UnifiedNotificationManager.instance;
+      await _notificationManager!.initialize();
+
+      // 실시간 알림 스트림 구독
       _setupRealtimeSubscription();
 
       // 초기 알림 목록 로드
@@ -90,9 +112,11 @@ class NotificationProvider extends ChangeNotifier {
 
   /// 실시간 알림 스트림 구독 설정
   void _setupRealtimeSubscription() {
-    // WebSocket 알림 스트림 구독
+    if (_notificationManager == null) return;
+
+    // 통합 알림 관리자 스트림 구독
     _notificationSubscription?.cancel();
-    _notificationSubscription = NotificationListService.realTimeNotifications.listen(
+    _notificationSubscription = _notificationManager!.notificationStream.listen(
       _onNewNotification,
       onError: (error) {
         debugPrint('[NotificationProvider] 실시간 알림 스트림 오류: $error');
@@ -103,11 +127,9 @@ class NotificationProvider extends ChangeNotifier {
 
     // 연결 상태 스트림 구독
     _connectionSubscription?.cancel();
-    _connectionSubscription = NotificationListService.connectionStatus.listen(
-      (isConnected) {
-        _connectionStatus = isConnected
-            ? ConnectionStatus.connected
-            : ConnectionStatus.disconnected;
+    _connectionSubscription = _notificationManager!.connectionStatusStream.listen(
+      (status) {
+        _connectionStatus = _convertConnectionStatus(status);
         notifyListeners();
       },
     );
