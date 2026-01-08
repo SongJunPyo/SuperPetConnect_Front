@@ -1,10 +1,13 @@
 import 'dart:async';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/notification_model.dart';
 import '../models/notification_types.dart';
 import '../services/notification_api_service.dart';
 import '../services/unified_notification_manager.dart';
+import '../services/notification_service.dart';
+import '../widgets/unified_notification_page.dart';
 
 /// 알림 연결 상태
 enum ConnectionStatus {
@@ -238,7 +241,71 @@ class NotificationProvider extends ChangeNotifier {
       notifyListeners();
 
       debugPrint('[NotificationProvider] 새 알림 수신: ${notification.title}');
+
+      // 웹에서 토스트 알림 표시
+      if (kIsWeb) {
+        _showToastNotification(notification);
+      }
     }
+  }
+
+  /// 웹에서 토스트 알림 표시
+  void _showToastNotification(NotificationModel notification) {
+    final context = NotificationService.navigatorKey.currentContext;
+    if (context == null) return;
+
+    // ScaffoldMessenger를 통해 SnackBar 표시
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Row(
+          children: [
+            const Icon(Icons.notifications, color: Colors.white, size: 20),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    notification.title,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 14,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    notification.content,
+                    style: const TextStyle(fontSize: 12),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+        backgroundColor: const Color(0xFF3182F6),
+        behavior: SnackBarBehavior.floating,
+        margin: const EdgeInsets.all(16),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+        duration: const Duration(seconds: 4),
+        action: SnackBarAction(
+          label: '보기',
+          textColor: Colors.white,
+          onPressed: () {
+            // 알림 페이지로 이동
+            Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (_) => const UnifiedNotificationPage(),
+              ),
+            );
+          },
+        ),
+      ),
+    );
   }
 
   /// FCM 알림을 Provider에 추가 (모바일에서 FCM 수신 시 호출)
