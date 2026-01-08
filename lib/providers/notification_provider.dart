@@ -3,7 +3,7 @@ import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/notification_model.dart';
 import '../models/notification_types.dart';
-import '../services/notification_list_service.dart';
+import '../services/notification_api_service.dart';
 import '../services/unified_notification_manager.dart';
 
 /// 알림 연결 상태
@@ -193,17 +193,17 @@ class NotificationProvider extends ChangeNotifier {
   }) async {
     switch (_currentUserType!) {
       case UserType.admin:
-        return NotificationListService.getAdminNotifications(
+        return NotificationApiService.getAdminNotifications(
           page: page,
           limit: limit,
         );
       case UserType.hospital:
-        return NotificationListService.getHospitalNotifications(
+        return NotificationApiService.getHospitalNotifications(
           page: page,
           limit: limit,
         );
       case UserType.user:
-        return NotificationListService.getUserNotifications(
+        return NotificationApiService.getUserNotifications(
           page: page,
           limit: limit,
         );
@@ -251,7 +251,7 @@ class NotificationProvider extends ChangeNotifier {
   /// 개별 알림 읽음 처리
   Future<bool> markAsRead(int notificationId) async {
     try {
-      final success = await NotificationListService.markAsRead(notificationId);
+      final success = await NotificationApiService.markAsRead(notificationId);
 
       if (success) {
         final index = _notifications.indexWhere(
@@ -275,7 +275,7 @@ class NotificationProvider extends ChangeNotifier {
   /// 전체 알림 읽음 처리
   Future<bool> markAllAsRead() async {
     try {
-      final success = await NotificationListService.markAllAsRead();
+      final success = await NotificationApiService.markAllAsRead();
 
       if (success) {
         _notifications = _notifications.map((n) => n.markAsRead()).toList();
@@ -295,7 +295,7 @@ class NotificationProvider extends ChangeNotifier {
   /// 읽지 않은 알림 개수 갱신
   Future<void> refreshUnreadCount() async {
     try {
-      final count = await NotificationListService.getUnreadCount();
+      final count = await NotificationApiService.getUnreadCount();
       if (_unreadCount != count) {
         _unreadCount = count;
         notifyListeners();

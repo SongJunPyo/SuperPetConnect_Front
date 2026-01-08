@@ -7,11 +7,11 @@ import '../models/notification_types.dart';
 import '../models/notification_mapping.dart';
 import '../utils/config.dart';
 
-/// 알림 목록 REST API 서비스
+/// 알림 REST API 서비스
 ///
 /// 알림 목록 조회, 읽음 처리 등 REST API 호출을 담당합니다.
 /// 실시간 알림은 NotificationProvider + UnifiedNotificationManager에서 처리합니다.
-class NotificationListService {
+class NotificationApiService {
   static String get _baseUrl => '${Config.serverUrl}/api/notifications';
 
   // 공통 헤더 생성

@@ -3,7 +3,7 @@ import 'package:flutter/foundation.dart';
 import 'dart:async';
 import '../services/unified_notification_manager.dart';
 import '../services/websocket_handler.dart';
-import '../services/notification_list_service.dart';
+import '../services/notification_api_service.dart';
 import '../models/notification_model.dart';
 import '../utils/app_theme.dart';
 
@@ -100,19 +100,19 @@ class _NotificationDebugPageState extends State<NotificationDebugPage> {
 
     try {
       // 관리자 알림 조회 테스트
-      final adminResponse = await NotificationListService.getAdminNotifications(limit: 1);
+      final adminResponse = await NotificationApiService.getAdminNotifications(limit: 1);
       _addDebugLog('관리자 API 테스트: ${adminResponse.notifications.length}개 알림');
 
       // 병원 알림 조회 테스트
-      final hospitalResponse = await NotificationListService.getHospitalNotifications(limit: 1);
+      final hospitalResponse = await NotificationApiService.getHospitalNotifications(limit: 1);
       _addDebugLog('병원 API 테스트: ${hospitalResponse.notifications.length}개 알림');
 
       // 사용자 알림 조회 테스트
-      final userResponse = await NotificationListService.getUserNotifications(limit: 1);
+      final userResponse = await NotificationApiService.getUserNotifications(limit: 1);
       _addDebugLog('사용자 API 테스트: ${userResponse.notifications.length}개 알림');
 
       // 읽지 않은 알림 수 조회 테스트
-      final unreadCount = await NotificationListService.getUnreadCount();
+      final unreadCount = await NotificationApiService.getUnreadCount();
       _addDebugLog('읽지 않은 알림 수: $unreadCount개');
 
       _addDebugLog('모든 API 연결 테스트 완료');
