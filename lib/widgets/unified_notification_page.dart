@@ -11,9 +11,6 @@ import '../utils/app_theme.dart';
 import 'package:intl/intl.dart';
 
 /// Provider 기반 통합 알림 페이지
-///
-/// NotificationProvider를 통해 알림 목록을 관리하고,
-/// 사용자 타입에 따라 적절한 UI와 네비게이션을 제공합니다.
 class UnifiedNotificationPage extends StatefulWidget {
   const UnifiedNotificationPage({super.key});
 
@@ -23,67 +20,421 @@ class UnifiedNotificationPage extends StatefulWidget {
 }
 
 class _UnifiedNotificationPageState extends State<UnifiedNotificationPage> {
+  final ScrollController _scrollController = ScrollController();
+
   @override
   void initState() {
     super.initState();
-    debugPrint('[UnifiedNotificationPage] initState() 호출');
-    // Provider 초기화 (이미 초기화되어 있으면 건너뜀)
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final provider = context.read<NotificationProvider>();
-      debugPrint('[UnifiedNotificationPage] postFrameCallback - isInitialized: ${provider.isInitialized}');
       if (!provider.isInitialized) {
-        debugPrint('[UnifiedNotificationPage] initialize() 호출');
         provider.initialize();
       }
-      // 이미 초기화된 경우 자동 새로고침 안함 (Pull-to-refresh 사용)
     });
+
+    // 무한 스크롤
+    _scrollController.addListener(_onScroll);
+  }
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  void _onScroll() {
+    if (_scrollController.position.pixels >=
+        _scrollController.position.maxScrollExtent - 200) {
+      final provider = context.read<NotificationProvider>();
+      if (!provider.isLoading && provider.hasMore) {
+        provider.loadMore();
+      }
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     return Consumer<NotificationProvider>(
       builder: (context, provider, child) {
-        // 로딩 중 (초기화 전 또는 초기화 중)
         if (!provider.isInitialized) {
-          return const Scaffold(
-            body: Center(child: CircularProgressIndicator()),
-          );
-        }
-
-        // 사용자 타입 확인 불가
-        if (provider.currentUserType == null) {
           return Scaffold(
-            appBar: AppBar(title: const Text('알림')),
+            appBar: _buildAppBar(provider),
             body: const Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(Icons.error_outline, size: 64, color: Colors.red),
-                  SizedBox(height: 16),
-                  Text('사용자 타입을 확인할 수 없습니다.',
-                      style: TextStyle(fontSize: 16)),
-                  SizedBox(height: 8),
-                  Text('다시 로그인해 주세요.',
-                      style: TextStyle(color: Colors.grey)),
-                ],
-              ),
+              child: CircularProgressIndicator(color: AppTheme.primaryBlue),
             ),
           );
         }
 
-        // 정상 UI
-        return _NotificationPageContent(
-          provider: provider,
-          onNotificationTap: _onNotificationTap,
-          onNotificationSettingsPressed: _openNotificationSettings,
+        if (provider.currentUserType == null) {
+          return Scaffold(
+            appBar: _buildAppBar(provider),
+            body: _buildErrorState('사용자 정보를 확인할 수 없습니다.\n다시 로그인해 주세요.'),
+          );
+        }
+
+        return Scaffold(
+          backgroundColor: Colors.white,
+          appBar: _buildAppBar(provider),
+          body: RefreshIndicator(
+            onRefresh: () => provider.refresh(),
+            color: AppTheme.primaryBlue,
+            child: _buildBody(provider),
+          ),
         );
       },
     );
   }
 
-  // 알림 탭 시 처리
-  void _onNotificationTap(
-      NotificationModel notification, NotificationProvider provider) {
+  PreferredSizeWidget _buildAppBar(NotificationProvider provider) {
+    return AppBar(
+      backgroundColor: Colors.white,
+      elevation: 0,
+      leading: IconButton(
+        icon: const Icon(Icons.arrow_back_ios, color: AppTheme.textPrimary),
+        onPressed: () => Navigator.of(context).pop(),
+      ),
+      title: Row(
+        children: [
+          Text(
+            '알림',
+            style: AppTheme.h3Style.copyWith(fontWeight: FontWeight.bold),
+          ),
+          if (provider.unreadCount > 0) ...[
+            const SizedBox(width: 8),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+              decoration: BoxDecoration(
+                color: AppTheme.error,
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Text(
+                provider.unreadCount > 99 ? '99+' : '${provider.unreadCount}',
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 12,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+          ],
+        ],
+      ),
+      actions: [
+        // 모두 읽음 버튼
+        if (provider.unreadCount > 0)
+          TextButton(
+            onPressed: () => _markAllAsRead(provider),
+            child: Text(
+              '모두 읽음',
+              style: AppTheme.bodySmallStyle.copyWith(
+                color: AppTheme.primaryBlue,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+        // 더보기 메뉴
+        PopupMenuButton<String>(
+          icon: const Icon(Icons.more_vert, color: AppTheme.textPrimary),
+          onSelected: (value) {
+            if (value == 'debug') {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const NotificationDebugPage(),
+                ),
+              );
+            }
+          },
+          itemBuilder: (context) => [
+            const PopupMenuItem(
+              value: 'debug',
+              child: Row(
+                children: [
+                  Icon(Icons.bug_report, size: 20),
+                  SizedBox(width: 8),
+                  Text('연결 상태 확인'),
+                ],
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(width: 4),
+      ],
+    );
+  }
+
+  Widget _buildBody(NotificationProvider provider) {
+    // 로딩 중
+    if (provider.isLoading && provider.notifications.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const CircularProgressIndicator(color: AppTheme.primaryBlue),
+            const SizedBox(height: 16),
+            Text(
+              '알림을 불러오는 중...',
+              style: AppTheme.bodyMediumStyle.copyWith(color: AppTheme.textSecondary),
+            ),
+          ],
+        ),
+      );
+    }
+
+    // 에러 상태
+    if (provider.errorMessage != null && provider.notifications.isEmpty) {
+      return _buildErrorState(provider.errorMessage!);
+    }
+
+    // 빈 상태
+    if (provider.notifications.isEmpty) {
+      return _buildEmptyState();
+    }
+
+    // 알림 목록
+    return ListView.separated(
+      controller: _scrollController,
+      physics: const AlwaysScrollableScrollPhysics(),
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      itemCount: provider.notifications.length + (provider.hasMore ? 1 : 0),
+      separatorBuilder: (context, index) => Divider(
+        height: 1,
+        thickness: 1,
+        color: AppTheme.lightGray.withValues(alpha: 0.3),
+        indent: 16,
+        endIndent: 16,
+      ),
+      itemBuilder: (context, index) {
+        if (index == provider.notifications.length) {
+          return _buildLoadingMore();
+        }
+        return _buildNotificationItem(provider.notifications[index], provider);
+      },
+    );
+  }
+
+  Widget _buildEmptyState() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(
+            Icons.notifications_off_outlined,
+            size: 64,
+            color: AppTheme.mediumGray,
+          ),
+          const SizedBox(height: 16),
+          Text(
+            '알림이 없습니다',
+            style: AppTheme.h4Style.copyWith(color: AppTheme.textSecondary),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            '새로운 알림이 오면 여기에 표시됩니다',
+            style: AppTheme.bodySmallStyle.copyWith(color: AppTheme.textTertiary),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildErrorState(String message) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(32),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.error_outline, size: 64, color: AppTheme.error),
+            const SizedBox(height: 16),
+            Text(
+              message,
+              style: AppTheme.bodyMediumStyle.copyWith(color: AppTheme.textSecondary),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 24),
+            ElevatedButton(
+              onPressed: () => context.read<NotificationProvider>().refresh(),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppTheme.primaryBlue,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+              ),
+              child: const Text('다시 시도'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildLoadingMore() {
+    return const Padding(
+      padding: EdgeInsets.symmetric(vertical: 16),
+      child: Center(
+        child: SizedBox(
+          width: 24,
+          height: 24,
+          child: CircularProgressIndicator(
+            strokeWidth: 2,
+            color: AppTheme.primaryBlue,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildNotificationItem(NotificationModel notification, NotificationProvider provider) {
+    final isRead = notification.isRead;
+    final timeAgo = _getTimeAgo(notification.createdAt);
+
+    return InkWell(
+      onTap: () => _onNotificationTap(notification, provider),
+      child: Container(
+        color: isRead ? Colors.white : AppTheme.primaryBlue.withValues(alpha: 0.03),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // 읽음 표시 점
+            Container(
+              width: 8,
+              height: 8,
+              margin: const EdgeInsets.only(top: 6, right: 12),
+              decoration: BoxDecoration(
+                color: isRead ? Colors.transparent : AppTheme.primaryBlue,
+                shape: BoxShape.circle,
+              ),
+            ),
+            // 아이콘
+            Container(
+              width: 40,
+              height: 40,
+              margin: const EdgeInsets.only(right: 12),
+              decoration: BoxDecoration(
+                color: _getIconBackgroundColor(notification).withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Center(
+                child: Text(
+                  _getNotificationIcon(notification, provider),
+                  style: const TextStyle(fontSize: 18),
+                ),
+              ),
+            ),
+            // 내용
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // 제목
+                  Text(
+                    notification.title,
+                    style: AppTheme.bodyMediumStyle.copyWith(
+                      fontWeight: isRead ? FontWeight.w500 : FontWeight.bold,
+                      color: AppTheme.textPrimary,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 4),
+                  // 내용
+                  Text(
+                    notification.content,
+                    style: AppTheme.bodySmallStyle.copyWith(
+                      color: AppTheme.textSecondary,
+                    ),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 6),
+                  // 타입 & 시간
+                  Row(
+                    children: [
+                      Text(
+                        _getNotificationTypeName(notification, provider),
+                        style: AppTheme.bodySmallStyle.copyWith(
+                          color: AppTheme.primaryBlue,
+                          fontWeight: FontWeight.w500,
+                          fontSize: 11,
+                        ),
+                      ),
+                      Container(
+                        width: 3,
+                        height: 3,
+                        margin: const EdgeInsets.symmetric(horizontal: 6),
+                        decoration: BoxDecoration(
+                          color: AppTheme.textTertiary,
+                          shape: BoxShape.circle,
+                        ),
+                      ),
+                      Text(
+                        timeAgo,
+                        style: AppTheme.bodySmallStyle.copyWith(
+                          color: AppTheme.textTertiary,
+                          fontSize: 11,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+            // 화살표
+            Icon(
+              Icons.chevron_right,
+              color: AppTheme.lightGray,
+              size: 20,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Color _getIconBackgroundColor(NotificationModel notification) {
+    if (notification is AdminNotificationModel) {
+      return AppTheme.primaryBlue;
+    } else if (notification is HospitalNotificationModel) {
+      return AppTheme.success;
+    } else {
+      return AppTheme.warning;
+    }
+  }
+
+  String _getTimeAgo(DateTime dateTime) {
+    final now = DateTime.now();
+    final difference = now.difference(dateTime);
+
+    if (difference.inMinutes < 1) {
+      return '방금 전';
+    } else if (difference.inMinutes < 60) {
+      return '${difference.inMinutes}분 전';
+    } else if (difference.inHours < 24) {
+      return '${difference.inHours}시간 전';
+    } else if (difference.inDays < 7) {
+      return '${difference.inDays}일 전';
+    } else {
+      return DateFormat('MM.dd').format(dateTime);
+    }
+  }
+
+  Future<void> _markAllAsRead(NotificationProvider provider) async {
+    final success = await provider.markAllAsRead();
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(success ? '모든 알림을 읽음 처리했습니다' : '읽음 처리에 실패했습니다'),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    }
+  }
+
+  void _onNotificationTap(NotificationModel notification, NotificationProvider provider) {
     // 읽음 처리
     if (!notification.isRead) {
       provider.markAsRead(notification.notificationId);
@@ -92,9 +443,7 @@ class _UnifiedNotificationPageState extends State<UnifiedNotificationPage> {
     _navigateToRelevantPage(notification, provider.currentUserType!);
   }
 
-  // 알림별 적절한 페이지로 이동
-  void _navigateToRelevantPage(
-      NotificationModel notification, UserType userType) {
+  void _navigateToRelevantPage(NotificationModel notification, UserType userType) {
     switch (userType) {
       case UserType.admin:
         _handleAdminNotificationTap(notification);
@@ -114,9 +463,7 @@ class _UnifiedNotificationPageState extends State<UnifiedNotificationPage> {
         case AdminNotificationType.signupRequest:
           Navigator.push(
             context,
-            MaterialPageRoute(
-              builder: (context) => const AdminSignupManagement(),
-            ),
+            MaterialPageRoute(builder: (context) => const AdminSignupManagement()),
           );
           break;
         case AdminNotificationType.postApprovalRequest:
@@ -133,9 +480,7 @@ class _UnifiedNotificationPageState extends State<UnifiedNotificationPage> {
         case AdminNotificationType.columnApprovalRequest:
           Navigator.push(
             context,
-            MaterialPageRoute(
-              builder: (context) => const AdminColumnManagement(),
-            ),
+            MaterialPageRoute(builder: (context) => const AdminColumnManagement()),
           );
           break;
         case AdminNotificationType.systemNotice:
@@ -149,19 +494,9 @@ class _UnifiedNotificationPageState extends State<UnifiedNotificationPage> {
       switch (notification.hospitalType) {
         case HospitalNotificationType.postApproved:
         case HospitalNotificationType.postRejected:
-          Navigator.pushReplacementNamed(context, '/hospital/dashboard');
-          break;
         case HospitalNotificationType.recruitmentDeadline:
-          Navigator.pushReplacementNamed(
-            context,
-            '/hospital/dashboard',
-            arguments: {'highlightPostId': notification.relatedId},
-          );
-          break;
         case HospitalNotificationType.columnApproved:
         case HospitalNotificationType.columnRejected:
-          Navigator.pushReplacementNamed(context, '/hospital/dashboard');
-          break;
         case HospitalNotificationType.systemNotice:
           Navigator.pushReplacementNamed(context, '/hospital/dashboard');
           break;
@@ -171,421 +506,11 @@ class _UnifiedNotificationPageState extends State<UnifiedNotificationPage> {
 
   void _handleUserNotificationTap(NotificationModel notification) {
     if (notification is UserNotificationModel) {
-      switch (notification.userType) {
-        case UserNotificationType.systemNotice:
-          Navigator.pushReplacementNamed(
-            context,
-            '/user/dashboard',
-            arguments: {'highlightNotificationId': notification.notificationId},
-          );
-          break;
-      }
+      Navigator.pushReplacementNamed(context, '/user/dashboard');
     }
   }
 
-  // 알림 설정 페이지로 이동
-  void _openNotificationSettings() {
-    showModalBottomSheet(
-      context: context,
-      builder: (context) => Container(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            ListTile(
-              leading: const Icon(Icons.bug_report),
-              title: const Text('디버그 페이지'),
-              subtitle: const Text('알림 시스템 연결 상태 확인'),
-              onTap: () {
-                Navigator.pop(context);
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => const NotificationDebugPage(),
-                  ),
-                );
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.settings),
-              title: const Text('알림 설정'),
-              subtitle: const Text('구현 예정'),
-              onTap: () {
-                Navigator.pop(context);
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('알림 설정 기능 구현 예정')),
-                );
-              },
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-/// 알림 페이지 콘텐츠 위젯
-class _NotificationPageContent extends StatelessWidget {
-  final NotificationProvider provider;
-  final void Function(NotificationModel, NotificationProvider) onNotificationTap;
-  final VoidCallback onNotificationSettingsPressed;
-
-  const _NotificationPageContent({
-    required this.provider,
-    required this.onNotificationTap,
-    required this.onNotificationSettingsPressed,
-  });
-
-  String get _pageTitle {
-    switch (provider.currentUserType!) {
-      case UserType.admin:
-        return '관리자 알림';
-      case UserType.hospital:
-        return '병원 알림';
-      case UserType.user:
-        return '사용자 알림';
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final textTheme = Theme.of(context).textTheme;
-    final colorScheme = Theme.of(context).colorScheme;
-
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(
-          _pageTitle,
-          style: textTheme.titleLarge?.copyWith(
-            fontWeight: FontWeight.bold,
-            color: Colors.black87,
-          ),
-        ),
-        centerTitle: false,
-        actions: [
-          // 연결 상태 표시
-          _buildConnectionIndicator(),
-          // 읽지 않은 알림 개수 표시
-          if (provider.unreadCount > 0)
-            Container(
-              margin: const EdgeInsets.only(right: 8),
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-              decoration: BoxDecoration(
-                color: AppTheme.error,
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Text(
-                '${provider.unreadCount}',
-                style: AppTheme.bodySmallStyle.copyWith(
-                  color: Colors.white,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ),
-          // 모두 읽음 버튼
-          IconButton(
-            icon: Icon(Icons.check_circle_outline, color: Colors.grey[600]),
-            tooltip: '모두 읽음 표시',
-            onPressed: provider.unreadCount > 0
-                ? () => _markAllAsRead(context)
-                : null,
-          ),
-          // 알림 설정 버튼
-          IconButton(
-            icon: Icon(Icons.settings_outlined, color: Colors.grey[600]),
-            tooltip: '알림 설정',
-            onPressed: onNotificationSettingsPressed,
-          ),
-          const SizedBox(width: 8),
-        ],
-      ),
-      body: RefreshIndicator(
-        onRefresh: () => provider.refresh(),
-        color: AppTheme.primaryBlue,
-        child: _buildBody(context, textTheme, colorScheme),
-      ),
-    );
-  }
-
-  Widget _buildConnectionIndicator() {
-    IconData icon;
-    Color color;
-
-    switch (provider.connectionStatus) {
-      case ConnectionStatus.connected:
-        icon = Icons.cloud_done;
-        color = Colors.green;
-        break;
-      case ConnectionStatus.connecting:
-        icon = Icons.cloud_sync;
-        color = Colors.orange;
-        break;
-      case ConnectionStatus.error:
-        icon = Icons.cloud_off;
-        color = Colors.red;
-        break;
-      case ConnectionStatus.disconnected:
-        icon = Icons.cloud_outlined;
-        color = Colors.grey;
-        break;
-    }
-
-    return Padding(
-      padding: const EdgeInsets.only(right: 4),
-      child: Icon(icon, size: 20, color: color),
-    );
-  }
-
-  Future<void> _markAllAsRead(BuildContext context) async {
-    final success = await provider.markAllAsRead();
-    if (success && context.mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('모든 알림을 읽음 처리했습니다.')),
-      );
-    } else if (!success && context.mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('읽음 처리에 실패했습니다.')),
-      );
-    }
-  }
-
-  Widget _buildBody(
-      BuildContext context, TextTheme textTheme, ColorScheme colorScheme) {
-    // 로딩 중
-    if (provider.isLoading && provider.notifications.isEmpty) {
-      return const Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            CircularProgressIndicator(),
-            SizedBox(height: 16),
-            Text(
-              '알림을 불러오는 중...',
-              style: TextStyle(color: Colors.grey, fontSize: 16),
-            ),
-          ],
-        ),
-      );
-    }
-
-    // 에러
-    if (provider.errorMessage != null && provider.notifications.isEmpty) {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const Icon(Icons.error_outline, size: 64, color: Colors.red),
-            const SizedBox(height: 16),
-            Text(provider.errorMessage!, style: const TextStyle(fontSize: 16)),
-            const SizedBox(height: 16),
-            ElevatedButton(
-              onPressed: () => provider.refresh(),
-              child: const Text('다시 시도'),
-            ),
-          ],
-        ),
-      );
-    }
-
-    // 빈 상태
-    if (provider.notifications.isEmpty) {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.notifications_off_outlined,
-                size: 80, color: Colors.grey[300]),
-            const SizedBox(height: 16),
-            Text(
-              '새로운 알림이 없어요.',
-              style: textTheme.titleMedium?.copyWith(color: Colors.grey[500]),
-            ),
-          ],
-        ),
-      );
-    }
-
-    // 알림 목록
-    return ListView.builder(
-      padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 16.0),
-      itemCount: provider.notifications.length + (provider.hasMore ? 1 : 0),
-      itemBuilder: (context, index) {
-        // 더 불러오기 인디케이터
-        if (index == provider.notifications.length) {
-          // 자동으로 다음 페이지 로드
-          WidgetsBinding.instance.addPostFrameCallback((_) {
-            provider.loadMore();
-          });
-          return const Padding(
-            padding: EdgeInsets.all(16.0),
-            child: Center(child: CircularProgressIndicator()),
-          );
-        }
-
-        return _buildNotificationItem(
-          context,
-          provider.notifications[index],
-          index,
-          textTheme,
-          colorScheme,
-        );
-      },
-    );
-  }
-
-  Widget _buildNotificationItem(
-    BuildContext context,
-    NotificationModel notification,
-    int index,
-    TextTheme textTheme,
-    ColorScheme colorScheme,
-  ) {
-    final isUrgent = notification.priority >= NotificationPriority.urgent;
-    final isImportant = notification.priority >= NotificationPriority.high;
-
-    return Card(
-      margin: const EdgeInsets.only(bottom: 12.0),
-      elevation: 1,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-        side: BorderSide(color: Colors.grey.shade200, width: 1),
-      ),
-      color: notification.isRead
-          ? Colors.white
-          : colorScheme.primary.withValues(alpha: 0.05),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(12),
-        onTap: () => onNotificationTap(notification, provider),
-        child: Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // 읽지 않은 알림 표시점
-              if (!notification.isRead)
-                Container(
-                  width: 8,
-                  height: 8,
-                  margin: const EdgeInsets.only(right: 12, top: 4),
-                  decoration: BoxDecoration(
-                    color: isUrgent ? AppTheme.error : colorScheme.primary,
-                    shape: BoxShape.circle,
-                  ),
-                )
-              else
-                const SizedBox(width: 20),
-
-              // 메인 콘텐츠
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // 제목과 우선순위 뱃지
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Expanded(
-                          child: Row(
-                            children: [
-                              // 우선순위 뱃지
-                              if (isUrgent || isImportant) ...[
-                                Container(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 6,
-                                    vertical: 2,
-                                  ),
-                                  decoration: BoxDecoration(
-                                    color: isUrgent
-                                        ? AppTheme.error
-                                        : AppTheme.warning,
-                                    borderRadius: BorderRadius.circular(4),
-                                  ),
-                                  child: Text(
-                                    isUrgent ? '긴급' : '중요',
-                                    style: AppTheme.bodySmallStyle.copyWith(
-                                      color: Colors.white,
-                                      fontWeight: FontWeight.bold,
-                                      fontSize: 10,
-                                    ),
-                                  ),
-                                ),
-                                const SizedBox(width: 8),
-                              ],
-                              // 알림 아이콘
-                              Text(
-                                _getNotificationIcon(notification),
-                                style: const TextStyle(fontSize: 16),
-                              ),
-                              const SizedBox(width: 8),
-                              // 제목
-                              Expanded(
-                                child: Text(
-                                  notification.title,
-                                  style: textTheme.titleMedium?.copyWith(
-                                    fontWeight: FontWeight.bold,
-                                    color: notification.isRead
-                                        ? Colors.black87
-                                        : (isUrgent
-                                            ? AppTheme.error
-                                            : colorScheme.primary),
-                                  ),
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        // 날짜
-                        Text(
-                          DateFormat('MM.dd').format(notification.createdAt),
-                          style: textTheme.bodySmall
-                              ?.copyWith(color: Colors.grey[600]),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 6),
-                    // 알림 내용
-                    Text(
-                      notification.content,
-                      style: textTheme.bodyMedium?.copyWith(
-                        color: Colors.grey[700],
-                        fontWeight:
-                            notification.isRead ? FontWeight.normal : FontWeight.w500,
-                      ),
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    const SizedBox(height: 8),
-                    // 알림 타입과 시간
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text(
-                          _getNotificationTypeName(notification),
-                          style: textTheme.bodySmall?.copyWith(
-                            color: AppTheme.primaryBlue,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                        Text(
-                          DateFormat('HH:mm').format(notification.createdAt),
-                          style: textTheme.bodySmall
-                              ?.copyWith(color: Colors.grey[500]),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  String _getNotificationIcon(NotificationModel notification) {
+  String _getNotificationIcon(NotificationModel notification, NotificationProvider provider) {
     switch (provider.currentUserType!) {
       case UserType.admin:
         if (notification is AdminNotificationModel) {
@@ -606,7 +531,7 @@ class _NotificationPageContent extends StatelessWidget {
     return '🔔';
   }
 
-  String _getNotificationTypeName(NotificationModel notification) {
+  String _getNotificationTypeName(NotificationModel notification, NotificationProvider provider) {
     switch (provider.currentUserType!) {
       case UserType.admin:
         if (notification is AdminNotificationModel) {
@@ -628,7 +553,7 @@ class _NotificationPageContent extends StatelessWidget {
   }
 }
 
-// 알림 페이지 간편 사용을 위한 헬퍼 위젯
+/// 알림 페이지 라우트 헬퍼
 class NotificationPageRoute {
   static MaterialPageRoute<void> get route {
     return MaterialPageRoute<void>(
