@@ -14,7 +14,9 @@ import '../widgets/app_input_field.dart';
 import '../widgets/app_app_bar.dart';
 import 'package:connect/auth/fcm_token_screen.dart';
 import 'package:flutter/foundation.dart';
+import 'package:provider/provider.dart';
 import '../services/notification_service.dart';
+import '../providers/notification_provider.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -117,6 +119,12 @@ class _LoginScreenState extends State<LoginScreen> {
           } catch (e) {
             // FCM 토큰 서버 업데이트 실패
           }
+
+          // 알림 Provider 초기화 (대시보드에서 뱃지 표시용)
+          if (mounted) {
+            context.read<NotificationProvider>().initialize();
+          }
+
           // 승인 여부 확인
           if (data['approved'] == false) {
             if (mounted) {

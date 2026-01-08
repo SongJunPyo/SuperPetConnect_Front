@@ -1,6 +1,7 @@
 // app_app_bar.dart: 대시보드용, 심플한 앱바 등 컴포넌트들
 import 'package:flutter/material.dart';
 import '../utils/app_theme.dart';
+import 'notification_badge.dart';
 
 class AppAppBar extends StatelessWidget implements PreferredSizeWidget {
   final String? title;
@@ -77,7 +78,6 @@ class AppDashboardAppBar extends StatelessWidget
   final VoidCallback? onNotificationPressed;
   final VoidCallback? onBackPressed;
   final Widget? additionalAction;
-  final bool hasNotificationBadge;
 
   const AppDashboardAppBar({
     super.key,
@@ -86,7 +86,6 @@ class AppDashboardAppBar extends StatelessWidget
     this.onNotificationPressed,
     this.onBackPressed,
     this.additionalAction,
-    this.hasNotificationBadge = false,
   });
 
   @override
@@ -95,30 +94,9 @@ class AppDashboardAppBar extends StatelessWidget
       onBackPressed: onBackPressed,
       showBackButton: onBackPressed != null,
       actions: [
-        // 알림 버튼
-        Stack(
-          children: [
-            IconButton(
-              icon: const Icon(
-                Icons.notifications,
-                color: Colors.black87,
-              ),
-              onPressed: onNotificationPressed,
-            ),
-            if (hasNotificationBadge)
-              Positioned(
-                right: 8,
-                top: 8,
-                child: Container(
-                  width: 8,
-                  height: 8,
-                  decoration: const BoxDecoration(
-                    color: AppTheme.error,
-                    shape: BoxShape.circle,
-                  ),
-                ),
-              ),
-          ],
+        // 알림 버튼 (Provider 기반 자동 뱃지 표시)
+        NotificationBadge(
+          onPressed: onNotificationPressed,
         ),
 
         // 추가 액션 버튼 (있는 경우)
