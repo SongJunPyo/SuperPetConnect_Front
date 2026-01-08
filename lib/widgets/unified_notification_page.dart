@@ -26,15 +26,16 @@ class _UnifiedNotificationPageState extends State<UnifiedNotificationPage> {
   @override
   void initState() {
     super.initState();
+    debugPrint('[UnifiedNotificationPage] initState() 호출');
     // Provider 초기화 (이미 초기화되어 있으면 건너뜀)
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final provider = context.read<NotificationProvider>();
+      debugPrint('[UnifiedNotificationPage] postFrameCallback - isInitialized: ${provider.isInitialized}');
       if (!provider.isInitialized) {
+        debugPrint('[UnifiedNotificationPage] initialize() 호출');
         provider.initialize();
-      } else {
-        // 이미 초기화되어 있으면 새로고침
-        provider.refresh();
       }
+      // 이미 초기화된 경우 자동 새로고침 안함 (Pull-to-refresh 사용)
     });
   }
 
@@ -42,8 +43,8 @@ class _UnifiedNotificationPageState extends State<UnifiedNotificationPage> {
   Widget build(BuildContext context) {
     return Consumer<NotificationProvider>(
       builder: (context, provider, child) {
-        // 로딩 중 (초기화 전)
-        if (!provider.isInitialized && provider.isLoading) {
+        // 로딩 중 (초기화 전 또는 초기화 중)
+        if (!provider.isInitialized) {
           return const Scaffold(
             body: Center(child: CircularProgressIndicator()),
           );
