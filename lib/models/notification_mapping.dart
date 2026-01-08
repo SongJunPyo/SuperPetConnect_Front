@@ -170,13 +170,29 @@ class ServerNotificationData {
   });
 
   factory ServerNotificationData.fromJson(Map<String, dynamic> json) {
+    // timestamp 파싱: String 또는 int 모두 처리
+    int parseTimestamp(dynamic value) {
+      if (value == null) return DateTime.now().millisecondsSinceEpoch ~/ 1000;
+      if (value is int) return value;
+      if (value is String) return int.tryParse(value) ?? DateTime.now().millisecondsSinceEpoch ~/ 1000;
+      return DateTime.now().millisecondsSinceEpoch ~/ 1000;
+    }
+
+    // notification_id 파싱: String 또는 int 모두 처리
+    int? parseNotificationId(dynamic value) {
+      if (value == null) return null;
+      if (value is int) return value;
+      if (value is String) return int.tryParse(value);
+      return null;
+    }
+
     return ServerNotificationData(
       type: json['type'] ?? '',
       title: json['title'] ?? '',
       body: json['body'] ?? '',
       data: Map<String, dynamic>.from(json['data'] ?? {}),
-      timestamp: json['timestamp'] ?? DateTime.now().millisecondsSinceEpoch ~/ 1000,
-      notificationId: json['notification_id'] ?? json['id'],
+      timestamp: parseTimestamp(json['timestamp']),
+      notificationId: parseNotificationId(json['notification_id'] ?? json['id']),
     );
   }
 
