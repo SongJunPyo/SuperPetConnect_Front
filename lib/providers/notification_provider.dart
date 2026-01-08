@@ -8,6 +8,9 @@ import '../services/notification_api_service.dart';
 import '../services/unified_notification_manager.dart';
 import '../services/notification_service.dart';
 import '../widgets/unified_notification_page.dart';
+// 웹 브라우저 알림 (조건부 import)
+import '../services/web_notification_helper_stub.dart'
+    if (dart.library.html) '../services/web_notification_helper.dart';
 
 /// 알림 연결 상태
 enum ConnectionStatus {
@@ -99,6 +102,11 @@ class NotificationProvider extends ChangeNotifier {
       // 통합 알림 관리자 초기화 (플랫폼별 FCM/WebSocket 자동 선택)
       _notificationManager = UnifiedNotificationManager.instance;
       await _notificationManager!.initialize();
+
+      // 웹에서 브라우저 알림 권한 요청
+      if (kIsWeb) {
+        await WebNotificationHelper.requestPermission();
+      }
 
       // 실시간 알림 스트림 구독
       _setupRealtimeSubscription();
@@ -242,11 +250,22 @@ class NotificationProvider extends ChangeNotifier {
 
       debugPrint('[NotificationProvider] 새 알림 수신: ${notification.title}');
 
-      // 웹에서 토스트 알림 표시
+      // 웹에서 알림 표시
       if (kIsWeb) {
+        // 브라우저 알림 (윈도우 우측 하단)
+        _showBrowserNotification(notification);
+        // 인앱 토스트 알림
         _showToastNotification(notification);
       }
     }
+  }
+
+  /// 웹 브라우저 알림 표시 (윈도우 우측 하단)
+  void _showBrowserNotification(NotificationModel notification) {
+    WebNotificationHelper.showNotification(
+      title: notification.title,
+      body: notification.content,
+    );
   }
 
   /// 웹에서 토스트 알림 표시
