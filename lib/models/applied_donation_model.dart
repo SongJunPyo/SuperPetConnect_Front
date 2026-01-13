@@ -93,9 +93,19 @@ class AppliedDonation {
     return status == AppliedDonationStatus.pending;
   }
 
+  /// 취소 가능 여부 (대기중일 때만 가능)
   bool get canCancel {
-    return status == AppliedDonationStatus.pending || 
-           status == AppliedDonationStatus.approved;
+    return AppliedDonationStatus.canCancelStatus(status);
+  }
+
+  /// 취소 불가 시 메시지
+  String get cancelBlockMessage {
+    return AppliedDonationStatus.getCancelBlockMessage(status);
+  }
+
+  /// 빨간 테두리 표시 여부 (이미 신청한 시간대)
+  bool get shouldShowAppliedBorder {
+    return AppliedDonationStatus.shouldShowAppliedBorder(status);
   }
 
   // 포맷된 날짜/시간
@@ -165,10 +175,11 @@ class AppliedDonationStatus {
   static const int pending = 0;             // 대기중
   static const int approved = 1;            // 승인됨
   static const int rejected = 2;            // 거절됨
-  static const int completed = 3;           // 완료됨
+  static const int completed = 3;           // 완료됨 (기존 호환용)
   static const int cancelled = 4;           // 취소됨
-  static const int pendingCompletion = 5;   // 완료 대기 (병원에서 1차 완료 처리됨)
-  static const int pendingCancellation = 6; // 취소 대기 (병원에서 중지 처리됨)
+  static const int pendingCompletion = 5;   // 완료대기 (병원이 헌혈 완료 처리)
+  static const int pendingCancellation = 6; // 중단대기 (병원이 헌혈 중단 처리)
+  static const int finalCompleted = 7;      // 헌혈완료 (관리자 최종 승인)
 
   static String getStatusText(int status) {
     switch (status) {
@@ -185,7 +196,9 @@ class AppliedDonationStatus {
       case pendingCompletion:
         return '완료대기';
       case pendingCancellation:
-        return '취소대기';
+        return '중단대기';
+      case finalCompleted:
+        return '헌혈완료';
       default:
         return '알 수 없음';
     }
@@ -196,24 +209,63 @@ class AppliedDonationStatus {
       case pending:
         return 'orange';
       case approved:
-        return 'green';
-      case rejected:
-        return 'red';
-      case completed:
         return 'blue';
+      case rejected:
+        return 'grey';
+      case completed:
+        return 'green';
       case cancelled:
         return 'grey';
       case pendingCompletion:
-        return 'lightblue';
+        return 'purple';
       case pendingCancellation:
-        return 'lightorange';
+        return 'orange';
+      case finalCompleted:
+        return 'green';
       default:
         return 'grey';
     }
   }
 
+  /// 취소 가능 여부 확인 (대기중일 때만 가능)
+  static bool canCancelStatus(int status) {
+    return status == pending;
+  }
+
+  /// 취소 불가 시 메시지
+  static String getCancelBlockMessage(int status) {
+    switch (status) {
+      case approved:
+        return '승인된 신청은 취소할 수 없습니다.';
+      case rejected:
+        return '이미 거절된 신청입니다.';
+      case completed:
+        return '이미 완료된 신청은 취소할 수 없습니다.';
+      case cancelled:
+        return '이미 취소된 신청입니다.';
+      case pendingCompletion:
+        return '헌혈 진행 중인 신청은 취소할 수 없습니다.';
+      case pendingCancellation:
+        return '중단 처리 중인 신청은 취소할 수 없습니다.';
+      case finalCompleted:
+        return '헌혈 완료된 신청은 취소할 수 없습니다.';
+      default:
+        return '취소할 수 없습니다.';
+    }
+  }
+
+  /// 시간대에 빨간 테두리를 표시해야 하는 상태인지 확인
+  /// (거절/취소는 다시 신청 가능하므로 제외)
+  static bool shouldShowAppliedBorder(int status) {
+    return status == pending ||
+        status == approved ||
+        status == pendingCompletion ||
+        status == pendingCancellation ||
+        status == finalCompleted;
+  }
+
   static List<int> getAllStatuses() {
-    return [pending, approved, rejected, completed, cancelled, pendingCompletion, pendingCancellation];
+    return [pending, approved, rejected, completed, cancelled, pendingCompletion, pendingCancellation, finalCompleted];
   }
 
   static List<Map<String, dynamic>> getStatusOptions() {
@@ -223,6 +275,9 @@ class AppliedDonationStatus {
       {'value': rejected, 'text': getStatusText(rejected), 'color': getStatusColor(rejected)},
       {'value': completed, 'text': getStatusText(completed), 'color': getStatusColor(completed)},
       {'value': cancelled, 'text': getStatusText(cancelled), 'color': getStatusColor(cancelled)},
+      {'value': pendingCompletion, 'text': getStatusText(pendingCompletion), 'color': getStatusColor(pendingCompletion)},
+      {'value': pendingCancellation, 'text': getStatusText(pendingCancellation), 'color': getStatusColor(pendingCancellation)},
+      {'value': finalCompleted, 'text': getStatusText(finalCompleted), 'color': getStatusColor(finalCompleted)},
     ];
   }
 }
@@ -388,6 +443,69 @@ class PostApplications {
   int get rejectedCount => getStatusCount(AppliedDonationStatus.rejected);
   int get completedCount => getStatusCount(AppliedDonationStatus.completed);
   int get cancelledCount => getStatusCount(AppliedDonationStatus.cancelled);
+}
+
+// 서버 API 응답용 내 신청 정보 모델 (GET /api/donation/my-applications)
+class MyApplicationInfo {
+  final int applicationId;
+  final int postId;
+  final String postTitle;
+  final String petName;
+  final String petSpecies; // "강아지" 또는 "고양이"
+  final String? petBloodType;
+  final String donationTime; // "2026-01-15 10:00" 형식
+  final String status; // "대기중", "승인됨" 등
+  final int statusCode;
+  final int postTimesIdx;
+
+  MyApplicationInfo({
+    required this.applicationId,
+    required this.postId,
+    required this.postTitle,
+    required this.petName,
+    required this.petSpecies,
+    this.petBloodType,
+    required this.donationTime,
+    required this.status,
+    required this.statusCode,
+    required this.postTimesIdx,
+  });
+
+  factory MyApplicationInfo.fromJson(Map<String, dynamic> json) {
+    // pet_species 처리: String 또는 int 모두 지원
+    String species = '';
+    final rawSpecies = json['pet_species'];
+    if (rawSpecies is String) {
+      species = rawSpecies;
+    } else if (rawSpecies is int) {
+      species = rawSpecies == 0 ? '강아지' : '고양이';
+    }
+
+    return MyApplicationInfo(
+      applicationId: json['application_id'] ?? json['applied_donation_idx'] ?? 0,
+      postId: json['post_id'] ?? json['post_idx'] ?? 0,
+      postTitle: json['post_title'] ?? '',
+      petName: json['pet_name'] ?? '',
+      petSpecies: species,
+      petBloodType: json['pet_blood_type'],
+      donationTime: json['donation_time'] ?? '',
+      status: json['status'] ?? '알 수 없음',
+      statusCode: json['status_code'] ?? 0,
+      postTimesIdx: json['post_times_idx'] ?? 0,
+    );
+  }
+
+  /// 취소 가능 여부
+  bool get canCancel => AppliedDonationStatus.canCancelStatus(statusCode);
+
+  /// 취소 불가 시 메시지
+  String get cancelBlockMessage => AppliedDonationStatus.getCancelBlockMessage(statusCode);
+
+  /// 빨간 테두리 표시 여부
+  bool get shouldShowAppliedBorder => AppliedDonationStatus.shouldShowAppliedBorder(statusCode);
+
+  /// 종류 텍스트
+  String get speciesText => petSpecies;
 }
 
 // 시간대별 신청 현황을 위한 모델

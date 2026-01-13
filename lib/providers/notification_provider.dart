@@ -103,13 +103,17 @@ class NotificationProvider extends ChangeNotifier {
       _notificationManager = UnifiedNotificationManager.instance;
       await _notificationManager!.initialize();
 
-      // 웹에서 브라우저 알림 권한 요청
-      if (kIsWeb) {
-        await WebNotificationHelper.requestPermission();
-      }
-
-      // 실시간 알림 스트림 구독
+      // 실시간 알림 스트림 구독 (먼저 설정해야 알림 수신 가능)
       _setupRealtimeSubscription();
+
+      // 웹에서 브라우저 알림 권한 요청 (실패해도 계속 진행)
+      if (kIsWeb) {
+        try {
+          await WebNotificationHelper.requestPermission();
+        } catch (e) {
+          debugPrint('[NotificationProvider] 브라우저 알림 권한 요청 실패: $e');
+        }
+      }
 
       // 초기 알림 목록 로드 (로딩 상태 해제 후 호출)
       debugPrint('[NotificationProvider] loadNotifications 호출 전');
@@ -133,18 +137,27 @@ class NotificationProvider extends ChangeNotifier {
 
   /// 실시간 알림 스트림 구독 설정
   void _setupRealtimeSubscription() {
-    if (_notificationManager == null) return;
+    debugPrint('[NotificationProvider] _setupRealtimeSubscription 호출');
+    if (_notificationManager == null) {
+      debugPrint('[NotificationProvider] _notificationManager가 null');
+      return;
+    }
 
     // 통합 알림 관리자 스트림 구독
     _notificationSubscription?.cancel();
+    debugPrint('[NotificationProvider] 알림 스트림 구독 시작');
     _notificationSubscription = _notificationManager!.notificationStream.listen(
-      _onNewNotification,
+      (notification) {
+        debugPrint('[NotificationProvider] 스트림에서 알림 수신: ${notification.title}');
+        _onNewNotification(notification);
+      },
       onError: (error) {
         debugPrint('[NotificationProvider] 실시간 알림 스트림 오류: $error');
         _connectionStatus = ConnectionStatus.error;
         notifyListeners();
       },
     );
+    debugPrint('[NotificationProvider] 알림 스트림 구독 완료');
 
     // 연결 상태 스트림 구독
     _connectionSubscription?.cancel();
@@ -262,6 +275,7 @@ class NotificationProvider extends ChangeNotifier {
 
   /// 웹 브라우저 알림 표시 (윈도우 우측 하단)
   void _showBrowserNotification(NotificationModel notification) {
+    debugPrint('[NotificationProvider] 브라우저 알림 표시 시도: ${notification.title}');
     WebNotificationHelper.showNotification(
       title: notification.title,
       body: notification.content,
@@ -270,11 +284,17 @@ class NotificationProvider extends ChangeNotifier {
 
   /// 웹에서 토스트 알림 표시
   void _showToastNotification(NotificationModel notification) {
+    debugPrint('[NotificationProvider] 토스트 알림 표시 시도: ${notification.title}');
     final context = NotificationService.navigatorKey.currentContext;
-    if (context == null) return;
+    if (context == null) {
+      debugPrint('[NotificationProvider] 토스트 알림 실패: context가 null');
+      return;
+    }
+    debugPrint('[NotificationProvider] context 확인됨, ScaffoldMessenger 호출');
 
-    // ScaffoldMessenger를 통해 SnackBar 표시
-    ScaffoldMessenger.of(context).showSnackBar(
+    try {
+      // ScaffoldMessenger를 통해 SnackBar 표시
+      ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Row(
           children: [
@@ -325,6 +345,10 @@ class NotificationProvider extends ChangeNotifier {
         ),
       ),
     );
+      debugPrint('[NotificationProvider] 토스트 알림 표시 완료');
+    } catch (e) {
+      debugPrint('[NotificationProvider] 토스트 알림 표시 실패: $e');
+    }
   }
 
   /// FCM 알림을 Provider에 추가 (모바일에서 FCM 수신 시 호출)

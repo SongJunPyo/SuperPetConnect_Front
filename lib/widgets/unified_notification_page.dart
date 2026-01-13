@@ -477,10 +477,32 @@ class _UnifiedNotificationPageState extends State<UnifiedNotificationPage> {
             ),
           );
           break;
+        case AdminNotificationType.donationApplicationRequest:
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => AdminPostManagementPage(
+                initialTab: 'pending_approval',
+                highlightPostId: notification.relatedId?.toString(),
+              ),
+            ),
+          );
+          break;
         case AdminNotificationType.columnApprovalRequest:
           Navigator.push(
             context,
             MaterialPageRoute(builder: (context) => const AdminColumnManagement()),
+          );
+          break;
+        case AdminNotificationType.donationCompleted:
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => AdminPostManagementPage(
+                initialTab: 'completed',
+                highlightPostId: notification.relatedId?.toString(),
+              ),
+            ),
           );
           break;
         case AdminNotificationType.systemNotice:
@@ -495,6 +517,9 @@ class _UnifiedNotificationPageState extends State<UnifiedNotificationPage> {
         case HospitalNotificationType.postApproved:
         case HospitalNotificationType.postRejected:
         case HospitalNotificationType.recruitmentDeadline:
+        case HospitalNotificationType.timeslotFilled:
+        case HospitalNotificationType.allTimeslotsFilled:
+        case HospitalNotificationType.donationApplication:
         case HospitalNotificationType.columnApproved:
         case HospitalNotificationType.columnRejected:
         case HospitalNotificationType.systemNotice:

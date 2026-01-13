@@ -29,26 +29,45 @@ class AppliedDonationService {
 
   // 1. 헌혈 신청 생성
   static Future<AppliedDonation> createApplication(int petIdx, int postTimesIdx) async {
-    try {
-      final headers = await _getHeaders();
-      
-      final response = await http.post(
-        Uri.parse('$baseUrl/applied_donation/'),
-        headers: headers,
-        body: jsonEncode({
-          'pet_idx': petIdx,
-          'post_times_idx': postTimesIdx,
-        }),
-      );
+    final headers = await _getHeaders();
 
-      if (response.statusCode == 200 || response.statusCode == 201) {
-        final data = json.decode(utf8.decode(response.bodyBytes));
+    debugPrint('[AppliedDonationService] 헌혈 신청 요청 - petIdx: $petIdx, postTimesIdx: $postTimesIdx');
+
+    final response = await http.post(
+      Uri.parse('$baseUrl/donation/apply'),
+      headers: headers,
+      body: jsonEncode({
+        'pet_idx': petIdx,
+        'post_times_idx': postTimesIdx,
+      }),
+    );
+
+    debugPrint('[AppliedDonationService] 응답 코드: ${response.statusCode}');
+    debugPrint('[AppliedDonationService] 응답 내용: ${utf8.decode(response.bodyBytes)}');
+
+    if (response.statusCode == 200 || response.statusCode == 201) {
+      final data = json.decode(utf8.decode(response.bodyBytes));
+      if (data['applied_donation'] != null) {
         return AppliedDonation.fromJson(data['applied_donation']);
-      } else {
-        throw Exception('헌혈 신청 실패: ${response.body}');
       }
-    } catch (e) {
-      throw Exception('헌혈 신청 중 오류 발생: $e');
+      return AppliedDonation.fromJson(data);
+    } else if (response.statusCode == 400) {
+      // 중복 신청 등 Bad Request 처리
+      final responseBody = utf8.decode(response.bodyBytes);
+      debugPrint('[AppliedDonationService] 400 에러: $responseBody');
+
+      try {
+        final errorData = json.decode(responseBody);
+        final detail = errorData['detail'] ?? errorData['message'] ?? '이미 신청한 시간대입니다.';
+        throw detail; // String으로 직접 throw
+      } catch (e) {
+        if (e is String) {
+          rethrow;
+        }
+        throw '이미 신청한 시간대입니다.';
+      }
+    } else {
+      throw '헌혈 신청에 실패했습니다. (${response.statusCode})';
     }
   }
 
@@ -371,6 +390,116 @@ class AppliedDonationService {
       };
     } catch (e) {
       throw Exception('헌혈 이력 통계 조회 중 오류 발생: $e');
+    }
+  }
+
+  // ===== 서버 API에 맞춘 새 메서드들 =====
+
+  /// 17. 내 신청 목록 조회 (GET /api/donation/my-applications)
+  /// 서버 API 응답 형식에 맞춤
+  static Future<List<MyApplicationInfo>> getMyApplicationsFromServer() async {
+    try {
+      final headers = await _getHeaders();
+
+      debugPrint('[AppliedDonationService] 내 신청 목록 조회 요청');
+
+      final response = await http.get(
+        Uri.parse('$baseUrl/donation/my-applications'),
+        headers: headers,
+      );
+
+      debugPrint('[AppliedDonationService] 응답 코드: ${response.statusCode}');
+      debugPrint('[AppliedDonationService] 응답 내용: ${utf8.decode(response.bodyBytes)}');
+
+      if (response.statusCode == 200) {
+        final data = json.decode(utf8.decode(response.bodyBytes));
+
+        if (data['success'] == true && data['applications'] != null) {
+          final List<dynamic> applications = data['applications'];
+          return applications
+              .map((item) => MyApplicationInfo.fromJson(item))
+              .toList();
+        }
+
+        // 응답이 리스트인 경우
+        if (data is List) {
+          return data.map((item) => MyApplicationInfo.fromJson(item)).toList();
+        }
+
+        return [];
+      } else {
+        throw Exception('내 신청 목록 조회 실패: ${response.statusCode}');
+      }
+    } catch (e) {
+      debugPrint('[AppliedDonationService] 내 신청 목록 조회 오류: $e');
+      throw Exception('내 신청 목록 조회 중 오류 발생: $e');
+    }
+  }
+
+  /// 18. 헌혈 신청 취소 (DELETE /api/donation/applications/{id})
+  /// 대기중(status=0) 상태일 때만 취소 가능
+  static Future<bool> cancelApplicationToServer(int applicationId) async {
+    try {
+      final headers = await _getHeaders();
+
+      debugPrint('[AppliedDonationService] 신청 취소 요청 - applicationId: $applicationId');
+
+      final response = await http.delete(
+        Uri.parse('$baseUrl/donation/applications/$applicationId'),
+        headers: headers,
+      );
+
+      debugPrint('[AppliedDonationService] 응답 코드: ${response.statusCode}');
+      debugPrint('[AppliedDonationService] 응답 내용: ${utf8.decode(response.bodyBytes)}');
+
+      if (response.statusCode == 200 || response.statusCode == 204) {
+        return true;
+      } else if (response.statusCode == 400) {
+        // 취소 불가능한 상태
+        final responseBody = utf8.decode(response.bodyBytes);
+        try {
+          final errorData = json.decode(responseBody);
+          final detail = errorData['detail'] ?? '신청을 취소할 수 없습니다.';
+          throw detail;
+        } catch (e) {
+          if (e is String) rethrow;
+          throw '신청을 취소할 수 없습니다.';
+        }
+      } else {
+        throw '신청 취소에 실패했습니다. (${response.statusCode})';
+      }
+    } catch (e) {
+      debugPrint('[AppliedDonationService] 신청 취소 오류: $e');
+      if (e is String) rethrow;
+      throw '신청 취소 중 오류 발생: $e';
+    }
+  }
+
+  /// 19. 특정 게시글에 대한 내 신청 목록 필터링
+  static Future<List<MyApplicationInfo>> getMyApplicationsForPost(int postIdx) async {
+    try {
+      final allApplications = await getMyApplicationsFromServer();
+      return allApplications.where((app) => app.postId == postIdx).toList();
+    } catch (e) {
+      debugPrint('[AppliedDonationService] 게시글별 신청 조회 오류: $e');
+      return [];
+    }
+  }
+
+  /// 20. 특정 시간대에 대한 내 신청 조회
+  static Future<MyApplicationInfo?> getMyApplicationForTimeSlot(int postTimesIdx) async {
+    try {
+      final allApplications = await getMyApplicationsFromServer();
+
+      for (final app in allApplications) {
+        if (app.postTimesIdx == postTimesIdx && app.shouldShowAppliedBorder) {
+          return app;
+        }
+      }
+      return null;
+    } catch (e) {
+      debugPrint('[AppliedDonationService] 시간대별 신청 조회 오류: $e');
+      return null;
     }
   }
 

@@ -5,6 +5,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../utils/app_theme.dart';
 import '../utils/config.dart';
 import '../services/dashboard_service.dart';
+import '../services/applied_donation_service.dart';
+import '../models/applied_donation_model.dart';
 import '../widgets/marquee_text.dart';
 import '../widgets/custom_tab_bar.dart';
 import 'package:intl/intl.dart';
@@ -38,6 +40,9 @@ class _UserDonationPostsListScreenState
   // 탭 컨트롤러
   late TabController _tabController;
   int _currentTabIndex = 0;
+
+  // 내가 신청한 시간대 정보 (postTimesIdx -> MyApplicationInfo)
+  Map<int, MyApplicationInfo> myApplicationsMap = {};
 
   // 시간 포맷팅 메서드
   String _formatTime(String time24) {
@@ -103,6 +108,28 @@ class _UserDonationPostsListScreenState
     _tabController.addListener(_handleTabChange);
 
     _loadDonationPosts();
+    _loadMyApplications(); // 내 신청 목록 로드
+  }
+
+  /// 내 신청 목록 로드
+  Future<void> _loadMyApplications() async {
+    try {
+      final applications = await AppliedDonationService.getMyApplicationsFromServer();
+
+      if (mounted) {
+        setState(() {
+          myApplicationsMap = {
+            for (final app in applications)
+              if (app.shouldShowAppliedBorder) app.postTimesIdx: app
+          };
+        });
+      }
+
+      debugPrint('[UserDonationPostsList] 내 신청 목록 로드 완료: ${myApplicationsMap.length}개');
+      debugPrint('[UserDonationPostsList] 신청한 시간대 IDs: ${myApplicationsMap.keys.toList()}');
+    } catch (e) {
+      debugPrint('[UserDonationPostsList] 내 신청 목록 로드 실패: $e');
+    }
   }
 
   void _handleTabChange() {
@@ -1771,6 +1798,11 @@ class _UserDonationPostsListScreenState
                   ),
                   children:
                       timeSlots.map<Widget>((timeSlot) {
+                        // 내가 이미 신청한 시간대인지 확인
+                        final postTimesIdx = timeSlot['post_times_idx'] ?? 0;
+                        final myApplication = myApplicationsMap[postTimesIdx];
+                        final isAlreadyApplied = myApplication != null;
+
                         return Container(
                           margin: const EdgeInsets.symmetric(
                             horizontal: 20,
@@ -1780,14 +1812,20 @@ class _UserDonationPostsListScreenState
                             color: Colors.transparent,
                             child: InkWell(
                               onTap: () {
-                                final displayText =
-                                    '${_formatDateWithWeekday(dateStr)} ${_formatTime(timeSlot['time'] ?? '')}';
-                                _showDonationApplicationPage(
-                                  dateStr,
-                                  timeSlot,
-                                  displayText,
-                                  post,
-                                );
+                                if (isAlreadyApplied) {
+                                  // 이미 신청한 시간대 클릭 시 취소 바텀시트 표시
+                                  _showCancelApplicationBottomSheet(myApplication);
+                                } else {
+                                  // 신청하지 않은 시간대 클릭 시 신청 페이지 표시
+                                  final displayText =
+                                      '${_formatDateWithWeekday(dateStr)} ${_formatTime(timeSlot['time'] ?? '')}';
+                                  _showDonationApplicationPage(
+                                    dateStr,
+                                    timeSlot,
+                                    displayText,
+                                    post,
+                                  );
+                                }
                               },
                               borderRadius: BorderRadius.circular(8),
                               child: Container(
@@ -1796,33 +1834,58 @@ class _UserDonationPostsListScreenState
                                   vertical: 14,
                                 ),
                                 decoration: BoxDecoration(
-                                  color: Colors.grey.shade50,
+                                  color: isAlreadyApplied
+                                      ? Colors.red.shade50
+                                      : Colors.grey.shade50,
                                   borderRadius: BorderRadius.circular(8),
                                   border: Border.all(
-                                    color: Colors.black,
-                                    width: 1.0,
+                                    color: isAlreadyApplied
+                                        ? Colors.red
+                                        : Colors.black,
+                                    width: isAlreadyApplied ? 2.0 : 1.0,
                                   ),
                                 ),
                                 child: Row(
                                   children: [
                                     Icon(
                                       Icons.access_time,
-                                      color: Colors.black,
+                                      color: isAlreadyApplied
+                                          ? Colors.red
+                                          : Colors.black,
                                       size: 20,
                                     ),
                                     const SizedBox(width: 12),
                                     Expanded(
-                                      child: Text(
-                                        _formatTime(timeSlot['time'] ?? ''),
-                                        style: AppTheme.bodyLargeStyle.copyWith(
-                                          fontWeight: FontWeight.w600,
-                                          color: Colors.black,
-                                        ),
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            _formatTime(timeSlot['time'] ?? ''),
+                                            style: AppTheme.bodyLargeStyle.copyWith(
+                                              fontWeight: FontWeight.w600,
+                                              color: isAlreadyApplied
+                                                  ? Colors.red
+                                                  : Colors.black,
+                                            ),
+                                          ),
+                                          if (isAlreadyApplied)
+                                            Text(
+                                              '신청완료 (${myApplication.status})',
+                                              style: AppTheme.captionStyle.copyWith(
+                                                color: Colors.red,
+                                                fontSize: 11,
+                                              ),
+                                            ),
+                                        ],
                                       ),
                                     ),
                                     Icon(
-                                      Icons.keyboard_arrow_right,
-                                      color: Colors.black,
+                                      isAlreadyApplied
+                                          ? Icons.edit_outlined
+                                          : Icons.keyboard_arrow_right,
+                                      color: isAlreadyApplied
+                                          ? Colors.red
+                                          : Colors.black,
                                       size: 20,
                                     ),
                                   ],
@@ -1860,6 +1923,26 @@ class _UserDonationPostsListScreenState
     );
   }
 
+  /// 신청 취소 바텀시트 표시
+  void _showCancelApplicationBottomSheet(MyApplicationInfo application) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) {
+        return _CancelApplicationBottomSheet(
+          application: application,
+          onCancelSuccess: () {
+            // 취소 성공 후 목록 새로고침
+            _loadMyApplications();
+          },
+        );
+      },
+    );
+  }
+
   // 헌혈 신청 처리
   // ignore: unused_element
   void _processDonationApplication(
@@ -1867,6 +1950,283 @@ class _UserDonationPostsListScreenState
     Map<String, dynamic> timeSlot,
   ) {
     // 성공 시 별도의 스낵바 메시지 표시하지 않음
+  }
+}
+
+/// 신청 취소 바텀시트 위젯
+class _CancelApplicationBottomSheet extends StatefulWidget {
+  final MyApplicationInfo application;
+  final VoidCallback onCancelSuccess;
+
+  const _CancelApplicationBottomSheet({
+    required this.application,
+    required this.onCancelSuccess,
+  });
+
+  @override
+  State<_CancelApplicationBottomSheet> createState() =>
+      _CancelApplicationBottomSheetState();
+}
+
+class _CancelApplicationBottomSheetState
+    extends State<_CancelApplicationBottomSheet> {
+  bool isCancelling = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final canCancel = widget.application.canCancel;
+
+    return Container(
+      padding: const EdgeInsets.all(24),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // 핸들바
+          Center(
+            child: Container(
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: Colors.grey.shade300,
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+          ),
+          const SizedBox(height: 20),
+
+          // 제목
+          Row(
+            children: [
+              Icon(
+                canCancel ? Icons.cancel_outlined : Icons.info_outline,
+                color: canCancel ? Colors.red : Colors.orange,
+                size: 28,
+              ),
+              const SizedBox(width: 12),
+              Text(
+                canCancel ? '신청 취소' : '신청 정보',
+                style: AppTheme.h3Style.copyWith(fontWeight: FontWeight.w700),
+              ),
+            ],
+          ),
+          const SizedBox(height: 20),
+
+          // 신청 정보 카드
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Colors.grey.shade50,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: Colors.grey.shade200),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _buildInfoRow('게시글', widget.application.postTitle),
+                const SizedBox(height: 8),
+                _buildInfoRow(
+                  '반려동물',
+                  '${widget.application.petName} (${widget.application.speciesText})',
+                ),
+                const SizedBox(height: 8),
+                _buildInfoRow('헌혈 시간', widget.application.donationTime),
+                const SizedBox(height: 8),
+                _buildInfoRow(
+                  '상태',
+                  widget.application.status,
+                  statusColor: _getStatusColor(widget.application.statusCode),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 20),
+
+          // 취소 가능/불가 메시지
+          if (!canCancel) ...[
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.orange.shade50,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.orange.shade200),
+              ),
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.warning_amber,
+                    color: Colors.orange.shade700,
+                    size: 20,
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      widget.application.cancelBlockMessage,
+                      style: AppTheme.bodyMediumStyle.copyWith(
+                        color: Colors.orange.shade800,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 20),
+          ],
+
+          // 버튼들
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton(
+                  onPressed: () => Navigator.pop(context),
+                  style: OutlinedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    side: BorderSide(color: Colors.grey.shade300),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                  ),
+                  child: const Text('닫기'),
+                ),
+              ),
+              if (canCancel) ...[
+                const SizedBox(width: 12),
+                Expanded(
+                  child: ElevatedButton(
+                    onPressed: isCancelling ? null : _handleCancel,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.red,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                    ),
+                    child: isCancelling
+                        ? const SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(
+                              color: Colors.white,
+                              strokeWidth: 2,
+                            ),
+                          )
+                        : const Text('신청 취소'),
+                  ),
+                ),
+              ],
+            ],
+          ),
+          const SizedBox(height: 16),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildInfoRow(String label, String value, {Color? statusColor}) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        SizedBox(
+          width: 70,
+          child: Text(
+            label,
+            style: AppTheme.bodyMediumStyle.copyWith(
+              color: AppTheme.textSecondary,
+            ),
+          ),
+        ),
+        Expanded(
+          child: Text(
+            value,
+            style: AppTheme.bodyMediumStyle.copyWith(
+              fontWeight: FontWeight.w500,
+              color: statusColor ?? AppTheme.textPrimary,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Color _getStatusColor(int statusCode) {
+    switch (statusCode) {
+      case AppliedDonationStatus.pending:
+        return Colors.orange;
+      case AppliedDonationStatus.approved:
+        return Colors.blue;
+      case AppliedDonationStatus.rejected:
+        return Colors.grey;
+      case AppliedDonationStatus.completed:
+      case AppliedDonationStatus.finalCompleted:
+        return Colors.green;
+      case AppliedDonationStatus.cancelled:
+        return Colors.grey;
+      case AppliedDonationStatus.pendingCompletion:
+        return Colors.purple;
+      case AppliedDonationStatus.pendingCancellation:
+        return Colors.orange;
+      default:
+        return AppTheme.textPrimary;
+    }
+  }
+
+  Future<void> _handleCancel() async {
+    setState(() {
+      isCancelling = true;
+    });
+
+    try {
+      await AppliedDonationService.cancelApplicationToServer(
+        widget.application.applicationId,
+      );
+
+      if (mounted) {
+        Navigator.pop(context);
+        widget.onCancelSuccess();
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Row(
+              children: [
+                Icon(Icons.check_circle, color: Colors.white),
+                SizedBox(width: 8),
+                Text('신청이 취소되었습니다.'),
+              ],
+            ),
+            backgroundColor: Colors.green.shade600,
+            behavior: SnackBarBehavior.floating,
+            duration: const Duration(seconds: 2),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          isCancelling = false;
+        });
+
+        String errorMessage = e.toString();
+        if (errorMessage.startsWith('Exception: ')) {
+          errorMessage = errorMessage.substring(11);
+        }
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(
+              children: [
+                const Icon(Icons.error_outline, color: Colors.white),
+                const SizedBox(width: 8),
+                Expanded(child: Text(errorMessage)),
+              ],
+            ),
+            backgroundColor: Colors.red.shade600,
+            behavior: SnackBarBehavior.floating,
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      }
+    }
   }
 }
 
