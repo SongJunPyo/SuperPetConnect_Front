@@ -1943,6 +1943,9 @@ class _UserDonationPostsListScreenState
     ).then((cancelled) {
       // 바텀시트가 닫힌 후 취소 성공 시 새로고침
       if (cancelled == true && mounted) {
+        // 게시글 상세 바텀시트도 닫기 (UI 새로고침을 위해)
+        Navigator.pop(context);
+
         _loadMyApplications();
 
         // 취소 성공 메시지 표시
