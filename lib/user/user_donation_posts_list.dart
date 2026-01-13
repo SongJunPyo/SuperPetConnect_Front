@@ -1925,7 +1925,7 @@ class _UserDonationPostsListScreenState
 
   /// 신청 취소 바텀시트 표시
   void _showCancelApplicationBottomSheet(MyApplicationInfo application) {
-    showModalBottomSheet(
+    showModalBottomSheet<bool>(
       context: context,
       isScrollControlled: true,
       shape: const RoundedRectangleBorder(
@@ -1935,12 +1935,33 @@ class _UserDonationPostsListScreenState
         return _CancelApplicationBottomSheet(
           application: application,
           onCancelSuccess: () {
-            // 취소 성공 후 목록 새로고침
-            _loadMyApplications();
+            // 바텀시트 닫으면서 true 반환
+            Navigator.pop(context, true);
           },
         );
       },
-    );
+    ).then((cancelled) {
+      // 바텀시트가 닫힌 후 취소 성공 시 새로고침
+      if (cancelled == true && mounted) {
+        _loadMyApplications();
+
+        // 취소 성공 메시지 표시
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Row(
+              children: [
+                Icon(Icons.check_circle, color: Colors.white),
+                SizedBox(width: 8),
+                Text('신청이 취소되었습니다.'),
+              ],
+            ),
+            backgroundColor: Colors.green.shade600,
+            behavior: SnackBarBehavior.floating,
+            duration: const Duration(seconds: 2),
+          ),
+        );
+      }
+    });
   }
 
   // 헌혈 신청 처리
@@ -2182,23 +2203,8 @@ class _CancelApplicationBottomSheetState
       );
 
       if (mounted) {
-        Navigator.pop(context);
+        // 취소 성공 콜백 호출 (Navigator.pop(context, true) 포함)
         widget.onCancelSuccess();
-
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: const Row(
-              children: [
-                Icon(Icons.check_circle, color: Colors.white),
-                SizedBox(width: 8),
-                Text('신청이 취소되었습니다.'),
-              ],
-            ),
-            backgroundColor: Colors.green.shade600,
-            behavior: SnackBarBehavior.floating,
-            duration: const Duration(seconds: 2),
-          ),
-        );
       }
     } catch (e) {
       if (mounted) {
