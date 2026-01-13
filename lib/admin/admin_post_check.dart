@@ -2285,6 +2285,41 @@ class _AdminPostCheckState extends State<AdminPostCheck>
                               // 드롭다운 형태의 날짜/시간 선택 UI
                               _buildDateTimeDropdown(post, setState),
 
+                              const SizedBox(height: 16),
+
+                              // 전체 마감 버튼 (마감 완료되지 않은 게시글에 표시)
+                              // status: 0=대기, 1=모집중, 2=거절, 3=마감
+                              // 모집중(1) 상태이거나, 일부 시간대가 열려있는 경우 표시
+                              if ((post['status'] == 1 ||
+                                      (post['status'] == 3 &&
+                                          _hasOpenTimeSlots(post))) &&
+                                  post['is_completion_pending'] != true &&
+                                  _currentTabIndex != 3 &&
+                                  _currentTabIndex != 4)
+                                SizedBox(
+                                  width: double.infinity,
+                                  child: ElevatedButton.icon(
+                                    onPressed: () {
+                                      _showClosePostConfirmationSheet(
+                                        post,
+                                        setState,
+                                      );
+                                    },
+                                    icon: const Icon(Icons.close, size: 18),
+                                    label: const Text('게시글 전체 마감'),
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: Colors.red.shade600,
+                                      foregroundColor: Colors.white,
+                                      padding: const EdgeInsets.symmetric(
+                                        vertical: 14,
+                                      ),
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(8),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+
                               const SizedBox(height: 24),
 
                               // 헌혈마감 탭에서는 상태에 따라 버튼 구분 표시
@@ -4001,5 +4036,224 @@ class _AdminPostCheckState extends State<AdminPostCheck>
     } catch (e) {
       return cancelledAt;
     }
+  }
+
+  // 게시글 전체 마감 API 호출
+  Future<void> _closeEntirePost(
+    Map<String, dynamic> post,
+    StateSetter onUpdate,
+  ) async {
+    try {
+      final postIdx = post['id'];
+      final url = Uri.parse(
+        '${Config.serverUrl}/api/admin/posts/$postIdx/close',
+      );
+      final response = await http.patch(
+        url,
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Content-Type': 'application/json',
+        },
+      );
+
+      if (response.statusCode == 200) {
+        final responseData = json.decode(utf8.decode(response.bodyBytes));
+        final int newStatus = responseData['new_status'] ?? 3;
+
+        // 메인 화면 상태 업데이트
+        if (mounted) {
+          setState(() {
+            final mainPostIndex = posts.indexWhere((p) => p['id'] == postIdx);
+            if (mainPostIndex != -1) {
+              posts[mainPostIndex]['status'] = newStatus;
+            }
+          });
+
+          // post 변수도 업데이트
+          post['status'] = newStatus;
+        }
+
+        // 확인 창 닫기
+        if (mounted) {
+          Navigator.of(context).pop();
+        }
+
+        // 상세 게시글 새로고침을 위해 잠깐 닫고 다시 열기
+        if (mounted) {
+          await _refreshAndReopenPostDetail(
+            post,
+            _getPostStatus(newStatus),
+            post['types'] == 0 ? '긴급' : '정기',
+          );
+        }
+
+        // 마감 처리 후 전체 데이터 새로고침
+        await Future.delayed(const Duration(milliseconds: 500));
+        if (mounted) {
+          await _fetchDataForCurrentTab();
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('게시글이 성공적으로 마감되었습니다.'),
+              backgroundColor: Colors.green,
+            ),
+          );
+        }
+      } else {
+        if (mounted) {
+          Navigator.of(context).pop();
+        }
+        final errorData = json.decode(utf8.decode(response.bodyBytes));
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                errorData['message'] ?? '마감 처리에 실패했습니다.',
+              ),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        Navigator.of(context).pop();
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('오류가 발생했습니다: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  // 게시글 전체 마감 확인 다이얼로그
+  void _showClosePostConfirmationSheet(
+    Map<String, dynamic> post,
+    StateSetter onUpdate,
+  ) {
+    bool isClosing = false;
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (BuildContext context) {
+        return StatefulBuilder(
+          builder: (context, setState) {
+            return Padding(
+              padding: const EdgeInsets.all(20.0),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    '게시글 전체 마감',
+                    style: AppTheme.h3Style.copyWith(
+                      fontWeight: FontWeight.bold,
+                      color: Colors.red,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    post['title'] ?? '제목 없음',
+                    style: AppTheme.bodyLargeStyle,
+                  ),
+                  const SizedBox(height: 16),
+                  const Divider(),
+                  const SizedBox(height: 16),
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.blue.shade50,
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: Colors.blue.shade200),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(Icons.info_outline, color: Colors.blue.shade700),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Text(
+                            '마감 시 선정된 사용자와 미선정 사용자, 병원에게 알림이 발송됩니다.',
+                            style: TextStyle(color: Colors.blue.shade700),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: OutlinedButton(
+                          onPressed:
+                              isClosing
+                                  ? null
+                                  : () => Navigator.of(context).pop(),
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: Colors.grey,
+                            side: const BorderSide(color: Colors.grey),
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                          ),
+                          child: const Text('취소'),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: ElevatedButton(
+                          onPressed:
+                              isClosing
+                                  ? null
+                                  : () async {
+                                    setState(() {
+                                      isClosing = true;
+                                    });
+                                    await _closeEntirePost(post, onUpdate);
+                                  },
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.red,
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                          ),
+                          child:
+                              isClosing
+                                  ? const SizedBox(
+                                    width: 20,
+                                    height: 20,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      valueColor: AlwaysStoppedAnimation<Color>(
+                                        Colors.white,
+                                      ),
+                                    ),
+                                  )
+                                  : const Text('전체 마감 확정'),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  // 열린 시간대가 있는지 확인
+  bool _hasOpenTimeSlots(Map<String, dynamic> post) {
+    final timeRanges = post['timeRanges'] as List<dynamic>? ?? [];
+    // status 0 = 열림, status 1 = 마감
+    return timeRanges.any((ts) => ts['status'] == 0 || ts['status'] == null);
   }
 }

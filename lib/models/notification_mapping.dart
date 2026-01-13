@@ -84,11 +84,22 @@ class ServerNotificationMapping {
     },
 
     'donation_application_approved': {
-      UserType.user: UserNotificationType.systemNotice,
+      UserType.user: UserNotificationType.applicationApproved,
     },
 
     'donation_application_rejected': {
-      UserType.user: UserNotificationType.systemNotice,
+      UserType.user: UserNotificationType.applicationRejected,
+    },
+
+    // === 모집 마감 알림 (사용자 + 병원 모두 받음) ===
+    'recruitment_closed': {
+      UserType.user: UserNotificationType.recruitmentClosed,
+      UserType.hospital: HospitalNotificationType.recruitmentDeadline,
+    },
+
+    // === 헌혈 완료 알림 ===
+    'donation_completed_user': {
+      UserType.user: UserNotificationType.donationCompleted,
     },
   };
 

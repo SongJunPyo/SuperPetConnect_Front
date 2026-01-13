@@ -2761,10 +2761,10 @@ class _DonationApplicationPageState extends State<DonationApplicationPage> {
           ),
           child: Column(
             children: [
-              _buildInfoRow('이름', userInfo!['name']),
-              _buildInfoRow('닉네임', userInfo!['nickname']),
-              _buildInfoRow('연락처', userInfo!['phone']),
-              _buildInfoRow('주소', userInfo!['address']),
+              _buildInfoRow('이름', userInfo!['name'] ?? '-'),
+              _buildInfoRow('닉네임', userInfo!['nickname'] ?? '-'),
+              _buildInfoRow('연락처', userInfo!['phone'] ?? '-'),
+              _buildInfoRow('주소', userInfo!['address'] ?? '-'),
             ],
           ),
         ),
