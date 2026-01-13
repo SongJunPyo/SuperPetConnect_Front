@@ -40,6 +40,10 @@ class NotificationService {
         _handleDonationApprovedNotification(message);
       } else if (message.data['type'] == 'donation_application_rejected') {
         _handleDonationRejectedNotification(message);
+      } else if (message.data['type'] == 'recruitment_closed') {
+        _handleRecruitmentClosedNotification(message);
+      } else if (message.data['type'] == 'donation_completed') {
+        _handleDonationCompletedNotification(message);
       }
     });
     
@@ -67,12 +71,16 @@ class NotificationService {
           _navigateToUserDashboard(parsedData);
         } else if (message.data['type'] == 'donation_application_rejected') {
           _navigateToUserDashboard(parsedData);
+        } else if (message.data['type'] == 'recruitment_closed') {
+          _navigateForRecruitmentClosed(message.data);
+        } else if (message.data['type'] == 'donation_completed') {
+          _navigateToDonationHistory(message.data);
         }
       } catch (e) {
         // 파싱 실패 시 기본 데이터로 처리
       }
     });
-    
+
     // 앱이 완전히 종료된 상태에서 알림으로 앱을 연 경우
     FirebaseMessaging.instance.getInitialMessage().then((RemoteMessage? message) {
       if (message != null) {
@@ -99,6 +107,10 @@ class NotificationService {
               _navigateToUserDashboard(parsedData);
             } else if (message.data['type'] == 'donation_application_rejected') {
               _navigateToUserDashboard(parsedData);
+            } else if (message.data['type'] == 'recruitment_closed') {
+              _navigateForRecruitmentClosed(message.data);
+            } else if (message.data['type'] == 'donation_completed') {
+              _navigateToDonationHistory(message.data);
             }
           } catch (e) {
             // 파싱 실패 시 기본 데이터로 처리
@@ -140,6 +152,12 @@ class NotificationService {
         case 'donation_application_rejected':
           final parsedData = _parseNotificationData(data);
           _navigateToUserDashboard(parsedData);
+          break;
+        case 'recruitment_closed':
+          _navigateForRecruitmentClosed(data);
+          break;
+        case 'donation_completed':
+          _navigateToDonationHistory(data);
           break;
         default:
       }
@@ -557,7 +575,7 @@ class NotificationService {
   static HospitalNotificationType? _getHospitalNotificationTypeFromFCM(String fcmType) {
     switch (fcmType) {
       case 'donation_application':
-        return HospitalNotificationType.recruitmentDeadline;
+        return HospitalNotificationType.donationApplication;
       case 'donation_post_approved':
         return HospitalNotificationType.postApproved;
       case 'donation_post_rejected':
@@ -566,6 +584,10 @@ class NotificationService {
         return HospitalNotificationType.columnApproved;
       case 'column_rejected':
         return HospitalNotificationType.columnRejected;
+      case 'recruitment_closed':
+        return HospitalNotificationType.recruitmentDeadline;
+      case 'donation_completed':
+        return HospitalNotificationType.allTimeslotsFilled;
       default:
         return null;
     }
@@ -576,11 +598,82 @@ class NotificationService {
     switch (fcmType) {
       case 'account_approved':
       case 'account_rejected':
-      case 'donation_application_approved':
-      case 'donation_application_rejected':
         return UserNotificationType.systemNotice;
+      case 'donation_application_approved':
+        return UserNotificationType.applicationApproved;
+      case 'donation_application_rejected':
+        return UserNotificationType.applicationRejected;
+      case 'recruitment_closed':
+        return UserNotificationType.recruitmentClosed;
+      case 'donation_completed':
+        return UserNotificationType.donationCompleted;
       default:
         return null;
+    }
+  }
+
+  // 모집 마감 알림 처리 (사용자/병원용)
+  static void _handleRecruitmentClosedNotification(RemoteMessage message) {
+    debugPrint('[NotificationService] 모집 마감 알림 수신');
+    // FCM 알림을 실시간 스트림에 추가
+    _addFCMNotificationToStream(message);
+  }
+
+  // 헌혈 완료 알림 처리 (사용자/병원용)
+  static void _handleDonationCompletedNotification(RemoteMessage message) {
+    debugPrint('[NotificationService] 헌혈 완료 알림 수신');
+    // FCM 알림을 실시간 스트림에 추가
+    _addFCMNotificationToStream(message);
+  }
+
+  // 모집 마감 알림 클릭 시 네비게이션
+  static void _navigateForRecruitmentClosed(Map<String, dynamic> data) {
+    final context = navigatorKey.currentContext;
+    if (context == null) return;
+
+    try {
+      final isSelected = data['is_selected'] == 'true';
+
+      if (isSelected) {
+        // 선정된 사용자 - 내 신청 내역 페이지로 이동
+        Navigator.pushNamed(
+          context,
+          '/user/my-applications',
+        );
+      } else {
+        // 미선정 사용자 - 헌혈 게시글 목록으로 이동
+        Navigator.pushNamed(
+          context,
+          '/user/donation-posts',
+        );
+      }
+    } catch (e) {
+      debugPrint('[NotificationService] 모집 마감 네비게이션 실패: $e');
+      // 오류 발생 시 사용자 대시보드로 이동
+      Navigator.pushNamed(context, '/user/dashboard');
+    }
+  }
+
+  // 헌혈 완료 알림 클릭 시 네비게이션
+  static void _navigateToDonationHistory(Map<String, dynamic> data) {
+    final context = navigatorKey.currentContext;
+    if (context == null) return;
+
+    try {
+      // 헌혈 내역 페이지로 이동
+      Navigator.pushNamed(
+        context,
+        '/user/donation-history',
+        arguments: {
+          'applicationId': data['application_id'] is String
+              ? int.tryParse(data['application_id'])
+              : data['application_id'],
+        },
+      );
+    } catch (e) {
+      debugPrint('[NotificationService] 헌혈 완료 네비게이션 실패: $e');
+      // 오류 발생 시 사용자 대시보드로 이동
+      Navigator.pushNamed(context, '/user/dashboard');
     }
   }
 }

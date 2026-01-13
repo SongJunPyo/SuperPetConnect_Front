@@ -51,9 +51,13 @@ enum HospitalNotificationType {
   systemNotice,       // 시스템 공지
 }
 
-// 사용자 알림 타입 (향후 확장용)
+// 사용자 알림 타입
 enum UserNotificationType {
-  systemNotice,       // 시스템 공지 (기본)
+  systemNotice,         // 시스템 공지 (기본)
+  recruitmentClosed,    // 모집 마감 알림
+  donationCompleted,    // 헌혈 완료 알림
+  applicationApproved,  // 헌혈 신청 승인
+  applicationRejected,  // 헌혈 신청 거절
 }
 
 // 알림 타입 한국어 이름 매핑
@@ -84,6 +88,10 @@ class NotificationTypeNames {
   // 사용자 알림 이름
   static const Map<UserNotificationType, String> userNames = {
     UserNotificationType.systemNotice: '시스템 공지',
+    UserNotificationType.recruitmentClosed: '모집 마감',
+    UserNotificationType.donationCompleted: '헌혈 완료',
+    UserNotificationType.applicationApproved: '신청 승인',
+    UserNotificationType.applicationRejected: '신청 거절',
   };
 }
 
@@ -115,6 +123,10 @@ class NotificationTypeIcons {
   // 사용자 알림 아이콘
   static const Map<UserNotificationType, String> userIcons = {
     UserNotificationType.systemNotice: '🔔',
+    UserNotificationType.recruitmentClosed: '⏰',
+    UserNotificationType.donationCompleted: '✅',
+    UserNotificationType.applicationApproved: '✅',
+    UserNotificationType.applicationRejected: '❌',
   };
 }
 
@@ -151,6 +163,10 @@ class NotificationPriority {
   // 사용자 알림 우선순위
   static const Map<UserNotificationType, int> userPriorities = {
     UserNotificationType.systemNotice: urgent,
+    UserNotificationType.recruitmentClosed: high,
+    UserNotificationType.donationCompleted: high,
+    UserNotificationType.applicationApproved: high,
+    UserNotificationType.applicationRejected: high,
   };
 }
 
@@ -182,6 +198,10 @@ class NotificationTypeIds {
   // 사용자 알림 ID
   static const Map<UserNotificationType, int> userIds = {
     UserNotificationType.systemNotice: 301,
+    UserNotificationType.recruitmentClosed: 302,
+    UserNotificationType.donationCompleted: 303,
+    UserNotificationType.applicationApproved: 304,
+    UserNotificationType.applicationRejected: 305,
   };
   
   // ID에서 타입으로 역매핑
