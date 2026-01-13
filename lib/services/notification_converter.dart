@@ -212,10 +212,13 @@ class NotificationConverter {
       case 'new_user_registration':
         return AdminNotificationType.signupRequest;
       case 'new_post_approval':
-      case 'donation_application':
         return AdminNotificationType.postApprovalRequest;
+      case 'new_donation_application':
+        return AdminNotificationType.donationApplicationRequest;
       case 'column_approval':
         return AdminNotificationType.columnApprovalRequest;
+      case 'donation_completed':
+        return AdminNotificationType.donationCompleted;
       default:
         return null;
     }
@@ -225,7 +228,12 @@ class NotificationConverter {
   static HospitalNotificationType? getHospitalNotificationTypeFromFCM(String fcmType) {
     switch (fcmType) {
       case 'donation_application':
-        return HospitalNotificationType.recruitmentDeadline;
+      case 'new_donation_application_hospital':
+        return HospitalNotificationType.donationApplication;
+      case 'timeslot_filled':
+        return HospitalNotificationType.timeslotFilled;
+      case 'all_timeslots_filled':
+        return HospitalNotificationType.allTimeslotsFilled;
       case 'donation_post_approved':
         return HospitalNotificationType.postApproved;
       case 'donation_post_rejected':

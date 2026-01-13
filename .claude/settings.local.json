@@ -11,7 +11,18 @@
       "Bash(sed:*)",
       "Bash(taskkill:*)",
       "Bash(grep:*)",
-      "Bash(git checkout:*)"
+      "Bash(git checkout:*)",
+      "Bash(git push:*)",
+      "Bash(git log:*)",
+      "Bash(git branch:*)",
+      "Bash(git rm:*)",
+      "Bash(git add:*)",
+      "Bash(git commit -m \"$(cat <<''EOF''\n보안: .env 파일을 git 추적에서 제거\n\n- .env 파일에 서버 IP 주소가 포함되어 보안상 제거\n- .env.example 파일을 추가하여 팀원들이 참고 가능하도록 함\n- 각자 .env.example을 복사하여 .env 생성 후 사용\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)\n\nCo-Authored-By: Claude <noreply@anthropic.com>\nEOF\n)\")",
+      "Bash(\"/mnt/c/Users/UNIST/AppData/Local/Android/Sdk/platform-tools/adb.exe\" version)",
+      "Bash(/mnt/c/flutter/bin/flutter.bat run:*)",
+      "Bash(cmd.exe:*)",
+      "Bash(unzip:*)",
+      "WebFetch(domain:pub.dev)"
     ],
     "deny": []
   }

@@ -1,5 +1,6 @@
 // ignore_for_file: use_build_context_synchronously
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'package:connect/hospital/hospital_post.dart';
 import '../widgets/unified_notification_page.dart';
 import 'package:connect/hospital/hospital_post_check.dart';
@@ -24,6 +25,7 @@ import '../utils/number_format_util.dart';
 import '../utils/text_personalization_util.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'hospital_notice_list.dart';
+import '../providers/notification_provider.dart';
 
 class HospitalDashboard extends StatefulWidget {
   final String? highlightPostId;
@@ -72,6 +74,14 @@ class _HospitalDashboardState extends State<HospitalDashboard>
     _updateDateTime();
     _startTimer();
     _loadDashboardData();
+
+    // 알림 Provider 초기화 (페이지 새로고침 시에도 알림 수신 가능하도록)
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final provider = context.read<NotificationProvider>();
+      if (!provider.isInitialized) {
+        provider.initialize();
+      }
+    });
   }
 
   @override

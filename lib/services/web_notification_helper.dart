@@ -32,12 +32,17 @@ class WebNotificationHelper {
     required String body,
     String? icon,
   }) {
+    debugPrint('[WebNotification] showNotification 호출 - kIsWeb: $kIsWeb');
     if (!kIsWeb) return;
 
     try {
+      debugPrint('[WebNotification] 권한 상태 확인 - requested: $_permissionRequested, permission: $_permission');
+
       // 권한이 없으면 먼저 요청
       if (!_permissionRequested) {
+        debugPrint('[WebNotification] 권한 미요청 상태, 권한 요청 시작');
         requestPermission().then((granted) {
+          debugPrint('[WebNotification] 권한 요청 결과: $granted');
           if (granted) {
             _displayNotification(title: title, body: body, icon: icon);
           }
@@ -46,6 +51,7 @@ class WebNotificationHelper {
       }
 
       if (_permission == 'granted') {
+        debugPrint('[WebNotification] 권한 있음, 알림 표시 시도');
         _displayNotification(title: title, body: body, icon: icon);
       } else {
         debugPrint('[WebNotification] 권한 없음: $_permission');
@@ -60,15 +66,18 @@ class WebNotificationHelper {
     required String body,
     String? icon,
   }) {
+    debugPrint('[WebNotification] _displayNotification 호출 - title: $title');
     try {
       final notification = html.Notification(
         title,
         body: body,
         icon: icon ?? '/icons/Icon-192.png',
       );
+      debugPrint('[WebNotification] Notification 객체 생성 완료');
 
       // 알림 클릭 시 해당 탭으로 포커스
       notification.onClick.listen((event) {
+        debugPrint('[WebNotification] 알림 클릭됨');
         // 현재 윈도우로 포커스 이동
         html.document.documentElement?.focus();
         notification.close();
@@ -78,6 +87,8 @@ class WebNotificationHelper {
       Future.delayed(const Duration(seconds: 5), () {
         notification.close();
       });
+
+      debugPrint('[WebNotification] 브라우저 알림 표시 성공!');
     } catch (e) {
       debugPrint('[WebNotification] 알림 생성 실패: $e');
     }

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import '../widgets/unified_notification_page.dart';
 import 'package:connect/admin/admin_post_check.dart';
 import 'package:connect/admin/admin_user_check.dart';
@@ -16,6 +17,7 @@ import 'dart:convert';
 import 'package:intl/intl.dart';
 import 'dart:async';
 import '../utils/config.dart';
+import '../providers/notification_provider.dart';
 
 class AdminDashboard extends StatefulWidget {
   // StatelessWidget -> StatefulWidget으로 변경 (향후 상태관리 유연성 위해)
@@ -41,6 +43,14 @@ class _AdminDashboardState extends State<AdminDashboard> {
     _updateDateTime();
     _startTimer();
     _fetchPendingCounts();
+
+    // 알림 Provider 초기화 (페이지 새로고침 시에도 알림 수신 가능하도록)
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final provider = context.read<NotificationProvider>();
+      if (!provider.isInitialized) {
+        provider.initialize();
+      }
+    });
   }
 
   @override

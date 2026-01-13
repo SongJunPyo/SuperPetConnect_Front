@@ -32,7 +32,9 @@ class UserTypeMapper {
 enum AdminNotificationType {
   signupRequest,      // 회원가입 승인 요청
   postApprovalRequest, // 헌혈 게시글 승인 요청
+  donationApplicationRequest, // 헌혈 신청 승인 요청
   columnApprovalRequest, // 칼럼 게시글 승인 요청
+  donationCompleted,  // 헌혈 완료 보고
   systemNotice,       // 시스템 공지 알림
 }
 
@@ -41,6 +43,9 @@ enum HospitalNotificationType {
   postApproved,       // 헌혈 게시글 승인
   postRejected,       // 헌혈 게시글 거절
   recruitmentDeadline, // 모집 마감
+  timeslotFilled,     // 특정 시간대 모집 완료
+  allTimeslotsFilled, // 모든 시간대 모집 완료
+  donationApplication, // 새 헌혈 신청 접수
   columnApproved,     // 칼럼 게시글 승인
   columnRejected,     // 칼럼 게시글 거절
   systemNotice,       // 시스템 공지
@@ -57,7 +62,9 @@ class NotificationTypeNames {
   static const Map<AdminNotificationType, String> adminNames = {
     AdminNotificationType.signupRequest: '회원가입 승인 요청',
     AdminNotificationType.postApprovalRequest: '헌혈 게시글 승인 요청',
+    AdminNotificationType.donationApplicationRequest: '헌혈 신청 승인 요청',
     AdminNotificationType.columnApprovalRequest: '칼럼 게시글 승인 요청',
+    AdminNotificationType.donationCompleted: '헌혈 완료 보고',
     AdminNotificationType.systemNotice: '시스템 공지',
   };
 
@@ -66,6 +73,9 @@ class NotificationTypeNames {
     HospitalNotificationType.postApproved: '헌혈 게시글 승인',
     HospitalNotificationType.postRejected: '헌혈 게시글 거절',
     HospitalNotificationType.recruitmentDeadline: '모집 마감',
+    HospitalNotificationType.timeslotFilled: '시간대 모집 완료',
+    HospitalNotificationType.allTimeslotsFilled: '전체 모집 완료',
+    HospitalNotificationType.donationApplication: '새 헌혈 신청',
     HospitalNotificationType.columnApproved: '칼럼 게시글 승인',
     HospitalNotificationType.columnRejected: '칼럼 게시글 거절',
     HospitalNotificationType.systemNotice: '시스템 공지',
@@ -83,15 +93,20 @@ class NotificationTypeIcons {
   static const Map<AdminNotificationType, String> adminIcons = {
     AdminNotificationType.signupRequest: '👤',
     AdminNotificationType.postApprovalRequest: '📝',
+    AdminNotificationType.donationApplicationRequest: '💉',
     AdminNotificationType.columnApprovalRequest: '📄',
+    AdminNotificationType.donationCompleted: '✅',
     AdminNotificationType.systemNotice: '🔔',
   };
 
-  // 병원 알림 아이콘  
+  // 병원 알림 아이콘
   static const Map<HospitalNotificationType, String> hospitalIcons = {
     HospitalNotificationType.postApproved: '✅',
     HospitalNotificationType.postRejected: '❌',
     HospitalNotificationType.recruitmentDeadline: '⏰',
+    HospitalNotificationType.timeslotFilled: '🕐',
+    HospitalNotificationType.allTimeslotsFilled: '🎉',
+    HospitalNotificationType.donationApplication: '💉',
     HospitalNotificationType.columnApproved: '✅',
     HospitalNotificationType.columnRejected: '❌',
     HospitalNotificationType.systemNotice: '🔔',
@@ -114,7 +129,9 @@ class NotificationPriority {
   static const Map<AdminNotificationType, int> adminPriorities = {
     AdminNotificationType.signupRequest: normal,
     AdminNotificationType.postApprovalRequest: high,
+    AdminNotificationType.donationApplicationRequest: high,
     AdminNotificationType.columnApprovalRequest: normal,
+    AdminNotificationType.donationCompleted: normal,
     AdminNotificationType.systemNotice: urgent,
   };
 
@@ -123,6 +140,9 @@ class NotificationPriority {
     HospitalNotificationType.postApproved: high,
     HospitalNotificationType.postRejected: high,
     HospitalNotificationType.recruitmentDeadline: urgent,
+    HospitalNotificationType.timeslotFilled: high,
+    HospitalNotificationType.allTimeslotsFilled: urgent,
+    HospitalNotificationType.donationApplication: high,
     HospitalNotificationType.columnApproved: normal,
     HospitalNotificationType.columnRejected: normal,
     HospitalNotificationType.systemNotice: urgent,
@@ -140,8 +160,10 @@ class NotificationTypeIds {
   static const Map<AdminNotificationType, int> adminIds = {
     AdminNotificationType.signupRequest: 101,
     AdminNotificationType.postApprovalRequest: 102,
-    AdminNotificationType.columnApprovalRequest: 103,
-    AdminNotificationType.systemNotice: 104,
+    AdminNotificationType.donationApplicationRequest: 103,
+    AdminNotificationType.columnApprovalRequest: 104,
+    AdminNotificationType.donationCompleted: 105,
+    AdminNotificationType.systemNotice: 106,
   };
 
   // 병원 알림 ID
@@ -149,9 +171,12 @@ class NotificationTypeIds {
     HospitalNotificationType.postApproved: 201,
     HospitalNotificationType.postRejected: 202,
     HospitalNotificationType.recruitmentDeadline: 203,
-    HospitalNotificationType.columnApproved: 204,
-    HospitalNotificationType.columnRejected: 205,
-    HospitalNotificationType.systemNotice: 206,
+    HospitalNotificationType.timeslotFilled: 204,
+    HospitalNotificationType.allTimeslotsFilled: 205,
+    HospitalNotificationType.donationApplication: 206,
+    HospitalNotificationType.columnApproved: 207,
+    HospitalNotificationType.columnRejected: 208,
+    HospitalNotificationType.systemNotice: 209,
   };
 
   // 사용자 알림 ID

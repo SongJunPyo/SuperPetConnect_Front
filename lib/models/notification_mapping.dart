@@ -18,12 +18,27 @@ class ServerNotificationMapping {
     },
     
     'new_donation_application': {
-      UserType.admin: AdminNotificationType.postApprovalRequest, // 관리자는 헌혈 신청을 모니터링
+      UserType.admin: AdminNotificationType.donationApplicationRequest, // 관리자는 헌혈 신청 승인 요청
     },
-    
+
     // === 병원이 받는 알림들 ===
     'new_donation_application_hospital': {
-      UserType.hospital: HospitalNotificationType.recruitmentDeadline, // 새 신청 알림
+      UserType.hospital: HospitalNotificationType.donationApplication, // 새 신청 알림
+    },
+
+    // 특정 시간대 모집 완료
+    'timeslot_filled': {
+      UserType.hospital: HospitalNotificationType.timeslotFilled,
+    },
+
+    // 모든 시간대 모집 완료
+    'all_timeslots_filled': {
+      UserType.hospital: HospitalNotificationType.allTimeslotsFilled,
+    },
+
+    // 헌혈 완료 보고 (병원 → 관리자)
+    'donation_completed': {
+      UserType.admin: AdminNotificationType.donationCompleted,
     },
     
     'donation_post_approved': {
@@ -43,7 +58,7 @@ class ServerNotificationMapping {
     },
 
     'donation_application': {
-      UserType.hospital: HospitalNotificationType.recruitmentDeadline, // 새 헌혈 신청 접수
+      UserType.hospital: HospitalNotificationType.donationApplication, // 새 헌혈 신청 접수
     },
 
     // === 관리자용 컬럼 승인 요청 ===

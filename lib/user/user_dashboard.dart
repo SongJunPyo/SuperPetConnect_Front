@@ -1,5 +1,6 @@
 // ignore_for_file: use_build_context_synchronously
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'pet_management.dart';
 import '../utils/app_theme.dart';
 import '../widgets/app_app_bar.dart';
@@ -24,6 +25,7 @@ import '../widgets/region_selection_sheet.dart';
 import '../models/region_model.dart';
 import '../utils/text_personalization_util.dart';
 import 'package:url_launcher/url_launcher.dart';
+import '../providers/notification_provider.dart';
 
 class UserDashboard extends StatefulWidget {
   const UserDashboard({super.key});
@@ -90,6 +92,14 @@ class _UserDashboardState extends State<UserDashboard>
     _updateDateTime();
     _startTimer();
     _loadDashboardData();
+
+    // 알림 Provider 초기화 (페이지 새로고침 시에도 알림 수신 가능하도록)
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final provider = context.read<NotificationProvider>();
+      if (!provider.isInitialized) {
+        provider.initialize();
+      }
+    });
   }
 
   void _updateDateTime() {

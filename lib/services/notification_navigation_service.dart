@@ -52,8 +52,27 @@ class NotificationNavigationService {
             },
           );
           break;
+        case AdminNotificationType.donationApplicationRequest:
+          Navigator.pushNamed(
+            context,
+            '/admin/donation-approval',
+            arguments: {
+              'highlightApplication': notification.relatedId,
+            },
+          );
+          break;
         case AdminNotificationType.columnApprovalRequest:
           Navigator.pushNamed(context, '/admin/column-management');
+          break;
+        case AdminNotificationType.donationCompleted:
+          Navigator.pushNamed(
+            context,
+            '/admin/post-management',
+            arguments: {
+              'initialTab': 'completed',
+              'highlightPost': notification.relatedId,
+            },
+          );
           break;
         case AdminNotificationType.systemNotice:
           // 시스템 공지는 특별한 페이지 없음
@@ -78,10 +97,22 @@ class NotificationNavigationService {
           );
           break;
         case HospitalNotificationType.recruitmentDeadline:
+        case HospitalNotificationType.timeslotFilled:
+        case HospitalNotificationType.allTimeslotsFilled:
           Navigator.pushReplacementNamed(
             context,
-            '/hospital/dashboard',
+            '/hospital/post-check',
             arguments: {'highlightPostId': notification.relatedId},
+          );
+          break;
+        case HospitalNotificationType.donationApplication:
+          Navigator.pushReplacementNamed(
+            context,
+            '/hospital/post-check',
+            arguments: {
+              'highlightPostId': notification.relatedId,
+              'showApplicants': true,
+            },
           );
           break;
         case HospitalNotificationType.columnApproved:
@@ -148,7 +179,6 @@ class NotificationNavigationService {
         Navigator.pushNamed(context, '/admin/signup-management');
         break;
       case 'new_post_approval':
-      case 'donation_application':
         Navigator.pushNamed(
           context,
           '/admin/post-management',
@@ -158,8 +188,27 @@ class NotificationNavigationService {
           },
         );
         break;
+      case 'new_donation_application':
+        Navigator.pushNamed(
+          context,
+          '/admin/donation-approval',
+          arguments: {
+            'highlightApplication': _extractId(data, 'application_id'),
+          },
+        );
+        break;
       case 'column_approval':
         Navigator.pushNamed(context, '/admin/column-management');
+        break;
+      case 'donation_completed':
+        Navigator.pushNamed(
+          context,
+          '/admin/post-management',
+          arguments: {
+            'initialTab': 'completed',
+            'highlightPost': _extractId(data, 'post_id'),
+          },
+        );
         break;
       default:
         Navigator.pushNamed(context, '/admin/dashboard');
@@ -173,12 +222,23 @@ class NotificationNavigationService {
   ) {
     switch (type) {
       case 'donation_application':
+      case 'new_donation_application_hospital':
         Navigator.pushNamed(
           context,
-          '/hospital/donation-management',
+          '/hospital/post-check',
           arguments: {
-            'postId': _extractId(data, 'post_id'),
-            'highlightApplication': _extractId(data, 'application_id'),
+            'highlightPostId': _extractId(data, 'post_id'),
+            'showApplicants': true,
+          },
+        );
+        break;
+      case 'timeslot_filled':
+      case 'all_timeslots_filled':
+        Navigator.pushNamed(
+          context,
+          '/hospital/post-check',
+          arguments: {
+            'highlightPostId': _extractId(data, 'post_id'),
           },
         );
         break;
