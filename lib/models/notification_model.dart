@@ -63,7 +63,11 @@ class NotificationModel {
   // 관련 데이터에서 ID 추출 (게시글 ID, 사용자 ID 등)
   int? get relatedId {
     if (relatedData == null) return null;
-    return relatedData!['post_id'] ?? relatedData!['user_id'] ?? relatedData!['column_id'];
+    final value = relatedData!['post_id'] ?? relatedData!['user_id'] ?? relatedData!['column_id'];
+    if (value == null) return null;
+    if (value is int) return value;
+    if (value is String) return int.tryParse(value);
+    return null;
   }
 
   // 읽음 상태로 변경한 새 객체 생성
@@ -129,9 +133,25 @@ class AdminNotificationModel extends NotificationModel {
 
   // 알림 타입 이름 가져오기
   String get typeName => NotificationTypeNames.adminNames[adminType] ?? '';
-  
+
   // 알림 아이콘 가져오기
   String get typeIcon => NotificationTypeIcons.adminIcons[adminType] ?? '🔔';
+
+  // 읽음 상태로 변경한 새 객체 생성 (타입 유지)
+  @override
+  AdminNotificationModel markAsRead() {
+    return AdminNotificationModel(
+      notificationId: notificationId,
+      userId: userId,
+      title: title,
+      content: content,
+      createdAt: createdAt,
+      adminType: adminType,
+      updatedAt: DateTime.now(),
+      isRead: true,
+      relatedData: relatedData,
+    );
+  }
 }
 
 // 병원 전용 알림 모델
@@ -175,9 +195,25 @@ class HospitalNotificationModel extends NotificationModel {
 
   // 알림 타입 이름 가져오기
   String get typeName => NotificationTypeNames.hospitalNames[hospitalType] ?? '';
-  
+
   // 알림 아이콘 가져오기
   String get typeIcon => NotificationTypeIcons.hospitalIcons[hospitalType] ?? '🔔';
+
+  // 읽음 상태로 변경한 새 객체 생성 (타입 유지)
+  @override
+  HospitalNotificationModel markAsRead() {
+    return HospitalNotificationModel(
+      notificationId: notificationId,
+      userId: userId,
+      title: title,
+      content: content,
+      createdAt: createdAt,
+      hospitalType: hospitalType,
+      updatedAt: DateTime.now(),
+      isRead: true,
+      relatedData: relatedData,
+    );
+  }
 }
 
 // 사용자 전용 알림 모델
@@ -221,9 +257,25 @@ class UserNotificationModel extends NotificationModel {
 
   // 알림 타입 이름 가져오기
   String get typeName => NotificationTypeNames.userNames[userType] ?? '';
-  
+
   // 알림 아이콘 가져오기
   String get typeIcon => NotificationTypeIcons.userIcons[userType] ?? '🔔';
+
+  // 읽음 상태로 변경한 새 객체 생성 (타입 유지)
+  @override
+  UserNotificationModel markAsRead() {
+    return UserNotificationModel(
+      notificationId: notificationId,
+      userId: userId,
+      title: title,
+      content: content,
+      createdAt: createdAt,
+      userType: userType,
+      updatedAt: DateTime.now(),
+      isRead: true,
+      relatedData: relatedData,
+    );
+  }
 }
 
 // 알림 목록 응답 모델
@@ -265,15 +317,18 @@ class NotificationFactory {
     required String title,
     required String content,
     Map<String, dynamic>? relatedData,
+    bool isRead = false,
+    DateTime? createdAt,
   }) {
     return AdminNotificationModel(
       notificationId: notificationId,
       userId: userId,
       title: title,
       content: content,
-      createdAt: DateTime.now(),
+      createdAt: createdAt ?? DateTime.now(),
       adminType: type,
       relatedData: relatedData,
+      isRead: isRead,
     );
   }
 
@@ -285,15 +340,18 @@ class NotificationFactory {
     required String title,
     required String content,
     Map<String, dynamic>? relatedData,
+    bool isRead = false,
+    DateTime? createdAt,
   }) {
     return HospitalNotificationModel(
       notificationId: notificationId,
       userId: userId,
       title: title,
       content: content,
-      createdAt: DateTime.now(),
+      createdAt: createdAt ?? DateTime.now(),
       hospitalType: type,
       relatedData: relatedData,
+      isRead: isRead,
     );
   }
 
@@ -305,15 +363,18 @@ class NotificationFactory {
     required String title,
     required String content,
     Map<String, dynamic>? relatedData,
+    bool isRead = false,
+    DateTime? createdAt,
   }) {
     return UserNotificationModel(
       notificationId: notificationId,
       userId: userId,
       title: title,
       content: content,
-      createdAt: DateTime.now(),
+      createdAt: createdAt ?? DateTime.now(),
       userType: type,
       relatedData: relatedData,
+      isRead: isRead,
     );
   }
 }

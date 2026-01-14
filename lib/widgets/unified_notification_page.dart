@@ -3,10 +3,14 @@ import 'package:provider/provider.dart';
 import '../models/notification_model.dart';
 import '../models/notification_types.dart';
 import '../providers/notification_provider.dart';
-import '../admin/admin_post_management_page.dart';
+import '../admin/admin_post_check.dart';
 import '../admin/admin_signup_management.dart';
 import '../admin/admin_column_management.dart';
-import 'notification_debug_page.dart';
+import '../hospital/hospital_post_check.dart';
+import '../hospital/hospital_column_management_list.dart';
+import '../user/user_donation_posts_list.dart';
+import '../user/my_applications_screen.dart';
+import '../services/dashboard_service.dart';
 import '../utils/app_theme.dart';
 import 'package:intl/intl.dart';
 
@@ -21,6 +25,11 @@ class UnifiedNotificationPage extends StatefulWidget {
 
 class _UnifiedNotificationPageState extends State<UnifiedNotificationPage> {
   final ScrollController _scrollController = ScrollController();
+
+  // 선택 모드 상태
+  bool _isSelectionMode = false;
+  final Set<int> _selectedIds = {};
+  bool _isDeleting = false;
 
   @override
   void initState() {
@@ -40,6 +49,108 @@ class _UnifiedNotificationPageState extends State<UnifiedNotificationPage> {
   void dispose() {
     _scrollController.dispose();
     super.dispose();
+  }
+
+  /// 선택 모드 토글
+  void _toggleSelectionMode() {
+    setState(() {
+      _isSelectionMode = !_isSelectionMode;
+      if (!_isSelectionMode) {
+        _selectedIds.clear();
+      }
+    });
+  }
+
+  /// 알림 선택 토글
+  void _toggleSelection(int notificationId) {
+    setState(() {
+      if (_selectedIds.contains(notificationId)) {
+        _selectedIds.remove(notificationId);
+      } else {
+        _selectedIds.add(notificationId);
+      }
+    });
+  }
+
+  /// 전체 선택/해제
+  void _toggleSelectAll(NotificationProvider provider) {
+    setState(() {
+      if (_selectedIds.length == provider.notifications.length) {
+        _selectedIds.clear();
+      } else {
+        _selectedIds.clear();
+        for (final notification in provider.notifications) {
+          _selectedIds.add(notification.notificationId);
+        }
+      }
+    });
+  }
+
+  /// 선택된 알림 삭제
+  Future<void> _deleteSelected(NotificationProvider provider) async {
+    if (_selectedIds.isEmpty) return;
+
+    final confirmed = await _showDeleteConfirmDialog(_selectedIds.length);
+    if (!confirmed) return;
+
+    setState(() => _isDeleting = true);
+
+    try {
+      final success = await provider.deleteNotifications(_selectedIds.toList());
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(success
+                ? '${_selectedIds.length}개의 알림이 삭제되었습니다'
+                : '삭제에 실패했습니다'),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+
+        if (success) {
+          setState(() {
+            _selectedIds.clear();
+            _isSelectionMode = false;
+          });
+        }
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isDeleting = false);
+      }
+    }
+  }
+
+  /// 삭제 확인 다이얼로그
+  Future<bool> _showDeleteConfirmDialog(int count) async {
+    return await showDialog<bool>(
+          context: context,
+          builder: (context) => AlertDialog(
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+            ),
+            title: const Text('알림 삭제'),
+            content: Text('선택한 $count개의 알림을 삭제하시겠습니까?'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context, false),
+                child: Text(
+                  '취소',
+                  style: TextStyle(color: AppTheme.textSecondary),
+                ),
+              ),
+              TextButton(
+                onPressed: () => Navigator.pop(context, true),
+                child: Text(
+                  '삭제',
+                  style: TextStyle(color: AppTheme.error),
+                ),
+              ),
+            ],
+          ),
+        ) ??
+        false;
   }
 
   void _onScroll() {
@@ -74,14 +185,123 @@ class _UnifiedNotificationPageState extends State<UnifiedNotificationPage> {
 
         return Scaffold(
           backgroundColor: Colors.white,
-          appBar: _buildAppBar(provider),
+          appBar: _isSelectionMode
+              ? _buildSelectionAppBar(provider)
+              : _buildAppBar(provider),
           body: RefreshIndicator(
             onRefresh: () => provider.refresh(),
             color: AppTheme.primaryBlue,
             child: _buildBody(provider),
           ),
+          // 선택 모드일 때 하단 액션 바
+          bottomNavigationBar: _isSelectionMode
+              ? _buildSelectionBottomBar(provider)
+              : null,
         );
       },
+    );
+  }
+
+  /// 선택 모드 AppBar
+  PreferredSizeWidget _buildSelectionAppBar(NotificationProvider provider) {
+    final allSelected = provider.notifications.isNotEmpty &&
+        _selectedIds.length == provider.notifications.length;
+
+    return AppBar(
+      backgroundColor: AppTheme.primaryBlue,
+      elevation: 0,
+      leading: IconButton(
+        icon: const Icon(Icons.close, color: Colors.white),
+        onPressed: _toggleSelectionMode,
+      ),
+      title: Text(
+        '${_selectedIds.length}개 선택됨',
+        style: const TextStyle(
+          color: Colors.white,
+          fontWeight: FontWeight.bold,
+          fontSize: 18,
+        ),
+      ),
+      actions: [
+        // 전체 선택/해제 버튼
+        TextButton.icon(
+          onPressed: () => _toggleSelectAll(provider),
+          icon: Icon(
+            allSelected ? Icons.deselect : Icons.select_all,
+            color: Colors.white,
+            size: 20,
+          ),
+          label: Text(
+            allSelected ? '전체 해제' : '전체 선택',
+            style: const TextStyle(color: Colors.white),
+          ),
+        ),
+        const SizedBox(width: 8),
+      ],
+    );
+  }
+
+  /// 선택 모드 하단 액션 바
+  Widget _buildSelectionBottomBar(NotificationProvider provider) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.1),
+            blurRadius: 8,
+            offset: const Offset(0, -2),
+          ),
+        ],
+      ),
+      child: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          child: Row(
+            children: [
+              // 선택 개수 표시
+              Expanded(
+                child: Text(
+                  '${_selectedIds.length}개 선택',
+                  style: AppTheme.bodyMediumStyle.copyWith(
+                    color: AppTheme.textSecondary,
+                  ),
+                ),
+              ),
+              // 삭제 버튼
+              ElevatedButton.icon(
+                onPressed: _selectedIds.isEmpty || _isDeleting
+                    ? null
+                    : () => _deleteSelected(provider),
+                icon: _isDeleting
+                    ? const SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: Colors.white,
+                        ),
+                      )
+                    : const Icon(Icons.delete_outline, size: 20),
+                label: Text(_isDeleting ? '삭제 중...' : '삭제'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: _selectedIds.isEmpty
+                      ? AppTheme.lightGray
+                      : AppTheme.error,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 20,
+                    vertical: 12,
+                  ),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 
@@ -132,33 +352,14 @@ class _UnifiedNotificationPageState extends State<UnifiedNotificationPage> {
               ),
             ),
           ),
-        // 더보기 메뉴
-        PopupMenuButton<String>(
-          icon: const Icon(Icons.more_vert, color: AppTheme.textPrimary),
-          onSelected: (value) {
-            if (value == 'debug') {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => const NotificationDebugPage(),
-                ),
-              );
-            }
-          },
-          itemBuilder: (context) => [
-            const PopupMenuItem(
-              value: 'debug',
-              child: Row(
-                children: [
-                  Icon(Icons.bug_report, size: 20),
-                  SizedBox(width: 8),
-                  Text('연결 상태 확인'),
-                ],
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(width: 4),
+        // 편집(선택) 모드 버튼
+        if (provider.notifications.isNotEmpty)
+          IconButton(
+            icon: const Icon(Icons.checklist, color: AppTheme.textPrimary),
+            tooltip: '편집',
+            onPressed: _toggleSelectionMode,
+          ),
+        const SizedBox(width: 8),
       ],
     );
   }
@@ -290,38 +491,78 @@ class _UnifiedNotificationPageState extends State<UnifiedNotificationPage> {
   Widget _buildNotificationItem(NotificationModel notification, NotificationProvider provider) {
     final isRead = notification.isRead;
     final timeAgo = _getTimeAgo(notification.createdAt);
+    final isSelected = _selectedIds.contains(notification.notificationId);
 
     return InkWell(
-      onTap: () => _onNotificationTap(notification, provider),
+      onTap: () {
+        if (_isSelectionMode) {
+          _toggleSelection(notification.notificationId);
+        } else {
+          _onNotificationTap(notification, provider);
+        }
+      },
+      onLongPress: () {
+        // 롱프레스로 선택 모드 진입
+        if (!_isSelectionMode) {
+          _toggleSelectionMode();
+          _toggleSelection(notification.notificationId);
+        }
+      },
       child: Container(
-        color: isRead ? Colors.white : AppTheme.primaryBlue.withValues(alpha: 0.03),
+        decoration: BoxDecoration(
+          color: isSelected
+              ? AppTheme.primaryBlue.withValues(alpha: 0.15)
+              : (isRead ? Colors.white : const Color(0xFFE8F3FF)),
+          border: isRead ? null : const Border(
+            left: BorderSide(
+              color: Color(0xFF3182F6),
+              width: 4,
+            ),
+          ),
+        ),
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
+          crossAxisAlignment: CrossAxisAlignment.center,
           children: [
-            // 읽음 표시 점
-            Container(
-              width: 8,
-              height: 8,
-              margin: const EdgeInsets.only(top: 6, right: 12),
-              decoration: BoxDecoration(
-                color: isRead ? Colors.transparent : AppTheme.primaryBlue,
-                shape: BoxShape.circle,
+            // 선택 모드: 체크박스
+            if (_isSelectionMode)
+              GestureDetector(
+                onTap: () => _toggleSelection(notification.notificationId),
+                child: Container(
+                  width: 24,
+                  height: 24,
+                  margin: const EdgeInsets.only(right: 12),
+                  decoration: BoxDecoration(
+                    color: isSelected ? AppTheme.primaryBlue : Colors.transparent,
+                    borderRadius: BorderRadius.circular(4),
+                    border: Border.all(
+                      color: isSelected ? AppTheme.primaryBlue : AppTheme.mediumGray,
+                      width: 2,
+                    ),
+                  ),
+                  child: isSelected
+                      ? const Icon(
+                          Icons.check,
+                          color: Colors.white,
+                          size: 16,
+                        )
+                      : null,
+                ),
               ),
-            ),
-            // 아이콘
+            // 아이콘 (동그란 원 배경)
             Container(
-              width: 40,
-              height: 40,
+              width: 44,
+              height: 44,
               margin: const EdgeInsets.only(right: 12),
               decoration: BoxDecoration(
-                color: _getIconBackgroundColor(notification).withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(10),
+                color: _getIconBackgroundColor(notification).withValues(alpha: 0.15),
+                shape: BoxShape.circle,
               ),
               child: Center(
-                child: Text(
-                  _getNotificationIcon(notification, provider),
-                  style: const TextStyle(fontSize: 18),
+                child: Icon(
+                  _getNotificationIconData(notification, provider),
+                  size: 22,
+                  color: _getIconBackgroundColor(notification),
                 ),
               ),
             ),
@@ -334,8 +575,8 @@ class _UnifiedNotificationPageState extends State<UnifiedNotificationPage> {
                   Text(
                     notification.title,
                     style: AppTheme.bodyMediumStyle.copyWith(
-                      fontWeight: isRead ? FontWeight.w500 : FontWeight.bold,
-                      color: AppTheme.textPrimary,
+                      fontWeight: isRead ? FontWeight.w400 : FontWeight.bold,
+                      color: isRead ? AppTheme.textSecondary : AppTheme.textPrimary,
                     ),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
@@ -345,7 +586,7 @@ class _UnifiedNotificationPageState extends State<UnifiedNotificationPage> {
                   Text(
                     notification.content,
                     style: AppTheme.bodySmallStyle.copyWith(
-                      color: AppTheme.textSecondary,
+                      color: isRead ? AppTheme.textTertiary : AppTheme.textSecondary,
                     ),
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
@@ -383,12 +624,13 @@ class _UnifiedNotificationPageState extends State<UnifiedNotificationPage> {
                 ],
               ),
             ),
-            // 화살표
-            Icon(
-              Icons.chevron_right,
-              color: AppTheme.lightGray,
-              size: 20,
-            ),
+            // 선택 모드가 아닐 때만 화살표 표시
+            if (!_isSelectionMode)
+              Icon(
+                Icons.chevron_right,
+                color: AppTheme.lightGray,
+                size: 20,
+              ),
           ],
         ),
       ),
@@ -396,13 +638,60 @@ class _UnifiedNotificationPageState extends State<UnifiedNotificationPage> {
   }
 
   Color _getIconBackgroundColor(NotificationModel notification) {
+    // 관리자 알림
     if (notification is AdminNotificationModel) {
-      return AppTheme.primaryBlue;
-    } else if (notification is HospitalNotificationModel) {
-      return AppTheme.success;
-    } else {
-      return AppTheme.warning;
+      switch (notification.adminType) {
+        case AdminNotificationType.signupRequest:
+          return AppTheme.primaryBlue;
+        case AdminNotificationType.postApprovalRequest:
+          return const Color(0xFF6366F1); // 인디고
+        case AdminNotificationType.donationApplicationRequest:
+          return const Color(0xFFEC4899); // 핑크
+        case AdminNotificationType.columnApprovalRequest:
+          return const Color(0xFF8B5CF6); // 보라
+        case AdminNotificationType.donationCompleted:
+          return AppTheme.success;
+        case AdminNotificationType.systemNotice:
+          return const Color(0xFF64748B); // 슬레이트
+      }
     }
+    // 병원 알림
+    else if (notification is HospitalNotificationModel) {
+      switch (notification.hospitalType) {
+        case HospitalNotificationType.postApproved:
+        case HospitalNotificationType.columnApproved:
+        case HospitalNotificationType.donationCompleted:
+          return AppTheme.success;
+        case HospitalNotificationType.postRejected:
+        case HospitalNotificationType.columnRejected:
+          return AppTheme.error;
+        case HospitalNotificationType.recruitmentDeadline:
+          return AppTheme.warning;
+        case HospitalNotificationType.timeslotFilled:
+          return const Color(0xFF06B6D4); // 시안
+        case HospitalNotificationType.allTimeslotsFilled:
+          return const Color(0xFF8B5CF6); // 보라
+        case HospitalNotificationType.donationApplication:
+          return AppTheme.primaryBlue;
+        case HospitalNotificationType.systemNotice:
+          return const Color(0xFF64748B); // 슬레이트
+      }
+    }
+    // 사용자 알림
+    else if (notification is UserNotificationModel) {
+      switch (notification.userType) {
+        case UserNotificationType.applicationApproved:
+        case UserNotificationType.donationCompleted:
+          return AppTheme.success;
+        case UserNotificationType.applicationRejected:
+          return AppTheme.error;
+        case UserNotificationType.recruitmentClosed:
+          return AppTheme.warning;
+        case UserNotificationType.systemNotice:
+          return const Color(0xFF64748B); // 슬레이트
+      }
+    }
+    return AppTheme.primaryBlue;
   }
 
   String _getTimeAgo(DateTime dateTime) {
@@ -435,12 +724,13 @@ class _UnifiedNotificationPageState extends State<UnifiedNotificationPage> {
   }
 
   void _onNotificationTap(NotificationModel notification, NotificationProvider provider) {
-    // 읽음 처리
+    // 먼저 페이지 이동 (rebuild 전에 실행)
+    _navigateToRelevantPage(notification, provider.currentUserType!);
+
+    // 읽음 처리 (페이지 이동 후 비동기로 처리)
     if (!notification.isRead) {
       provider.markAsRead(notification.notificationId);
     }
-    // 알림 타입에 따른 페이지 이동
-    _navigateToRelevantPage(notification, provider.currentUserType!);
   }
 
   void _navigateToRelevantPage(NotificationModel notification, UserType userType) {
@@ -467,42 +757,18 @@ class _UnifiedNotificationPageState extends State<UnifiedNotificationPage> {
           );
           break;
         case AdminNotificationType.postApprovalRequest:
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) => AdminPostManagementPage(
-                initialTab: 'pending_approval',
-                highlightPostId: notification.relatedId?.toString(),
-              ),
-            ),
-          );
-          break;
         case AdminNotificationType.donationApplicationRequest:
+        case AdminNotificationType.donationCompleted:
+          // 게시글 관련 알림 → 헌혈 게시글 관리 페이지
           Navigator.push(
             context,
-            MaterialPageRoute(
-              builder: (context) => AdminPostManagementPage(
-                initialTab: 'pending_approval',
-                highlightPostId: notification.relatedId?.toString(),
-              ),
-            ),
+            MaterialPageRoute(builder: (context) => const AdminPostCheck()),
           );
           break;
         case AdminNotificationType.columnApprovalRequest:
           Navigator.push(
             context,
             MaterialPageRoute(builder: (context) => const AdminColumnManagement()),
-          );
-          break;
-        case AdminNotificationType.donationCompleted:
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) => AdminPostManagementPage(
-                initialTab: 'completed',
-                highlightPostId: notification.relatedId?.toString(),
-              ),
-            ),
           );
           break;
         case AdminNotificationType.systemNotice:
@@ -514,15 +780,29 @@ class _UnifiedNotificationPageState extends State<UnifiedNotificationPage> {
   void _handleHospitalNotificationTap(NotificationModel notification) {
     if (notification is HospitalNotificationModel) {
       switch (notification.hospitalType) {
+        // 게시글 관련 알림 → 게시글 관리 페이지
         case HospitalNotificationType.postApproved:
         case HospitalNotificationType.postRejected:
         case HospitalNotificationType.recruitmentDeadline:
         case HospitalNotificationType.timeslotFilled:
         case HospitalNotificationType.allTimeslotsFilled:
         case HospitalNotificationType.donationApplication:
+        case HospitalNotificationType.donationCompleted:
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (context) => const HospitalPostCheck()),
+          );
+          break;
+        // 칼럼 관련 알림 → 칼럼 관리 페이지
         case HospitalNotificationType.columnApproved:
         case HospitalNotificationType.columnRejected:
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (context) => const HospitalColumnManagementScreen()),
+          );
+          break;
         case HospitalNotificationType.systemNotice:
+          // 시스템 공지는 대시보드로 이동
           Navigator.pushReplacementNamed(context, '/hospital/dashboard');
           break;
       }
@@ -531,29 +811,150 @@ class _UnifiedNotificationPageState extends State<UnifiedNotificationPage> {
 
   void _handleUserNotificationTap(NotificationModel notification) {
     if (notification is UserNotificationModel) {
-      Navigator.pushReplacementNamed(context, '/user/dashboard');
+      switch (notification.userType) {
+        // 모집 마감, 신청 승인/거절, 헌혈 완료 → 내 신청 내역 페이지
+        case UserNotificationType.recruitmentClosed:
+        case UserNotificationType.applicationApproved:
+        case UserNotificationType.applicationRejected:
+        case UserNotificationType.donationCompleted:
+          _navigateToUserPostDetail(notification);
+          break;
+        case UserNotificationType.systemNotice:
+          // 시스템 공지는 대시보드로 이동
+          Navigator.pushReplacementNamed(context, '/user/dashboard');
+          break;
+      }
     }
   }
 
-  String _getNotificationIcon(NotificationModel notification, NotificationProvider provider) {
+  /// 사용자 알림에서 게시글 상세로 이동
+  Future<void> _navigateToUserPostDetail(NotificationModel notification) async {
+    // relatedData에서 post_id 추출
+    final postId = _extractPostId(notification.relatedData);
+
+    if (postId != null) {
+      // 게시글 상세 정보 로드
+      try {
+        final post = await DashboardService.getDonationPostDetail(postId);
+        if (post != null && mounted) {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => UserDonationPostsListScreen(
+                initialPost: post,
+                autoShowBottomSheet: true,
+              ),
+            ),
+          );
+          return;
+        }
+      } catch (e) {
+        debugPrint('[UnifiedNotificationPage] 게시글 로드 실패: $e');
+      }
+    }
+
+    // post_id가 없거나 로드 실패 시 내 신청 내역 페이지로 이동
+    if (mounted) {
+      Navigator.push(
+        context,
+        MaterialPageRoute(builder: (context) => const MyApplicationsScreen()),
+      );
+    }
+  }
+
+  /// relatedData에서 post_id 추출
+  int? _extractPostId(Map<String, dynamic>? relatedData) {
+    if (relatedData == null) return null;
+
+    // 다양한 키 이름으로 post_id 추출 시도
+    final postIdValue = relatedData['post_id'] ??
+                        relatedData['postId'] ??
+                        relatedData['post_idx'];
+
+    if (postIdValue == null) return null;
+
+    if (postIdValue is int) return postIdValue;
+    if (postIdValue is String) return int.tryParse(postIdValue);
+
+    return null;
+  }
+
+  IconData _getNotificationIconData(NotificationModel notification, NotificationProvider provider) {
     switch (provider.currentUserType!) {
       case UserType.admin:
         if (notification is AdminNotificationModel) {
-          return notification.typeIcon;
+          return _getAdminNotificationIcon(notification.adminType);
         }
         break;
       case UserType.hospital:
         if (notification is HospitalNotificationModel) {
-          return notification.typeIcon;
+          return _getHospitalNotificationIcon(notification.hospitalType);
         }
         break;
       case UserType.user:
         if (notification is UserNotificationModel) {
-          return notification.typeIcon;
+          return _getUserNotificationIcon(notification.userType);
         }
         break;
     }
-    return '🔔';
+    return Icons.notifications;
+  }
+
+  IconData _getAdminNotificationIcon(AdminNotificationType type) {
+    switch (type) {
+      case AdminNotificationType.signupRequest:
+        return Icons.person_add;
+      case AdminNotificationType.postApprovalRequest:
+        return Icons.article;
+      case AdminNotificationType.donationApplicationRequest:
+        return Icons.bloodtype;
+      case AdminNotificationType.columnApprovalRequest:
+        return Icons.description;
+      case AdminNotificationType.donationCompleted:
+        return Icons.check_circle;
+      case AdminNotificationType.systemNotice:
+        return Icons.campaign;
+    }
+  }
+
+  IconData _getHospitalNotificationIcon(HospitalNotificationType type) {
+    switch (type) {
+      case HospitalNotificationType.postApproved:
+        return Icons.check_circle;
+      case HospitalNotificationType.postRejected:
+        return Icons.cancel;
+      case HospitalNotificationType.recruitmentDeadline:
+        return Icons.schedule;
+      case HospitalNotificationType.timeslotFilled:
+        return Icons.event_available;
+      case HospitalNotificationType.allTimeslotsFilled:
+        return Icons.celebration;
+      case HospitalNotificationType.donationApplication:
+        return Icons.bloodtype;
+      case HospitalNotificationType.donationCompleted:
+        return Icons.check_circle;
+      case HospitalNotificationType.columnApproved:
+        return Icons.check_circle;
+      case HospitalNotificationType.columnRejected:
+        return Icons.cancel;
+      case HospitalNotificationType.systemNotice:
+        return Icons.campaign;
+    }
+  }
+
+  IconData _getUserNotificationIcon(UserNotificationType type) {
+    switch (type) {
+      case UserNotificationType.systemNotice:
+        return Icons.campaign;
+      case UserNotificationType.recruitmentClosed:
+        return Icons.event_busy;
+      case UserNotificationType.donationCompleted:
+        return Icons.check_circle;
+      case UserNotificationType.applicationApproved:
+        return Icons.thumb_up;
+      case UserNotificationType.applicationRejected:
+        return Icons.thumb_down;
+    }
   }
 
   String _getNotificationTypeName(NotificationModel notification, NotificationProvider provider) {

@@ -44,6 +44,7 @@ class NotificationProvider extends ChangeNotifier {
   int _unreadCount = 0;
   bool _isLoading = false;
   bool _isInitialized = false;
+  bool _isInitializing = false; // 초기화 중복 호출 방지
   ConnectionStatus _connectionStatus = ConnectionStatus.disconnected;
   UserType? _currentUserType;
   String? _errorMessage;
@@ -76,12 +77,17 @@ class NotificationProvider extends ChangeNotifier {
   /// Provider 초기화
   /// 앱 시작 시 또는 로그인 후 호출됩니다.
   Future<void> initialize() async {
-    debugPrint('[NotificationProvider] initialize() 호출 - isInitialized: $_isInitialized');
+    debugPrint('[NotificationProvider] initialize() 호출 - isInitialized: $_isInitialized, isInitializing: $_isInitializing');
     if (_isInitialized) {
       debugPrint('[NotificationProvider] 이미 초기화됨, 건너뜀');
       return;
     }
+    if (_isInitializing) {
+      debugPrint('[NotificationProvider] 초기화 진행 중, 건너뜀');
+      return;
+    }
 
+    _isInitializing = true;
     _setLoading(true);
     _connectionStatus = ConnectionStatus.connecting;
     notifyListeners();
@@ -93,6 +99,8 @@ class NotificationProvider extends ChangeNotifier {
 
       if (accountType == null) {
         _connectionStatus = ConnectionStatus.disconnected;
+        _isInitialized = true; // 로그인되지 않은 상태도 초기화 완료로 처리
+        _isInitializing = false;
         _setLoading(false);
         return;
       }
@@ -106,13 +114,13 @@ class NotificationProvider extends ChangeNotifier {
       // 실시간 알림 스트림 구독 (먼저 설정해야 알림 수신 가능)
       _setupRealtimeSubscription();
 
-      // 웹에서 브라우저 알림 권한 요청 (실패해도 계속 진행)
+      // 웹에서 브라우저 알림 권한 요청 (비동기로 실행, 기다리지 않음)
       if (kIsWeb) {
-        try {
-          await WebNotificationHelper.requestPermission();
-        } catch (e) {
+        // 권한 요청은 백그라운드에서 실행 (사용자 응답 대기하지 않음)
+        WebNotificationHelper.requestPermission().catchError((e) {
           debugPrint('[NotificationProvider] 브라우저 알림 권한 요청 실패: $e');
-        }
+          return false;
+        });
       }
 
       // 초기 알림 목록 로드 (로딩 상태 해제 후 호출)
@@ -122,6 +130,7 @@ class NotificationProvider extends ChangeNotifier {
       debugPrint('[NotificationProvider] loadNotifications 완료 - 알림 수: ${_notifications.length}');
 
       _isInitialized = true;
+      _isInitializing = false;
       _connectionStatus = ConnectionStatus.connected;
       _isLoading = false;
       debugPrint('[NotificationProvider] 초기화 완료 - isInitialized: $_isInitialized, connectionStatus: $_connectionStatus');
@@ -129,6 +138,8 @@ class NotificationProvider extends ChangeNotifier {
     } catch (e) {
       _errorMessage = '알림 시스템 초기화 실패: $e';
       _connectionStatus = ConnectionStatus.error;
+      _isInitialized = true; // 에러 발생해도 초기화 완료로 처리 (무한 로딩 방지)
+      _isInitializing = false;
       _isLoading = false;
       debugPrint('[NotificationProvider] 초기화 실패: $e');
       notifyListeners(); // 에러 상태 UI 갱신
@@ -360,18 +371,25 @@ class NotificationProvider extends ChangeNotifier {
 
   /// 개별 알림 읽음 처리
   Future<bool> markAsRead(int notificationId) async {
+    debugPrint('[NotificationProvider] markAsRead 호출 - notificationId: $notificationId');
     try {
       final success = await NotificationApiService.markAsRead(notificationId);
+      debugPrint('[NotificationProvider] markAsRead API 결과: $success');
 
       if (success) {
         final index = _notifications.indexWhere(
           (n) => n.notificationId == notificationId,
         );
+        debugPrint('[NotificationProvider] 알림 인덱스: $index');
 
         if (index != -1 && !_notifications[index].isRead) {
+          final oldNotification = _notifications[index];
           _notifications[index] = _notifications[index].markAsRead();
           _unreadCount = _unreadCount > 0 ? _unreadCount - 1 : 0;
+          debugPrint('[NotificationProvider] 읽음 처리 완료 - 이전 isRead: ${oldNotification.isRead}, 현재 isRead: ${_notifications[index].isRead}');
           notifyListeners();
+        } else {
+          debugPrint('[NotificationProvider] 읽음 처리 스킵 - 이미 읽음 상태');
         }
       }
 
@@ -396,6 +414,92 @@ class NotificationProvider extends ChangeNotifier {
       return success;
     } catch (e) {
       debugPrint('[NotificationProvider] 전체 읽음 처리 실패: $e');
+      return false;
+    }
+  }
+
+  // === 알림 삭제 ===
+
+  /// 개별 알림 삭제
+  Future<bool> deleteNotification(int notificationId) async {
+    try {
+      final success = await NotificationApiService.deleteNotification(notificationId);
+
+      if (success) {
+        final index = _notifications.indexWhere(
+          (n) => n.notificationId == notificationId,
+        );
+
+        if (index != -1) {
+          final notification = _notifications[index];
+          _notifications.removeAt(index);
+          if (!notification.isRead) {
+            _unreadCount = _unreadCount > 0 ? _unreadCount - 1 : 0;
+          }
+          notifyListeners();
+        }
+      }
+
+      return success;
+    } catch (e) {
+      debugPrint('[NotificationProvider] 알림 삭제 실패: $e');
+      return false;
+    }
+  }
+
+  /// 다건 알림 삭제
+  Future<bool> deleteNotifications(List<int> notificationIds) async {
+    try {
+      final success = await NotificationApiService.deleteNotifications(notificationIds);
+
+      if (success) {
+        // 삭제된 알림 중 읽지 않은 개수 계산
+        int unreadDeletedCount = 0;
+        for (final id in notificationIds) {
+          final notification = _notifications.firstWhere(
+            (n) => n.notificationId == id,
+            orElse: () => NotificationModel(
+              notificationId: 0,
+              userId: 0,
+              typeId: 0,
+              title: '',
+              content: '',
+              createdAt: DateTime.now(),
+              isRead: true,
+            ),
+          );
+          if (!notification.isRead && notification.notificationId != 0) {
+            unreadDeletedCount++;
+          }
+        }
+
+        // 목록에서 삭제된 알림 제거
+        _notifications.removeWhere((n) => notificationIds.contains(n.notificationId));
+        _unreadCount = (_unreadCount - unreadDeletedCount).clamp(0, _unreadCount);
+        notifyListeners();
+      }
+
+      return success;
+    } catch (e) {
+      debugPrint('[NotificationProvider] 다건 알림 삭제 실패: $e');
+      return false;
+    }
+  }
+
+  /// 전체 알림 삭제
+  Future<bool> deleteAllNotifications() async {
+    try {
+      final success = await NotificationApiService.deleteAllNotifications();
+
+      if (success) {
+        _notifications.clear();
+        _unreadCount = 0;
+        notifyListeners();
+      }
+
+      return success;
+    } catch (e) {
+      debugPrint('[NotificationProvider] 전체 알림 삭제 실패: $e');
       return false;
     }
   }
@@ -445,6 +549,7 @@ class NotificationProvider extends ChangeNotifier {
     _unreadCount = 0;
     _isLoading = false;
     _isInitialized = false;
+    _isInitializing = false;
     _connectionStatus = ConnectionStatus.disconnected;
     _currentUserType = null;
     _errorMessage = null;

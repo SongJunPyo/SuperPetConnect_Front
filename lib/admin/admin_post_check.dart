@@ -2738,6 +2738,7 @@ class _AdminPostCheckState extends State<AdminPostCheck>
                                 const Spacer(),
                                 _buildTimeSlotStatusBadge(
                                   timeSlot['status'] ?? 0,
+                                  postStatus: post['status'] as int?,
                                 ), // 기본값 0(모집중)
                                 if (isActive) // 마감된 시간대도 신청자 관리 버튼 표시
                                   Padding(
@@ -3155,7 +3156,52 @@ class _AdminPostCheckState extends State<AdminPostCheck>
   }
 
   // Helper method to build the status badge for a time slot
-  Widget _buildTimeSlotStatusBadge(dynamic status) {
+  Widget _buildTimeSlotStatusBadge(dynamic status, {int? postStatus}) {
+    // 헌혈완료 탭인 경우 항상 "헌혈완료" 뱃지 표시
+    if (_currentTabIndex == 3) {
+      return Container(
+        alignment: Alignment.center,
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+        decoration: BoxDecoration(
+          color: Colors.blue,
+          borderRadius: BorderRadius.circular(6),
+        ),
+        child: const Text(
+          '헌혈완료',
+          style: TextStyle(
+            color: Colors.white,
+            fontSize: 10,
+            fontWeight: FontWeight.bold,
+            height: 1.0,
+          ),
+          textAlign: TextAlign.center,
+        ),
+      );
+    }
+
+    // 헌혈마감 탭인 경우 게시글 상태에 따라 뱃지 표시
+    if (_currentTabIndex == 2 && postStatus != null) {
+      final isCompletion = (postStatus == 5); // 완료대기
+      return Container(
+        alignment: Alignment.center,
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+        decoration: BoxDecoration(
+          color: isCompletion ? Colors.blue : Colors.orange,
+          borderRadius: BorderRadius.circular(6),
+        ),
+        child: Text(
+          isCompletion ? '헌혈완료' : '헌혈중단',
+          style: const TextStyle(
+            color: Colors.white,
+            fontSize: 10,
+            fontWeight: FontWeight.bold,
+            height: 1.0,
+          ),
+          textAlign: TextAlign.center,
+        ),
+      );
+    }
+
     final isClosed = (status == 1);
     return Container(
       alignment: Alignment.center,

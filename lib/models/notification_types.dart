@@ -46,6 +46,7 @@ enum HospitalNotificationType {
   timeslotFilled,     // 특정 시간대 모집 완료
   allTimeslotsFilled, // 모든 시간대 모집 완료
   donationApplication, // 새 헌혈 신청 접수
+  donationCompleted,  // 헌혈 완료 알림
   columnApproved,     // 칼럼 게시글 승인
   columnRejected,     // 칼럼 게시글 거절
   systemNotice,       // 시스템 공지
@@ -80,6 +81,7 @@ class NotificationTypeNames {
     HospitalNotificationType.timeslotFilled: '시간대 모집 완료',
     HospitalNotificationType.allTimeslotsFilled: '전체 모집 완료',
     HospitalNotificationType.donationApplication: '새 헌혈 신청',
+    HospitalNotificationType.donationCompleted: '헌혈 완료',
     HospitalNotificationType.columnApproved: '칼럼 게시글 승인',
     HospitalNotificationType.columnRejected: '칼럼 게시글 거절',
     HospitalNotificationType.systemNotice: '시스템 공지',
@@ -115,6 +117,7 @@ class NotificationTypeIcons {
     HospitalNotificationType.timeslotFilled: '🕐',
     HospitalNotificationType.allTimeslotsFilled: '🎉',
     HospitalNotificationType.donationApplication: '💉',
+    HospitalNotificationType.donationCompleted: '✅',
     HospitalNotificationType.columnApproved: '✅',
     HospitalNotificationType.columnRejected: '❌',
     HospitalNotificationType.systemNotice: '🔔',
@@ -155,6 +158,7 @@ class NotificationPriority {
     HospitalNotificationType.timeslotFilled: high,
     HospitalNotificationType.allTimeslotsFilled: urgent,
     HospitalNotificationType.donationApplication: high,
+    HospitalNotificationType.donationCompleted: high,
     HospitalNotificationType.columnApproved: normal,
     HospitalNotificationType.columnRejected: normal,
     HospitalNotificationType.systemNotice: urgent,
@@ -190,6 +194,7 @@ class NotificationTypeIds {
     HospitalNotificationType.timeslotFilled: 204,
     HospitalNotificationType.allTimeslotsFilled: 205,
     HospitalNotificationType.donationApplication: 206,
+    HospitalNotificationType.donationCompleted: 210,
     HospitalNotificationType.columnApproved: 207,
     HospitalNotificationType.columnRejected: 208,
     HospitalNotificationType.systemNotice: 209,

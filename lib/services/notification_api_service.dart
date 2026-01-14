@@ -152,9 +152,21 @@ class NotificationApiService {
             ServerNotificationMapping.getNotificationPriority(
                 serverNotification.type);
             
+            // 읽음 상태와 생성 시간 파싱
+            final rawIsRead = notificationData['is_read'];
+            final isRead = rawIsRead == true ||
+                           rawIsRead == 1 ||
+                           rawIsRead == '1';
+            debugPrint('[NotificationApiService] 알림 id: ${notificationData['id']}, is_read 원본값: $rawIsRead (${rawIsRead.runtimeType}), 파싱결과: $isRead');
+            final createdAt = notificationData['created_at'] != null
+                ? DateTime.tryParse(notificationData['created_at'].toString())
+                : (serverNotification.timestamp > 0
+                    ? DateTime.fromMillisecondsSinceEpoch(serverNotification.timestamp * 1000)
+                    : DateTime.now());
+
             // 사용자 타입별 알림 모델 생성
             NotificationModel? clientNotification;
-            
+
             switch (userType) {
               case UserType.admin:
                 clientNotification = NotificationFactory.createAdminNotification(
@@ -164,9 +176,11 @@ class NotificationApiService {
                   title: serverNotification.title,
                   content: serverNotification.body,
                   relatedData: serverNotification.data,
+                  isRead: isRead,
+                  createdAt: createdAt,
                 );
                 break;
-                
+
               case UserType.hospital:
                 clientNotification = NotificationFactory.createHospitalNotification(
                   notificationId: notificationData['id'] ?? DateTime.now().millisecondsSinceEpoch,
@@ -175,9 +189,11 @@ class NotificationApiService {
                   title: serverNotification.title,
                   content: serverNotification.body,
                   relatedData: serverNotification.data,
+                  isRead: isRead,
+                  createdAt: createdAt,
                 );
                 break;
-                
+
               case UserType.user:
                 clientNotification = NotificationFactory.createUserNotification(
                   notificationId: notificationData['id'] ?? DateTime.now().millisecondsSinceEpoch,
@@ -186,6 +202,8 @@ class NotificationApiService {
                   title: serverNotification.title,
                   content: serverNotification.body,
                   relatedData: serverNotification.data,
+                  isRead: isRead,
+                  createdAt: createdAt,
                 );
                 break;
             }
@@ -267,8 +285,72 @@ class NotificationApiService {
       // 알림 목록 처리 실패 시 로그 출력
       debugPrint('Failed to process notification list: $e');
     }
-    
+
     return 0; // 오류 시 0 반환
+  }
+
+  // 개별 알림 삭제
+  static Future<bool> deleteNotification(int notificationId) async {
+    try {
+      final headers = await _getHeaders();
+      final response = await http.delete(
+        Uri.parse('$_baseUrl/$notificationId'),
+        headers: headers,
+      );
+
+      if (response.statusCode == 200 || response.statusCode == 204) {
+        return true;
+      } else {
+        debugPrint('[NotificationApiService] 알림 삭제 실패: ${response.statusCode}');
+        return false;
+      }
+    } catch (e) {
+      debugPrint('[NotificationApiService] 알림 삭제 오류: $e');
+      return false;
+    }
+  }
+
+  // 다건 알림 삭제
+  static Future<bool> deleteNotifications(List<int> notificationIds) async {
+    try {
+      final headers = await _getHeaders();
+      final response = await http.delete(
+        Uri.parse('$_baseUrl/batch'),
+        headers: headers,
+        body: json.encode({'notification_ids': notificationIds}),
+      );
+
+      if (response.statusCode == 200 || response.statusCode == 204) {
+        return true;
+      } else {
+        debugPrint('[NotificationApiService] 다건 알림 삭제 실패: ${response.statusCode}');
+        return false;
+      }
+    } catch (e) {
+      debugPrint('[NotificationApiService] 다건 알림 삭제 오류: $e');
+      return false;
+    }
+  }
+
+  // 전체 알림 삭제
+  static Future<bool> deleteAllNotifications() async {
+    try {
+      final headers = await _getHeaders();
+      final response = await http.delete(
+        Uri.parse('$_baseUrl/all'),
+        headers: headers,
+      );
+
+      if (response.statusCode == 200 || response.statusCode == 204) {
+        return true;
+      } else {
+        debugPrint('[NotificationApiService] 전체 알림 삭제 실패: ${response.statusCode}');
+        return false;
+      }
+    } catch (e) {
+      debugPrint('[NotificationApiService] 전체 알림 삭제 오류: $e');
+      return false;
+    }
   }
 
 }

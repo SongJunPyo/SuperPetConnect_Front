@@ -36,9 +36,11 @@ class ServerNotificationMapping {
       UserType.hospital: HospitalNotificationType.allTimeslotsFilled,
     },
 
-    // 헌혈 완료 보고 (병원 → 관리자)
+    // 헌혈 완료 알림 (관리자, 병원, 사용자 모두 수신)
     'donation_completed': {
       UserType.admin: AdminNotificationType.donationCompleted,
+      UserType.hospital: HospitalNotificationType.donationCompleted,
+      UserType.user: UserNotificationType.donationCompleted,
     },
     
     'donation_post_approved': {
@@ -95,11 +97,6 @@ class ServerNotificationMapping {
     'recruitment_closed': {
       UserType.user: UserNotificationType.recruitmentClosed,
       UserType.hospital: HospitalNotificationType.recruitmentDeadline,
-    },
-
-    // === 헌혈 완료 알림 ===
-    'donation_completed_user': {
-      UserType.user: UserNotificationType.donationCompleted,
     },
   };
 

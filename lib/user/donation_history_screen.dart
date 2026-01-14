@@ -3,6 +3,7 @@ import 'package:intl/intl.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import '../utils/app_theme.dart';
 import '../utils/config.dart';
 import '../widgets/app_app_bar.dart';
@@ -244,7 +245,7 @@ class _DonationHistoryScreenState extends State<DonationHistoryScreen>
           Text(
             '나의 헌혈 현황',
             style: AppTheme.h4Style.copyWith(
-              color: AppTheme.primaryBlue,
+              color: Colors.black87,
               fontWeight: FontWeight.w600,
             ),
           ),
@@ -264,9 +265,6 @@ class _DonationHistoryScreenState extends State<DonationHistoryScreen>
                   '$completedDonations건',
                   Colors.green,
                 ),
-              ),
-              Expanded(
-                child: Container(), // 빈 공간
               ),
             ],
           ),
@@ -366,10 +364,11 @@ class _DonationHistoryScreenState extends State<DonationHistoryScreen>
 
     return Card(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      elevation: 2,
+      elevation: 0,
+      color: Colors.white,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
-        side: BorderSide(color: Colors.grey.shade200, width: 1),
+        side: const BorderSide(color: Colors.black, width: 1),
       ),
       child: Padding(
         padding: const EdgeInsets.all(16),
@@ -409,8 +408,14 @@ class _DonationHistoryScreenState extends State<DonationHistoryScreen>
             const SizedBox(height: 12),
             Row(
               children: [
-                Icon(Icons.pets, size: 18, color: AppTheme.primaryBlue),
-                const SizedBox(width: 6),
+                FaIcon(
+                  application.petSpecies.contains('강아지') || application.petSpecies.contains('개')
+                      ? FontAwesomeIcons.dog
+                      : FontAwesomeIcons.cat,
+                  size: 16,
+                  color: Colors.black87,
+                ),
+                const SizedBox(width: 8),
                 Text(
                   '${application.petName} (${application.petSpecies})',
                   style: AppTheme.bodyMediumStyle.copyWith(
