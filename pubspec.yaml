@@ -34,9 +34,10 @@ dependencies:
   # The following adds the Cupertino Icons font to your application.
   # Use with the CupertinoIcons class for iOS style icons.
   cupertino_icons: ^1.0.8
-  intl: ^0.19.0
+  intl: ^0.20.2
   kpostal: 1.1.0
   http: ^1.4.0
+  http_parser: ^4.0.0
   shared_preferences: ^2.2.2
   interval_time_picker: ^4.0.0+12  #병원 게시판 등록할때 시간
   firebase_messaging: ^15.0.4 #FCM 메시지를 주고받기 위한 핵심 패키지
@@ -57,6 +58,8 @@ dependencies:
   url_launcher: ^6.2.0
   # 상태 관리
   provider: ^6.1.2
+  # 리치 텍스트 에디터
+  flutter_quill: ^11.5.0
 
 dev_dependencies:
   flutter_test:

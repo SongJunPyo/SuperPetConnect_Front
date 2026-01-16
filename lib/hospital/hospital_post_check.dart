@@ -2063,204 +2063,197 @@ class _PostDetailBottomSheetState extends State<PostDetailBottomSheet> {
 
               const Divider(height: 1),
 
-              // 메타 정보
-              Container(
-                padding: const EdgeInsets.all(20),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // 병원명과 등록일
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        // 병원명
-                        Row(
-                          children: [
-                            Icon(
-                              Icons.business,
-                              size: 16,
+              // 전체 콘텐츠 (스크롤 가능)
+              Expanded(
+                child: SingleChildScrollView(
+                  controller: scrollController,
+                  padding: const EdgeInsets.all(20),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // 메타 정보
+                      // 병원명과 등록일
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          // 병원명
+                          Row(
+                            children: [
+                              Icon(
+                                Icons.business,
+                                size: 16,
+                                color: AppTheme.textSecondary,
+                              ),
+                              const SizedBox(width: 8),
+                              Text(
+                                '병원명: ',
+                                style: AppTheme.bodyMediumStyle.copyWith(
+                                  fontWeight: FontWeight.w500,
+                                  color: AppTheme.textPrimary,
+                                ),
+                              ),
+                              Text(
+                                widget.post.nickname,
+                                style: AppTheme.bodyMediumStyle.copyWith(
+                                  fontWeight: FontWeight.w600,
+                                  color: AppTheme.textPrimary,
+                                ),
+                              ),
+                            ],
+                          ),
+                          // 등록일 (가장 오른쪽)
+                          Text(
+                            DateFormat(
+                              'yy.MM.dd',
+                            ).format(DateTime.parse(widget.post.createdDate)),
+                            style: AppTheme.bodySmallStyle.copyWith(
                               color: AppTheme.textSecondary,
                             ),
-                            const SizedBox(width: 8),
-                            Text(
-                              '병원명: ',
-                              style: AppTheme.bodyMediumStyle.copyWith(
-                                fontWeight: FontWeight.w500,
-                                color: AppTheme.textPrimary,
-                              ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+
+                      // 담당자 이름
+                      Row(
+                        children: [
+                          Icon(
+                            Icons.person_outline,
+                            size: 16,
+                            color: AppTheme.textSecondary,
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            '담당자: ',
+                            style: AppTheme.bodyMediumStyle.copyWith(
+                              fontWeight: FontWeight.w500,
+                              color: AppTheme.textPrimary,
                             ),
-                            Text(
-                              widget.post.nickname,
+                          ),
+                          Expanded(
+                            child: Text(
+                              widget.post.name,
                               style: AppTheme.bodyMediumStyle.copyWith(
                                 fontWeight: FontWeight.w600,
                                 color: AppTheme.textPrimary,
                               ),
                             ),
-                          ],
-                        ),
-                        // 등록일 (가장 오른쪽)
-                        Text(
-                          DateFormat(
-                            'yy.MM.dd',
-                          ).format(DateTime.parse(widget.post.createdDate)),
-                          style: AppTheme.bodySmallStyle.copyWith(
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+
+                      // 주소
+                      Row(
+                        children: [
+                          Icon(
+                            Icons.location_on,
+                            size: 16,
                             color: AppTheme.textSecondary,
                           ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 8),
-
-                    // 담당자 이름
-                    Row(
-                      children: [
-                        Icon(
-                          Icons.person_outline,
-                          size: 16,
-                          color: AppTheme.textSecondary,
-                        ),
-                        const SizedBox(width: 8),
-                        Text(
-                          '담당자: ',
-                          style: AppTheme.bodyMediumStyle.copyWith(
-                            fontWeight: FontWeight.w500,
-                            color: AppTheme.textPrimary,
-                          ),
-                        ),
-                        Expanded(
-                          child: Text(
-                            widget.post.name,
+                          const SizedBox(width: 8),
+                          Text(
+                            '주소: ',
                             style: AppTheme.bodyMediumStyle.copyWith(
                               fontWeight: FontWeight.w600,
                               color: AppTheme.textPrimary,
                             ),
                           ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 8),
-
-                    // 주소
-                    Row(
-                      children: [
-                        Icon(
-                          Icons.location_on,
-                          size: 16,
-                          color: AppTheme.textSecondary,
-                        ),
-                        const SizedBox(width: 8),
-                        Text(
-                          '주소: ',
-                          style: AppTheme.bodyMediumStyle.copyWith(
-                            fontWeight: FontWeight.w600,
-                            color: AppTheme.textPrimary,
-                          ),
-                        ),
-                        Expanded(
-                          child: Text(
-                            widget.post.location,
-                            style: AppTheme.bodyMediumStyle.copyWith(
-                              color: AppTheme.textPrimary,
+                          Expanded(
+                            child: Text(
+                              widget.post.location,
+                              style: AppTheme.bodyMediumStyle.copyWith(
+                                color: AppTheme.textPrimary,
+                              ),
                             ),
                           ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 8),
-
-                    // 동물 종류
-                    Row(
-                      children: [
-                        Icon(
-                          widget.post.animalTypeString == "dog"
-                              ? FontAwesomeIcons.dog
-                              : FontAwesomeIcons.cat,
-                          size: 16,
-                          color: AppTheme.textSecondary,
-                        ),
-                        const SizedBox(width: 8),
-                        Text(
-                          '동물 종류: ',
-                          style: AppTheme.bodyMediumStyle.copyWith(
-                            fontWeight: FontWeight.w500,
-                            color: AppTheme.textPrimary,
-                          ),
-                        ),
-                        Expanded(
-                          child: Text(
-                            widget.post.animalTypeText,
-                            style: AppTheme.bodyMediumStyle.copyWith(
-                              fontWeight: FontWeight.w600,
-                              color: AppTheme.textPrimary,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 8),
-
-                    // 신청자 수
-                    Row(
-                      children: [
-                        Icon(
-                          Icons.group_outlined,
-                          size: 16,
-                          color: AppTheme.textSecondary,
-                        ),
-                        const SizedBox(width: 8),
-                        Text(
-                          '신청자 수: ',
-                          style: AppTheme.bodyMediumStyle.copyWith(
-                            fontWeight: FontWeight.w500,
-                            color: AppTheme.textPrimary,
-                          ),
-                        ),
-                        Expanded(
-                          child: Text(
-                            '${applicants.length}명',
-                            style: AppTheme.bodyMediumStyle.copyWith(
-                              fontWeight: FontWeight.w600,
-                              color: AppTheme.textPrimary,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                    // 설명글 (있는 경우만)
-                    if (widget.post.description != null &&
-                        widget.post.description!.isNotEmpty) ...[
-                      const SizedBox(height: 12),
-                      Container(
-                        width: double.infinity,
-                        padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          color: AppTheme.veryLightGray,
-                          borderRadius: BorderRadius.circular(8),
-                          border: Border.all(
-                            color: AppTheme.lightGray.withValues(alpha: 0.5),
-                          ),
-                        ),
-                        child: Text(
-                          widget.post.description!,
-                          style: AppTheme.bodyMediumStyle.copyWith(
-                            color: AppTheme.textPrimary,
-                            height: 1.4,
-                          ),
-                        ),
+                        ],
                       ),
-                    ],
-                  ],
-                ),
-              ),
+                      const SizedBox(height: 8),
 
-              // 상세 정보
-              Expanded(
-                child: SingleChildScrollView(
-                  controller: scrollController,
-                  padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
+                      // 동물 종류
+                      Row(
+                        children: [
+                          Icon(
+                            widget.post.animalTypeString == "dog"
+                                ? FontAwesomeIcons.dog
+                                : FontAwesomeIcons.cat,
+                            size: 16,
+                            color: AppTheme.textSecondary,
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            '동물 종류: ',
+                            style: AppTheme.bodyMediumStyle.copyWith(
+                              fontWeight: FontWeight.w500,
+                              color: AppTheme.textPrimary,
+                            ),
+                          ),
+                          Expanded(
+                            child: Text(
+                              widget.post.animalTypeText,
+                              style: AppTheme.bodyMediumStyle.copyWith(
+                                fontWeight: FontWeight.w600,
+                                color: AppTheme.textPrimary,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+
+                      // 신청자 수
+                      Row(
+                        children: [
+                          Icon(
+                            Icons.group_outlined,
+                            size: 16,
+                            color: AppTheme.textSecondary,
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            '신청자 수: ',
+                            style: AppTheme.bodyMediumStyle.copyWith(
+                              fontWeight: FontWeight.w500,
+                              color: AppTheme.textPrimary,
+                            ),
+                          ),
+                          Expanded(
+                            child: Text(
+                              '${applicants.length}명',
+                              style: AppTheme.bodyMediumStyle.copyWith(
+                                fontWeight: FontWeight.w600,
+                                color: AppTheme.textPrimary,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      // 설명글 (있는 경우만)
+                      if (widget.post.description != null &&
+                          widget.post.description!.isNotEmpty) ...[
+                        const SizedBox(height: 12),
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: AppTheme.veryLightGray,
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(
+                              color: AppTheme.lightGray.withValues(alpha: 0.5),
+                            ),
+                          ),
+                          child: Text(
+                            widget.post.description!,
+                            style: AppTheme.bodyMediumStyle.copyWith(
+                              color: AppTheme.textPrimary,
+                              height: 1.4,
+                            ),
+                          ),
+                        ),
+                      ],
+
+                      const SizedBox(height: 20),
                       // 혈액형 정보
                       if (widget.post.bloodType != null &&
                           widget.post.bloodType!.isNotEmpty) ...[

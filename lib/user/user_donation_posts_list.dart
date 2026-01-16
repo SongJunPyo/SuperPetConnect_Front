@@ -1033,57 +1033,26 @@ class _UserDonationPostsListScreenState
 
                   const Divider(height: 1),
 
-                  // 메타 정보 (닉네임, 주소, 설명글 순서)
-                  Container(
-                    padding: const EdgeInsets.all(20),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        
-                        // 병원 닉네임
-                        Row(
-                          children: [
-                            Icon(
-                              Icons.business,
-                              size: 16,
-                              color: AppTheme.textSecondary,
-                            ),
-                            const SizedBox(width: 8),
-                            Text(
-                              '병원명: ',
-                              style: AppTheme.bodyMediumStyle.copyWith(
-                                fontWeight: FontWeight.w500,
-                                color: Colors.grey[700],
-                              ),
-                            ),
-                            Expanded(
-                              child: Text(
-                                (displayPost.hospitalNickname?.isNotEmpty ?? false)
-                                    ? displayPost.hospitalNickname!
-                                    : displayPost.hospitalName.isNotEmpty
-                                    ? displayPost.hospitalName
-                                    : '병원',
-                                style: AppTheme.bodyMediumStyle.copyWith(
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 8),
-                        
-                        // 담당자 이름 (있는 경우만 표시)
-                        if (displayPost.userName?.isNotEmpty ?? false) ...[
+                  // 전체 콘텐츠 (스크롤 가능)
+                  Expanded(
+                    child: SingleChildScrollView(
+                      controller: scrollController,
+                      padding: const EdgeInsets.all(20),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          // 메타 정보 (닉네임, 주소, 설명글 순서)
+                          // 병원 닉네임
                           Row(
                             children: [
                               Icon(
-                                Icons.person,
+                                Icons.business,
                                 size: 16,
                                 color: AppTheme.textSecondary,
                               ),
                               const SizedBox(width: 8),
                               Text(
-                                '담당자: ',
+                                '병원명: ',
                                 style: AppTheme.bodyMediumStyle.copyWith(
                                   fontWeight: FontWeight.w500,
                                   color: Colors.grey[700],
@@ -1091,7 +1060,11 @@ class _UserDonationPostsListScreenState
                               ),
                               Expanded(
                                 child: Text(
-                                  displayPost.userName!,
+                                  (displayPost.hospitalNickname?.isNotEmpty ?? false)
+                                      ? displayPost.hospitalNickname!
+                                      : displayPost.hospitalName.isNotEmpty
+                                      ? displayPost.hospitalName
+                                      : '병원',
                                   style: AppTheme.bodyMediumStyle.copyWith(
                                     fontWeight: FontWeight.w600,
                                   ),
@@ -1099,119 +1072,138 @@ class _UserDonationPostsListScreenState
                               ),
                             ],
                           ),
-                        ],
-                        const SizedBox(height: 8),
-                        // 주소
-                        Row(
-                          children: [
-                            Icon(
-                              Icons.location_on,
-                              size: 16,
-                              color: AppTheme.textSecondary,
-                            ),
-                            const SizedBox(width: 8),
-                            Expanded(
-                              child: Text(
-                                displayPost.location,
-                                style: AppTheme.bodyMediumStyle,
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 8),
-                        
-                        // 동물 종류
-                        Row(
-                          children: [
-                            Icon(
-                              displayPost.animalType == 0 
-                                ? FontAwesomeIcons.dog 
-                                : FontAwesomeIcons.cat,
-                              size: 16,
-                              color: AppTheme.textSecondary,
-                            ),
-                            const SizedBox(width: 8),
-                            Text(
-                              '동물 종류: ',
-                              style: AppTheme.bodyMediumStyle.copyWith(
-                                fontWeight: FontWeight.w500,
-                                color: Colors.grey[700],
-                              ),
-                            ),
-                            Expanded(
-                              child: Text(
-                                displayPost.animalType == 0 ? '강아지' : '고양이',
-                                style: AppTheme.bodyMediumStyle.copyWith(
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 8),
-                        
-                        // 신청자 수
-                        Row(
-                          children: [
-                            Icon(
-                              Icons.group_outlined,
-                              size: 16,
-                              color: AppTheme.textSecondary,
-                            ),
-                            const SizedBox(width: 8),
-                            Text(
-                              '신청자 수: ',
-                              style: AppTheme.bodyMediumStyle.copyWith(
-                                fontWeight: FontWeight.w500,
-                                color: Colors.grey[700],
-                              ),
-                            ),
-                            Expanded(
-                              child: Text(
-                                '${displayPost.applicantCount}명',
-                                style: AppTheme.bodyMediumStyle.copyWith(
-                                  color: Colors.black, // 검은색으로 설정, 볼드체 제거
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                        // 설명글 (있는 경우만)
-                        if (displayPost.description.isNotEmpty) ...[
-                          const SizedBox(height: 12),
-                          Container(
-                            width: double.infinity,
-                            padding: const EdgeInsets.all(12),
-                            decoration: BoxDecoration(
-                              color: AppTheme.veryLightGray,
-                              borderRadius: BorderRadius.circular(8),
-                              border: Border.all(
-                                color: AppTheme.lightGray.withValues(
-                                  alpha: 0.5,
-                                ),
-                              ),
-                            ),
-                            child: Text(
-                              displayPost.description,
-                              style: AppTheme.bodyMediumStyle.copyWith(
-                                color: AppTheme.textPrimary,
-                                height: 1.4,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ],
-                    ),
-                  ),
+                          const SizedBox(height: 8),
 
-                  // 헌혈 정보
-                  Expanded(
-                    child: SingleChildScrollView(
-                      controller: scrollController,
-                      padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
+                          // 담당자 이름 (있는 경우만 표시)
+                          if (displayPost.userName?.isNotEmpty ?? false) ...[
+                            Row(
+                              children: [
+                                Icon(
+                                  Icons.person,
+                                  size: 16,
+                                  color: AppTheme.textSecondary,
+                                ),
+                                const SizedBox(width: 8),
+                                Text(
+                                  '담당자: ',
+                                  style: AppTheme.bodyMediumStyle.copyWith(
+                                    fontWeight: FontWeight.w500,
+                                    color: Colors.grey[700],
+                                  ),
+                                ),
+                                Expanded(
+                                  child: Text(
+                                    displayPost.userName!,
+                                    style: AppTheme.bodyMediumStyle.copyWith(
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                          const SizedBox(height: 8),
+                          // 주소
+                          Row(
+                            children: [
+                              Icon(
+                                Icons.location_on,
+                                size: 16,
+                                color: AppTheme.textSecondary,
+                              ),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  displayPost.location,
+                                  style: AppTheme.bodyMediumStyle,
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 8),
+
+                          // 동물 종류
+                          Row(
+                            children: [
+                              Icon(
+                                displayPost.animalType == 0
+                                  ? FontAwesomeIcons.dog
+                                  : FontAwesomeIcons.cat,
+                                size: 16,
+                                color: AppTheme.textSecondary,
+                              ),
+                              const SizedBox(width: 8),
+                              Text(
+                                '동물 종류: ',
+                                style: AppTheme.bodyMediumStyle.copyWith(
+                                  fontWeight: FontWeight.w500,
+                                  color: Colors.grey[700],
+                                ),
+                              ),
+                              Expanded(
+                                child: Text(
+                                  displayPost.animalType == 0 ? '강아지' : '고양이',
+                                  style: AppTheme.bodyMediumStyle.copyWith(
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 8),
+
+                          // 신청자 수
+                          Row(
+                            children: [
+                              Icon(
+                                Icons.group_outlined,
+                                size: 16,
+                                color: AppTheme.textSecondary,
+                              ),
+                              const SizedBox(width: 8),
+                              Text(
+                                '신청자 수: ',
+                                style: AppTheme.bodyMediumStyle.copyWith(
+                                  fontWeight: FontWeight.w500,
+                                  color: Colors.grey[700],
+                                ),
+                              ),
+                              Expanded(
+                                child: Text(
+                                  '${displayPost.applicantCount}명',
+                                  style: AppTheme.bodyMediumStyle.copyWith(
+                                    color: Colors.black,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                          // 설명글 (있는 경우만)
+                          if (displayPost.description.isNotEmpty) ...[
+                            const SizedBox(height: 12),
+                            Container(
+                              width: double.infinity,
+                              padding: const EdgeInsets.all(12),
+                              decoration: BoxDecoration(
+                                color: AppTheme.veryLightGray,
+                                borderRadius: BorderRadius.circular(8),
+                                border: Border.all(
+                                  color: AppTheme.lightGray.withValues(
+                                    alpha: 0.5,
+                                  ),
+                                ),
+                              ),
+                              child: Text(
+                                displayPost.description,
+                                style: AppTheme.bodyMediumStyle.copyWith(
+                                  color: AppTheme.textPrimary,
+                                  height: 1.4,
+                                ),
+                              ),
+                            ),
+                          ],
+
+                          const SizedBox(height: 20),
                           // 혈액형 정보
                           if (displayPost.emergencyBloodType != null &&
                               displayPost.emergencyBloodType!.isNotEmpty) ...[

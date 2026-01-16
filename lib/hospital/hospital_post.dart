@@ -8,6 +8,8 @@ import '../utils/config.dart';
 import '../utils/app_theme.dart';
 import '../services/donation_time_service.dart';
 import '../models/donation_post_time_model.dart';
+import '../models/donation_post_image_model.dart';
+import '../widgets/rich_text_editor.dart';
 import 'hospital_dashboard.dart';
 
 class HospitalPost extends StatefulWidget {
@@ -30,6 +32,7 @@ class _HospitalPostState extends State<HospitalPost> {
   String selectedAnimalType = "dog"; // 동물 종류 (dog/cat)
   String selectedBlood = "전체"; // 기본값을 전체로 변경
   String additionalDescription = ""; // nullable 제거, 빈 문자열로 초기화
+  List<DonationPostImage> _postImages = []; // 게시글 이미지 목록
   String hospitalName = "병원"; // 병원 이름을 저장할 변수
   String hospitalNickname = "병원"; // 병원 닉네임을 저장할 변수
   List<Map<String, dynamic>> timeEntries = []; // 시간대 목록
@@ -154,6 +157,12 @@ class _HospitalPostState extends State<HospitalPost> {
         "location": _locationController.text, // 지역 정보를 텍스트 필드에서 가져오기
         "animal_type": selectedAnimalType == "dog" ? 0 : 1, // 동물 종류 수정
         "hospital_code": hospitalCode, // 요양기관기호 추가
+        // 이미지 ID 목록 (리치 에디터에서 업로드한 이미지)
+        if (_postImages.isNotEmpty)
+          "image_ids": _postImages
+              .where((img) => !img.isTemporary)
+              .map((img) => img.imageId)
+              .toList(),
       };
 
       // '긴급' 타입일 때만 'emergency_blood_type' 필드를 추가합니다.
@@ -711,26 +720,67 @@ class _HospitalPostState extends State<HospitalPost> {
                           Icons.title,
                         ),
                       ),
-                      const SizedBox(height: 20),
-
-                      // 추가 설명 입력
-                      TextField(
-                        onChanged: (value) {
-                          setState(() {
-                            additionalDescription = value;
-                          });
-                        },
-                        maxLines: 4, // 여러 줄 입력 가능하도록
-                        minLines: 1,
-                        decoration: _buildInputDecoration(
-                          context,
-                          "추가 설명 (선택 사항)",
-                          Icons.description_outlined,
-                        ),
-                        keyboardType: TextInputType.multiline, // 멀티라인 키보드 타입
-                      ),
                     ],
                   ),
+                ),
+              ),
+
+              const SizedBox(height: 32),
+
+              // 상세 설명 섹션 (리치 에디터)
+              Text("상세 설명", style: AppTheme.h3Style),
+              const SizedBox(height: 16),
+              RichTextEditor(
+                initialText: additionalDescription,
+                initialImages: _postImages,
+                maxImages: 5,
+                onChanged: (text, images) {
+                  setState(() {
+                    additionalDescription = text;
+                    _postImages = images;
+                  });
+                },
+              ),
+
+              // 이미지 안내
+              Container(
+                margin: const EdgeInsets.only(top: AppTheme.spacing16),
+                padding: const EdgeInsets.all(AppTheme.spacing16),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFFF9E6),
+                  border: Border.all(color: const Color(0xFFFFE4B5)),
+                  borderRadius: BorderRadius.circular(AppTheme.radius12),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Icon(Icons.info_outline, size: 16, color: const Color(0xFFB8860B)),
+                        const SizedBox(width: 6),
+                        Text(
+                          '이미지 안내',
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                            color: const Color(0xFFB8860B),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      '• 최대 5장까지 업로드 가능합니다.\n'
+                      '• 최대 파일 크기: 20MB (고화질 이미지 지원)\n'
+                      '• 모든 이미지 형식 지원 (JPG로 자동 변환 저장)\n'
+                      '• 이미지는 관리자 승인 후 7일 뒤 자동 삭제됩니다.',
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: const Color(0xFF8B6914),
+                        height: 1.5,
+                      ),
+                    ),
+                  ],
                 ),
               ),
 
