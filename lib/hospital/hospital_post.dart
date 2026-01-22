@@ -33,6 +33,7 @@ class _HospitalPostState extends State<HospitalPost> {
   String selectedBlood = "전체"; // 기본값을 전체로 변경
   String additionalDescription = ""; // nullable 제거, 빈 문자열로 초기화
   List<DonationPostImage> _postImages = []; // 게시글 이미지 목록
+  final GlobalKey<RichTextEditorState> _richEditorKey = GlobalKey<RichTextEditorState>(); // 리치 에디터 키
   String hospitalName = "병원"; // 병원 이름을 저장할 변수
   String hospitalNickname = "병원"; // 병원 닉네임을 저장할 변수
   List<Map<String, dynamic>> timeEntries = []; // 시간대 목록
@@ -143,6 +144,11 @@ class _HospitalPostState extends State<HospitalPost> {
         }
       }
 
+      // 리치 에디터에서 Delta JSON과 이미지 ID 목록 가져오기
+      final editorState = _richEditorKey.currentState;
+      final contentDelta = editorState?.contentDelta ?? "";
+      final embeddedImageIds = editorState?.embeddedImageIds ?? <int>[];
+
       // 서버로 보낼 데이터를 Map 형태로 만듭니다.
       final Map<String, dynamic> postData = {
         "date":
@@ -153,16 +159,14 @@ class _HospitalPostState extends State<HospitalPost> {
         "dateTimeSlots": dateTimeData, // 새로운 날짜+시간 데이터
         "types": selectedType == "긴급" ? 0 : 1,
         "title": _titleController.text,
-        "descriptions": additionalDescription,
+        "descriptions": additionalDescription, // plain text (검색/미리보기용)
+        "content_delta": contentDelta, // Delta JSON (리치 텍스트)
         "location": _locationController.text, // 지역 정보를 텍스트 필드에서 가져오기
         "animal_type": selectedAnimalType == "dog" ? 0 : 1, // 동물 종류 수정
         "hospital_code": hospitalCode, // 요양기관기호 추가
-        // 이미지 ID 목록 (리치 에디터에서 업로드한 이미지)
-        if (_postImages.isNotEmpty)
-          "image_ids": _postImages
-              .where((img) => !img.isTemporary)
-              .map((img) => img.imageId)
-              .toList(),
+        // 이미지 ID 목록 (Delta JSON에 포함된 이미지)
+        if (embeddedImageIds.isNotEmpty)
+          "image_ids": embeddedImageIds,
       };
 
       // '긴급' 타입일 때만 'emergency_blood_type' 필드를 추가합니다.
@@ -731,6 +735,7 @@ class _HospitalPostState extends State<HospitalPost> {
               Text("상세 설명", style: AppTheme.h3Style),
               const SizedBox(height: 16),
               RichTextEditor(
+                key: _richEditorKey,
                 initialText: additionalDescription,
                 initialImages: _postImages,
                 maxImages: 5,

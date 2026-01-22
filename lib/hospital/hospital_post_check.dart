@@ -10,6 +10,7 @@ import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import '../models/applied_donation_model.dart';
 import 'donation_completion_sheet.dart';
 import 'donation_cancellation_sheet.dart';
+import '../widgets/rich_text_viewer.dart';
 
 class HospitalPostCheck extends StatefulWidget {
   const HospitalPostCheck({super.key});
@@ -1680,11 +1681,11 @@ class _HospitalPostCheckState extends State<HospitalPostCheck>
                               ),
                           ],
                         ),
-                        if (post.description != null && post.description!.isNotEmpty) ...[
+                        if ((post.contentDelta != null && post.contentDelta!.isNotEmpty) ||
+                            (post.description != null && post.description!.isNotEmpty)) ...[
                           const SizedBox(height: 16),
                           Container(
                             width: double.infinity,
-                            padding: const EdgeInsets.all(12),
                             decoration: BoxDecoration(
                               color: AppTheme.veryLightGray,
                               borderRadius: BorderRadius.circular(8),
@@ -1695,19 +1696,19 @@ class _HospitalPostCheckState extends State<HospitalPostCheck>
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Text(
-                                  '게시글 설명',
-                                  style: AppTheme.bodyMediumStyle.copyWith(
-                                    fontWeight: FontWeight.w600,
+                                Padding(
+                                  padding: const EdgeInsets.only(left: 12, top: 12, right: 12),
+                                  child: Text(
+                                    '게시글 설명',
+                                    style: AppTheme.bodyMediumStyle.copyWith(
+                                      fontWeight: FontWeight.w600,
+                                    ),
                                   ),
                                 ),
-                                const SizedBox(height: 8),
-                                Text(
-                                  post.description!,
-                                  style: AppTheme.bodyMediumStyle.copyWith(
-                                    color: AppTheme.textPrimary,
-                                    height: 1.4,
-                                  ),
+                                RichTextViewer(
+                                  contentDelta: post.contentDelta,
+                                  plainText: post.description,
+                                  padding: const EdgeInsets.all(12),
                                 ),
                               ],
                             ),
@@ -2230,12 +2231,13 @@ class _PostDetailBottomSheetState extends State<PostDetailBottomSheet> {
                         ],
                       ),
                       // 설명글 (있는 경우만)
-                      if (widget.post.description != null &&
-                          widget.post.description!.isNotEmpty) ...[
+                      if ((widget.post.contentDelta != null &&
+                              widget.post.contentDelta!.isNotEmpty) ||
+                          (widget.post.description != null &&
+                              widget.post.description!.isNotEmpty)) ...[
                         const SizedBox(height: 12),
                         Container(
                           width: double.infinity,
-                          padding: const EdgeInsets.all(12),
                           decoration: BoxDecoration(
                             color: AppTheme.veryLightGray,
                             borderRadius: BorderRadius.circular(8),
@@ -2243,12 +2245,10 @@ class _PostDetailBottomSheetState extends State<PostDetailBottomSheet> {
                               color: AppTheme.lightGray.withValues(alpha: 0.5),
                             ),
                           ),
-                          child: Text(
-                            widget.post.description!,
-                            style: AppTheme.bodyMediumStyle.copyWith(
-                              color: AppTheme.textPrimary,
-                              height: 1.4,
-                            ),
+                          child: RichTextViewer(
+                            contentDelta: widget.post.contentDelta,
+                            plainText: widget.post.description,
+                            padding: const EdgeInsets.all(12),
                           ),
                         ),
                       ],

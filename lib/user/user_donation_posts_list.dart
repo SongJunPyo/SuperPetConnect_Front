@@ -9,6 +9,7 @@ import '../services/applied_donation_service.dart';
 import '../models/applied_donation_model.dart';
 import '../widgets/marquee_text.dart';
 import '../widgets/custom_tab_bar.dart';
+import '../widgets/rich_text_viewer.dart';
 import 'package:intl/intl.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 
@@ -1179,11 +1180,12 @@ class _UserDonationPostsListScreenState
                             ],
                           ),
                           // 설명글 (있는 경우만)
-                          if (displayPost.description.isNotEmpty) ...[
+                          if ((displayPost.contentDelta != null &&
+                                  displayPost.contentDelta!.isNotEmpty) ||
+                              displayPost.description.isNotEmpty) ...[
                             const SizedBox(height: 12),
                             Container(
                               width: double.infinity,
-                              padding: const EdgeInsets.all(12),
                               decoration: BoxDecoration(
                                 color: AppTheme.veryLightGray,
                                 borderRadius: BorderRadius.circular(8),
@@ -1193,12 +1195,10 @@ class _UserDonationPostsListScreenState
                                   ),
                                 ),
                               ),
-                              child: Text(
-                                displayPost.description,
-                                style: AppTheme.bodyMediumStyle.copyWith(
-                                  color: AppTheme.textPrimary,
-                                  height: 1.4,
-                                ),
+                              child: RichTextViewer(
+                                contentDelta: displayPost.contentDelta,
+                                plainText: displayPost.description,
+                                padding: const EdgeInsets.all(12),
                               ),
                             ),
                           ],

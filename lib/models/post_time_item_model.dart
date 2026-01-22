@@ -147,6 +147,7 @@ class RejectedPost {
   final int postIdx;
   final String title;
   final String? description;
+  final String? contentDelta; // Delta JSON 리치 텍스트
   final int types;
   final int status;
   final String? rejectionReason;
@@ -157,6 +158,7 @@ class RejectedPost {
     required this.postIdx,
     required this.title,
     this.description,
+    this.contentDelta,
     required this.types,
     required this.status,
     this.rejectionReason,
@@ -169,6 +171,7 @@ class RejectedPost {
       postIdx: json['post_idx'] as int,
       title: json['title'] as String,
       description: json['description'] as String?,
+      contentDelta: json['content_delta'] as String?,
       types: json['types'] as int,
       status: json['status'] as int,
       rejectionReason: json['rejection_reason'] as String?,

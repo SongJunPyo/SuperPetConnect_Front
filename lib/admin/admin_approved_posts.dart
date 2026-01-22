@@ -5,6 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../utils/config.dart';
 import '../utils/app_theme.dart';
 import '../widgets/marquee_text.dart';
+import '../widgets/rich_text_viewer.dart';
 import 'package:intl/intl.dart';
 
 class AdminApprovedPostsScreen extends StatefulWidget {
@@ -996,14 +997,38 @@ class _AdminApprovedPostsScreenState extends State<AdminApprovedPostsScreen>
                         '신청자 수',
                         '${post['applicantCount'] ?? 0}명',
                       ),
-                      if (post['description'] != null &&
-                          post['description'].toString().isNotEmpty)
-                        _buildDetailRow(
-                          context,
-                          Icons.description_outlined,
-                          '설명',
-                          post['description'] ?? 'N/A',
+                      if ((post['content_delta'] != null &&
+                              post['content_delta'].toString().isNotEmpty) ||
+                          (post['description'] != null &&
+                              post['description'].toString().isNotEmpty)) ...[
+                        const SizedBox(height: 8),
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Icon(Icons.description_outlined,
+                                size: 20, color: AppTheme.textSecondary),
+                            const SizedBox(width: 12),
+                            const Text('설명',
+                                style: TextStyle(fontWeight: FontWeight.w500)),
+                          ],
                         ),
+                        const SizedBox(height: 8),
+                        Container(
+                          width: double.infinity,
+                          decoration: BoxDecoration(
+                            color: AppTheme.veryLightGray,
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(
+                              color: AppTheme.lightGray.withValues(alpha: 0.5),
+                            ),
+                          ),
+                          child: RichTextViewer(
+                            contentDelta: post['content_delta']?.toString(),
+                            plainText: post['description']?.toString(),
+                            padding: const EdgeInsets.all(12),
+                          ),
+                        ),
+                      ],
 
                       const SizedBox(height: 24),
                       Text("헌혈 날짜 및 시간", style: AppTheme.h4Style),

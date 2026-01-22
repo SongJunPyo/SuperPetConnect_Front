@@ -12,6 +12,7 @@ class HospitalPost {
   final String createdDate;
   final int applicantCount;
   final String? description;
+  final String? contentDelta; // Delta JSON 리치 텍스트
   final int animalType; // 0: 강아지, 1: 고양이
   final int? viewCount;
 
@@ -29,6 +30,7 @@ class HospitalPost {
     required this.createdDate,
     required this.applicantCount,
     this.description,
+    this.contentDelta,
     required this.animalType,
     this.viewCount,
   });
@@ -100,6 +102,7 @@ class HospitalPost {
         status: status,
         applicantCount: applicantCount,
         description: json['description'] ?? json['descriptions'],
+        contentDelta: json['content_delta'] ?? json['contentDelta'],
         animalType: animalType,
         viewCount: json['viewCount'] ?? json['view_count'],
       );

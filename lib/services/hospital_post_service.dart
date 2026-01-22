@@ -139,7 +139,8 @@ class HospitalPostService {
 
     if (response.statusCode == 200) {
       final data = json.decode(utf8.decode(response.bodyBytes));
-      
+      debugPrint('[HospitalPostService] API 응답 데이터 샘플: ${data is List && data.isNotEmpty ? data[0] : data}');
+
       if (data is List) {
         return data.map((post) => HospitalPost.fromJson(post)).toList();
       } else if (data is Map && data['posts'] != null) {

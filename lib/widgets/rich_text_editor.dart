@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_quill/flutter_quill.dart';
@@ -473,9 +474,11 @@ class RichTextEditorState extends State<RichTextEditor> {
 
   /// 이미지 업로드 및 에디터에 삽입
   Future<void> _uploadImage(XFile file) async {
+    debugPrint('[RichTextEditor] 이미지 업로드 시작: ${file.name}');
     try {
       final bytes = await file.readAsBytes();
       final fileSize = bytes.length;
+      debugPrint('[RichTextEditor] 이미지 크기: $fileSize bytes');
 
       if (fileSize > 20 * 1024 * 1024) {
         _showSnackBar('이미지 크기가 20MB를 초과합니다.', isError: true);
@@ -492,6 +495,7 @@ class RichTextEditorState extends State<RichTextEditor> {
         );
       });
 
+      debugPrint('[RichTextEditor] 서버 업로드 요청 시작...');
       // 서버 업로드
       final uploadedImage = await DonationPostImageService.uploadImageBytes(
         imageBytes: bytes,
@@ -504,13 +508,21 @@ class RichTextEditorState extends State<RichTextEditor> {
           });
         },
       );
+      debugPrint('[RichTextEditor] 서버 업로드 성공: ${uploadedImage.imagePath}');
 
       // 이미지 목록에 추가
       _images.add(uploadedImage);
 
       // 에디터에 이미지 삽입 (현재 커서 위치에)
       final imageUrl = DonationPostImageService.getFullImageUrl(uploadedImage.imagePath);
-      final index = _controller.selection.baseOffset;
+      final docLength = _controller.document.length;
+      int index = _controller.selection.baseOffset;
+
+      // index가 문서 길이를 벗어나면 문서 끝으로 조정 (마지막 줄바꿈 앞)
+      if (index < 0 || index >= docLength) {
+        index = docLength > 1 ? docLength - 1 : 0;
+      }
+      debugPrint('[RichTextEditor] 에디터에 이미지 삽입: $imageUrl (index: $index, docLength: $docLength)');
 
       // 새 줄 추가 후 이미지 삽입
       _controller.document.insert(index, '\n');
@@ -528,7 +540,10 @@ class RichTextEditorState extends State<RichTextEditor> {
       });
 
       _notifyChange();
-    } catch (e) {
+      debugPrint('[RichTextEditor] 이미지 업로드 완료');
+    } catch (e, stackTrace) {
+      debugPrint('[RichTextEditor] 이미지 업로드 실패: $e');
+      debugPrint('[RichTextEditor] 스택 트레이스: $stackTrace');
       _showSnackBar('이미지 업로드 실패: $e', isError: true);
       setState(() {
         _uploadingImage = null;
@@ -628,6 +643,8 @@ class RichTextEditorState extends State<RichTextEditor> {
   }
 
   // Public getters
+
+  /// Plain text 버전 (검색/미리보기용, 기존 호환)
   String get text {
     final delta = _controller.document.toDelta();
     final buffer = StringBuffer();
@@ -650,6 +667,77 @@ class RichTextEditorState extends State<RichTextEditor> {
     }
 
     return buffer.toString();
+  }
+
+  /// Delta JSON 문자열 (리치 텍스트 저장용)
+  String get contentDelta {
+    final delta = _controller.document.toDelta();
+    final List<Map<String, dynamic>> deltaList = [];
+
+    for (final op in delta.toList()) {
+      if (op.isInsert) {
+        final Map<String, dynamic> opMap = {};
+
+        if (op.data is String) {
+          opMap['insert'] = op.data;
+        } else if (op.data is Map) {
+          final data = op.data as Map;
+          if (data.containsKey('image')) {
+            // 이미지 URL을 상대 경로로 변환
+            final imageUrl = data['image'] as String;
+            final relativePath = _toRelativePath(imageUrl);
+            opMap['insert'] = {'image': relativePath};
+          } else {
+            opMap['insert'] = Map<String, dynamic>.from(data);
+          }
+        }
+
+        // attributes 추가
+        if (op.attributes != null && op.attributes!.isNotEmpty) {
+          opMap['attributes'] = Map<String, dynamic>.from(op.attributes!);
+        }
+
+        if (opMap.isNotEmpty) {
+          deltaList.add(opMap);
+        }
+      }
+    }
+
+    return jsonEncode(deltaList);
+  }
+
+  /// 이미지 URL을 상대 경로로 변환
+  String _toRelativePath(String url) {
+    final baseUrl = DonationPostImageService.baseUrl;
+    if (url.startsWith(baseUrl)) {
+      return url.substring(baseUrl.length);
+    }
+    // 이미 상대 경로인 경우
+    if (url.startsWith('/')) {
+      return url;
+    }
+    return url;
+  }
+
+  /// Delta JSON에 포함된 이미지 ID 목록
+  List<int> get embeddedImageIds {
+    final delta = _controller.document.toDelta();
+    final List<int> ids = [];
+
+    for (final op in delta.toList()) {
+      if (op.isInsert && op.data is Map) {
+        final data = op.data as Map;
+        if (data.containsKey('image')) {
+          final imageUrl = data['image'] as String;
+          final imageId = _extractImageIdFromUrl(imageUrl);
+          if (imageId != null) {
+            ids.add(imageId);
+          }
+        }
+      }
+    }
+
+    return ids;
   }
 
   List<DonationPostImage> get images => _images;

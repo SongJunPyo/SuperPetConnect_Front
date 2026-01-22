@@ -456,6 +456,7 @@ class DonationPost {
   final String? hospitalNickname; // 병원 닉네임 추가 (nullable로 변경)
   final String location;
   final String description; // 설명 추가
+  final String? contentDelta; // Delta JSON 리치 텍스트
   final int animalType;
   final String? emergencyBloodType;
   final int status;
@@ -478,6 +479,7 @@ class DonationPost {
     this.hospitalNickname, // 병원 닉네임 추가 (nullable)
     required this.location,
     required this.description, // 설명 추가
+    this.contentDelta, // Delta JSON 리치 텍스트
     required this.animalType,
     this.emergencyBloodType,
     required this.status,
@@ -694,6 +696,9 @@ class DonationPost {
           json['descriptions']?.toString() ??
           json['description']?.toString() ??
           '',
+      contentDelta:
+          json['content_delta']?.toString() ??
+          json['contentDelta']?.toString(),
       animalType:
           json['animalType'] is String
               ? (json['animalType'] == 'dog' ? 0 : 1)

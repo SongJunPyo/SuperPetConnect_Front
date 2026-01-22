@@ -7,6 +7,7 @@ import '../utils/config.dart';
 import '../utils/app_theme.dart';
 import '../widgets/marquee_text.dart';
 import '../widgets/custom_tab_bar.dart';
+import '../widgets/rich_text_viewer.dart';
 import 'package:intl/intl.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import '../services/admin_completed_donation_service.dart';
@@ -2055,167 +2056,160 @@ class _AdminPostCheckState extends State<AdminPostCheck>
 
                       const Divider(height: 1),
 
-                      // 메타 정보
-                      Container(
-                        padding: const EdgeInsets.all(20),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            // 닉네임과 작성일
-                            Row(
-                              children: [
-                                Icon(
-                                  Icons.business,
-                                  size: 16,
-                                  color: AppTheme.textSecondary,
-                                ),
-                                const SizedBox(width: 8),
-                                Text(
-                                  _extractHospitalName(
-                                    post['title'] ?? '',
-                                  ), // 제목에서 병원 이름 추출
-                                  style: AppTheme.bodyMediumStyle.copyWith(
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                ),
-                                const Spacer(),
-                                Text(
-                                  DateFormat('yy.MM.dd').format(
-                                    DateTime.tryParse(
-                                          post['created_date'] ??
-                                              post['created_at'] ??
-                                              '',
-                                        ) ??
-                                        DateTime.now(),
-                                  ),
-                                  style: AppTheme.bodySmallStyle.copyWith(
+                      // 상세 정보 (스크롤 가능)
+                      Expanded(
+                        child: SingleChildScrollView(
+                          controller: scrollController,
+                          padding: const EdgeInsets.fromLTRB(20, 20, 20, 20),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              // 닉네임과 작성일
+                              Row(
+                                children: [
+                                  Icon(
+                                    Icons.business,
+                                    size: 16,
                                     color: AppTheme.textSecondary,
                                   ),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 8),
-                            // 주소
-                            Row(
-                              children: [
-                                Icon(
-                                  Icons.location_on,
-                                  size: 16,
-                                  color: AppTheme.textSecondary,
-                                ),
-                                const SizedBox(width: 8),
-                                Expanded(
-                                  child: Text(
-                                    post['location'] ?? '주소 정보 없음',
-                                    style: AppTheme.bodyMediumStyle,
-                                  ),
-                                ),
-                              ],
-                            ),
-                            // 설명글 (있는 경우만)
-                            if (post['description'] != null &&
-                                post['description'].toString().isNotEmpty) ...[
-                              const SizedBox(height: 12),
-                              Container(
-                                width: double.infinity,
-                                padding: const EdgeInsets.all(12),
-                                decoration: BoxDecoration(
-                                  color: AppTheme.veryLightGray,
-                                  borderRadius: BorderRadius.circular(8),
-                                  border: Border.all(
-                                    color: AppTheme.lightGray.withValues(
-                                      alpha: 0.5,
+                                  const SizedBox(width: 8),
+                                  Text(
+                                    _extractHospitalName(
+                                      post['title'] ?? '',
+                                    ), // 제목에서 병원 이름 추출
+                                    style: AppTheme.bodyMediumStyle.copyWith(
+                                      fontWeight: FontWeight.w600,
                                     ),
                                   ),
-                                ),
-                                child: Text(
-                                  post['description'],
-                                  style: AppTheme.bodyMediumStyle.copyWith(
-                                    color: AppTheme.textPrimary,
-                                    height: 1.4,
-                                  ),
-                                ),
-                              ),
-                            ],
-
-                            // 중단 사유 (상태 6 또는 4인 경우에 표시)
-                            if ((post['status'] == 6 || post['status'] == 4) &&
-                                post['cancelled_reason'] != null &&
-                                post['cancelled_reason']
-                                    .toString()
-                                    .isNotEmpty) ...[
-                              const SizedBox(height: 16),
-                              Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Row(
-                                    children: [
-                                      Icon(
-                                        Icons.warning_amber_rounded,
-                                        size: 18,
-                                        color: Colors.orange.shade700,
-                                      ),
-                                      const SizedBox(width: 8),
-                                      Text(
-                                        '중단 사유',
-                                        style: AppTheme.bodyLargeStyle.copyWith(
-                                          fontWeight: FontWeight.w600,
-                                          color: Colors.orange.shade700,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                  const SizedBox(height: 8),
-                                  Container(
-                                    width: double.infinity,
-                                    padding: const EdgeInsets.all(12),
-                                    decoration: BoxDecoration(
-                                      color: Colors.orange.shade50,
-                                      borderRadius: BorderRadius.circular(8),
-                                      border: Border.all(
-                                        color: Colors.orange.shade200,
-                                      ),
+                                  const Spacer(),
+                                  Text(
+                                    DateFormat('yy.MM.dd').format(
+                                      DateTime.tryParse(
+                                            post['created_date'] ??
+                                                post['created_at'] ??
+                                                '',
+                                          ) ??
+                                          DateTime.now(),
                                     ),
-                                    child: Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: [
-                                        Text(
-                                          post['cancelled_reason'],
-                                          style: AppTheme.bodyMediumStyle
-                                              .copyWith(
-                                                color: AppTheme.textPrimary,
-                                                height: 1.4,
-                                              ),
-                                        ),
-                                        if (post['cancelled_at'] != null) ...[
-                                          const SizedBox(height: 8),
-                                          Text(
-                                            '중단 처리 시간: ${_formatCancellationTime(post['cancelled_at'])}',
-                                            style: AppTheme.bodySmallStyle
-                                                .copyWith(
-                                                  color: AppTheme.textSecondary,
-                                                ),
-                                          ),
-                                        ],
-                                      ],
+                                    style: AppTheme.bodySmallStyle.copyWith(
+                                      color: AppTheme.textSecondary,
                                     ),
                                   ),
                                 ],
                               ),
-                            ],
-                          ],
-                        ),
-                      ),
+                              const SizedBox(height: 8),
+                              // 주소
+                              Row(
+                                children: [
+                                  Icon(
+                                    Icons.location_on,
+                                    size: 16,
+                                    color: AppTheme.textSecondary,
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Expanded(
+                                    child: Text(
+                                      post['location'] ?? '주소 정보 없음',
+                                      style: AppTheme.bodyMediumStyle,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              // 설명글 (있는 경우만)
+                              if ((post['content_delta'] != null &&
+                                      post['content_delta'].toString().isNotEmpty) ||
+                                  (post['description'] != null &&
+                                      post['description'].toString().isNotEmpty)) ...[
+                                const SizedBox(height: 12),
+                                Container(
+                                  width: double.infinity,
+                                  decoration: BoxDecoration(
+                                    color: AppTheme.veryLightGray,
+                                    borderRadius: BorderRadius.circular(8),
+                                    border: Border.all(
+                                      color: AppTheme.lightGray.withValues(
+                                        alpha: 0.5,
+                                      ),
+                                    ),
+                                  ),
+                                  child: RichTextViewer(
+                                    contentDelta: post['content_delta']?.toString(),
+                                    plainText: post['description']?.toString(),
+                                    padding: const EdgeInsets.all(12),
+                                  ),
+                                ),
+                              ],
 
-                      // 상세 정보
-                      Expanded(
-                        child: SingleChildScrollView(
-                          controller: scrollController,
-                          padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
+                              // 중단 사유 (상태 6 또는 4인 경우에 표시)
+                              if ((post['status'] == 6 || post['status'] == 4) &&
+                                  post['cancelled_reason'] != null &&
+                                  post['cancelled_reason']
+                                      .toString()
+                                      .isNotEmpty) ...[
+                                const SizedBox(height: 16),
+                                Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Row(
+                                      children: [
+                                        Icon(
+                                          Icons.warning_amber_rounded,
+                                          size: 18,
+                                          color: Colors.orange.shade700,
+                                        ),
+                                        const SizedBox(width: 8),
+                                        Text(
+                                          '중단 사유',
+                                          style: AppTheme.bodyLargeStyle.copyWith(
+                                            fontWeight: FontWeight.w600,
+                                            color: Colors.orange.shade700,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                    const SizedBox(height: 8),
+                                    Container(
+                                      width: double.infinity,
+                                      padding: const EdgeInsets.all(12),
+                                      decoration: BoxDecoration(
+                                        color: Colors.orange.shade50,
+                                        borderRadius: BorderRadius.circular(8),
+                                        border: Border.all(
+                                          color: Colors.orange.shade200,
+                                        ),
+                                      ),
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            post['cancelled_reason'],
+                                            style: AppTheme.bodyMediumStyle
+                                                .copyWith(
+                                                  color: AppTheme.textPrimary,
+                                                  height: 1.4,
+                                                ),
+                                          ),
+                                          if (post['cancelled_at'] != null) ...[
+                                            const SizedBox(height: 8),
+                                            Text(
+                                              '중단 처리 시간: ${_formatCancellationTime(post['cancelled_at'])}',
+                                              style: AppTheme.bodySmallStyle
+                                                  .copyWith(
+                                                    color: AppTheme.textSecondary,
+                                                  ),
+                                            ),
+                                          ],
+                                        ],
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ],
+
+                              const SizedBox(height: 24),
+
+                              // 이하 기존 상세 정보
                               // 혈액형 정보
                               ...() {
                                 final bloodType =

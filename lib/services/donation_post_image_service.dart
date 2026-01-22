@@ -1,4 +1,5 @@
 import 'dart:typed_data';
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:http_parser/http_parser.dart';
 import 'dart:convert';
@@ -112,18 +113,23 @@ class DonationPostImageService {
     String? caption,
     Function(double)? onProgress,
   }) async {
+    debugPrint('[ImageService] uploadImageBytes 시작: fileName=$fileName, size=${imageBytes.length}');
     try {
       final token = await _getAuthToken();
       if (token.isEmpty) {
+        debugPrint('[ImageService] 토큰 없음!');
         throw Exception('인증 토큰이 없습니다.');
       }
+      debugPrint('[ImageService] 토큰 확인됨');
 
       // 파일 확장자 확인
       final extension = fileName.split('.').last.toLowerCase();
       final mimeType = _getMimeType(extension);
+      debugPrint('[ImageService] 확장자: $extension, MIME: $mimeType');
 
       // multipart 요청 생성
       final uri = Uri.parse('$baseUrl/api/hospital/post/image');
+      debugPrint('[ImageService] 요청 URL: $uri');
       final request = http.MultipartRequest('POST', uri);
 
       // 헤더 설정
@@ -146,30 +152,41 @@ class DonationPostImageService {
       if (caption != null && caption.isNotEmpty) {
         request.fields['caption'] = caption;
       }
+      debugPrint('[ImageService] 요청 필드: ${request.fields}');
 
       // 요청 전송
+      debugPrint('[ImageService] 요청 전송 중...');
       final streamedResponse = await request.send();
+      debugPrint('[ImageService] 응답 상태 코드: ${streamedResponse.statusCode}');
       final response = await http.Response.fromStream(streamedResponse);
+      debugPrint('[ImageService] 응답 본문: ${response.body}');
 
       if (response.statusCode == 200 || response.statusCode == 201) {
         final data = json.decode(utf8.decode(response.bodyBytes));
 
         if (data['success'] == true) {
+          debugPrint('[ImageService] 업로드 성공!');
           return DonationPostImage.fromJson(data);
         } else {
+          debugPrint('[ImageService] 서버 응답 실패: ${data['message']}');
           throw Exception(data['message'] ?? '이미지 업로드에 실패했습니다.');
         }
       } else if (response.statusCode == 400) {
         final data = json.decode(utf8.decode(response.bodyBytes));
+        debugPrint('[ImageService] 400 에러: ${data['message']}');
         throw Exception(data['message'] ?? '잘못된 요청입니다.');
       } else if (response.statusCode == 401) {
+        debugPrint('[ImageService] 401 인증 만료');
         throw Exception('인증이 만료되었습니다. 다시 로그인해주세요.');
       } else if (response.statusCode == 413) {
+        debugPrint('[ImageService] 413 이미지 개수 초과');
         throw Exception('게시글당 최대 5개의 이미지만 업로드할 수 있습니다.');
       } else {
+        debugPrint('[ImageService] 기타 에러: ${response.statusCode}');
         throw Exception('이미지 업로드에 실패했습니다. (${response.statusCode})');
       }
     } catch (e) {
+      debugPrint('[ImageService] 예외 발생: $e');
       rethrow;
     }
   }
