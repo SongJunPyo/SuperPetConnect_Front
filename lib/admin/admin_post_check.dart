@@ -4147,7 +4147,7 @@ class _AdminPostCheckState extends State<AdminPostCheck>
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text(
-                errorData['message'] ?? '마감 처리에 실패했습니다.',
+                errorData['detail'] ?? errorData['message'] ?? '마감 처리에 실패했습니다.',
               ),
               backgroundColor: Colors.red,
             ),
@@ -4173,6 +4173,10 @@ class _AdminPostCheckState extends State<AdminPostCheck>
     StateSetter onUpdate,
   ) {
     bool isClosing = false;
+
+    // 모든 시간대가 마감되었는지 확인 (열린 시간대가 없어야 함)
+    final hasOpenSlots = _hasOpenTimeSlots(post);
+    final canClose = !hasOpenSlots;
 
     showModalBottomSheet(
       context: context,
@@ -4204,26 +4208,55 @@ class _AdminPostCheckState extends State<AdminPostCheck>
                   const SizedBox(height: 16),
                   const Divider(),
                   const SizedBox(height: 16),
-                  Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: Colors.blue.shade50,
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: Colors.blue.shade200),
-                    ),
-                    child: Row(
-                      children: [
-                        Icon(Icons.info_outline, color: Colors.blue.shade700),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Text(
-                            '마감 시 선정된 사용자와 미선정 사용자, 병원에게 알림이 발송됩니다.',
-                            style: TextStyle(color: Colors.blue.shade700),
+
+                  // 마감되지 않은 시간대가 있는 경우 경고 표시
+                  if (!canClose)
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: Colors.orange.shade50,
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: Colors.orange.shade300),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(
+                            Icons.warning_amber_rounded,
+                            color: Colors.orange.shade700,
                           ),
-                        ),
-                      ],
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Text(
+                              '모든 시간대에서 신청자를 승인해야 전체 마감할 수 있습니다.',
+                              style: TextStyle(color: Colors.orange.shade700),
+                            ),
+                          ),
+                        ],
+                      ),
+                    )
+                  // 모든 시간대가 마감된 경우 안내 표시
+                  else
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: Colors.blue.shade50,
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: Colors.blue.shade200),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(Icons.info_outline, color: Colors.blue.shade700),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Text(
+                              '모든 시간대가 마감되었습니다. 전체 마감을 진행하시겠습니까?',
+                              style: TextStyle(color: Colors.blue.shade700),
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
-                  ),
+
                   const SizedBox(height: 24),
                   Row(
                     children: [
@@ -4247,8 +4280,9 @@ class _AdminPostCheckState extends State<AdminPostCheck>
                       const SizedBox(width: 12),
                       Expanded(
                         child: ElevatedButton(
+                          // 모든 시간대가 마감되지 않으면 비활성화
                           onPressed:
-                              isClosing
+                              (isClosing || !canClose)
                                   ? null
                                   : () async {
                                     setState(() {
@@ -4257,7 +4291,10 @@ class _AdminPostCheckState extends State<AdminPostCheck>
                                     await _closeEntirePost(post, onUpdate);
                                   },
                           style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.red,
+                            backgroundColor:
+                                canClose
+                                    ? Colors.red
+                                    : Colors.grey,
                             foregroundColor: Colors.white,
                             padding: const EdgeInsets.symmetric(vertical: 12),
                             shape: RoundedRectangleBorder(

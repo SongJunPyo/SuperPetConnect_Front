@@ -115,8 +115,6 @@ class WebSocketHandler {
         return;
       }
 
-      debugPrint('[WebSocketHandler] 메시지 수신: $message');
-
       final data = jsonDecode(message.toString()) as Map<String, dynamic>;
 
       // 현재 사용자 타입 확인

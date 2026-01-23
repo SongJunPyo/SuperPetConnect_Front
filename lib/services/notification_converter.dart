@@ -61,7 +61,6 @@ class NotificationConverter {
       // 시스템 메시지 무시 (pong, connection_established 등)
       final ignoredTypes = ['pong', 'connection_established', 'ping'];
       if (ignoredTypes.contains(data['type'])) {
-        debugPrint('[NotificationConverter] 시스템 메시지 무시: ${data['type']}');
         return null;
       }
 
