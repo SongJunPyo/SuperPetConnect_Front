@@ -382,6 +382,7 @@ class _UserDashboardState extends State<UserDashboard>
               columnIdx: column.columnIdx,
               title: column.title,
               content: column.contentPreview,
+              contentDelta: column.contentDelta,
               hospitalName: column.authorName, // 병원 실명
               hospitalIdx: 0,
               isPublished: true,
@@ -1368,13 +1369,19 @@ class _UserDashboardState extends State<UserDashboard>
                   Expanded(
                     child: SingleChildScrollView(
                       controller: scrollController,
-                      child: Text(
-                        column.content,
-                        style: AppTheme.bodyMediumStyle.copyWith(
-                          height: 1.6,
-                          color: AppTheme.textPrimary,
-                        ),
-                      ),
+                      child: column.contentDelta != null && column.contentDelta!.isNotEmpty
+                          ? RichTextViewer(
+                              contentDelta: column.contentDelta,
+                              plainText: column.content,
+                              padding: EdgeInsets.zero,
+                            )
+                          : Text(
+                              column.content,
+                              style: AppTheme.bodyMediumStyle.copyWith(
+                                height: 1.6,
+                                color: AppTheme.textPrimary,
+                              ),
+                            ),
                     ),
                   ),
                   const SizedBox(height: 16),

@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:connect/auth/login.dart';
 import '../utils/app_theme.dart';
 import '../widgets/app_app_bar.dart';
+import '../widgets/rich_text_viewer.dart';
 import '../services/dashboard_service.dart';
 import '../models/hospital_column_model.dart';
 import '../models/notice_model.dart';
@@ -203,13 +204,19 @@ class _WelcomeScreenState extends State<WelcomeScreen>
                       Expanded(
                         child: SingleChildScrollView(
                           controller: scrollController,
-                          child: Text(
-                            detailColumn.content,
-                            style: AppTheme.bodyMediumStyle.copyWith(
-                              height: 1.6,
-                              color: AppTheme.textPrimary,
-                            ),
-                          ),
+                          child: detailColumn.contentDelta != null && detailColumn.contentDelta!.isNotEmpty
+                              ? RichTextViewer(
+                                  contentDelta: detailColumn.contentDelta,
+                                  plainText: detailColumn.content,
+                                  padding: EdgeInsets.zero,
+                                )
+                              : Text(
+                                  detailColumn.content,
+                                  style: AppTheme.bodyMediumStyle.copyWith(
+                                    height: 1.6,
+                                    color: AppTheme.textPrimary,
+                                  ),
+                                ),
                         ),
                       ),
                       const SizedBox(height: 16),
