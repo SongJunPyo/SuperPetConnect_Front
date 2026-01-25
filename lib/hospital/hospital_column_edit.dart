@@ -3,6 +3,7 @@ import '../services/hospital_column_service.dart';
 import '../models/hospital_column_model.dart';
 import '../utils/app_theme.dart';
 import '../widgets/app_app_bar.dart';
+import '../widgets/rich_text_editor.dart';
 
 class HospitalColumnEdit extends StatefulWidget {
   final HospitalColumn column;
@@ -16,28 +17,45 @@ class HospitalColumnEdit extends StatefulWidget {
 class _HospitalColumnEditState extends State<HospitalColumnEdit> {
   final _formKey = GlobalKey<FormState>();
   late TextEditingController _titleController;
-  late TextEditingController _contentController;
   late TextEditingController _urlController;
+  final GlobalKey<RichTextEditorState> _editorKey = GlobalKey<RichTextEditorState>();
   bool _isLoading = false;
 
   @override
   void initState() {
     super.initState();
     _titleController = TextEditingController(text: widget.column.title);
-    _contentController = TextEditingController(text: widget.column.content);
     _urlController = TextEditingController(text: widget.column.columnUrl ?? '');
   }
 
   @override
   void dispose() {
     _titleController.dispose();
-    _contentController.dispose();
     _urlController.dispose();
     super.dispose();
   }
 
   Future<void> _updateColumn() async {
     if (!_formKey.currentState!.validate()) return;
+
+    // RichTextEditor에서 내용 가져오기
+    final editorState = _editorKey.currentState;
+    final plainText = editorState?.text.trim() ?? '';
+    final contentDelta = editorState?.contentDelta;
+
+    // 내용 검증
+    if (plainText.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('내용을 입력해주세요.')),
+      );
+      return;
+    }
+    if (plainText.length < 10) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('내용은 10글자 이상 입력해주세요.')),
+      );
+      return;
+    }
 
     setState(() {
       _isLoading = true;
@@ -46,7 +64,8 @@ class _HospitalColumnEditState extends State<HospitalColumnEdit> {
     try {
       final request = HospitalColumnUpdateRequest(
         title: _titleController.text.trim(),
-        content: _contentController.text.trim(),
+        content: plainText,
+        contentDelta: contentDelta,
         columnUrl:
             _urlController.text.trim().isEmpty
                 ? null
@@ -126,31 +145,22 @@ class _HospitalColumnEditState extends State<HospitalColumnEdit> {
                 ),
               ),
               const SizedBox(height: AppTheme.spacing8),
-              TextFormField(
-                controller: _contentController,
-                decoration: InputDecoration(
-                  hintText: '칼럼 내용을 입력하세요',
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(AppTheme.radius8),
-                    borderSide: const BorderSide(color: AppTheme.lightGray),
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(AppTheme.radius8),
-                    borderSide: const BorderSide(color: AppTheme.primaryBlue),
-                  ),
-                  contentPadding: const EdgeInsets.all(AppTheme.spacing16),
+              Container(
+                decoration: BoxDecoration(
+                  border: Border.all(color: AppTheme.lightGray),
+                  borderRadius: BorderRadius.circular(AppTheme.radius8),
                 ),
-                maxLines: 18,
-                minLines: 10,
-                validator: (value) {
-                  if (value == null || value.trim().isEmpty) {
-                    return '내용을 입력해주세요.';
-                  }
-                  if (value.trim().length < 10) {
-                    return '내용은 10글자 이상 입력해주세요.';
-                  }
-                  return null;
-                },
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(AppTheme.radius8),
+                  child: RichTextEditor(
+                    key: _editorKey,
+                    editorType: EditorType.column,
+                    columnIdx: widget.column.columnIdx,
+                    initialContentDelta: widget.column.contentDelta,
+                    initialText: widget.column.contentDelta == null ? widget.column.content : null,
+                    placeholder: '칼럼 내용을 입력하세요. 이미지도 추가할 수 있습니다.',
+                  ),
+                ),
               ),
               const SizedBox(height: AppTheme.spacing32),
               Text(

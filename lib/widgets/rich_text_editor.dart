@@ -1,30 +1,61 @@
 import 'dart:convert';
+import 'dart:typed_data';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_quill/flutter_quill.dart';
 import 'package:image_picker/image_picker.dart';
 import '../models/donation_post_image_model.dart';
+import '../models/hospital_column_model.dart';
 import '../services/donation_post_image_service.dart';
+import '../services/column_image_service.dart';
 import '../utils/app_theme.dart';
+import '../utils/config.dart';
+
+/// 에디터 타입 (이미지 업로드 엔드포인트 결정)
+enum EditorType {
+  donationPost, // 헌혈 게시글
+  column, // 칼럼
+}
+
+/// 이미지 업로드 결과
+class ImageUploadResult {
+  final int imageId;
+  final String imagePath;
+  final String? thumbnailPath;
+
+  ImageUploadResult({
+    required this.imageId,
+    required this.imagePath,
+    this.thumbnailPath,
+  });
+}
 
 /// 리치 텍스트 에디터 위젯 (flutter_quill 기반)
 /// 이미지를 텍스트 내 인라인으로 삽입 가능
 class RichTextEditor extends StatefulWidget {
   final String? initialText;
+  final String? initialContentDelta; // Delta JSON 초기값
   final List<DonationPostImage>? initialImages;
   final Function(String text, List<DonationPostImage> images)? onChanged;
-  final int? postIdx;
+  final int? postIdx; // 헌혈 게시글용
+  final int? columnIdx; // 칼럼용
   final int maxImages;
   final bool enabled;
+  final EditorType editorType;
+  final String? placeholder;
 
   const RichTextEditor({
     super.key,
     this.initialText,
+    this.initialContentDelta,
     this.initialImages,
     this.onChanged,
     this.postIdx,
+    this.columnIdx,
     this.maxImages = 5,
     this.enabled = true,
+    this.editorType = EditorType.donationPost,
+    this.placeholder,
   });
 
   @override
@@ -58,8 +89,26 @@ class RichTextEditorState extends State<RichTextEditor> {
 
   /// 에디터 초기화
   void _initializeEditor() {
-    // 초기 텍스트가 있으면 파싱
-    if (widget.initialText != null && widget.initialText!.isNotEmpty) {
+    // Delta JSON이 있으면 파싱하여 초기화
+    if (widget.initialContentDelta != null && widget.initialContentDelta!.isNotEmpty) {
+      try {
+        final deltaJson = jsonDecode(widget.initialContentDelta!);
+        if (deltaJson is List) {
+          // Delta JSON을 Quill Document로 변환
+          final doc = _deltaJsonToDocument(deltaJson);
+          _controller = QuillController(
+            document: doc,
+            selection: const TextSelection.collapsed(offset: 0),
+          );
+        } else {
+          _controller = QuillController.basic();
+        }
+      } catch (e) {
+        debugPrint('[RichTextEditor] Delta JSON 파싱 실패: $e');
+        _controller = QuillController.basic();
+      }
+    } else if (widget.initialText != null && widget.initialText!.isNotEmpty) {
+      // 기존 텍스트 초기화 (하위 호환)
       final plainText = _extractPlainText(widget.initialText!);
       _controller = QuillController(
         document: Document()..insert(0, plainText),
@@ -78,6 +127,31 @@ class RichTextEditorState extends State<RichTextEditor> {
     _controller.document.changes.listen((_) {
       _notifyChange();
     });
+  }
+
+  /// Delta JSON을 Quill Document로 변환
+  Document _deltaJsonToDocument(List<dynamic> deltaJson) {
+    final doc = Document();
+    int index = 0;
+
+    for (final op in deltaJson) {
+      if (op is Map && op.containsKey('insert')) {
+        final insert = op['insert'];
+
+        if (insert is String) {
+          doc.insert(index, insert);
+          index += insert.length;
+        } else if (insert is Map && insert.containsKey('image')) {
+          // 이미지 삽입
+          final imagePath = insert['image'] as String;
+          final fullUrl = _getFullImageUrl(imagePath);
+          doc.insert(index, BlockEmbed.image(fullUrl));
+          index += 1;
+        }
+      }
+    }
+
+    return doc;
   }
 
   /// [IMAGE:id] 마커 제거하고 순수 텍스트 추출
@@ -120,12 +194,20 @@ class RichTextEditorState extends State<RichTextEditor> {
   int? _extractImageIdFromUrl(String url) {
     // _images에서 URL과 매칭되는 이미지 찾기
     for (final image in _images) {
-      final fullUrl = DonationPostImageService.getFullImageUrl(image.imagePath);
+      final fullUrl = _getFullImageUrl(image.imagePath);
       if (url == fullUrl || url == image.imagePath) {
         return image.imageId;
       }
     }
     return null;
+  }
+
+  /// 이미지 전체 URL 생성 (에디터 타입에 따라)
+  String _getFullImageUrl(String imagePath) {
+    if (imagePath.startsWith('http')) {
+      return imagePath;
+    }
+    return '${Config.serverUrl}$imagePath';
   }
 
   @override
@@ -348,19 +430,23 @@ class RichTextEditorState extends State<RichTextEditor> {
 
   /// 에디터 영역
   Widget _buildEditor() {
+    final placeholderText = widget.placeholder ??
+        (widget.editorType == EditorType.column
+            ? '칼럼 내용을 작성해주세요...'
+            : '헌혈에 대한 추가 설명을 작성해주세요...');
+
     return Container(
       constraints: const BoxConstraints(minHeight: 200),
       padding: const EdgeInsets.symmetric(
         horizontal: AppTheme.spacing16,
         vertical: AppTheme.spacing12,
-        ),
-
+      ),
       child: QuillEditor(
         controller: _controller,
         focusNode: _focusNode,
         scrollController: _scrollController,
         config: QuillEditorConfig(
-          placeholder: '헌혈에 대한 추가 설명을 작성해주세요...',
+          placeholder: placeholderText,
           padding: EdgeInsets.zero,
           autoFocus: false,
           expands: false,
@@ -474,7 +560,7 @@ class RichTextEditorState extends State<RichTextEditor> {
 
   /// 이미지 업로드 및 에디터에 삽입
   Future<void> _uploadImage(XFile file) async {
-    debugPrint('[RichTextEditor] 이미지 업로드 시작: ${file.name}');
+    debugPrint('[RichTextEditor] 이미지 업로드 시작: ${file.name}, 타입: ${widget.editorType}');
     try {
       final bytes = await file.readAsBytes();
       final fileSize = bytes.length;
@@ -496,25 +582,53 @@ class RichTextEditorState extends State<RichTextEditor> {
       });
 
       debugPrint('[RichTextEditor] 서버 업로드 요청 시작...');
-      // 서버 업로드
-      final uploadedImage = await DonationPostImageService.uploadImageBytes(
-        imageBytes: bytes,
-        fileName: file.name,
-        postIdx: widget.postIdx,
-        imageOrder: _images.length,
-        onProgress: (progress) {
-          setState(() {
-            _uploadingImage = _uploadingImage?.copyWithProgress(progress);
-          });
-        },
-      );
+
+      // 에디터 타입에 따라 다른 서비스 사용
+      late final DonationPostImage uploadedImage;
+
+      if (widget.editorType == EditorType.column) {
+        // 칼럼 이미지 업로드
+        final columnImage = await ColumnImageService.uploadImageBytes(
+          imageBytes: bytes,
+          fileName: file.name,
+          columnIdx: widget.columnIdx,
+          onProgress: (progress) {
+            setState(() {
+              _uploadingImage = _uploadingImage?.copyWithProgress(progress);
+            });
+          },
+        );
+        // ColumnImage를 DonationPostImage로 변환 (내부 관리용)
+        uploadedImage = DonationPostImage(
+          imageId: columnImage.imageId,
+          imagePath: columnImage.imagePath,
+          thumbnailPath: columnImage.thumbnailPath,
+          imageOrder: columnImage.imageOrder,
+          originalName: columnImage.originalName,
+          fileSize: columnImage.fileSize,
+        );
+      } else {
+        // 헌혈 게시글 이미지 업로드
+        uploadedImage = await DonationPostImageService.uploadImageBytes(
+          imageBytes: bytes,
+          fileName: file.name,
+          postIdx: widget.postIdx,
+          imageOrder: _images.length,
+          onProgress: (progress) {
+            setState(() {
+              _uploadingImage = _uploadingImage?.copyWithProgress(progress);
+            });
+          },
+        );
+      }
+
       debugPrint('[RichTextEditor] 서버 업로드 성공: ${uploadedImage.imagePath}');
 
       // 이미지 목록에 추가
       _images.add(uploadedImage);
 
       // 에디터에 이미지 삽입 (현재 커서 위치에)
-      final imageUrl = DonationPostImageService.getFullImageUrl(uploadedImage.imagePath);
+      final imageUrl = _getFullImageUrl(uploadedImage.imagePath);
       final docLength = _controller.document.length;
       int index = _controller.selection.baseOffset;
 
@@ -555,7 +669,7 @@ class RichTextEditorState extends State<RichTextEditor> {
   void _removeImageFromEditor(String imageUrl) {
     // 이미지 목록에서 해당 이미지 찾기
     final imageToRemove = _images.where((img) {
-      final fullUrl = DonationPostImageService.getFullImageUrl(img.imagePath);
+      final fullUrl = _getFullImageUrl(img.imagePath);
       return fullUrl == imageUrl || img.imagePath == imageUrl;
     }).firstOrNull;
 
@@ -593,7 +707,11 @@ class RichTextEditorState extends State<RichTextEditor> {
   Future<void> _removeImage(DonationPostImage image, String imageUrl) async {
     if (!image.isTemporary) {
       try {
-        await DonationPostImageService.deleteImage(image.imageId);
+        if (widget.editorType == EditorType.column) {
+          await ColumnImageService.deleteImage(image.imageId);
+        } else {
+          await DonationPostImageService.deleteImage(image.imageId);
+        }
       } catch (e) {
         _showSnackBar('이미지 삭제 실패: $e', isError: true);
         return;
@@ -708,7 +826,7 @@ class RichTextEditorState extends State<RichTextEditor> {
 
   /// 이미지 URL을 상대 경로로 변환
   String _toRelativePath(String url) {
-    final baseUrl = DonationPostImageService.baseUrl;
+    final baseUrl = Config.serverUrl;
     if (url.startsWith(baseUrl)) {
       return url.substring(baseUrl.length);
     }

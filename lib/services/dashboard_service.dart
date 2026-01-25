@@ -886,6 +886,7 @@ class ColumnPost {
   final String authorNickname;
   final int viewCount;
   final String contentPreview;
+  final String? contentDelta; // Delta JSON 리치 텍스트
   final String? columnUrl;
   final bool isImportant;
   final DateTime createdAt;
@@ -898,6 +899,7 @@ class ColumnPost {
     required this.authorNickname,
     required this.viewCount,
     required this.contentPreview,
+    this.contentDelta,
     this.columnUrl,
     required this.isImportant,
     required this.createdAt,
@@ -917,6 +919,7 @@ class ColumnPost {
               : '닉네임 없음',
       viewCount: json['view_count'] ?? 0,
       contentPreview: json['content'] ?? '', // content_preview 제거됨, content 사용
+      contentDelta: json['content_delta'],
       columnUrl: json['column_url'] ?? json['columnUrl'],
       isImportant: json['is_important'] ?? false,
       createdAt: DateTime.tryParse(json['created_at'] ?? '') ?? DateTime.now(),

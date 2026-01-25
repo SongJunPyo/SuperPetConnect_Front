@@ -4,6 +4,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../services/hospital_column_service.dart';
 import '../models/hospital_column_model.dart';
 import '../utils/app_theme.dart';
+import '../widgets/rich_text_viewer.dart';
 import 'package:intl/intl.dart';
 
 class AdminColumnManagement extends StatefulWidget {
@@ -336,13 +337,19 @@ class _AdminColumnManagementState extends State<AdminColumnManagement> with Tick
                   Expanded(
                     child: SingleChildScrollView(
                       controller: scrollController,
-                      child: Text(
-                        column.content,
-                        style: AppTheme.bodyMediumStyle.copyWith(
-                          height: 1.6,
-                          color: AppTheme.textPrimary,
-                        ),
-                      ),
+                      child: column.contentDelta != null && column.contentDelta!.isNotEmpty
+                          ? RichTextViewer(
+                              contentDelta: column.contentDelta,
+                              plainText: column.content,
+                              padding: EdgeInsets.zero,
+                            )
+                          : Text(
+                              column.content,
+                              style: AppTheme.bodyMediumStyle.copyWith(
+                                height: 1.6,
+                                color: AppTheme.textPrimary,
+                              ),
+                            ),
                     ),
                   ),
                   const SizedBox(height: 16),

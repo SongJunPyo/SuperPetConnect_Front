@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../services/hospital_column_service.dart';
 import '../models/hospital_column_model.dart';
 import '../utils/app_theme.dart';
+import '../widgets/rich_text_viewer.dart';
 import 'hospital_column_edit.dart';
 import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -409,20 +410,28 @@ class _HospitalColumnDetailState extends State<HospitalColumnDetail> {
                     const SizedBox(height: 12),
                     Container(
                       width: double.infinity,
-                      padding: const EdgeInsets.all(16.0),
                       constraints: const BoxConstraints(minHeight: 200),
                       decoration: BoxDecoration(
                         color: Colors.grey.shade50,
                         borderRadius: BorderRadius.circular(10),
                         border: Border.all(color: Colors.grey.shade300),
                       ),
-                      child: Text(
-                        column!.content,
-                        style: AppTheme.bodyLargeStyle.copyWith(
-                          height: 1.6,
-                          color: Colors.black87,
-                        ),
-                      ),
+                      child: column!.contentDelta != null && column!.contentDelta!.isNotEmpty
+                          ? RichTextViewer(
+                              contentDelta: column!.contentDelta,
+                              plainText: column!.content,
+                              padding: const EdgeInsets.all(16.0),
+                            )
+                          : Padding(
+                              padding: const EdgeInsets.all(16.0),
+                              child: Text(
+                                column!.content,
+                                style: AppTheme.bodyLargeStyle.copyWith(
+                                  height: 1.6,
+                                  color: Colors.black87,
+                                ),
+                              ),
+                            ),
                     ),
                   ],
                 ),

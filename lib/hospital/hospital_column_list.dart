@@ -7,6 +7,7 @@ import '../utils/app_theme.dart';
 import '../utils/number_format_util.dart';
 import '../widgets/app_app_bar.dart';
 import '../widgets/marquee_text.dart';
+import '../widgets/rich_text_viewer.dart';
 
 class HospitalColumnList extends StatefulWidget {
   const HospitalColumnList({super.key});
@@ -193,13 +194,19 @@ class _HospitalColumnListState extends State<HospitalColumnList> {
                   Expanded(
                     child: SingleChildScrollView(
                       controller: scrollController,
-                      child: Text(
-                        column.contentPreview,
-                        style: AppTheme.bodyMediumStyle.copyWith(
-                          height: 1.6,
-                          color: AppTheme.textPrimary,
-                        ),
-                      ),
+                      child: column.contentDelta != null && column.contentDelta!.isNotEmpty
+                          ? RichTextViewer(
+                              contentDelta: column.contentDelta,
+                              plainText: column.contentPreview,
+                              padding: EdgeInsets.zero,
+                            )
+                          : Text(
+                              column.contentPreview,
+                              style: AppTheme.bodyMediumStyle.copyWith(
+                                height: 1.6,
+                                color: AppTheme.textPrimary,
+                              ),
+                            ),
                     ),
                   ),
                   const SizedBox(height: 16),

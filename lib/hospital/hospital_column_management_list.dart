@@ -8,6 +8,7 @@ import '../services/hospital_column_service.dart';
 import '../models/hospital_column_model.dart';
 import '../utils/app_theme.dart';
 import '../widgets/app_app_bar.dart';
+import '../widgets/rich_text_viewer.dart';
 import 'hospital_column_create.dart';
 import 'hospital_column_edit.dart';
 
@@ -383,13 +384,19 @@ class _HospitalColumnManagementScreenState
                       Expanded(
                         child: SingleChildScrollView(
                           controller: scrollController,
-                          child: Text(
-                            detailColumn.content,
-                            style: AppTheme.bodyMediumStyle.copyWith(
-                              height: 1.6,
-                              color: AppTheme.textPrimary,
-                            ),
-                          ),
+                          child: detailColumn.contentDelta != null && detailColumn.contentDelta!.isNotEmpty
+                              ? RichTextViewer(
+                                  contentDelta: detailColumn.contentDelta,
+                                  plainText: detailColumn.content,
+                                  padding: EdgeInsets.zero,
+                                )
+                              : Text(
+                                  detailColumn.content,
+                                  style: AppTheme.bodyMediumStyle.copyWith(
+                                    height: 1.6,
+                                    color: AppTheme.textPrimary,
+                                  ),
+                                ),
                         ),
                       ),
                       const SizedBox(height: 16),

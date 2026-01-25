@@ -386,6 +386,13 @@ class HospitalColumnService {
 
       if (response.statusCode == 200) {
         final data = jsonDecode(utf8.decode(response.bodyBytes));
+        debugPrint('[AdminColumns] 응답 데이터: $data');
+        // content_delta 필드 확인
+        if (data['columns'] != null && data['columns'] is List) {
+          for (var col in data['columns']) {
+            debugPrint('[AdminColumns] 칼럼 ${col['column_idx']}: content_delta=${col['content_delta']}');
+          }
+        }
         return HospitalColumnListResponse.fromJson(data);
       } else if (response.statusCode == 401) {
         throw Exception('인증이 만료되었습니다. 다시 로그인해주세요.');

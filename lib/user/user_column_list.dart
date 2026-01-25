@@ -3,6 +3,7 @@ import '../utils/app_theme.dart';
 import '../services/dashboard_service.dart';
 import 'package:intl/intl.dart';
 import '../widgets/marquee_text.dart';
+import '../widgets/rich_text_viewer.dart';
 import '../utils/number_format_util.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -137,13 +138,19 @@ class _UserColumnListScreenState extends State<UserColumnListScreen> {
                   Expanded(
                     child: SingleChildScrollView(
                       controller: scrollController,
-                      child: Text(
-                        column.contentPreview,
-                        style: AppTheme.bodyMediumStyle.copyWith(
-                          height: 1.6,
-                          color: AppTheme.textPrimary,
-                        ),
-                      ),
+                      child: column.contentDelta != null && column.contentDelta!.isNotEmpty
+                          ? RichTextViewer(
+                              contentDelta: column.contentDelta,
+                              plainText: column.contentPreview,
+                              padding: EdgeInsets.zero,
+                            )
+                          : Text(
+                              column.contentPreview,
+                              style: AppTheme.bodyMediumStyle.copyWith(
+                                height: 1.6,
+                                color: AppTheme.textPrimary,
+                              ),
+                            ),
                     ),
                   ),
                   const SizedBox(height: 16),
