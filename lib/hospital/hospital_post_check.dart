@@ -1202,166 +1202,158 @@ class _HospitalPostCheckState extends State<HospitalPostCheck>
                   ),
                 ),
                 const Divider(height: 1),
-                // 메타 정보
-                Container(
-                  padding: const EdgeInsets.all(20),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // 병원명과 등록일
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          // 병원명
-                          Row(
-                            children: [
-                              Icon(
-                                Icons.business,
-                                size: 16,
+                // 메타 정보 + 신청자 정보 (스크롤 가능)
+                Expanded(
+                  child: SingleChildScrollView(
+                    controller: scrollController,
+                    padding: const EdgeInsets.all(20),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // 병원명과 등록일
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            // 병원명
+                            Row(
+                              children: [
+                                Icon(
+                                  Icons.business,
+                                  size: 16,
+                                  color: AppTheme.textSecondary,
+                                ),
+                                const SizedBox(width: 8),
+                                Text(
+                                  '병원명: ',
+                                  style: AppTheme.bodyMediumStyle.copyWith(
+                                    fontWeight: FontWeight.w500,
+                                    color: AppTheme.textPrimary,
+                                  ),
+                                ),
+                                Text(
+                                  item.hospitalNickname,
+                                  style: AppTheme.bodyMediumStyle.copyWith(
+                                    fontWeight: FontWeight.w600,
+                                    color: AppTheme.textPrimary,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            // 등록일 (가장 오른쪽)
+                            Text(
+                              DateFormat('yy.MM.dd').format(DateTime.parse(item.createdDate)),
+                              style: AppTheme.bodySmallStyle.copyWith(
                                 color: AppTheme.textSecondary,
                               ),
-                              const SizedBox(width: 8),
-                              Text(
-                                '병원명: ',
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 8),
+                        // 주소
+                        Row(
+                          children: [
+                            Icon(
+                              Icons.location_on,
+                              size: 16,
+                              color: AppTheme.textSecondary,
+                            ),
+                            const SizedBox(width: 8),
+                            Text(
+                              '주소: ',
+                              style: AppTheme.bodyMediumStyle.copyWith(
+                                fontWeight: FontWeight.w600,
+                                color: AppTheme.textPrimary,
+                              ),
+                            ),
+                            Expanded(
+                              child: Text(
+                                item.location,
                                 style: AppTheme.bodyMediumStyle.copyWith(
-                                  fontWeight: FontWeight.w500,
                                   color: AppTheme.textPrimary,
                                 ),
                               ),
-                              Text(
-                                item.hospitalNickname,
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 8),
+                        // 헌혈 날짜
+                        Row(
+                          children: [
+                            Icon(
+                              Icons.calendar_today,
+                              size: 16,
+                              color: AppTheme.textSecondary,
+                            ),
+                            const SizedBox(width: 8),
+                            Text(
+                              '헌혈 날짜: ',
+                              style: AppTheme.bodyMediumStyle.copyWith(
+                                fontWeight: FontWeight.w500,
+                                color: AppTheme.textPrimary,
+                              ),
+                            ),
+                            Expanded(
+                              child: Text(
+                                item.date,
                                 style: AppTheme.bodyMediumStyle.copyWith(
                                   fontWeight: FontWeight.w600,
                                   color: AppTheme.textPrimary,
                                 ),
                               ),
-                            ],
-                          ),
-                          // 등록일 (가장 오른쪽)
-                          Text(
-                            DateFormat('yy.MM.dd').format(DateTime.parse(item.createdDate)),
-                            style: AppTheme.bodySmallStyle.copyWith(
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 8),
+                        // 헌혈 시간
+                        Row(
+                          children: [
+                            Icon(
+                              Icons.access_time,
+                              size: 16,
                               color: AppTheme.textSecondary,
                             ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 8),
-                      // 주소
-                      Row(
-                        children: [
-                          Icon(
-                            Icons.location_on,
-                            size: 16,
-                            color: AppTheme.textSecondary,
-                          ),
-                          const SizedBox(width: 8),
-                          Text(
-                            '주소: ',
-                            style: AppTheme.bodyMediumStyle.copyWith(
-                              fontWeight: FontWeight.w600,
-                              color: AppTheme.textPrimary,
-                            ),
-                          ),
-                          Expanded(
-                            child: Text(
-                              item.location,
+                            const SizedBox(width: 8),
+                            Text(
+                              '헌혈 시간: ',
                               style: AppTheme.bodyMediumStyle.copyWith(
+                                fontWeight: FontWeight.w500,
                                 color: AppTheme.textPrimary,
                               ),
                             ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 8),
-                      // 헌혈 날짜
-                      Row(
-                        children: [
-                          Icon(
-                            Icons.calendar_today,
-                            size: 16,
-                            color: AppTheme.textSecondary,
-                          ),
-                          const SizedBox(width: 8),
-                          Text(
-                            '헌혈 날짜: ',
-                            style: AppTheme.bodyMediumStyle.copyWith(
-                              fontWeight: FontWeight.w500,
-                              color: AppTheme.textPrimary,
-                            ),
-                          ),
-                          Expanded(
-                            child: Text(
-                              item.date,
-                              style: AppTheme.bodyMediumStyle.copyWith(
-                                fontWeight: FontWeight.w600,
-                                color: AppTheme.textPrimary,
+                            Expanded(
+                              child: Text(
+                                item.time,
+                                style: AppTheme.bodyMediumStyle.copyWith(
+                                  fontWeight: FontWeight.w600,
+                                  color: AppTheme.textPrimary,
+                                ),
                               ),
                             ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 8),
-                      // 헌혈 시간
-                      Row(
-                        children: [
-                          Icon(
-                            Icons.access_time,
-                            size: 16,
-                            color: AppTheme.textSecondary,
-                          ),
-                          const SizedBox(width: 8),
-                          Text(
-                            '헌혈 시간: ',
-                            style: AppTheme.bodyMediumStyle.copyWith(
-                              fontWeight: FontWeight.w500,
-                              color: AppTheme.textPrimary,
-                            ),
-                          ),
-                          Expanded(
-                            child: Text(
-                              item.time,
-                              style: AppTheme.bodyMediumStyle.copyWith(
-                                fontWeight: FontWeight.w600,
-                                color: AppTheme.textPrimary,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                      if (item.postDescription != null && item.postDescription!.isNotEmpty) ...[
-                        const SizedBox(height: 12),
-                        Container(
-                          width: double.infinity,
-                          padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(
-                            color: AppTheme.veryLightGray,
-                            borderRadius: BorderRadius.circular(8),
-                            border: Border.all(
-                              color: AppTheme.lightGray.withAlpha(128),
-                            ),
-                          ),
-                          child: Text(
-                            item.postDescription!,
-                            style: AppTheme.bodyMediumStyle.copyWith(
-                              color: AppTheme.textPrimary,
-                              height: 1.4,
-                            ),
-                          ),
+                          ],
                         ),
-                      ],
-                    ],
-                  ),
-                ),
-                // 신청자 정보 (있는 경우)
-                if (item.applicantNickname != null)
-                  Expanded(
-                    child: SingleChildScrollView(
-                      controller: scrollController,
-                      padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
+                        // 설명글 (리치 텍스트)
+                        if ((item.contentDelta != null && item.contentDelta!.isNotEmpty) ||
+                            (item.postDescription != null && item.postDescription!.isNotEmpty)) ...[
+                          const SizedBox(height: 12),
+                          Container(
+                            width: double.infinity,
+                            decoration: BoxDecoration(
+                              color: AppTheme.veryLightGray,
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(
+                                color: AppTheme.lightGray.withAlpha(128),
+                              ),
+                            ),
+                            child: RichTextViewer(
+                              contentDelta: item.contentDelta,
+                              plainText: item.postDescription,
+                              padding: const EdgeInsets.all(12),
+                            ),
+                          ),
+                        ],
+                        // 신청자 정보 (있는 경우)
+                        if (item.applicantNickname != null) ...[
+                          const SizedBox(height: 20),
                           Text('신청자 정보', style: AppTheme.h4Style),
                           const SizedBox(height: 12),
                           Container(
@@ -1428,71 +1420,67 @@ class _HospitalPostCheckState extends State<HospitalPostCheck>
                             ),
                           ),
                         ],
-                      ),
-                    ),
-                  )
-                else
-                  const SizedBox(height: 20),
-                if (canPerformActions)
-                  SafeArea(
-                    top: false,
-                    child: Padding(
-                      padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
-                      child: Row(
-                        children: [
-                          Expanded(
-                            child: OutlinedButton.icon(
-                              onPressed: () {
-                                Navigator.of(context).pop();
-                                _showClosedCancellationSheet(item);
-                              },
-                              icon: const Icon(
-                                Icons.close,
-                                size: 18,
-                                color: Colors.black,
-                              ),
-                              label: const Text('헌혈 중단'),
-                              style: OutlinedButton.styleFrom(
-                                foregroundColor: Colors.red.shade700,
-                                side: BorderSide(color: Colors.red.shade400),
-                                backgroundColor: Colors.red.shade50,
-                                padding:
-                                    const EdgeInsets.symmetric(vertical: 12),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(8),
+                        // 헌혈 중단/완료 버튼 (스크롤 영역 안에 포함)
+                        if (canPerformActions) ...[
+                          const SizedBox(height: 24),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: OutlinedButton.icon(
+                                  onPressed: () {
+                                    Navigator.of(context).pop();
+                                    _showClosedCancellationSheet(item);
+                                  },
+                                  icon: const Icon(
+                                    Icons.close,
+                                    size: 18,
+                                    color: Colors.red,
+                                  ),
+                                  label: const Text('헌혈 중단'),
+                                  style: OutlinedButton.styleFrom(
+                                    foregroundColor: Colors.red,
+                                    side: const BorderSide(color: Colors.red),
+                                    backgroundColor: Colors.transparent,
+                                    padding:
+                                        const EdgeInsets.symmetric(vertical: 12),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
+                                  ),
                                 ),
                               ),
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: OutlinedButton.icon(
-                              onPressed: () {
-                                Navigator.of(context).pop();
-                                _showClosedCompletionSheet(item);
-                              },
-                              icon: const Icon(
-                                Icons.check,
-                                size: 18,
-                                color: Colors.black,
-                              ),
-                              label: const Text('헌혈 완료'),
-                              style: OutlinedButton.styleFrom(
-                                foregroundColor: Colors.green.shade700,
-                                side: BorderSide(color: Colors.green.shade400),
-                                backgroundColor: Colors.green.shade50,
-                                padding:
-                                    const EdgeInsets.symmetric(vertical: 12),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(8),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: OutlinedButton.icon(
+                                  onPressed: () {
+                                    Navigator.of(context).pop();
+                                    _showClosedCompletionSheet(item);
+                                  },
+                                  icon: const Icon(
+                                    Icons.check,
+                                    size: 18,
+                                    color: Colors.green,
+                                  ),
+                                  label: const Text('헌혈 완료'),
+                                  style: OutlinedButton.styleFrom(
+                                    foregroundColor: Colors.green,
+                                    side: const BorderSide(color: Colors.green),
+                                    backgroundColor: Colors.transparent,
+                                    padding:
+                                        const EdgeInsets.symmetric(vertical: 12),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
+                                  ),
                                 ),
                               ),
-                            ),
+                            ],
                           ),
                         ],
-                      ),
+                      ],
                     ),
                   ),
+                ),
               ],
             ),
           );
@@ -1841,7 +1829,7 @@ class _PostDetailBottomSheetState extends State<PostDetailBottomSheet> {
 
     if (confirm == true) {
       try {
-        // await HospitalPostService.deletePost(widget.post.postIdx.toString());
+        await HospitalPostService.deletePost(widget.post.postIdx.toString());
 
         if (mounted) {
           Navigator.of(context).pop(); // 바텀시트 닫기
@@ -1854,7 +1842,7 @@ class _PostDetailBottomSheetState extends State<PostDetailBottomSheet> {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('삭제 중 오류가 발생했습니다: ${e.toString()}'),
+              content: Text('삭제 실패: ${e.toString().replaceAll('Exception: ', '')}'),
               backgroundColor: AppTheme.error,
             ),
           );

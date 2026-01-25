@@ -26,6 +26,10 @@ import '../models/region_model.dart';
 import '../utils/text_personalization_util.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../providers/notification_provider.dart';
+import '../widgets/rich_text_viewer.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+import '../services/applied_donation_service.dart';
+import '../models/applied_donation_model.dart';
 
 class UserDashboard extends StatefulWidget {
   const UserDashboard({super.key});
@@ -46,6 +50,9 @@ class _UserDashboardState extends State<UserDashboard>
   List<HospitalColumn> columns = [];
   List<Notice> notices = [];
   List<DonationPost> donations = [];
+
+  // 내가 신청한 시간대 정보 (postTimesIdx -> MyApplicationInfo)
+  Map<int, MyApplicationInfo> myApplicationsMap = {};
   bool isLoadingColumns = false;
   bool isLoadingNotices = false;
   bool isLoadingDonations = false;
@@ -92,6 +99,7 @@ class _UserDashboardState extends State<UserDashboard>
     _updateDateTime();
     _startTimer();
     _loadDashboardData();
+    _loadMyApplications();
 
     // 알림 Provider 초기화 (페이지 새로고침 시에도 알림 수신 가능하도록)
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -269,6 +277,31 @@ class _UserDashboardState extends State<UserDashboard>
       setState(() {
         isLoadingDonations = false;
       });
+    }
+  }
+
+  // 내 신청 목록 로드
+  Future<void> _loadMyApplications() async {
+    try {
+      final applications = await AppliedDonationService.getMyApplicationsFromServer();
+
+      debugPrint('[UserDashboard] 서버에서 받은 신청 목록: ${applications.length}개');
+      for (final app in applications) {
+        debugPrint('[UserDashboard] - postTimesIdx: ${app.postTimesIdx}, status: ${app.status}, shouldShow: ${app.shouldShowAppliedBorder}');
+      }
+
+      if (mounted) {
+        setState(() {
+          myApplicationsMap = {
+            for (final app in applications)
+              if (app.shouldShowAppliedBorder) app.postTimesIdx: app
+          };
+        });
+      }
+
+      debugPrint('[UserDashboard] 중복 체크용 맵: ${myApplicationsMap.keys.toList()}');
+    } catch (e) {
+      debugPrint('[UserDashboard] 내 신청 목록 로드 실패: $e');
     }
   }
 
@@ -767,19 +800,7 @@ class _UserDashboardState extends State<UserDashboard>
                         final donation = donations[index];
 
                         return InkWell(
-                          onTap: () {
-                            // 헌혈 모집 게시글 페이지로 이동하고 해당 게시글의 바텀 시트 표시
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder:
-                                    (context) => UserDonationPostsListScreen(
-                                      initialPost: donation,
-                                      autoShowBottomSheet: true,
-                                    ),
-                              ),
-                            );
-                          },
+                          onTap: () => _showDonationPostBottomSheet(donation),
                           child: Container(
                             padding: const EdgeInsets.symmetric(
                               horizontal: 12,
@@ -1997,5 +2018,928 @@ class _UserDashboardState extends State<UserDashboard>
         );
       },
     );
+  }
+
+  // 헌혈 모집 게시글 바텀시트 표시 (상세 페이지와 동일한 형식)
+  Future<void> _showDonationPostBottomSheet(DonationPost donation) async {
+    // 내 신청 목록 새로고침 (중복 신청 방지를 위해)
+    await _loadMyApplications();
+
+    // 상세 정보 조회
+    final detailPost = await DashboardService.getDonationPostDetail(
+      donation.postIdx,
+    );
+
+    if (!mounted) return;
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (BuildContext context) {
+        final displayPost = detailPost ?? donation;
+
+        return DraggableScrollableSheet(
+          initialChildSize: 0.7,
+          minChildSize: 0.5,
+          maxChildSize: 0.95,
+          expand: false,
+          builder: (context, scrollController) {
+            return Container(
+              decoration: const BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+              ),
+              child: Column(
+                children: [
+                  // 핸들 바
+                  Container(
+                    width: 40,
+                    height: 4,
+                    margin: const EdgeInsets.symmetric(vertical: 12),
+                    decoration: BoxDecoration(
+                      color: Colors.grey[300],
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+
+                  // 헤더
+                  Container(
+                    padding: const EdgeInsets.fromLTRB(20, 8, 20, 16),
+                    child: Row(
+                      children: [
+                        // 긴급/정기 뱃지
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 4,
+                          ),
+                          decoration: BoxDecoration(
+                            color:
+                                displayPost.isUrgent
+                                    ? Colors.red.withValues(alpha: 0.15)
+                                    : Colors.blue.withValues(alpha: 0.15),
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: Text(
+                            displayPost.typeText,
+                            style: AppTheme.bodySmallStyle.copyWith(
+                              color:
+                                  displayPost.isUrgent
+                                      ? Colors.red
+                                      : Colors.blue,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                displayPost.title,
+                                style: AppTheme.h3Style.copyWith(
+                                  color:
+                                      displayPost.isUrgent
+                                          ? Colors.red
+                                          : AppTheme.textPrimary,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ],
+                          ),
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.close),
+                          onPressed: () => Navigator.pop(context),
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  const Divider(height: 1),
+
+                  // 전체 콘텐츠 (스크롤 가능)
+                  Expanded(
+                    child: SingleChildScrollView(
+                      controller: scrollController,
+                      padding: const EdgeInsets.all(20),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          // 병원 닉네임
+                          Row(
+                            children: [
+                              Icon(
+                                Icons.business,
+                                size: 16,
+                                color: AppTheme.textSecondary,
+                              ),
+                              const SizedBox(width: 8),
+                              Text(
+                                '병원명: ',
+                                style: AppTheme.bodyMediumStyle.copyWith(
+                                  fontWeight: FontWeight.w500,
+                                  color: Colors.grey[700],
+                                ),
+                              ),
+                              Expanded(
+                                child: Text(
+                                  (displayPost.hospitalNickname?.isNotEmpty ?? false)
+                                      ? displayPost.hospitalNickname!
+                                      : displayPost.hospitalName.isNotEmpty
+                                      ? displayPost.hospitalName
+                                      : '병원',
+                                  style: AppTheme.bodyMediumStyle.copyWith(
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 8),
+
+                          // 담당자 이름 (있는 경우만 표시)
+                          if (displayPost.userName?.isNotEmpty ?? false) ...[
+                            Row(
+                              children: [
+                                Icon(
+                                  Icons.person,
+                                  size: 16,
+                                  color: AppTheme.textSecondary,
+                                ),
+                                const SizedBox(width: 8),
+                                Text(
+                                  '담당자: ',
+                                  style: AppTheme.bodyMediumStyle.copyWith(
+                                    fontWeight: FontWeight.w500,
+                                    color: Colors.grey[700],
+                                  ),
+                                ),
+                                Expanded(
+                                  child: Text(
+                                    displayPost.userName!,
+                                    style: AppTheme.bodyMediumStyle.copyWith(
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                          const SizedBox(height: 8),
+
+                          // 주소
+                          Row(
+                            children: [
+                              Icon(
+                                Icons.location_on,
+                                size: 16,
+                                color: AppTheme.textSecondary,
+                              ),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  displayPost.location,
+                                  style: AppTheme.bodyMediumStyle,
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 8),
+
+                          // 동물 종류
+                          Row(
+                            children: [
+                              Icon(
+                                displayPost.animalType == 0
+                                  ? FontAwesomeIcons.dog
+                                  : FontAwesomeIcons.cat,
+                                size: 16,
+                                color: AppTheme.textSecondary,
+                              ),
+                              const SizedBox(width: 8),
+                              Text(
+                                '동물 종류: ',
+                                style: AppTheme.bodyMediumStyle.copyWith(
+                                  fontWeight: FontWeight.w500,
+                                  color: Colors.grey[700],
+                                ),
+                              ),
+                              Expanded(
+                                child: Text(
+                                  displayPost.animalType == 0 ? '강아지' : '고양이',
+                                  style: AppTheme.bodyMediumStyle.copyWith(
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 8),
+
+                          // 신청자 수
+                          Row(
+                            children: [
+                              Icon(
+                                Icons.group_outlined,
+                                size: 16,
+                                color: AppTheme.textSecondary,
+                              ),
+                              const SizedBox(width: 8),
+                              Text(
+                                '신청자 수: ',
+                                style: AppTheme.bodyMediumStyle.copyWith(
+                                  fontWeight: FontWeight.w500,
+                                  color: Colors.grey[700],
+                                ),
+                              ),
+                              Expanded(
+                                child: Text(
+                                  '${displayPost.applicantCount}명',
+                                  style: AppTheme.bodyMediumStyle.copyWith(
+                                    color: Colors.black,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+
+                          // 설명글 (있는 경우만)
+                          if ((displayPost.contentDelta != null &&
+                                  displayPost.contentDelta!.isNotEmpty) ||
+                              displayPost.description.isNotEmpty) ...[
+                            const SizedBox(height: 12),
+                            Container(
+                              width: double.infinity,
+                              decoration: BoxDecoration(
+                                color: AppTheme.veryLightGray,
+                                borderRadius: BorderRadius.circular(8),
+                                border: Border.all(
+                                  color: AppTheme.lightGray.withValues(
+                                    alpha: 0.5,
+                                  ),
+                                ),
+                              ),
+                              child: RichTextViewer(
+                                contentDelta: displayPost.contentDelta,
+                                plainText: displayPost.description,
+                                padding: const EdgeInsets.all(12),
+                              ),
+                            ),
+                          ],
+
+                          const SizedBox(height: 20),
+
+                          // 혈액형 정보
+                          if (displayPost.emergencyBloodType != null &&
+                              displayPost.emergencyBloodType!.isNotEmpty) ...[
+                            Text('필요 혈액형', style: AppTheme.h4Style),
+                            const SizedBox(height: 8),
+                            Container(
+                              width: double.infinity,
+                              padding: const EdgeInsets.all(16),
+                              decoration: BoxDecoration(
+                                color:
+                                    displayPost.isUrgent
+                                        ? Colors.red.shade50
+                                        : Colors.blue.shade50,
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(
+                                  color:
+                                      displayPost.isUrgent
+                                          ? Colors.red.shade200
+                                          : Colors.blue.shade200,
+                                ),
+                              ),
+                              child: Text(
+                                displayPost.displayBloodType,
+                                style: AppTheme.h3Style.copyWith(
+                                  color:
+                                      displayPost.isUrgent
+                                          ? Colors.red
+                                          : Colors.blue,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                                textAlign: TextAlign.center,
+                              ),
+                            ),
+                            const SizedBox(height: 24),
+                          ],
+
+                          // 헌혈 날짜 정보
+                          Text('헌혈 예정일', style: AppTheme.h4Style),
+                          const SizedBox(height: 12),
+                          if (displayPost.availableDates != null &&
+                              displayPost.availableDates!.isNotEmpty) ...[
+                            // 날짜/시간 선택 드롭다운
+                            _buildDateTimeDropdownWidget(displayPost),
+                          ] else if (displayPost.donationDate != null) ...[
+                            // 단일 날짜인 경우
+                            Container(
+                              width: double.infinity,
+                              margin: const EdgeInsets.only(bottom: 8),
+                              child: Material(
+                                color: Colors.transparent,
+                                child: InkWell(
+                                  onTap: () {
+                                    _showDonationApplicationModal(
+                                      displayPost,
+                                      DateFormat('yyyy-MM-dd').format(displayPost.donationDate!),
+                                      {
+                                        'time': displayPost.donationTime != null
+                                            ? DateFormat('HH:mm').format(displayPost.donationTime!)
+                                            : '',
+                                        'post_times_idx': 0,
+                                      },
+                                    );
+                                  },
+                                  borderRadius: BorderRadius.circular(8),
+                                  child: Container(
+                                    padding: const EdgeInsets.all(16),
+                                    decoration: BoxDecoration(
+                                      color: Colors.grey.shade50,
+                                      borderRadius: BorderRadius.circular(8),
+                                      border: Border.all(
+                                        color: Colors.grey.shade200,
+                                      ),
+                                    ),
+                                    child: Row(
+                                      children: [
+                                        Icon(
+                                          Icons.calendar_today,
+                                          size: 20,
+                                          color: Colors.black,
+                                        ),
+                                        const SizedBox(width: 12),
+                                        Expanded(
+                                          child: Column(
+                                            crossAxisAlignment: CrossAxisAlignment.start,
+                                            children: [
+                                              Text(
+                                                DateFormat('yyyy년 MM월 dd일 EEEE', 'ko').format(
+                                                  displayPost.donationDate!,
+                                                ),
+                                                style: AppTheme.bodyLargeStyle.copyWith(
+                                                  fontWeight: FontWeight.w600,
+                                                ),
+                                              ),
+                                              if (displayPost.donationTime != null) ...[
+                                                const SizedBox(height: 4),
+                                                Text(
+                                                  '예정 시간: ${DateFormat('HH:mm').format(displayPost.donationTime!)}',
+                                                  style: AppTheme.bodyMediumStyle.copyWith(
+                                                    color: AppTheme.textSecondary,
+                                                  ),
+                                                ),
+                                              ],
+                                            ],
+                                          ),
+                                        ),
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 8,
+                                            vertical: 4,
+                                          ),
+                                          decoration: BoxDecoration(
+                                            color: AppTheme.success.withValues(alpha: 0.1),
+                                            borderRadius: BorderRadius.circular(12),
+                                          ),
+                                          child: Text(
+                                            '신청 가능',
+                                            style: AppTheme.bodySmallStyle.copyWith(
+                                              color: AppTheme.success,
+                                              fontSize: 11,
+                                              fontWeight: FontWeight.w600,
+                                            ),
+                                          ),
+                                        ),
+                                        const SizedBox(width: 8),
+                                        Icon(
+                                          Icons.keyboard_arrow_right,
+                                          color: AppTheme.textSecondary,
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ] else ...[
+                            Container(
+                              width: double.infinity,
+                              padding: const EdgeInsets.all(16),
+                              decoration: BoxDecoration(
+                                color: Colors.orange.shade50,
+                                borderRadius: BorderRadius.circular(8),
+                                border: Border.all(
+                                  color: Colors.orange.shade200,
+                                ),
+                              ),
+                              child: Text(
+                                '헌혈 날짜가 아직 확정되지 않았습니다',
+                                style: AppTheme.bodyMediumStyle.copyWith(
+                                  color: Colors.orange.shade800,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                                textAlign: TextAlign.center,
+                              ),
+                            ),
+                          ],
+                          const SizedBox(height: 24),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  // 시간 포맷팅 헬퍼 함수
+  String _formatTime(String time24) {
+    if (time24.isEmpty) return '시간 미정';
+
+    try {
+      final parts = time24.split(':');
+      if (parts.length == 2) {
+        final hour = int.parse(parts[0]);
+        final minute = parts[1];
+        if (hour == 0) {
+          return '오전 12:$minute';
+        } else if (hour < 12) {
+          return '오전 ${hour.toString().padLeft(2, '0')}:$minute';
+        } else if (hour == 12) {
+          return '오후 12:$minute';
+        } else {
+          return '오후 ${(hour - 12).toString().padLeft(2, '0')}:$minute';
+        }
+      }
+    } catch (e) {
+      return time24;
+    }
+    return '시간 미정';
+  }
+
+  // 날짜를 "YYYY년 MM월 DD일 O요일" 형태로 포맷팅
+  String _formatDateWithWeekday(String dateStr) {
+    try {
+      final date = DateTime.parse(dateStr);
+      const weekdays = ['월', '화', '수', '목', '금', '토', '일'];
+      final weekday = weekdays[date.weekday - 1];
+      return '${date.year}년 ${date.month}월 ${date.day}일 $weekday요일';
+    } catch (e) {
+      return dateStr;
+    }
+  }
+
+  // 날짜/시간 선택 드롭다운 위젯
+  Widget _buildDateTimeDropdownWidget(DonationPost post) {
+    if (post.availableDates == null || post.availableDates!.isEmpty) {
+      return const SizedBox.shrink();
+    }
+
+    // 중복 제거를 위한 처리
+    final Map<String, List<Map<String, dynamic>>> uniqueDates = {};
+    final Set<String> seenTimeSlots = {};
+
+    for (final entry in post.availableDates!.entries) {
+      final dateStr = entry.key;
+      final timeSlots = entry.value;
+
+      uniqueDates[dateStr] = [];
+
+      for (final timeSlot in timeSlots) {
+        final time = timeSlot['time'] ?? '';
+        final team = timeSlot['team'] ?? 0;
+
+        final uniqueKey = '$dateStr-$time-$team';
+
+        if (!seenTimeSlots.contains(uniqueKey)) {
+          seenTimeSlots.add(uniqueKey);
+          uniqueDates[dateStr]!.add(timeSlot);
+        }
+      }
+    }
+
+    return Column(
+      children: uniqueDates.entries.map((entry) {
+        final dateStr = entry.key;
+        final timeSlots = entry.value;
+
+        return Container(
+          margin: const EdgeInsets.only(bottom: 12),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: Colors.grey.shade200, width: 1.5),
+          ),
+          child: Theme(
+            data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
+            child: ExpansionTile(
+              tilePadding: const EdgeInsets.symmetric(
+                horizontal: 20,
+                vertical: 8,
+              ),
+              childrenPadding: const EdgeInsets.only(bottom: 12),
+              leading: Icon(
+                Icons.calendar_month,
+                color: Colors.black,
+                size: 24,
+              ),
+              title: Text(
+                _formatDateWithWeekday(dateStr),
+                style: AppTheme.h4Style.copyWith(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                  color: AppTheme.textPrimary,
+                ),
+              ),
+              trailing: Icon(
+                Icons.keyboard_arrow_down,
+                color: Colors.black,
+                size: 24,
+              ),
+              children: timeSlots.map<Widget>((timeSlot) {
+                // 내가 이미 신청한 시간대인지 확인
+                final postTimesIdx = timeSlot['post_times_idx'] ?? 0;
+                final myApplication = myApplicationsMap[postTimesIdx];
+                final isAlreadyApplied = myApplication != null;
+
+                debugPrint('[UserDashboard] 시간대 체크 - postTimesIdx: $postTimesIdx, 신청여부: $isAlreadyApplied, 맵 키: ${myApplicationsMap.keys.toList()}');
+
+                return Container(
+                  margin: const EdgeInsets.symmetric(
+                    horizontal: 20,
+                    vertical: 4,
+                  ),
+                  child: Material(
+                    color: Colors.transparent,
+                    child: InkWell(
+                      onTap: () {
+                        if (isAlreadyApplied) {
+                          // 이미 신청한 시간대 클릭 시 취소 바텀시트 표시
+                          _showCancelApplicationBottomSheet(myApplication);
+                        } else {
+                          // 신청하지 않은 시간대 클릭 시 신청 페이지 표시
+                          _showDonationApplicationModal(post, dateStr, timeSlot);
+                        }
+                      },
+                      borderRadius: BorderRadius.circular(8),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 14,
+                        ),
+                        decoration: BoxDecoration(
+                          color: isAlreadyApplied
+                              ? Colors.red.shade50
+                              : Colors.grey.shade50,
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(
+                            color: isAlreadyApplied ? Colors.red : Colors.black,
+                            width: isAlreadyApplied ? 2.0 : 1.0,
+                          ),
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(
+                              Icons.access_time,
+                              color: isAlreadyApplied ? Colors.red : Colors.black,
+                              size: 20,
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    _formatTime(timeSlot['time'] ?? ''),
+                                    style: AppTheme.bodyLargeStyle.copyWith(
+                                      fontWeight: FontWeight.w600,
+                                      color: isAlreadyApplied ? Colors.red : Colors.black,
+                                    ),
+                                  ),
+                                  if (isAlreadyApplied)
+                                    Text(
+                                      '신청완료 (${myApplication.status})',
+                                      style: AppTheme.captionStyle.copyWith(
+                                        color: Colors.red,
+                                        fontSize: 11,
+                                      ),
+                                    ),
+                                ],
+                              ),
+                            ),
+                            Icon(
+                              isAlreadyApplied
+                                  ? Icons.edit_outlined
+                                  : Icons.keyboard_arrow_right,
+                              color: isAlreadyApplied ? Colors.red : Colors.black,
+                              size: 20,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                );
+              }).toList(),
+            ),
+          ),
+        );
+      }).toList(),
+    );
+  }
+
+  // 헌혈 신청 모달 표시
+  void _showDonationApplicationModal(
+    DonationPost post,
+    String dateStr,
+    Map<String, dynamic> timeSlot,
+  ) {
+    final displayText = '${_formatDateWithWeekday(dateStr)} ${_formatTime(timeSlot['time'] ?? '')}';
+
+    Navigator.pop(context); // 현재 바텀시트 닫기
+
+    // Navigator가 완전히 닫힌 후 다음 프레임에서 새 바텀시트 열기
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      showModalBottomSheet(
+        context: context,
+        isScrollControlled: true,
+        backgroundColor: Colors.transparent,
+        builder: (context) => DonationApplicationPage(
+          post: post,
+          selectedDate: dateStr,
+          selectedTimeSlot: timeSlot,
+          displayText: displayText,
+        ),
+      );
+    });
+  }
+
+  // 신청 취소 바텀시트 표시
+  void _showCancelApplicationBottomSheet(MyApplicationInfo application) {
+    Navigator.pop(context); // 현재 바텀시트 닫기
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+
+      showModalBottomSheet<bool>(
+        context: context,
+        shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        ),
+        builder: (context) {
+          final canCancel = application.canCancel;
+          bool isCancelling = false;
+
+          return StatefulBuilder(
+            builder: (context, setModalState) {
+              return Container(
+                padding: const EdgeInsets.all(24),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // 핸들바
+                    Center(
+                      child: Container(
+                        width: 40,
+                        height: 4,
+                        decoration: BoxDecoration(
+                          color: Colors.grey.shade300,
+                          borderRadius: BorderRadius.circular(2),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+
+                    // 제목
+                    Row(
+                      children: [
+                        Icon(
+                          canCancel ? Icons.cancel_outlined : Icons.info_outline,
+                          color: canCancel ? Colors.red : Colors.orange,
+                          size: 28,
+                        ),
+                        const SizedBox(width: 12),
+                        Text(
+                          canCancel ? '신청 취소' : '신청 정보',
+                          style: AppTheme.h3Style.copyWith(fontWeight: FontWeight.w700),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 20),
+
+                    // 신청 정보 카드
+                    Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: Colors.grey.shade50,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: Colors.grey.shade200),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          _buildCancelInfoRow('게시글', application.postTitle),
+                          const SizedBox(height: 8),
+                          _buildCancelInfoRow(
+                            '반려동물',
+                            '${application.petName} (${application.speciesText})',
+                          ),
+                          const SizedBox(height: 8),
+                          _buildCancelInfoRow('헌혈 시간', application.donationTime),
+                          const SizedBox(height: 8),
+                          _buildCancelInfoRow(
+                            '상태',
+                            application.status,
+                            statusColor: _getStatusColor(application.statusCode),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+
+                    // 취소 불가 메시지
+                    if (!canCancel) ...[
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: Colors.orange.shade50,
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: Colors.orange.shade200),
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(
+                              Icons.warning_amber,
+                              color: Colors.orange.shade700,
+                              size: 20,
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                application.cancelBlockMessage,
+                                style: AppTheme.bodyMediumStyle.copyWith(
+                                  color: Colors.orange.shade800,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 20),
+                    ],
+
+                    // 버튼들
+                    Row(
+                      children: [
+                        Expanded(
+                          child: OutlinedButton(
+                            onPressed: () => Navigator.pop(context),
+                            style: OutlinedButton.styleFrom(
+                              padding: const EdgeInsets.symmetric(vertical: 14),
+                              side: BorderSide(color: Colors.grey.shade300),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                            ),
+                            child: const Text('닫기'),
+                          ),
+                        ),
+                        if (canCancel) ...[
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: ElevatedButton(
+                              onPressed: isCancelling
+                                  ? null
+                                  : () async {
+                                      setModalState(() {
+                                        isCancelling = true;
+                                      });
+                                      try {
+                                        await AppliedDonationService
+                                            .cancelApplicationToServer(
+                                                application.applicationId);
+                                        if (mounted) {
+                                          Navigator.pop(context);
+                                          ScaffoldMessenger.of(this.context)
+                                              .showSnackBar(
+                                            const SnackBar(
+                                              content: Text('신청이 취소되었습니다.'),
+                                              backgroundColor: Colors.green,
+                                            ),
+                                          );
+                                          _loadMyApplications();
+                                        }
+                                      } catch (e) {
+                                        setModalState(() {
+                                          isCancelling = false;
+                                        });
+                                        if (mounted) {
+                                          ScaffoldMessenger.of(this.context)
+                                              .showSnackBar(
+                                            SnackBar(
+                                              content:
+                                                  Text('취소 실패: ${e.toString()}'),
+                                              backgroundColor: Colors.red,
+                                            ),
+                                          );
+                                        }
+                                      }
+                                    },
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.red,
+                                foregroundColor: Colors.white,
+                                padding: const EdgeInsets.symmetric(vertical: 14),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                              ),
+                              child: isCancelling
+                                  ? const SizedBox(
+                                      width: 20,
+                                      height: 20,
+                                      child: CircularProgressIndicator(
+                                        color: Colors.white,
+                                        strokeWidth: 2,
+                                      ),
+                                    )
+                                  : const Text('신청 취소'),
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+                  ],
+                ),
+              );
+            },
+          );
+        },
+      );
+    });
+  }
+
+  // 취소 바텀시트용 정보 행
+  Widget _buildCancelInfoRow(String label, String value, {Color? statusColor}) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        SizedBox(
+          width: 70,
+          child: Text(
+            label,
+            style: AppTheme.bodyMediumStyle.copyWith(
+              color: AppTheme.textSecondary,
+            ),
+          ),
+        ),
+        Expanded(
+          child: Text(
+            value,
+            style: AppTheme.bodyMediumStyle.copyWith(
+              fontWeight: FontWeight.w500,
+              color: statusColor ?? AppTheme.textPrimary,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  // 상태 코드별 색상
+  Color _getStatusColor(int statusCode) {
+    switch (statusCode) {
+      case AppliedDonationStatus.pending:
+        return Colors.orange;
+      case AppliedDonationStatus.approved:
+        return Colors.blue;
+      case AppliedDonationStatus.rejected:
+        return Colors.grey;
+      case AppliedDonationStatus.completed:
+      case AppliedDonationStatus.finalCompleted:
+        return Colors.green;
+      case AppliedDonationStatus.cancelled:
+        return Colors.grey;
+      case AppliedDonationStatus.pendingCompletion:
+        return Colors.purple;
+      case AppliedDonationStatus.pendingCancellation:
+        return Colors.orange;
+      default:
+        return AppTheme.textPrimary;
+    }
   }
 }

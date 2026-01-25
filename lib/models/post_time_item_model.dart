@@ -7,6 +7,7 @@ class PostTimeItem {
   final int postIdx;
   final String postTitle;
   final String? postDescription;
+  final String? contentDelta; // Delta JSON 리치 텍스트
   final int postTypes; // 0: 긴급, 1: 정기
   final int postStatus;
   final String date;
@@ -30,6 +31,7 @@ class PostTimeItem {
     required this.postIdx,
     required this.postTitle,
     this.postDescription,
+    this.contentDelta,
     required this.postTypes,
     required this.postStatus,
     required this.date,
@@ -55,6 +57,7 @@ class PostTimeItem {
       postIdx: json['post_idx'] as int,
       postTitle: json['post_title'] as String,
       postDescription: json['post_description'] as String?,
+      contentDelta: json['content_delta'] as String?,
       postTypes: json['post_types'] as int,
       postStatus: json['post_status'] as int,
       date: json['date'] as String,
@@ -81,6 +84,7 @@ class PostTimeItem {
       'post_idx': postIdx,
       'post_title': postTitle,
       'post_description': postDescription,
+      'content_delta': contentDelta,
       'post_types': postTypes,
       'post_status': postStatus,
       'date': date,

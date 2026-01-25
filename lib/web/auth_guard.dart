@@ -28,11 +28,12 @@ class _AuthGuardState extends State<AuthGuard> {
 
   Future<void> _checkAuthenticationStatus() async {
     try {
-      
       final prefs = await SharedPreferences.getInstance();
       final token = prefs.getString('auth_token');
-      final userType = prefs.getInt('user_type');
-      
+      // 로그인 시 'account_type'으로 저장됨
+      final userType = prefs.getInt('account_type');
+
+      debugPrint('[AuthGuard] 토큰 확인: ${token != null ? '있음' : '없음'}, userType: $userType');
 
       if (token == null || userType == null) {
         _redirectToAuth();
@@ -42,6 +43,7 @@ class _AuthGuardState extends State<AuthGuard> {
       // 토큰이 있으면 사용자 타입에 따라 대시보드로 리다이렉트
       await _redirectToDashboard(userType, widget.requestedPath);
     } catch (e) {
+      debugPrint('[AuthGuard] 인증 확인 오류: $e');
       _redirectToAuth();
     }
   }

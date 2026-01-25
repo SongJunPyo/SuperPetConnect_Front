@@ -261,6 +261,39 @@ class HospitalPostService {
     }
   }
 
+  // 게시글 삭제 (승인 대기 중인 게시글만 삭제 가능)
+  static Future<bool> deletePost(String postIdx) async {
+    try {
+      final token = await _getAuthToken();
+      if (token.isEmpty) {
+        throw Exception('인증 토큰이 없습니다.');
+      }
+
+      final response = await http.delete(
+        Uri.parse('$baseUrl/api/hospital/post/$postIdx'),
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Content-Type': 'application/json; charset=UTF-8',
+        },
+      );
+
+      if (response.statusCode == 200) {
+        return true;
+      } else if (response.statusCode == 401) {
+        throw Exception('인증이 만료되었습니다. 다시 로그인해주세요.');
+      } else if (response.statusCode == 400) {
+        throw Exception('승인 대기 중인 게시글만 삭제할 수 있습니다.');
+      } else if (response.statusCode == 404) {
+        throw Exception('게시글을 찾을 수 없거나 삭제 권한이 없습니다.');
+      } else {
+        final error = json.decode(utf8.decode(response.bodyBytes));
+        throw Exception(error['detail'] ?? '게시글 삭제에 실패했습니다.');
+      }
+    } catch (e) {
+      rethrow;
+    }
+  }
+
   // ==================== 시간대별 게시글 조회 API ====================
 
   /// 시간대별 게시글 목록 조회

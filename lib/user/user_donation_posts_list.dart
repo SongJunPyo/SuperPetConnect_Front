@@ -2872,6 +2872,11 @@ class _DonationApplicationPageState extends State<DonationApplicationPage> {
         throw Exception('로그인이 필요합니다.');
       }
 
+      // 디버그: 전송할 데이터 확인
+      debugPrint('[DonationApplication] post_times_idx: ${widget.selectedTimeSlot['post_times_idx']}');
+      debugPrint('[DonationApplication] pet_idx: ${selectedPet!['pet_idx']}');
+      debugPrint('[DonationApplication] selectedTimeSlot 전체: ${widget.selectedTimeSlot}');
+
       final response = await http.post(
         Uri.parse('${Config.serverUrl}/api/donation/apply'),
         headers: {
@@ -2888,9 +2893,9 @@ class _DonationApplicationPageState extends State<DonationApplicationPage> {
         jsonDecode(utf8.decode(response.bodyBytes));
 
         if (mounted) {
-          Navigator.pop(context); // 동의 바텀시트 닫기
-          Navigator.pop(context); // 신청 페이지 닫기
-          Navigator.pop(context); // 헌혈 게시글 바텀시트 닫기
+          // 동의 바텀시트는 TermsAgreementBottomSheet에서 이미 닫혔으므로
+          // 신청 페이지만 닫기 (헌혈 게시글 바텀시트는 user_dashboard에서 이미 닫힘)
+          Navigator.pop(context);
         }
 
         // 성공 시 별도의 스낵바 메시지 표시하지 않음
@@ -3062,7 +3067,10 @@ class _TermsAgreementBottomSheetState extends State<TermsAgreementBottomSheet> {
                             isAgreed
                                 ? () {
                                   Navigator.pop(context);
-                                  widget.onConfirm();
+                                  // Navigator가 완전히 닫힌 후 콜백 실행
+                                  WidgetsBinding.instance.addPostFrameCallback((_) {
+                                    widget.onConfirm();
+                                  });
                                 }
                                 : null,
                         style: ElevatedButton.styleFrom(
