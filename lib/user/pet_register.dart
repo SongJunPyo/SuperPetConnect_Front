@@ -36,6 +36,10 @@ class _PetRegisterScreenState extends State<PetRegisterScreen> {
   bool _isVaccinated = false;
   bool _hasDisease = false;
   bool _hasBirthExperience = false;
+  bool _isNeutered = false; // 중성화 수술 여부
+  DateTime? _neuteredDate; // 중성화 수술 일자
+  bool _hasPreventiveMedication = false; // 예방약 복용 여부
+  final _ageMonthsController = TextEditingController(); // 나이 (개월 단위)
 
   bool get _isEditMode => widget.petToEdit != null;
 
@@ -60,6 +64,10 @@ class _PetRegisterScreenState extends State<PetRegisterScreen> {
       _isVaccinated = pet.vaccinated ?? false;
       _hasDisease = pet.hasDisease ?? false;
       _hasBirthExperience = pet.hasBirthExperience ?? false;
+      _isNeutered = pet.isNeutered ?? false;
+      _neuteredDate = pet.neuteredDate;
+      _hasPreventiveMedication = pet.hasPreventiveMedication ?? false;
+      _ageMonthsController.text = pet.ageMonths?.toString() ?? '';
     }
   }
 
@@ -94,6 +102,7 @@ class _PetRegisterScreenState extends State<PetRegisterScreen> {
     _breedController.dispose();
     _weightController.dispose();
     _ageController.dispose();
+    _ageMonthsController.dispose();
     super.dispose();
   }
 
@@ -123,6 +132,12 @@ class _PetRegisterScreenState extends State<PetRegisterScreen> {
       return;
     }
 
+    // 나이(개월) 파싱
+    int? ageMonths;
+    if (_ageMonthsController.text.trim().isNotEmpty) {
+      ageMonths = int.tryParse(_ageMonthsController.text.trim());
+    }
+
     final Map<String, dynamic> petData = {
       'name': _nameController.text.trim(),
       'species': _selectedSpecies!,
@@ -136,6 +151,10 @@ class _PetRegisterScreenState extends State<PetRegisterScreen> {
       'has_disease': _hasDisease ? 1 : 0,
       'has_birth_experience': _hasBirthExperience ? 1 : 0,
       'prev_donation_date': null, // 신규 등록 시 null
+      'is_neutered': _isNeutered ? 1 : 0,
+      'neutered_date': _neuteredDate?.toIso8601String().split('T')[0],
+      'has_preventive_medication': _hasPreventiveMedication ? 1 : 0,
+      'age_months': ageMonths,
     };
     
     // 등록 모드일 때만 account_idx 추가
@@ -294,7 +313,37 @@ class _PetRegisterScreenState extends State<PetRegisterScreen> {
                 value: _isPregnant,
                 onChanged: (value) => setState(() => _isPregnant = value ?? false),
               ),
-              const SizedBox(height: 40),
+              _buildCheckboxTile(
+                title: '예방약 복용',
+                subtitle: '심장사상충 예방약을 정기적으로 복용하고 있나요?',
+                value: _hasPreventiveMedication,
+                onChanged: (value) => setState(() => _hasPreventiveMedication = value ?? false),
+              ),
+              _buildCheckboxTile(
+                title: '중성화 수술',
+                subtitle: '중성화 수술을 받았나요? (수술 후 6개월 이후 헌혈 가능)',
+                value: _isNeutered,
+                onChanged: (value) {
+                  setState(() {
+                    _isNeutered = value ?? false;
+                    if (!_isNeutered) {
+                      _neuteredDate = null;
+                    }
+                  });
+                },
+              ),
+              if (_isNeutered) _buildNeuteredDatePicker(context),
+              const SizedBox(height: AppTheme.spacing16),
+              _buildTextField(
+                controller: _ageMonthsController,
+                label: '나이 (개월 단위)',
+                hint: '예: 24 (선택사항, 더 정확한 헌혈 자격 판단용)',
+                keyboardType: TextInputType.number,
+                inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                validator: (value) => null, // 선택사항
+                required: false,
+              ),
+              const SizedBox(height: 24),
               _buildSaveButton(context), // context 전달
             ],
           ),
@@ -310,12 +359,13 @@ class _PetRegisterScreenState extends State<PetRegisterScreen> {
     String? Function(String?)? validator,
     TextInputType? keyboardType,
     List<TextInputFormatter>? inputFormatters,
+    bool required = true, // 필수 여부 (기본값: true)
   }) {
     AppInputType inputType = AppInputType.text;
     if (keyboardType == TextInputType.number) {
       inputType = AppInputType.number;
     }
-    
+
     return Padding(
       padding: const EdgeInsets.only(bottom: AppTheme.spacing16),
       child: AppInputField(
@@ -325,7 +375,7 @@ class _PetRegisterScreenState extends State<PetRegisterScreen> {
         type: inputType,
         validator: validator,
         inputFormatters: inputFormatters,
-        required: true,
+        required: required,
       ),
     );
   }
@@ -458,6 +508,69 @@ class _PetRegisterScreenState extends State<PetRegisterScreen> {
             ],
           ),
         ],
+      ),
+    );
+  }
+
+  // 중성화 수술 일자 선택 위젯
+  Widget _buildNeuteredDatePicker(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: AppTheme.spacing12, left: 16),
+      child: InkWell(
+        onTap: () async {
+          final DateTime? picked = await showDatePicker(
+            context: context,
+            initialDate: _neuteredDate ?? DateTime.now().subtract(const Duration(days: 180)),
+            firstDate: DateTime(2010),
+            lastDate: DateTime.now(),
+            helpText: '중성화 수술 일자 선택',
+            cancelText: '취소',
+            confirmText: '선택',
+          );
+          if (picked != null) {
+            setState(() {
+              _neuteredDate = picked;
+            });
+          }
+        },
+        child: Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: Colors.blue.shade50,
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: Colors.blue.shade200),
+          ),
+          child: Row(
+            children: [
+              Icon(Icons.calendar_today, size: 20, color: Colors.blue.shade600),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      '중성화 수술 일자',
+                      style: AppTheme.bodySmallStyle.copyWith(
+                        color: Colors.blue.shade600,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      _neuteredDate != null
+                          ? '${_neuteredDate!.year}년 ${_neuteredDate!.month}월 ${_neuteredDate!.day}일'
+                          : '날짜를 선택하세요',
+                      style: AppTheme.bodyMediumStyle.copyWith(
+                        color: _neuteredDate != null ? AppTheme.textPrimary : AppTheme.textSecondary,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Icon(Icons.chevron_right, color: Colors.blue.shade400),
+            ],
+          ),
+        ),
       ),
     );
   }

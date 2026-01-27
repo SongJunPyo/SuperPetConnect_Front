@@ -98,7 +98,10 @@ class _UserDashboardState extends State<UserDashboard>
     _loadUserName();
     _updateDateTime();
     _startTimer();
-    _loadDashboardData();
+    _loadPreferredRegions().then((_) {
+      // 선호 지역 불러온 후 대시보드 데이터 로드
+      _loadDashboardData();
+    });
     _loadMyApplications();
 
     // 알림 Provider 초기화 (페이지 새로고침 시에도 알림 수신 가능하도록)
@@ -464,6 +467,72 @@ class _UserDashboardState extends State<UserDashboard>
 
   // 날짜/시간 표시 로직
 
+  // 선호 지역을 SharedPreferences에 저장
+  Future<void> _savePreferredRegions() async {
+    final prefs = await SharedPreferences.getInstance();
+
+    // 시/도 코드 목록 저장
+    final largeRegionCodes = selectedLargeRegions.map((r) => r.code).toList();
+    await prefs.setStringList('preferred_large_regions', largeRegionCodes);
+
+    // 시/군/구 코드를 JSON으로 저장
+    final mediumRegionsMap = <String, List<String>>{};
+    for (final entry in selectedMediumRegions.entries) {
+      mediumRegionsMap[entry.key.code] = entry.value.map((r) => r.code).toList();
+    }
+    await prefs.setString('preferred_medium_regions', jsonEncode(mediumRegionsMap));
+
+    debugPrint('[UserDashboard] 선호 지역 저장 완료: ${largeRegionCodes.length}개 시/도');
+  }
+
+  // SharedPreferences에서 선호 지역 불러오기
+  Future<void> _loadPreferredRegions() async {
+    final prefs = await SharedPreferences.getInstance();
+
+    // 시/도 코드 목록 불러오기
+    final largeRegionCodes = prefs.getStringList('preferred_large_regions') ?? [];
+
+    // 시/군/구 코드 JSON 불러오기
+    final mediumRegionsJson = prefs.getString('preferred_medium_regions');
+    final mediumRegionsMap = mediumRegionsJson != null
+        ? Map<String, List<dynamic>>.from(jsonDecode(mediumRegionsJson))
+        : <String, List<dynamic>>{};
+
+    // 코드를 Region 객체로 변환
+    final loadedLargeRegions = <Region>[];
+    final loadedMediumRegions = <Region, List<Region>>{};
+
+    for (final code in largeRegionCodes) {
+      // RegionData에서 해당 코드의 Region 찾기
+      final largeRegion = RegionData.regions.where((r) => r.code == code).firstOrNull;
+      if (largeRegion != null) {
+        loadedLargeRegions.add(largeRegion);
+
+        // 해당 시/도의 시/군/구 목록 불러오기
+        final mediumCodes = (mediumRegionsMap[code] as List<dynamic>?)?.cast<String>() ?? [];
+        final mediumRegions = <Region>[];
+
+        for (final mediumCode in mediumCodes) {
+          final mediumRegion = largeRegion.children?.where((r) => r.code == mediumCode).firstOrNull;
+          if (mediumRegion != null) {
+            mediumRegions.add(mediumRegion);
+          }
+        }
+
+        loadedMediumRegions[largeRegion] = mediumRegions;
+      }
+    }
+
+    if (mounted) {
+      setState(() {
+        selectedLargeRegions = loadedLargeRegions;
+        selectedMediumRegions = loadedMediumRegions;
+      });
+
+      debugPrint('[UserDashboard] 선호 지역 불러오기 완료: ${loadedLargeRegions.length}개 시/도');
+    }
+  }
+
   // 지역 선택 바텀 시트 표시
   void _showRegionSelectionSheet() {
     showModalBottomSheet(
@@ -479,6 +548,8 @@ class _UserDashboardState extends State<UserDashboard>
                 selectedLargeRegions = selectedLarges;
                 selectedMediumRegions = selectedMediums;
               });
+              // 선호 지역 저장
+              _savePreferredRegions();
               // 지역이 변경되면 헌혈 모집 데이터만 새로고침
               _refreshDonationPosts();
             },

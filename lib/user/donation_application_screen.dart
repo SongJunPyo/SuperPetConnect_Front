@@ -3,6 +3,7 @@ import '../models/pet_model.dart';
 import '../services/donation_application_service.dart';
 import '../services/manage_pet_info.dart';
 import '../utils/app_theme.dart';
+import '../utils/donation_eligibility.dart';
 import 'pet_register.dart'; // PetRegisterScreen import 추가
 
 /// 헌혈 신청 화면 (사용자용)
@@ -27,7 +28,7 @@ class DonationApplicationScreen extends StatefulWidget {
 }
 
 class _DonationApplicationScreenState extends State<DonationApplicationScreen> {
-  List<Pet> availablePets = [];
+  List<Pet> allMatchingPets = []; // 동물 종류가 일치하는 모든 반려동물
   Pet? selectedPet;
   bool isLoading = true;
   bool isSubmitting = false;
@@ -47,39 +48,24 @@ class _DonationApplicationScreenState extends State<DonationApplicationScreen> {
       });
 
       final allPets = await PetService.fetchPets();
-      
-      // 헌혈 가능한 반려동물 필터링
-      final filteredPets = allPets.where((pet) {
-        // 동물 종류 매칭 (새로운 animal_type 필드 사용)
-        bool animalTypeMatch = pet.animalType == widget.animalType;
-        
-        // animal_type이 null인 경우 기존 species로 매칭 (하위 호환성)
-        if (pet.animalType == null) {
-          if (widget.animalType == 0) { // 강아지
-            animalTypeMatch = pet.species == '강아지';
-          } else if (widget.animalType == 1) { // 고양이
-            animalTypeMatch = pet.species == '고양이';
-          }
+
+      // 동물 종류와 혈액형이 일치하는 반려동물만 필터링 (헌혈 가능/불가능 모두 포함)
+      final matchingPets = allPets.where((pet) {
+        // 동물 종류 매칭
+        if (!DonationEligibility.matchesAnimalType(pet, widget.animalType)) {
+          return false;
         }
 
-        // 혈액형 매칭 (혈액형이 지정된 경우만)
-        bool bloodTypeMatch = widget.bloodType.isEmpty || 
-                             widget.bloodType.toLowerCase() == 'all' ||
-                             pet.bloodType == widget.bloodType;
+        // 혈액형 매칭
+        if (!DonationEligibility.matchesBloodType(pet, widget.bloodType)) {
+          return false;
+        }
 
-        // 기본 헌혈 조건 (나이, 체중 등)
-        bool basicConditions = pet.ageNumber >= 1 && 
-                              pet.ageNumber <= 8 && 
-                              pet.weightKg >= 20 &&
-                              !pet.pregnant &&
-                              (pet.vaccinated ?? false) &&
-                              !(pet.hasDisease ?? false);
-
-        return animalTypeMatch && bloodTypeMatch && basicConditions;
+        return true;
       }).toList();
 
       setState(() {
-        availablePets = filteredPets;
+        allMatchingPets = matchingPets;
         isLoading = false;
       });
     } catch (e) {
@@ -247,7 +233,7 @@ class _DonationApplicationScreenState extends State<DonationApplicationScreen> {
                       ),
                       const SizedBox(height: 12),
 
-                      if (availablePets.isEmpty)
+                      if (allMatchingPets.isEmpty)
                         Card(
                           elevation: 1,
                           shape: RoundedRectangleBorder(
@@ -264,7 +250,7 @@ class _DonationApplicationScreenState extends State<DonationApplicationScreen> {
                                 ),
                                 const SizedBox(height: 16),
                                 Text(
-                                  '이 헌혈 요청에 참여할 수 있는\n${widget.animalType == 0 ? "강아지" : "고양이"}가 없습니다',
+                                  '등록된 ${widget.animalType == 0 ? "강아지" : "고양이"}가 없습니다',
                                   style: AppTheme.bodyLargeStyle.copyWith(
                                     fontWeight: FontWeight.w600,
                                   ),
@@ -274,8 +260,8 @@ class _DonationApplicationScreenState extends State<DonationApplicationScreen> {
                                 Container(
                                   padding: const EdgeInsets.all(16),
                                   decoration: BoxDecoration(
-                                    color: widget.animalType == 0 
-                                        ? Colors.blue.shade50 
+                                    color: widget.animalType == 0
+                                        ? Colors.blue.shade50
                                         : Colors.purple.shade50,
                                     borderRadius: BorderRadius.circular(8),
                                   ),
@@ -286,8 +272,8 @@ class _DonationApplicationScreenState extends State<DonationApplicationScreen> {
                                           Icon(
                                             Icons.info_outline,
                                             size: 20,
-                                            color: widget.animalType == 0 
-                                                ? Colors.blue.shade600 
+                                            color: widget.animalType == 0
+                                                ? Colors.blue.shade600
                                                 : Colors.purple.shade600,
                                           ),
                                           const SizedBox(width: 8),
@@ -295,8 +281,8 @@ class _DonationApplicationScreenState extends State<DonationApplicationScreen> {
                                             '헌혈 조건',
                                             style: TextStyle(
                                               fontWeight: FontWeight.w600,
-                                              color: widget.animalType == 0 
-                                                  ? Colors.blue.shade600 
+                                              color: widget.animalType == 0
+                                                  ? Colors.blue.shade600
                                                   : Colors.purple.shade600,
                                             ),
                                           ),
@@ -304,7 +290,7 @@ class _DonationApplicationScreenState extends State<DonationApplicationScreen> {
                                       ),
                                       const SizedBox(height: 8),
                                       Text(
-                                        '• ${widget.animalType == 0 ? "강아지" : "고양이"} 종류 일치\n• 나이: 1-8세\n• 체중: 20kg 이상\n• 건강한 상태 (질병 없음)\n• 예방접종 완료\n• 임신하지 않은 상태',
+                                        DonationEligibility.getConditionsSummary(widget.animalType),
                                         style: AppTheme.bodyMediumStyle.copyWith(
                                           color: AppTheme.textSecondary,
                                         ),
@@ -322,7 +308,7 @@ class _DonationApplicationScreenState extends State<DonationApplicationScreen> {
                                       ),
                                     ).then((result) {
                                       if (result == true) {
-                                        _loadAvailablePets(); // 새로운 펫 등록 후 목록 새로고침
+                                        _loadAvailablePets();
                                       }
                                     });
                                   },
@@ -341,78 +327,185 @@ class _DonationApplicationScreenState extends State<DonationApplicationScreen> {
                           ),
                         )
                       else
-                        ...availablePets.map((pet) => Card(
-                              margin: const EdgeInsets.only(bottom: 12.0),
-                              elevation: selectedPet?.petIdx == pet.petIdx ? 3 : 1,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12),
-                                side: BorderSide(
-                                  color: selectedPet?.petIdx == pet.petIdx
-                                      ? AppTheme.primaryBlue
-                                      : Colors.grey.shade200,
-                                  width: selectedPet?.petIdx == pet.petIdx ? 2 : 1,
-                                ),
+                        ...allMatchingPets.map((pet) {
+                          final eligibility = DonationEligibility.checkEligibility(pet);
+                          final isSelectable = eligibility.isEligible || eligibility.needsConsultation;
+                          final isSelected = selectedPet?.petIdx == pet.petIdx;
+
+                          return Card(
+                            margin: const EdgeInsets.only(bottom: 12.0),
+                            elevation: isSelected ? 3 : 1,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              side: BorderSide(
+                                color: !isSelectable
+                                    ? Colors.grey.shade300
+                                    : isSelected
+                                        ? AppTheme.primaryBlue
+                                        : Colors.grey.shade200,
+                                width: isSelected ? 2 : 1,
                               ),
-                              child: InkWell(
-                                borderRadius: BorderRadius.circular(12),
-                                onTap: () {
-                                  setState(() {
-                                    selectedPet = pet;
-                                  });
-                                },
+                            ),
+                            child: InkWell(
+                              borderRadius: BorderRadius.circular(12),
+                              onTap: isSelectable
+                                  ? () {
+                                      setState(() {
+                                        selectedPet = pet;
+                                      });
+                                    }
+                                  : null,
+                              child: Opacity(
+                                opacity: isSelectable ? 1.0 : 0.7,
                                 child: Padding(
                                   padding: const EdgeInsets.all(16.0),
-                                  child: Row(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
                                     children: [
-                                      Radio<Pet>(
-                                        value: pet,
-                                        groupValue: selectedPet,
-                                        onChanged: (Pet? value) {
-                                          setState(() {
-                                            selectedPet = value;
-                                          });
-                                        },
-                                        activeColor: AppTheme.primaryBlue,
-                                      ),
-                                      const SizedBox(width: 12),
-                                      Expanded(
-                                        child: Column(
-                                          crossAxisAlignment: CrossAxisAlignment.start,
-                                          children: [
-                                            Text(
-                                              pet.name,
-                                              style: AppTheme.bodyLargeStyle.copyWith(
-                                                fontWeight: FontWeight.w600,
+                                      Row(
+                                        children: [
+                                          if (isSelectable)
+                                            Radio<Pet>(
+                                              value: pet,
+                                              groupValue: selectedPet,
+                                              onChanged: (Pet? value) {
+                                                setState(() {
+                                                  selectedPet = value;
+                                                });
+                                              },
+                                              activeColor: AppTheme.primaryBlue,
+                                            )
+                                          else
+                                            const Padding(
+                                              padding: EdgeInsets.all(12.0),
+                                              child: Icon(
+                                                Icons.block,
+                                                color: Colors.red,
+                                                size: 24,
                                               ),
                                             ),
-                                            const SizedBox(height: 4),
-                                            Text(
-                                              '${pet.species == 'dog' ? '반려견' : '반려묘'} • ${pet.age} • ${pet.weightKg}kg',
-                                              style: AppTheme.bodyMediumStyle,
-                                            ),
-                                            if (pet.bloodType != null)
-                                              Text(
-                                                '혈액형: ${pet.bloodType}',
-                                                style: AppTheme.bodyMediumStyle.copyWith(
-                                                  color: AppTheme.primaryBlue,
-                                                  fontWeight: FontWeight.w500,
+                                          const SizedBox(width: 8),
+                                          Expanded(
+                                            child: Column(
+                                              crossAxisAlignment: CrossAxisAlignment.start,
+                                              children: [
+                                                Row(
+                                                  children: [
+                                                    Expanded(
+                                                      child: Text(
+                                                        pet.name,
+                                                        style: AppTheme.bodyLargeStyle.copyWith(
+                                                          fontWeight: FontWeight.w600,
+                                                          color: isSelectable ? AppTheme.textPrimary : AppTheme.textSecondary,
+                                                        ),
+                                                      ),
+                                                    ),
+                                                    if (eligibility.needsConsultation)
+                                                      Container(
+                                                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                                        decoration: BoxDecoration(
+                                                          color: Colors.orange.shade100,
+                                                          borderRadius: BorderRadius.circular(4),
+                                                        ),
+                                                        child: Text(
+                                                          '협의 필요',
+                                                          style: AppTheme.bodySmallStyle.copyWith(
+                                                            color: Colors.orange.shade800,
+                                                            fontSize: 11,
+                                                            fontWeight: FontWeight.w600,
+                                                          ),
+                                                        ),
+                                                      ),
+                                                    if (!isSelectable)
+                                                      Container(
+                                                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                                        decoration: BoxDecoration(
+                                                          color: Colors.red.shade100,
+                                                          borderRadius: BorderRadius.circular(4),
+                                                        ),
+                                                        child: Text(
+                                                          '헌혈 불가',
+                                                          style: AppTheme.bodySmallStyle.copyWith(
+                                                            color: Colors.red.shade800,
+                                                            fontSize: 11,
+                                                            fontWeight: FontWeight.w600,
+                                                          ),
+                                                        ),
+                                                      ),
+                                                  ],
                                                 ),
-                                              ),
-                                            if (pet.breed != null)
+                                                const SizedBox(height: 4),
+                                                Text(
+                                                  '${pet.species} • ${pet.age} • ${pet.weightKg}kg',
+                                                  style: AppTheme.bodyMediumStyle.copyWith(
+                                                    color: AppTheme.textSecondary,
+                                                  ),
+                                                ),
+                                                if (pet.bloodType != null)
+                                                  Text(
+                                                    '혈액형: ${pet.bloodType}',
+                                                    style: AppTheme.bodyMediumStyle.copyWith(
+                                                      color: isSelectable ? AppTheme.primaryBlue : AppTheme.textSecondary,
+                                                      fontWeight: FontWeight.w500,
+                                                    ),
+                                                  ),
+                                              ],
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                      // 헌혈 불가능 이유 표시
+                                      if (!isSelectable && eligibility.failedConditions.isNotEmpty) ...[
+                                        const SizedBox(height: 12),
+                                        Container(
+                                          width: double.infinity,
+                                          padding: const EdgeInsets.all(12),
+                                          decoration: BoxDecoration(
+                                            color: Colors.red.shade50,
+                                            borderRadius: BorderRadius.circular(8),
+                                          ),
+                                          child: Column(
+                                            crossAxisAlignment: CrossAxisAlignment.start,
+                                            children: [
                                               Text(
-                                                '품종: ${pet.breed}',
+                                                '헌혈 불가 사유',
                                                 style: AppTheme.bodySmallStyle.copyWith(
-                                                  color: AppTheme.textSecondary,
+                                                  color: Colors.red.shade700,
+                                                  fontWeight: FontWeight.w600,
                                                 ),
                                               ),
-                                          ],
+                                              const SizedBox(height: 6),
+                                              ...eligibility.failedConditions.map((condition) {
+                                                return Padding(
+                                                  padding: const EdgeInsets.only(bottom: 4),
+                                                  child: Row(
+                                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                                    children: [
+                                                      Icon(Icons.close, size: 14, color: Colors.red.shade600),
+                                                      const SizedBox(width: 6),
+                                                      Expanded(
+                                                        child: Text(
+                                                          '${condition.conditionName}: ${condition.message}',
+                                                          style: AppTheme.bodySmallStyle.copyWith(
+                                                            color: Colors.red.shade700,
+                                                          ),
+                                                        ),
+                                                      ),
+                                                    ],
+                                                  ),
+                                                );
+                                              }),
+                                            ],
+                                          ),
                                         ),
-                                      ),
+                                      ],
                                     ],
                                   ),
                                 ),
                               ),
-                            )),
+                            ),
+                          );
+                        }),
 
                       const SizedBox(height: 32),
 
@@ -420,7 +513,7 @@ class _DonationApplicationScreenState extends State<DonationApplicationScreen> {
                       SizedBox(
                         width: double.infinity,
                         child: ElevatedButton(
-                          onPressed: availablePets.isNotEmpty && !isSubmitting
+                          onPressed: selectedPet != null && !isSubmitting
                               ? _submitApplication
                               : null,
                           style: ElevatedButton.styleFrom(

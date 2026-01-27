@@ -16,6 +16,10 @@ class Pet {
   final bool? hasDisease; // 질병 이력 여부 (DB에서 NULL 허용)
   final bool? hasBirthExperience; // 출산 경험 여부 (DB에서 NULL 허용)
   final DateTime? prevDonationDate; // 이전 헌혈 일자
+  final bool? isNeutered; // 중성화 수술 여부
+  final DateTime? neuteredDate; // 중성화 수술 일자
+  final bool? hasPreventiveMedication; // 예방약 복용 여부
+  final int? ageMonths; // 나이 (개월 단위)
 
   Pet({
     this.petIdx,
@@ -33,6 +37,10 @@ class Pet {
     this.hasDisease,
     this.hasBirthExperience,
     this.prevDonationDate,
+    this.isNeutered,
+    this.neuteredDate,
+    this.hasPreventiveMedication,
+    this.ageMonths,
   });
 
   // 나이를 문자열로 반환하는 getter
@@ -69,11 +77,15 @@ class Pet {
       ageNumber: parseAge(json['age_number']),
       bloodType: json['blood_type'],
       weightKg: parseWeight(json['weight_kg']),
-      pregnant: json['pregnant'] == null ? false : (json['pregnant'] == 1),
-      vaccinated: json['vaccinated'] == null ? null : (json['vaccinated'] == 1),
-      hasDisease: json['has_disease'] == null ? null : (json['has_disease'] == 1),
-      hasBirthExperience: json['has_birth_experience'] == null ? null : (json['has_birth_experience'] == 1),
+      pregnant: json['pregnant'] == null ? false : (json['pregnant'] == 1 || json['pregnant'] == true),
+      vaccinated: json['vaccinated'] == null ? null : (json['vaccinated'] == 1 || json['vaccinated'] == true),
+      hasDisease: json['has_disease'] == null ? null : (json['has_disease'] == 1 || json['has_disease'] == true),
+      hasBirthExperience: json['has_birth_experience'] == null ? null : (json['has_birth_experience'] == 1 || json['has_birth_experience'] == true),
       prevDonationDate: json['prev_donation_date'] != null ? DateTime.tryParse(json['prev_donation_date']) : null,
+      isNeutered: json['is_neutered'] == null ? null : (json['is_neutered'] == 1 || json['is_neutered'] == true),
+      neuteredDate: json['neutered_date'] != null ? DateTime.tryParse(json['neutered_date']) : null,
+      hasPreventiveMedication: json['has_preventive_medication'] == null ? null : (json['has_preventive_medication'] == 1 || json['has_preventive_medication'] == true),
+      ageMonths: json['age_months'],
     );
   }
 
@@ -95,6 +107,10 @@ class Pet {
       'has_disease': hasDisease == null ? null : (hasDisease! ? 1 : 0),
       'has_birth_experience': hasBirthExperience == null ? null : (hasBirthExperience! ? 1 : 0),
       'prev_donation_date': prevDonationDate?.toIso8601String(),
+      'is_neutered': isNeutered == null ? null : (isNeutered! ? 1 : 0),
+      'neutered_date': neuteredDate?.toIso8601String().split('T')[0], // DATE 형식
+      'has_preventive_medication': hasPreventiveMedication == null ? null : (hasPreventiveMedication! ? 1 : 0),
+      'age_months': ageMonths,
     };
   }
   

@@ -2,6 +2,7 @@
 
 import 'package:flutter/material.dart';
 import '../utils/app_theme.dart';
+import '../utils/donation_eligibility.dart';
 import '../models/applied_donation_model.dart';
 import '../models/donation_post_time_model.dart';
 import '../models/pet_model.dart' as pet_model;
@@ -165,25 +166,14 @@ class _DonationApplicationDialogState extends State<DonationApplicationDialog> {
             ),
             const SizedBox(height: AppTheme.spacing8),
             
-            // 헌혈 가능한 반려동물 필터링
+            // 반려동물 목록 (헌혈 가능/불가능 모두 표시)
             Builder(builder: (context) {
-              final availablePets = widget.userPets.where((pet) {
-                // 동물 종류 매칭 (새로운 animal_type 필드 사용)
-                bool animalTypeMatch = pet.animalType == widget.animalType;
-                
-                // animal_type이 null인 경우 기존 species로 매칭 (하위 호환성)
-                if (pet.animalType == null) {
-                  if (widget.animalType == 0) { // 강아지
-                    animalTypeMatch = pet.species == '강아지';
-                  } else if (widget.animalType == 1) { // 고양이
-                    animalTypeMatch = pet.species == '고양이';
-                  }
-                }
-                
-                return animalTypeMatch;
+              // 동물 종류가 일치하는 반려동물만 필터링
+              final matchingPets = widget.userPets.where((pet) {
+                return DonationEligibility.matchesAnimalType(pet, widget.animalType);
               }).toList();
-              
-              if (availablePets.isEmpty) {
+
+              if (matchingPets.isEmpty) {
                 return Container(
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
@@ -201,7 +191,7 @@ class _DonationApplicationDialogState extends State<DonationApplicationDialog> {
                       const SizedBox(width: 8),
                       Expanded(
                         child: Text(
-                          '이 헌혈 요청에 참여할 수 있는 ${widget.animalType == 0 ? "강아지" : "고양이"}가 없습니다',
+                          '등록된 ${widget.animalType == 0 ? "강아지" : "고양이"}가 없습니다',
                           style: AppTheme.bodyMediumStyle.copyWith(
                             color: AppTheme.textSecondary,
                           ),
@@ -211,35 +201,156 @@ class _DonationApplicationDialogState extends State<DonationApplicationDialog> {
                   ),
                 );
               }
-              
+
+              // 디버그: 일치하는 반려동물 수 출력
+              debugPrint('[DonationDialog] 일치하는 반려동물 수: ${matchingPets.length}');
+
               return Container(
-                decoration: BoxDecoration(
-                  border: Border.all(color: AppTheme.lightGray),
-                  borderRadius: BorderRadius.circular(AppTheme.radius8),
-                ),
-                child: DropdownButtonHideUnderline(
-                  child: DropdownButton<pet_model.Pet>(
-                    value: selectedPet,
-                    hint: const Padding(
-                      padding: EdgeInsets.symmetric(horizontal: 16),
-                      child: Text('반려동물을 선택하세요'),
-                    ),
-                    isExpanded: true,
-                    items: availablePets.map((pet) {
-                      return DropdownMenuItem<pet_model.Pet>(
-                        value: pet,
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 16),
-                          child: Text(pet.displayInfo),
+                constraints: const BoxConstraints(maxHeight: 180),
+                child: ListView.builder(
+                  shrinkWrap: true,
+                  itemCount: matchingPets.length,
+                  itemBuilder: (context, index) {
+                    final pet = matchingPets[index];
+                    final eligibility = DonationEligibility.checkEligibility(pet);
+                    final isSelectable = eligibility.isEligible || eligibility.needsConsultation;
+                    final isSelected = selectedPet?.petIdx == pet.petIdx;
+
+                    // 디버그: 각 반려동물의 eligibility 결과 출력
+                    debugPrint('[DonationDialog] ${pet.name}: isSelectable=$isSelectable, status=${eligibility.overallStatus}, failed=${eligibility.failedConditions.length}');
+
+                    return GestureDetector(
+                      onTap: isSelectable
+                          ? () {
+                              setState(() {
+                                selectedPet = pet;
+                              });
+                            }
+                          : null,
+                      child: Container(
+                        margin: const EdgeInsets.only(bottom: 8),
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: !isSelectable
+                              ? Colors.grey.shade100
+                              : isSelected
+                                  ? AppTheme.primaryBlue.withOpacity(0.1)
+                                  : Colors.white,
+                          borderRadius: BorderRadius.circular(AppTheme.radius8),
+                          border: Border.all(
+                            color: !isSelectable
+                                ? Colors.grey.shade300
+                                : isSelected
+                                    ? AppTheme.primaryBlue
+                                    : AppTheme.lightGray,
+                            width: isSelected ? 2 : 1,
+                          ),
                         ),
-                      );
-                    }).toList(),
-                    onChanged: (pet) {
-                      setState(() {
-                        selectedPet = pet;
-                      });
-                    },
-                  ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                if (isSelectable)
+                                  Icon(
+                                    isSelected ? Icons.check_circle : Icons.radio_button_unchecked,
+                                    color: isSelected ? AppTheme.primaryBlue : AppTheme.mediumGray,
+                                    size: 20,
+                                  )
+                                else
+                                  const Icon(
+                                    Icons.block,
+                                    color: Colors.red,
+                                    size: 20,
+                                  ),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: Text(
+                                    pet.name,
+                                    style: AppTheme.bodyMediumStyle.copyWith(
+                                      fontWeight: FontWeight.w600,
+                                      color: isSelectable ? AppTheme.textPrimary : AppTheme.textSecondary,
+                                    ),
+                                  ),
+                                ),
+                                if (eligibility.needsConsultation)
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                    decoration: BoxDecoration(
+                                      color: Colors.orange.shade100,
+                                      borderRadius: BorderRadius.circular(4),
+                                    ),
+                                    child: Text(
+                                      '협의 필요',
+                                      style: AppTheme.bodySmallStyle.copyWith(
+                                        color: Colors.orange.shade800,
+                                        fontSize: 10,
+                                      ),
+                                    ),
+                                  ),
+                                if (!isSelectable)
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                    decoration: BoxDecoration(
+                                      color: Colors.red.shade100,
+                                      borderRadius: BorderRadius.circular(4),
+                                    ),
+                                    child: Text(
+                                      '헌혈 불가',
+                                      style: AppTheme.bodySmallStyle.copyWith(
+                                        color: Colors.red.shade800,
+                                        fontSize: 10,
+                                      ),
+                                    ),
+                                  ),
+                              ],
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              '${pet.age} • ${pet.weightKg}kg${pet.bloodType != null ? ' • ${pet.bloodType}' : ''}',
+                              style: AppTheme.bodySmallStyle.copyWith(
+                                color: AppTheme.textSecondary,
+                              ),
+                            ),
+                            // 헌혈 불가능 이유 표시
+                            if (!isSelectable && eligibility.failedConditions.isNotEmpty) ...[
+                              const SizedBox(height: 6),
+                              Container(
+                                padding: const EdgeInsets.all(8),
+                                decoration: BoxDecoration(
+                                  color: Colors.red.shade50,
+                                  borderRadius: BorderRadius.circular(4),
+                                ),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: eligibility.failedConditions.take(3).map((condition) {
+                                    return Padding(
+                                      padding: const EdgeInsets.only(bottom: 2),
+                                      child: Row(
+                                        children: [
+                                          Icon(Icons.close, size: 12, color: Colors.red.shade700),
+                                          const SizedBox(width: 4),
+                                          Expanded(
+                                            child: Text(
+                                              '${condition.conditionName}: ${condition.message}',
+                                              style: AppTheme.bodySmallStyle.copyWith(
+                                                color: Colors.red.shade700,
+                                                fontSize: 11,
+                                              ),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    );
+                                  }).toList(),
+                                ),
+                              ),
+                            ],
+                          ],
+                        ),
+                      ),
+                    );
+                  },
                 ),
               );
             }),
