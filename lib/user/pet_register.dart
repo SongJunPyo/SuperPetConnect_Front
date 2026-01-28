@@ -40,6 +40,7 @@ class _PetRegisterScreenState extends State<PetRegisterScreen> {
   DateTime? _neuteredDate; // 중성화 수술 일자
   bool _hasPreventiveMedication = false; // 예방약 복용 여부
   final _ageMonthsController = TextEditingController(); // 나이 (개월 단위)
+  DateTime? _prevDonationDate; // 직전 헌혈 일자
 
   bool get _isEditMode => widget.petToEdit != null;
 
@@ -68,6 +69,7 @@ class _PetRegisterScreenState extends State<PetRegisterScreen> {
       _neuteredDate = pet.neuteredDate;
       _hasPreventiveMedication = pet.hasPreventiveMedication ?? false;
       _ageMonthsController.text = pet.ageMonths?.toString() ?? '';
+      _prevDonationDate = pet.prevDonationDate;
     }
   }
 
@@ -113,7 +115,7 @@ class _PetRegisterScreenState extends State<PetRegisterScreen> {
     if (_selectedSpecies == null || _selectedAnimalType == null || _selectedBloodType == null) {
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(const SnackBar(content: Text('종류와 혈액형을 모두 선택해주세요.')));
+      ).showSnackBar(const SnackBar(content: Text('종과 혈액형을 모두 선택해주세요.')));
       return;
     }
 
@@ -150,7 +152,7 @@ class _PetRegisterScreenState extends State<PetRegisterScreen> {
       'vaccinated': _isVaccinated ? 1 : 0,
       'has_disease': _hasDisease ? 1 : 0,
       'has_birth_experience': _hasBirthExperience ? 1 : 0,
-      'prev_donation_date': null, // 신규 등록 시 null
+      'prev_donation_date': _prevDonationDate?.toIso8601String().split('T')[0],
       'is_neutered': _isNeutered ? 1 : 0,
       'neutered_date': _neuteredDate?.toIso8601String().split('T')[0],
       'has_preventive_medication': _hasPreventiveMedication ? 1 : 0,
@@ -290,20 +292,20 @@ class _PetRegisterScreenState extends State<PetRegisterScreen> {
               ),
               const SizedBox(height: AppTheme.spacing12),
               _buildCheckboxTile(
-                title: '정기 백신 접종 여부',
-                subtitle: '매년 정기적인 종합백신을 접종했나요?',
+                title: '백신 접종 여부',
+                subtitle: '정기적으로 종합백신을 접종했나요?',
                 value: _isVaccinated,
                 onChanged: (value) => setState(() => _isVaccinated = value ?? false),
               ),
               _buildCheckboxTile(
                 title: '질병 이력',
-                subtitle: '심장사상충, 진드기매개질병, 바베시아 등의 질병 이력이 있나요?',
+                subtitle: '심장사상충, 바베시아, 혈액관련질병 등의 질병 이력이 있나요?',
                 value: _hasDisease,
                 onChanged: (value) => setState(() => _hasDisease = value ?? false),
               ),
               _buildCheckboxTile(
                 title: '출산 경험',
-                subtitle: '출산 경험이 있나요? (1년 이내 출산 시 헌혈 불가)',
+                subtitle: '출산 경험이 있나요? (출산 경험 존재 --> 헌혈 불가)',
                 value: _hasBirthExperience,
                 onChanged: (value) => setState(() => _hasBirthExperience = value ?? false),
               ),
@@ -334,10 +336,12 @@ class _PetRegisterScreenState extends State<PetRegisterScreen> {
               ),
               if (_isNeutered) _buildNeuteredDatePicker(context),
               const SizedBox(height: AppTheme.spacing16),
+              _buildPrevDonationDatePicker(context),
+              const SizedBox(height: AppTheme.spacing16),
               _buildTextField(
                 controller: _ageMonthsController,
-                label: '나이 (개월 단위)',
-                hint: '예: 24 (선택사항, 더 정확한 헌혈 자격 판단용)',
+                label: '나이 (선택)',
+                hint: '예: 24 (개월 단위)',
                 keyboardType: TextInputType.number,
                 inputFormatters: [FilteringTextInputFormatter.digitsOnly],
                 validator: (value) => null, // 선택사항
@@ -380,20 +384,23 @@ class _PetRegisterScreenState extends State<PetRegisterScreen> {
     );
   }
 
-  // 종류 선택 버튼 위젯 (강아지/고양이)
+  // 종 선택 버튼 위젯 (강아지/고양이)
   Widget _buildSpeciesDropdown(BuildContext context) {
-    final TextTheme textTheme = Theme.of(context).textTheme;
-    
     return Padding(
       padding: const EdgeInsets.only(bottom: 16.0),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            '종류',
-            style: textTheme.bodySmall?.copyWith(color: Colors.grey[700]),
+          RichText(
+            text: TextSpan(
+              text: '종',
+              style: AppTheme.bodyMediumStyle.copyWith(fontWeight: FontWeight.w600),
+              children: const [
+                TextSpan(text: ' *', style: TextStyle(color: AppTheme.error)),
+              ],
+            ),
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: AppTheme.spacing8),
           Row(
             children: [
               // 강아지 선택 버튼
@@ -575,6 +582,116 @@ class _PetRegisterScreenState extends State<PetRegisterScreen> {
     );
   }
 
+  // 직전 헌혈 일자 선택 위젯
+  Widget _buildPrevDonationDatePicker(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        RichText(
+          text: TextSpan(
+            text: '직전 헌혈 일자',
+            style: AppTheme.bodyMediumStyle.copyWith(fontWeight: FontWeight.w600),
+            children: const [
+              TextSpan(
+                text: ' (선택)',
+                style: TextStyle(
+                  color: AppTheme.textTertiary,
+                  fontWeight: FontWeight.w400,
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: AppTheme.spacing8),
+        InkWell(
+          onTap: () async {
+            final DateTime? picked = await showDatePicker(
+              context: context,
+              initialDate: _prevDonationDate ?? DateTime.now(),
+              firstDate: DateTime(2010),
+              lastDate: DateTime.now(),
+              helpText: '직전 헌혈 일자 선택',
+              cancelText: '취소',
+              confirmText: '선택',
+            );
+            if (picked != null) {
+              setState(() {
+                _prevDonationDate = picked;
+              });
+            }
+          },
+          child: Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: AppTheme.veryLightGray,
+              borderRadius: BorderRadius.circular(AppTheme.radius12),
+            ),
+            child: Row(
+              children: [
+                Icon(
+                  Icons.bloodtype_outlined,
+                  size: 20,
+                  color: _prevDonationDate != null ? AppTheme.primaryBlue : AppTheme.textTertiary,
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    _prevDonationDate != null
+                        ? '${_prevDonationDate!.year}년 ${_prevDonationDate!.month}월 ${_prevDonationDate!.day}일'
+                        : '헌혈 경험이 있다면 날짜를 선택하세요',
+                    style: AppTheme.bodyLargeStyle.copyWith(
+                      color: _prevDonationDate != null ? AppTheme.textPrimary : AppTheme.textTertiary,
+                    ),
+                  ),
+                ),
+                if (_prevDonationDate != null)
+                  IconButton(
+                    icon: Icon(Icons.close, color: AppTheme.textTertiary, size: 20),
+                    onPressed: () {
+                      setState(() {
+                        _prevDonationDate = null;
+                      });
+                    },
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(),
+                  )
+                else
+                  Icon(Icons.calendar_today, color: AppTheme.textTertiary, size: 20),
+              ],
+            ),
+          ),
+        ),
+        if (_prevDonationDate != null) ...[
+          const SizedBox(height: AppTheme.spacing8),
+          Text(
+            _getDonationIntervalMessage(),
+            style: AppTheme.bodySmallStyle.copyWith(
+              color: _canDonateAgain() ? Colors.green.shade600 : Colors.orange.shade600,
+            ),
+          ),
+        ],
+      ],
+    );
+  }
+
+  // 헌혈 간격 메시지
+  String _getDonationIntervalMessage() {
+    if (_prevDonationDate == null) return '';
+    final daysSince = DateTime.now().difference(_prevDonationDate!).inDays;
+    if (daysSince >= 56) {
+      return '✓ 마지막 헌혈 후 $daysSince일 경과 (헌혈 가능)';
+    } else {
+      final remaining = 56 - daysSince;
+      return '⏳ 마지막 헌혈 후 $daysSince일 경과 ($remaining일 후 헌혈 가능)';
+    }
+  }
+
+  // 다시 헌혈 가능 여부
+  bool _canDonateAgain() {
+    if (_prevDonationDate == null) return true;
+    return DateTime.now().difference(_prevDonationDate!).inDays >= 56;
+  }
+
   // 체크박스 타일 위젯
   Widget _buildCheckboxTile({
     required String title,
@@ -619,15 +736,11 @@ class _PetRegisterScreenState extends State<PetRegisterScreen> {
 
   // 혈액형 선택 드롭다운 위젯
   Widget _buildBloodTypeDropdown(BuildContext context) {
-    // context 받도록 수정
-    final TextTheme textTheme = Theme.of(context).textTheme;
-    // colorScheme을 사용하지 않으므로 제거
-
     // 종류에 따른 혈액형 목록
     final List<String> bloodTypes;
     if (_selectedSpecies == '강아지') {
       bloodTypes = [
-        'DEA 1.1+', 'DEA 1.1-', 'DEA 1.2+', 'DEA 1.2-', 
+        'DEA 1.1+', 'DEA 1.1-', 'DEA 1.2+', 'DEA 1.2-',
         'DEA 3', 'DEA 4', 'DEA 5', 'DEA 6', 'DEA 7', '기타'
       ];
     } else if (_selectedSpecies == '고양이') {
@@ -640,35 +753,37 @@ class _PetRegisterScreenState extends State<PetRegisterScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            '혈액형',
-            style: textTheme.bodySmall?.copyWith(color: Colors.grey[700]),
-          ), // 폰트 스타일 통일
-          const SizedBox(height: 8),
+          RichText(
+            text: TextSpan(
+              text: '혈액형',
+              style: AppTheme.bodyMediumStyle.copyWith(fontWeight: FontWeight.w600),
+              children: const [
+                TextSpan(text: ' *', style: TextStyle(color: AppTheme.error)),
+              ],
+            ),
+          ),
+          const SizedBox(height: AppTheme.spacing8),
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 5),
             decoration: BoxDecoration(
-              color: Colors.grey[100],
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: Colors.grey.shade300), // 테두리 추가
+              color: AppTheme.veryLightGray,
+              borderRadius: BorderRadius.circular(AppTheme.radius12),
             ),
             child: DropdownButtonHideUnderline(
               child: DropdownButton<String>(
                 value: _selectedBloodType,
                 hint: Text(
                   '혈액형을 선택해주세요.',
-                  style: textTheme.bodyMedium?.copyWith(
-                    color: Colors.grey[500],
+                  style: AppTheme.bodyLargeStyle.copyWith(
+                    color: AppTheme.textTertiary,
                   ),
-                ), // 폰트 스타일 통일
+                ),
                 isExpanded: true,
                 icon: Icon(
                   Icons.arrow_drop_down_circle_outlined,
-                  color: Colors.grey[600],
-                ), // 아이콘 변경
-                style: textTheme.bodyMedium?.copyWith(
-                  color: Colors.black87,
-                ), // 폰트 스타일 통일
+                  color: AppTheme.textTertiary,
+                ),
+                style: AppTheme.bodyLargeStyle,
                 onChanged: (String? newValue) {
                   setState(() {
                     _selectedBloodType = newValue;
