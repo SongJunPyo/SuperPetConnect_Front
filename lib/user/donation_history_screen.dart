@@ -26,7 +26,8 @@ class _DonationHistoryScreenState extends State<DonationHistoryScreen>
   // UI 상태
   bool isLoading = true;
   String searchQuery = '';
-  
+  DateTime? selectedDate; // 날짜 필터
+
   // 데이터
   List<DonationApplication> applications = [];
   List<DonationApplication> completed = [];
@@ -71,16 +72,25 @@ class _DonationHistoryScreenState extends State<DonationHistoryScreen>
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         final List<dynamic> applicationsJson = data['applications'] ?? [];
-        
+
+        // 디버그: API 응답 확인
+        debugPrint('[DonationHistory] API 응답: $data');
+        for (var app in applicationsJson) {
+          debugPrint('[DonationHistory] 신청 데이터: status=${app['status']}, status_kr=${app['status_kr']}, status_code=${app['status_code']}');
+        }
+
         final allApplications = applicationsJson.map((json) => DonationApplication.fromJson(json)).toList();
-        
+
         // 신청 중인 것과 완료된 것 분리
-        applications = allApplications.where((app) => app.status != '완료').toList();
-        completed = allApplications.where((app) => app.status == '완료').toList();
-        
+        // status_code: 0=대기중, 1=승인됨, 2=거절됨, 4=취소됨, 7=헌혈완료
+        applications = allApplications.where((app) => app.statusCode != 7).toList();
+        completed = allApplications.where((app) => app.statusCode == 7).toList();
+
+        debugPrint('[DonationHistory] 신청 중: ${applications.length}개, 완료: ${completed.length}개');
+
         totalApplications = allApplications.length;
         completedDonations = completed.length;
-        
+
         _applySearchFilter();
       } else {
         throw Exception('데이터를 불러올 수 없습니다.');
@@ -94,20 +104,35 @@ class _DonationHistoryScreenState extends State<DonationHistoryScreen>
   }
 
   void _applySearchFilter() {
-    if (searchQuery.isEmpty) {
-      filteredApplications = applications;
-      filteredCompleted = completed;
-    } else {
-      filteredApplications = applications.where((app) =>
+    // 먼저 전체 데이터로 시작
+    filteredApplications = applications.toList();
+    filteredCompleted = completed.toList();
+
+    // 검색어 필터링
+    if (searchQuery.isNotEmpty) {
+      filteredApplications = filteredApplications.where((app) =>
         app.postTitle.toLowerCase().contains(searchQuery.toLowerCase()) ||
         app.petName.toLowerCase().contains(searchQuery.toLowerCase())
       ).toList();
-      
-      filteredCompleted = completed.where((app) =>
+
+      filteredCompleted = filteredCompleted.where((app) =>
         app.postTitle.toLowerCase().contains(searchQuery.toLowerCase()) ||
         app.petName.toLowerCase().contains(searchQuery.toLowerCase())
       ).toList();
     }
+
+    // 날짜 필터링
+    if (selectedDate != null) {
+      filteredApplications = filteredApplications.where((app) =>
+        _isSameDay(app.donationTime, selectedDate!)
+      ).toList();
+
+      filteredCompleted = filteredCompleted.where((app) =>
+        _isSameDay(app.donationTime, selectedDate!)
+      ).toList();
+    }
+
+    setState(() {});
   }
 
   void _onSearchChanged(String value) {
@@ -121,6 +146,28 @@ class _DonationHistoryScreenState extends State<DonationHistoryScreen>
     await _loadDonationHistory();
   }
 
+  // 날짜 선택 함수
+  Future<void> _selectDate(BuildContext context) async {
+    final DateTime? picked = await showDatePicker(
+      context: context,
+      initialDate: selectedDate ?? DateTime.now(),
+      firstDate: DateTime(2020),
+      lastDate: DateTime.now().add(const Duration(days: 365)),
+      locale: const Locale('ko', 'KR'), // 한국어 로케일
+    );
+    if (picked != null && picked != selectedDate) {
+      setState(() {
+        selectedDate = picked;
+      });
+      _applySearchFilter();
+    }
+  }
+
+  // 같은 날인지 확인
+  bool _isSameDay(DateTime a, DateTime b) {
+    return a.year == b.year && a.month == b.month && a.day == b.day;
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -131,14 +178,21 @@ class _DonationHistoryScreenState extends State<DonationHistoryScreen>
         foregroundColor: Colors.black87,
         actions: [
           IconButton(
-            icon: const Icon(Icons.date_range),
-            onPressed: () {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('달력 필터 기능 준비 중입니다')),
-              );
-            },
-            tooltip: '날짜 범위 선택',
+            icon: const Icon(Icons.calendar_today, color: Colors.black87),
+            onPressed: () => _selectDate(context),
+            tooltip: '날짜 선택',
           ),
+          if (selectedDate != null)
+            IconButton(
+              icon: const Icon(Icons.clear, color: Colors.black87),
+              onPressed: () {
+                setState(() {
+                  selectedDate = null;
+                });
+                _applySearchFilter();
+              },
+              tooltip: '날짜 필터 해제',
+            ),
           IconButton(
             icon: const Icon(Icons.refresh_outlined, color: Colors.black87),
             tooltip: '새로고침',
@@ -153,7 +207,42 @@ class _DonationHistoryScreenState extends State<DonationHistoryScreen>
           // 통계 섹션 (기존 신청 현황 스타일)
           if (totalApplications > 0 || completedDonations > 0)
             _buildStatsHeader(),
-          
+
+          // 선택된 날짜 표시
+          if (selectedDate != null)
+            Container(
+              margin: const EdgeInsets.symmetric(horizontal: 16),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              decoration: BoxDecoration(
+                color: Colors.blue.shade50,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.blue.shade200),
+              ),
+              child: Row(
+                children: [
+                  Icon(Icons.calendar_today, size: 16, color: Colors.blue.shade700),
+                  const SizedBox(width: 8),
+                  Text(
+                    DateFormat('yyyy년 MM월 dd일 (E)', 'ko_KR').format(selectedDate!),
+                    style: AppTheme.bodyMediumStyle.copyWith(
+                      color: Colors.blue.shade700,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                  const Spacer(),
+                  GestureDetector(
+                    onTap: () {
+                      setState(() {
+                        selectedDate = null;
+                      });
+                      _applySearchFilter();
+                    },
+                    child: Icon(Icons.close, size: 18, color: Colors.blue.shade700),
+                  ),
+                ],
+              ),
+            ),
+
           // 검색창
           Container(
             padding: const EdgeInsets.all(16.0),

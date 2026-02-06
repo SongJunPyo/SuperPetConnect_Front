@@ -158,7 +158,7 @@ class _HospitalColumnEditState extends State<HospitalColumnEdit> {
                     columnIdx: widget.column.columnIdx,
                     initialContentDelta: widget.column.contentDelta,
                     initialText: widget.column.contentDelta == null ? widget.column.content : null,
-                    placeholder: '칼럼 내용을 입력하세요. 이미지도 추가할 수 있습니다.',
+                    placeholder: '칼럼 내용을 입력하세요.',
                   ),
                 ),
               ),

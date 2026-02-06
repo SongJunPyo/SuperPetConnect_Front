@@ -3,39 +3,8 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../utils/config.dart';
-
-// 신청자 데이터 모델
-class Applicant {
-  final int id;
-  final String name;
-  final String contact;
-  final String dogInfo;
-  final String lastDonationDate;
-  final int approvalCount; // 총 헌혈 승인 횟수
-  int status; // 0: 대기, 1: 승인, 2: 거절, 3: 취소 (사용자 측에서 취소)
-
-  Applicant({
-    required this.id,
-    required this.name,
-    required this.contact,
-    required this.dogInfo,
-    required this.lastDonationDate,
-    required this.approvalCount,
-    required this.status,
-  });
-
-  factory Applicant.fromJson(Map<String, dynamic> json) {
-    return Applicant(
-      id: json['id'],
-      name: json['name'],
-      contact: json['contact'],
-      dogInfo: json['dog_info'],
-      lastDonationDate: json['last_donation_date'],
-      approvalCount: json['approval_count'],
-      status: json['status'], // 서버에서 넘어오는 status 그대로 사용 (0, 1, 2, 3)
-    );
-  }
-}
+import '../models/applicant_model.dart';
+import '../widgets/applicant_card.dart';
 
 class ApplicantListScreen extends StatefulWidget {
   final int timeRangeId; // 특정 timeRange에 대한 신청자 목록을 가져오기 위한 ID
@@ -50,7 +19,7 @@ class ApplicantListScreen extends StatefulWidget {
 }
 
 class _ApplicantListScreenState extends State<ApplicantListScreen> {
-  List<Applicant> applicants = [];
+  List<ApplicantInfo> applicants = [];
   bool isLoading = true;
   String errorMessage = '';
   String? token; // JWT 토큰을 저장할 변수
@@ -89,7 +58,7 @@ class _ApplicantListScreenState extends State<ApplicantListScreen> {
 
     try {
       final url = Uri.parse(
-        '${Config.serverUrl}/api/admin/time-range/${widget.timeRangeId}/applicants',
+        '${Config.serverUrl}/api/admin/time-slots/${widget.timeRangeId}/applicants',
       );
       final response = await http.get(
         url,
@@ -104,7 +73,7 @@ class _ApplicantListScreenState extends State<ApplicantListScreen> {
         setState(() {
           applicants =
               data
-                  .map((applicantJson) => Applicant.fromJson(applicantJson))
+                  .map((applicantJson) => ApplicantInfo.fromJson(applicantJson))
                   .toList();
           isLoading = false;
         });
@@ -174,72 +143,6 @@ class _ApplicantListScreenState extends State<ApplicantListScreen> {
     }
   }
 
-  // 상태 코드에 따른 텍스트 반환
-  String getStatusText(int status) {
-    switch (status) {
-      case 0:
-        return '대기';
-      case 1:
-        return '승인';
-      case 2:
-        return '거절';
-      case 3:
-        return '취소'; // 사용자 측에서 취소
-      default:
-        return '알 수 없음';
-    }
-  }
-
-  // 상태 코드에 따른 색상 반환
-  Color getStatusColor(int status) {
-    switch (status) {
-      case 0:
-        return Colors.orange; // 대기
-      case 1:
-        return Colors.green; // 승인
-      case 2:
-        return Colors.red; // 거절
-      case 3:
-        return Colors.grey; // 취소
-      default:
-        return Colors.black;
-    }
-  }
-
-  // 상세 정보 Row를 깔끔하게 보여주는 헬퍼 위젯 (다른 관리자 화면에서 재활용)
-  Widget _buildDetailRow(
-    BuildContext context,
-    IconData icon,
-    String label,
-    String value,
-  ) {
-    final TextTheme textTheme = Theme.of(context).textTheme;
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4.0),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Icon(icon, size: 18, color: Colors.grey[600]),
-          const SizedBox(width: 8),
-          Text(
-            '$label: ',
-            style: textTheme.bodyMedium?.copyWith(
-              fontWeight: FontWeight.w500,
-              color: Colors.grey[700],
-            ),
-          ),
-          Expanded(
-            child: Text(
-              value,
-              style: textTheme.bodyMedium?.copyWith(color: Colors.black87),
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -330,161 +233,14 @@ class _ApplicantListScreenState extends State<ApplicantListScreen> {
                 padding: const EdgeInsets.symmetric(
                   horizontal: 20.0,
                   vertical: 16.0,
-                ), // 여백 통일
+                ),
                 itemCount: applicants.length,
                 itemBuilder: (context, index) {
                   final applicant = applicants[index];
-                  return Card(
-                    margin: const EdgeInsets.only(bottom: 12.0), // 카드 간격
-                    elevation: 1, // 더 가벼운 그림자
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12), // 둥근 모서리
-                      side: BorderSide(
-                        color: Colors.grey.shade200,
-                        width: 1,
-                      ), // 테두리 추가
-                    ),
-                    child: Padding(
-                      padding: const EdgeInsets.all(16.0), // 내부 패딩
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          // 신청자 이름 및 상태 태그
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Expanded(
-                                child: Text(
-                                  applicant.name,
-                                  style: textTheme.titleMedium?.copyWith(
-                                    fontWeight: FontWeight.bold,
-                                    color: Colors.black87,
-                                  ),
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                              ),
-                              const SizedBox(width: 10),
-                              Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 8.0,
-                                  vertical: 4.0,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: getStatusColor(
-                                    applicant.status,
-                                  ).withAlpha(38), // withOpacity(0.15) 대체
-                                  borderRadius: BorderRadius.circular(8.0),
-                                ),
-                                child: Text(
-                                  getStatusText(applicant.status),
-                                  style: textTheme.bodySmall?.copyWith(
-                                    fontWeight: FontWeight.bold,
-                                    color: getStatusColor(applicant.status),
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 8),
-                          // 신청자 상세 정보
-                          _buildDetailRow(
-                            context,
-                            Icons.phone_outlined,
-                            '연락처',
-                            applicant.contact,
-                          ),
-                          _buildDetailRow(
-                            context,
-                            Icons.pets_outlined,
-                            '반려동물',
-                            applicant.dogInfo,
-                          ),
-                          _buildDetailRow(
-                            context,
-                            Icons.calendar_today_outlined,
-                            '직전 헌혈일',
-                            applicant.lastDonationDate,
-                          ),
-                          _buildDetailRow(
-                            context,
-                            Icons.favorite_border_outlined,
-                            '총 승인 횟수',
-                            '${applicant.approvalCount}회',
-                          ),
-
-                          const SizedBox(height: 16), // 정보와 버튼 사이 간격
-                          // 승인/거절 버튼 (대기 상태일 때만 표시)
-                          if (applicant.status == 0) // 0: 대기 상태일 때만 버튼 표시
-                            Row(
-                              mainAxisAlignment:
-                                  MainAxisAlignment.spaceAround, // 버튼 간격 균등 분배
-                              children: [
-                                Expanded(
-                                  child: SizedBox(
-                                    // 버튼 높이 고정
-                                    height: 40,
-                                    child: ElevatedButton(
-                                      onPressed:
-                                          () => updateApplicantStatus(
-                                            applicant.id,
-                                            1,
-                                          ), // 1: 승인
-                                      style: ElevatedButton.styleFrom(
-                                        backgroundColor: Colors.green,
-                                        foregroundColor: Colors.white,
-                                        shape: RoundedRectangleBorder(
-                                          borderRadius: BorderRadius.circular(
-                                            10,
-                                          ),
-                                        ),
-                                        elevation: 2,
-                                      ),
-                                      child: Text(
-                                        "승인",
-                                        style: textTheme.titleSmall?.copyWith(
-                                          fontWeight: FontWeight.bold,
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                                const SizedBox(width: 12), // 버튼 사이 간격
-                                Expanded(
-                                  child: SizedBox(
-                                    // 버튼 높이 고정
-                                    height: 40,
-                                    child: ElevatedButton(
-                                      onPressed:
-                                          () => updateApplicantStatus(
-                                            applicant.id,
-                                            2,
-                                          ), // 2: 거절
-                                      style: ElevatedButton.styleFrom(
-                                        backgroundColor: colorScheme.error,
-                                        foregroundColor: colorScheme.onError,
-                                        shape: RoundedRectangleBorder(
-                                          borderRadius: BorderRadius.circular(
-                                            10,
-                                          ),
-                                        ),
-                                        elevation: 2,
-                                      ),
-                                      child: Text(
-                                        "거절",
-                                        style: textTheme.titleSmall?.copyWith(
-                                          fontWeight: FontWeight.bold,
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                        ],
-                      ),
-                    ),
+                  return ApplicantCard(
+                    applicant: applicant,
+                    onApprove: () => updateApplicantStatus(applicant.id, 1),
+                    onReject: () => updateApplicantStatus(applicant.id, 2),
                   );
                 },
               ),

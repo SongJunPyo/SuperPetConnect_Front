@@ -11,6 +11,8 @@ import '../widgets/rich_text_viewer.dart';
 import 'package:intl/intl.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import '../services/admin_completed_donation_service.dart';
+import '../services/donation_history_service.dart';
+import '../models/donation_history_model.dart';
 
 class AdminPostCheck extends StatefulWidget {
   const AdminPostCheck({super.key});
@@ -510,6 +512,7 @@ class _AdminPostCheckState extends State<AdminPostCheck>
                     'description': app['description'] ?? '최종 승인된 헌혈입니다.',
                     'status': 7, // 헌혈완료 상태
                     'pet_name': app['pet']?['name'] ?? app['pet_name'] ?? '',
+                    'pet_idx': app['pet']?['pet_idx'] ?? app['pet_idx'],
                     'user_nickname': app['user_nickname'] ?? '',
                     'completed_at': app['completed_at'],
                     // 헌혈 예정일 정보
@@ -702,6 +705,7 @@ class _AdminPostCheckState extends State<AdminPostCheck>
                 '최종 취소된 헌혈입니다.',
             'status': 4, // 헌혈취소 상태
             'pet_name': app['pet']?['name'] ?? app['pet_name'] ?? '',
+            'pet_idx': app['pet']?['pet_idx'] ?? app['pet_idx'],
             'user_nickname': app['user_nickname'] ?? '',
             'cancelled_at': app['cancelled_at'] ?? '',
             'cancelled_by': app['cancelled_by'] ?? '',
@@ -906,6 +910,11 @@ class _AdminPostCheckState extends State<AdminPostCheck>
                     'status':
                         app['status'], // 5 (pendingCompletion) 또는 6 (pendingCancellation)
                     'pet_name': app['pet']?['name'] ?? '',
+                    'pet_idx': () {
+                      final idx = app['pet']?['pet_idx'] ?? app['pet_idx'];
+                      debugPrint('[헌혈마감 데이터변환] pet.pet_idx: ${app['pet']?['pet_idx']}, app.pet_idx: ${app['pet_idx']}, 최종: $idx');
+                      return idx;
+                    }(),
                     'user_nickname': app['user_nickname'] ?? '',
                     'completed_at': app['completed_at'],
                     // 중단 관련 정보 (상태 6인 경우)
@@ -2510,6 +2519,19 @@ class _AdminPostCheckState extends State<AdminPostCheck>
     }
   }
 
+  /// 직전 헌혈일 포맷 (YYYY.MM.DD 형식)
+  String _formatLastDonationDate(String dateTime) {
+    try {
+      if (dateTime.isEmpty) return '-';
+
+      // ISO 8601 형식 (2025-01-27T00:00:00) 또는 YYYY-MM-DD 형식 처리
+      final date = DateTime.parse(dateTime);
+      return '${date.year}.${date.month.toString().padLeft(2, '0')}.${date.day.toString().padLeft(2, '0')}';
+    } catch (e) {
+      return '-';
+    }
+  }
+
   Widget _buildDetailRow(
     BuildContext context,
     IconData icon,
@@ -2944,6 +2966,7 @@ class _AdminPostCheckState extends State<AdminPostCheck>
                                     itemBuilder: (context, index) {
                                       final applicant = applicants[index];
                                       return ListTile(
+                                        onTap: () => _showApplicantDetailBottomSheet(context, applicant),
                                         title: Text(
                                           '${applicant['nickname'] ?? '닉네임 없음'} (${applicant['name'] ?? '이름 없음'}) ${_formatPhoneNumber(applicant['contact'])}',
                                           style: AppTheme.bodyLargeStyle
@@ -2981,7 +3004,7 @@ class _AdminPostCheckState extends State<AdminPostCheck>
                                                 lastDonationText =
                                                     '첫 헌혈을 기다리는 중';
                                               } else {
-                                                lastDonationText = _formatDate(
+                                                lastDonationText = _formatLastDonationDate(
                                                   lastDonationDate.toString(),
                                                 );
                                               }
@@ -3735,7 +3758,21 @@ class _AdminPostCheckState extends State<AdminPostCheck>
   void _showCompletionApplicantInfo(Map<String, dynamic> post) {
     // applications 배열에서 첫 번째 신청자 정보 가져오기 (헌혈완료/취소는 1건)
     final applications = post['applications'] as List<dynamic>? ?? [];
-    final applicant = applications.isNotEmpty ? applications.first : {};
+    final applicant = applications.isNotEmpty ? applications.first as Map<String, dynamic>? ?? {} : <String, dynamic>{};
+
+    // pet_idx 가져오기 (post 또는 applicant에서) - 타입 변환 처리
+    int? petIdx;
+    final postPetIdx = post['pet_idx'];
+    final applicantPetIdx = applicant['pet_idx'];
+
+    if (postPetIdx != null) {
+      petIdx = postPetIdx is int ? postPetIdx : int.tryParse(postPetIdx.toString());
+    } else if (applicantPetIdx != null) {
+      petIdx = applicantPetIdx is int ? applicantPetIdx : int.tryParse(applicantPetIdx.toString());
+    }
+
+    debugPrint('[헌혈마감] post pet_idx: $postPetIdx, applicant pet_idx: $applicantPetIdx, 최종 petIdx: $petIdx');
+
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -3744,9 +3781,9 @@ class _AdminPostCheckState extends State<AdminPostCheck>
       ),
       builder:
           (context) => DraggableScrollableSheet(
-            initialChildSize: 0.6,
+            initialChildSize: 0.75,
             minChildSize: 0.4,
-            maxChildSize: 0.8,
+            maxChildSize: 0.95,
             expand: false,
             builder:
                 (context, scrollController) => Container(
@@ -3972,6 +4009,10 @@ class _AdminPostCheckState extends State<AdminPostCheck>
                                   ),
                                 ),
                               ],
+
+                              // 헌혈 이력 섹션
+                              const SizedBox(height: 24),
+                              _buildDonationHistorySection(petIdx),
                             ],
                           ),
                         ),
@@ -4332,5 +4373,354 @@ class _AdminPostCheckState extends State<AdminPostCheck>
     final timeRanges = post['timeRanges'] as List<dynamic>? ?? [];
     // status 0 = 열림, status 1 = 마감
     return timeRanges.any((ts) => ts['status'] == 0 || ts['status'] == null);
+  }
+
+  // 신청자 상세 정보 바텀시트 표시
+  void _showApplicantDetailBottomSheet(BuildContext context, Map<String, dynamic> applicant) {
+    final petInfo = applicant['pet_info'] as Map<String, dynamic>? ?? {};
+    final petIdx = applicant['pet_idx'] as int?;
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => DraggableScrollableSheet(
+        initialChildSize: 0.7,
+        minChildSize: 0.4,
+        maxChildSize: 0.95,
+        builder: (context, scrollController) => Container(
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+          ),
+          child: Column(
+            children: [
+              // 핸들 바
+              Container(
+                width: 40,
+                height: 4,
+                margin: const EdgeInsets.symmetric(vertical: 12),
+                decoration: BoxDecoration(
+                  color: Colors.grey[300],
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              // 헤더
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            '${applicant['nickname'] ?? ''} (${applicant['name'] ?? ''})',
+                            style: AppTheme.h3Style.copyWith(fontWeight: FontWeight.w700),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            petInfo['name'] ?? '반려동물 정보 없음',
+                            style: AppTheme.bodyMediumStyle.copyWith(
+                              color: AppTheme.textSecondary,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    IconButton(
+                      onPressed: () => Navigator.pop(context),
+                      icon: const Icon(Icons.close),
+                    ),
+                  ],
+                ),
+              ),
+              const Divider(height: 24),
+              // 내용
+              Expanded(
+                child: ListView(
+                  controller: scrollController,
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  children: [
+                    // 기본 정보
+                    _buildApplicantInfoSection(applicant, petInfo),
+                    const SizedBox(height: 24),
+                    // 헌혈 이력 섹션
+                    _buildDonationHistorySection(petIdx),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  // 신청자 정보 섹션
+  Widget _buildApplicantInfoSection(Map<String, dynamic> applicant, Map<String, dynamic> petInfo) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          '신청자 정보',
+          style: AppTheme.bodyLargeStyle.copyWith(fontWeight: FontWeight.w600),
+        ),
+        const SizedBox(height: 12),
+        _buildApplicantInfoRow('연락처', _formatPhoneNumber(applicant['contact'])),
+        _buildApplicantInfoRow('반려동물', '${petInfo['name'] ?? '-'} (${petInfo['breed'] ?? '-'})'),
+        _buildApplicantInfoRow('나이 / 혈액형', '${petInfo['age'] ?? '-'}세 / ${petInfo['blood_type'] ?? '-'}'),
+        _buildApplicantInfoRow('직전 헌혈일', () {
+          final lastDonation = petInfo['last_donation_date'];
+          if (lastDonation == null || lastDonation.toString().isEmpty) {
+            return '첫 헌혈을 기다리는 중';
+          }
+          return _formatLastDonationDate(lastDonation.toString());
+        }()),
+      ],
+    );
+  }
+
+  // 정보 행
+  Widget _buildApplicantInfoRow(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 6),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: 100,
+            child: Text(
+              label,
+              style: AppTheme.bodyMediumStyle.copyWith(
+                color: AppTheme.textSecondary,
+              ),
+            ),
+          ),
+          Expanded(
+            child: Text(
+              value,
+              style: AppTheme.bodyMediumStyle,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // 헌혈 이력 섹션
+  Widget _buildDonationHistorySection(int? petIdx) {
+    if (petIdx == null) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            '헌혈 이력',
+            style: AppTheme.bodyLargeStyle.copyWith(fontWeight: FontWeight.w600),
+          ),
+          const SizedBox(height: 12),
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Colors.grey.shade100,
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Row(
+              children: [
+                Icon(Icons.info_outline, color: Colors.grey.shade600),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    '헌혈 이력 조회 기능 준비 중입니다.',
+                    style: AppTheme.bodyMediumStyle.copyWith(
+                      color: Colors.grey.shade700,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      );
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          '헌혈 이력',
+          style: AppTheme.bodyLargeStyle.copyWith(fontWeight: FontWeight.w600),
+        ),
+        const SizedBox(height: 12),
+        FutureBuilder<DonationHistoryResponse?>(
+          future: DonationHistoryService.getHistory(petIdx: petIdx, limit: 50),
+          builder: (context, snapshot) {
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return const Center(
+                child: Padding(
+                  padding: EdgeInsets.all(20),
+                  child: CircularProgressIndicator(),
+                ),
+              );
+            }
+            if (snapshot.hasError) {
+              return Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade100,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Row(
+                  children: [
+                    Icon(Icons.info_outline, color: Colors.grey.shade600),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        '이력을 불러오지 못했습니다.',
+                        style: AppTheme.bodyMediumStyle.copyWith(
+                          color: Colors.grey.shade700,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            }
+
+            final historyResponse = snapshot.data;
+            if (historyResponse == null) {
+              return const SizedBox.shrink();
+            }
+
+            return Column(
+              children: [
+                // 통계 요약
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: AppTheme.primaryBlue.withAlpha(20),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceAround,
+                    children: [
+                      _buildHistoryStatItem('총 헌혈 횟수', '${historyResponse.totalCount}회'),
+                      Container(width: 1, height: 30, color: Colors.grey.shade300),
+                      _buildHistoryStatItem('총 헌혈량', historyResponse.totalBloodVolumeText),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 16),
+                // 이력 목록
+                if (historyResponse.histories.isEmpty)
+                  Center(
+                    child: Padding(
+                      padding: const EdgeInsets.all(20),
+                      child: Text(
+                        '헌혈 이력이 없습니다.',
+                        style: AppTheme.bodyMediumStyle.copyWith(
+                          color: AppTheme.textSecondary,
+                        ),
+                      ),
+                    ),
+                  )
+                else
+                  ...historyResponse.histories.map((history) => _buildHistoryItem(history)),
+              ],
+            );
+          },
+        ),
+      ],
+    );
+  }
+
+  // 통계 항목
+  Widget _buildHistoryStatItem(String label, String value) {
+    return Column(
+      children: [
+        Text(
+          value,
+          style: AppTheme.h4Style.copyWith(
+            fontWeight: FontWeight.w700,
+            color: AppTheme.primaryBlue,
+          ),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          label,
+          style: AppTheme.bodySmallStyle.copyWith(
+            color: AppTheme.textSecondary,
+          ),
+        ),
+      ],
+    );
+  }
+
+  // 헌혈 이력 항목
+  Widget _buildHistoryItem(DonationHistory history) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.grey.shade50,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: Colors.grey.shade200),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Text(
+                history.dateText,
+                style: AppTheme.bodyMediumStyle.copyWith(
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const SizedBox(width: 8),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                decoration: BoxDecoration(
+                  color: history.isSystemRecord ? Colors.blue.shade50 : Colors.green.shade50,
+                  borderRadius: BorderRadius.circular(4),
+                ),
+                child: Text(
+                  history.isSystemRecord ? '자동' : '수동',
+                  style: AppTheme.bodySmallStyle.copyWith(
+                    color: history.isSystemRecord ? Colors.blue.shade600 : Colors.green.shade600,
+                    fontSize: 11,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              Icon(Icons.local_hospital, size: 14, color: AppTheme.textSecondary),
+              const SizedBox(width: 4),
+              Text(
+                history.hospitalName ?? '정보 없음',
+                style: AppTheme.bodySmallStyle.copyWith(color: AppTheme.textSecondary),
+              ),
+              Text(' • ', style: TextStyle(color: AppTheme.textSecondary)),
+              Icon(Icons.water_drop, size: 14, color: AppTheme.textSecondary),
+              const SizedBox(width: 4),
+              Text(
+                history.bloodVolumeMl != null ? '${history.bloodVolumeMl}ml' : '정보 없음',
+                style: AppTheme.bodySmallStyle.copyWith(color: AppTheme.textSecondary),
+              ),
+            ],
+          ),
+          if (history.notes != null && history.notes!.isNotEmpty) ...[
+            const SizedBox(height: 4),
+            Text(
+              history.notes!,
+              style: AppTheme.bodySmallStyle.copyWith(color: AppTheme.textTertiary),
+            ),
+          ],
+        ],
+      ),
+    );
   }
 }

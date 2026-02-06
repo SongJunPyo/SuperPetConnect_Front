@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:connect/auth/welcome.dart'; // 파일명 변경: welcome_screen.dart -> welcome.dart
 import 'package:flutter_dotenv/flutter_dotenv.dart'; // 환경변수 관리
 import 'package:provider/provider.dart'; // 상태 관리
+import 'package:flutter_localizations/flutter_localizations.dart'; // 한글 로케일
 
 import 'package:firebase_core/firebase_core.dart'; // Firebase Core 임포트
 import 'package:connect/firebase_options.dart'; // Firebase 설정 파일 임포트 (필요 시)
@@ -223,6 +224,17 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'Super Pet Connect',
+      // 한글 로케일 설정
+      localizationsDelegates: const [
+        GlobalMaterialLocalizations.delegate,
+        GlobalWidgetsLocalizations.delegate,
+        GlobalCupertinoLocalizations.delegate,
+      ],
+      supportedLocales: const [
+        Locale('ko', 'KR'), // 한국어
+        Locale('en', 'US'), // 영어
+      ],
+      locale: const Locale('ko', 'KR'), // 기본 로케일을 한국어로 설정
       theme: ThemeData(
         // Material 3의 동적 색상 기능을 활용하여 기본 색상을 설정합니다.
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.blueAccent),

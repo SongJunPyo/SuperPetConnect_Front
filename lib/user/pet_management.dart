@@ -945,10 +945,9 @@ class _PetDetailBottomSheetState extends State<_PetDetailBottomSheet> {
             ),
             TextButton.icon(
               onPressed: () => _showAddHistoryDialog(),
-              icon: const Icon(Icons.add, size: 18),
-              label: const Text('추가'),
+              icon: const Icon(Icons.add, size: 18, color: Colors.black),
+              label: const Text('추가', style: TextStyle(color: Colors.black)),
               style: TextButton.styleFrom(
-                foregroundColor: AppTheme.primaryBlue,
                 padding: const EdgeInsets.symmetric(horizontal: 8),
               ),
             ),
@@ -1162,28 +1161,24 @@ class _PetDetailBottomSheetState extends State<_PetDetailBottomSheet> {
               ),
             ],
           ),
-          if (history.hospitalName != null || history.bloodVolumeMl != null) ...[
-            const SizedBox(height: AppTheme.spacing8),
-            Row(
-              children: [
-                if (history.hospitalName != null) ...[
-                  Icon(Icons.local_hospital, size: 14, color: AppTheme.textSecondary),
-                  const SizedBox(width: 4),
-                  Text(
-                    history.hospitalName!,
-                    style: AppTheme.bodySmallStyle.copyWith(color: AppTheme.textSecondary),
-                  ),
-                ],
-                if (history.hospitalName != null && history.bloodVolumeMl != null)
-                  Text(' • ', style: TextStyle(color: AppTheme.textSecondary)),
-                if (history.bloodVolumeMl != null)
-                  Text(
-                    '${history.bloodVolumeMl}ml',
-                    style: AppTheme.bodySmallStyle.copyWith(color: AppTheme.textSecondary),
-                  ),
-              ],
-            ),
-          ],
+          const SizedBox(height: AppTheme.spacing8),
+          Row(
+            children: [
+              Icon(Icons.local_hospital, size: 14, color: AppTheme.textSecondary),
+              const SizedBox(width: 4),
+              Text(
+                history.hospitalName ?? '정보 없음',
+                style: AppTheme.bodySmallStyle.copyWith(color: AppTheme.textSecondary),
+              ),
+              Text(' • ', style: TextStyle(color: AppTheme.textSecondary)),
+              Icon(Icons.water_drop, size: 14, color: AppTheme.textSecondary),
+              const SizedBox(width: 4),
+              Text(
+                history.bloodVolumeMl != null ? '${history.bloodVolumeMl}ml' : '정보 없음',
+                style: AppTheme.bodySmallStyle.copyWith(color: AppTheme.textSecondary),
+              ),
+            ],
+          ),
           if (history.notes != null && history.notes!.isNotEmpty) ...[
             const SizedBox(height: AppTheme.spacing4),
             Text(
@@ -1226,7 +1221,7 @@ class _PetDetailBottomSheetState extends State<_PetDetailBottomSheet> {
     );
   }
 
-  // 이력 추가 다이얼로그
+  // 이력 추가 바텀시트
   void _showAddHistoryDialog() {
     final dateController = TextEditingController();
     final hospitalController = TextEditingController();
@@ -1234,111 +1229,162 @@ class _PetDetailBottomSheetState extends State<_PetDetailBottomSheet> {
     final notesController = TextEditingController();
     DateTime? selectedDate;
 
-    showDialog(
+    showModalBottomSheet(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('헌혈 이력 추가'),
-        content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              // 날짜 선택
-              InkWell(
-                onTap: () async {
-                  final date = await showDatePicker(
-                    context: context,
-                    initialDate: DateTime.now(),
-                    firstDate: DateTime(2010),
-                    lastDate: DateTime.now(),
-                  );
-                  if (date != null) {
-                    selectedDate = date;
-                    dateController.text = '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
-                  }
-                },
-                child: AbsorbPointer(
-                  child: TextField(
-                    controller: dateController,
-                    decoration: const InputDecoration(
-                      labelText: '헌혈 날짜 *',
-                      hintText: '날짜를 선택하세요',
-                      suffixIcon: Icon(Icons.calendar_today),
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => Container(
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        ),
+        padding: EdgeInsets.only(
+          bottom: MediaQuery.of(context).viewInsets.bottom,
+        ),
+        child: SingleChildScrollView(
+          child: Padding(
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // 핸들 바
+                Center(
+                  child: Container(
+                    width: 40,
+                    height: 4,
+                    margin: const EdgeInsets.only(bottom: 16),
+                    decoration: BoxDecoration(
+                      color: Colors.grey[300],
+                      borderRadius: BorderRadius.circular(2),
                     ),
                   ),
                 ),
-              ),
-              const SizedBox(height: 16),
-              TextField(
-                controller: hospitalController,
-                decoration: const InputDecoration(
-                  labelText: '병원명',
-                  hintText: '선택사항',
+                // 제목
+                Text(
+                  '헌혈 이력 추가',
+                  style: AppTheme.h3Style.copyWith(fontWeight: FontWeight.w700),
                 ),
-              ),
-              const SizedBox(height: 16),
-              TextField(
-                controller: volumeController,
-                keyboardType: TextInputType.number,
-                decoration: const InputDecoration(
-                  labelText: '헌혈량 (ml)',
-                  hintText: '선택사항',
+                const SizedBox(height: 20),
+                // 날짜 선택
+                InkWell(
+                  onTap: () async {
+                    final date = await showDatePicker(
+                      context: context,
+                      initialDate: DateTime.now(),
+                      firstDate: DateTime(2010),
+                      lastDate: DateTime.now(),
+                    );
+                    if (date != null) {
+                      selectedDate = date;
+                      dateController.text = '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
+                    }
+                  },
+                  child: AbsorbPointer(
+                    child: TextField(
+                      controller: dateController,
+                      decoration: const InputDecoration(
+                        labelText: '헌혈 날짜 *',
+                        hintText: '날짜를 선택하세요',
+                        suffixIcon: Icon(Icons.calendar_today),
+                      ),
+                    ),
+                  ),
                 ),
-              ),
-              const SizedBox(height: 16),
-              TextField(
-                controller: notesController,
-                decoration: const InputDecoration(
-                  labelText: '메모',
-                  hintText: '선택사항',
+                const SizedBox(height: 16),
+                TextField(
+                  controller: hospitalController,
+                  decoration: const InputDecoration(
+                    labelText: '병원명',
+                    hintText: '선택사항',
+                  ),
                 ),
-                maxLines: 2,
-              ),
-            ],
+                const SizedBox(height: 16),
+                TextField(
+                  controller: volumeController,
+                  keyboardType: TextInputType.number,
+                  decoration: const InputDecoration(
+                    labelText: '헌혈량 (ml)',
+                    hintText: '선택사항',
+                  ),
+                ),
+                const SizedBox(height: 16),
+                TextField(
+                  controller: notesController,
+                  decoration: const InputDecoration(
+                    labelText: '메모',
+                    hintText: '선택사항',
+                  ),
+                  maxLines: 2,
+                ),
+                const SizedBox(height: 24),
+                // 버튼들
+                Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton(
+                        onPressed: () => Navigator.pop(context),
+                        style: OutlinedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          side: const BorderSide(color: Colors.grey),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(AppTheme.radius12),
+                          ),
+                        ),
+                        child: const Text('취소', style: TextStyle(color: Colors.black)),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: ElevatedButton(
+                        onPressed: () async {
+                          if (selectedDate == null) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(content: Text('날짜를 선택해주세요')),
+                            );
+                            return;
+                          }
+
+                          try {
+                            await DonationHistoryService.addHistory(
+                              petIdx: widget.pet.petIdx!,
+                              request: DonationHistoryCreateRequest(
+                                donationDate: dateController.text,
+                                hospitalName: hospitalController.text.isNotEmpty ? hospitalController.text : null,
+                                bloodVolumeMl: volumeController.text.isNotEmpty ? int.tryParse(volumeController.text) : null,
+                                notes: notesController.text.isNotEmpty ? notesController.text : null,
+                              ),
+                            );
+                            Navigator.pop(context);
+                            _loadDonationHistory();
+                          } catch (e) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(content: Text('추가 실패: $e')),
+                            );
+                          }
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppTheme.primaryBlue,
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(AppTheme.radius12),
+                          ),
+                        ),
+                        child: const Text('추가', style: TextStyle(color: Colors.white)),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+              ],
+            ),
           ),
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('취소'),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              if (selectedDate == null) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('날짜를 선택해주세요')),
-                );
-                return;
-              }
-
-              try {
-                await DonationHistoryService.addHistory(
-                  petIdx: widget.pet.petIdx!,
-                  request: DonationHistoryCreateRequest(
-                    donationDate: dateController.text,
-                    hospitalName: hospitalController.text.isNotEmpty ? hospitalController.text : null,
-                    bloodVolumeMl: volumeController.text.isNotEmpty ? int.tryParse(volumeController.text) : null,
-                    notes: notesController.text.isNotEmpty ? notesController.text : null,
-                  ),
-                );
-                Navigator.pop(context);
-                _loadDonationHistory();
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('헌혈 이력이 추가되었습니다')),
-                );
-              } catch (e) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text('추가 실패: $e')),
-                );
-              }
-            },
-            child: const Text('추가'),
-          ),
-        ],
       ),
     );
   }
 
-  // 이력 수정 다이얼로그
+  // 이력 수정 바텀시트
   void _showEditHistoryDialog(DonationHistory history) {
     final dateController = TextEditingController(
       text: '${history.donationDate.year}-${history.donationDate.month.toString().padLeft(2, '0')}-${history.donationDate.day.toString().padLeft(2, '0')}',
@@ -1348,123 +1394,238 @@ class _PetDetailBottomSheetState extends State<_PetDetailBottomSheet> {
     final notesController = TextEditingController(text: history.notes ?? '');
     DateTime selectedDate = history.donationDate;
 
-    showDialog(
+    showModalBottomSheet(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('헌혈 이력 수정'),
-        content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              InkWell(
-                onTap: () async {
-                  final date = await showDatePicker(
-                    context: context,
-                    initialDate: selectedDate,
-                    firstDate: DateTime(2010),
-                    lastDate: DateTime.now(),
-                  );
-                  if (date != null) {
-                    selectedDate = date;
-                    dateController.text = '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
-                  }
-                },
-                child: AbsorbPointer(
-                  child: TextField(
-                    controller: dateController,
-                    decoration: const InputDecoration(
-                      labelText: '헌혈 날짜 *',
-                      suffixIcon: Icon(Icons.calendar_today),
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => Container(
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        ),
+        padding: EdgeInsets.only(
+          bottom: MediaQuery.of(context).viewInsets.bottom,
+        ),
+        child: SingleChildScrollView(
+          child: Padding(
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // 핸들 바
+                Center(
+                  child: Container(
+                    width: 40,
+                    height: 4,
+                    margin: const EdgeInsets.only(bottom: 16),
+                    decoration: BoxDecoration(
+                      color: Colors.grey[300],
+                      borderRadius: BorderRadius.circular(2),
                     ),
                   ),
                 ),
-              ),
-              const SizedBox(height: 16),
-              TextField(
-                controller: hospitalController,
-                decoration: const InputDecoration(labelText: '병원명'),
-              ),
-              const SizedBox(height: 16),
-              TextField(
-                controller: volumeController,
-                keyboardType: TextInputType.number,
-                decoration: const InputDecoration(labelText: '헌혈량 (ml)'),
-              ),
-              const SizedBox(height: 16),
-              TextField(
-                controller: notesController,
-                decoration: const InputDecoration(labelText: '메모'),
-                maxLines: 2,
-              ),
-            ],
+                // 제목
+                Text(
+                  '헌혈 이력 수정',
+                  style: AppTheme.h3Style.copyWith(fontWeight: FontWeight.w700),
+                ),
+                const SizedBox(height: 20),
+                // 날짜 선택
+                InkWell(
+                  onTap: () async {
+                    final date = await showDatePicker(
+                      context: context,
+                      initialDate: selectedDate,
+                      firstDate: DateTime(2010),
+                      lastDate: DateTime.now(),
+                    );
+                    if (date != null) {
+                      selectedDate = date;
+                      dateController.text = '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
+                    }
+                  },
+                  child: AbsorbPointer(
+                    child: TextField(
+                      controller: dateController,
+                      decoration: const InputDecoration(
+                        labelText: '헌혈 날짜 *',
+                        suffixIcon: Icon(Icons.calendar_today),
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                TextField(
+                  controller: hospitalController,
+                  decoration: const InputDecoration(
+                    labelText: '병원명',
+                    hintText: '선택사항',
+                  ),
+                ),
+                const SizedBox(height: 16),
+                TextField(
+                  controller: volumeController,
+                  keyboardType: TextInputType.number,
+                  decoration: const InputDecoration(
+                    labelText: '헌혈량 (ml)',
+                    hintText: '선택사항',
+                  ),
+                ),
+                const SizedBox(height: 16),
+                TextField(
+                  controller: notesController,
+                  decoration: const InputDecoration(
+                    labelText: '메모',
+                    hintText: '선택사항',
+                  ),
+                  maxLines: 2,
+                ),
+                const SizedBox(height: 24),
+                // 버튼들
+                Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton(
+                        onPressed: () => Navigator.pop(context),
+                        style: OutlinedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          side: const BorderSide(color: Colors.grey),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(AppTheme.radius12),
+                          ),
+                        ),
+                        child: const Text('취소', style: TextStyle(color: Colors.black)),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: ElevatedButton(
+                        onPressed: () async {
+                          try {
+                            await DonationHistoryService.updateHistory(
+                              historyIdx: history.historyIdx,
+                              request: DonationHistoryUpdateRequest(
+                                donationDate: dateController.text,
+                                hospitalName: hospitalController.text,
+                                bloodVolumeMl: volumeController.text.isNotEmpty ? int.tryParse(volumeController.text) : null,
+                                notes: notesController.text,
+                              ),
+                            );
+                            Navigator.pop(context);
+                            _loadDonationHistory();
+                          } catch (e) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(content: Text('수정 실패: $e')),
+                            );
+                          }
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppTheme.primaryBlue,
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(AppTheme.radius12),
+                          ),
+                        ),
+                        child: const Text('저장', style: TextStyle(color: Colors.white)),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+              ],
+            ),
           ),
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('취소'),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              try {
-                await DonationHistoryService.updateHistory(
-                  historyIdx: history.historyIdx,
-                  request: DonationHistoryUpdateRequest(
-                    donationDate: dateController.text,
-                    hospitalName: hospitalController.text,
-                    bloodVolumeMl: volumeController.text.isNotEmpty ? int.tryParse(volumeController.text) : null,
-                    notes: notesController.text,
-                  ),
-                );
-                Navigator.pop(context);
-                _loadDonationHistory();
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('헌혈 이력이 수정되었습니다')),
-                );
-              } catch (e) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text('수정 실패: $e')),
-                );
-              }
-            },
-            child: const Text('저장'),
-          ),
-        ],
       ),
     );
   }
 
-  // 이력 삭제
+  // 이력 삭제 바텀시트
   void _deleteHistory(DonationHistory history) {
-    showDialog(
+    showModalBottomSheet(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('헌혈 이력 삭제'),
-        content: Text('${history.dateText} 헌혈 이력을 삭제하시겠습니까?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('취소'),
+      backgroundColor: Colors.transparent,
+      builder: (context) => Container(
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // 핸들 바
+              Center(
+                child: Container(
+                  width: 40,
+                  height: 4,
+                  margin: const EdgeInsets.only(bottom: 16),
+                  decoration: BoxDecoration(
+                    color: Colors.grey[300],
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              ),
+              // 제목
+              Text(
+                '헌혈 이력 삭제',
+                style: AppTheme.h3Style.copyWith(fontWeight: FontWeight.w700),
+              ),
+              const SizedBox(height: 12),
+              Text(
+                '${history.dateText} 헌혈 이력을 삭제하시겠습니까?',
+                style: AppTheme.bodyMediumStyle.copyWith(color: AppTheme.textSecondary),
+              ),
+              const SizedBox(height: 24),
+              // 버튼들
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton(
+                      onPressed: () => Navigator.pop(context),
+                      style: OutlinedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        side: const BorderSide(color: Colors.grey),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(AppTheme.radius12),
+                        ),
+                      ),
+                      child: const Text('취소', style: TextStyle(color: Colors.black)),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: OutlinedButton(
+                      onPressed: () async {
+                        try {
+                          await DonationHistoryService.deleteHistory(historyIdx: history.historyIdx);
+                          Navigator.pop(context);
+                          _loadDonationHistory();
+                        } catch (e) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(content: Text('삭제 실패: $e')),
+                          );
+                        }
+                      },
+                      style: OutlinedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        side: const BorderSide(color: Colors.red),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(AppTheme.radius12),
+                        ),
+                      ),
+                      child: Text('삭제', style: TextStyle(color: Colors.red)),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+            ],
           ),
-          ElevatedButton(
-            onPressed: () async {
-              try {
-                await DonationHistoryService.deleteHistory(historyIdx: history.historyIdx);
-                Navigator.pop(context);
-                _loadDonationHistory();
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('헌혈 이력이 삭제되었습니다')),
-                );
-              } catch (e) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text('삭제 실패: $e')),
-                );
-              }
-            },
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-            child: const Text('삭제'),
-          ),
-        ],
+        ),
       ),
     );
   }
