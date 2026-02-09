@@ -1,9 +1,13 @@
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:kpostal/kpostal.dart';
 import '../utils/app_theme.dart';
 import '../utils/config.dart';
+import '../utils/kakao_postcode_stub.dart'
+    if (dart.library.html) '../utils/kakao_postcode_web.dart';
 
 class ProfileManagement extends StatefulWidget {
   const ProfileManagement({super.key});
@@ -24,6 +28,8 @@ class _ProfileManagementState extends State<ProfileManagement> {
   bool isLoading = true;
   String? token;
   int? userType; // 1: 관리자, 2: 병원, 3: 사용자
+  String loginType = 'email'; // 가입 방식: "email" 또는 "naver"
+  String? profileImageUrl; // 네이버 사용자 프로필 사진 URL
   String profileTitle = "프로필 관리";
 
   @override
@@ -105,6 +111,8 @@ class _ProfileManagementState extends State<ProfileManagement> {
 
       if (response.statusCode == 200) {
         final data = json.decode(utf8.decode(response.bodyBytes));
+        debugPrint('[프로필] API 응답 전체: $data');
+        debugPrint('[프로필] profile_image_url: ${data['profile_image_url']}');
         setState(() {
           nameController.text = data['name'] ?? '';
           nicknameController.text = data['nickname'] ?? '';
@@ -112,6 +120,8 @@ class _ProfileManagementState extends State<ProfileManagement> {
           // 내부적으로만 저장 (화면에 표시하지 않음)
           emailController.text = data['email'] ?? '';
           phoneController.text = data['phone_number'] ?? '';
+          loginType = data['login_type'] ?? 'email';
+          profileImageUrl = data['profile_image_url'];
           isLoading = false;
         });
       } else {
@@ -240,8 +250,6 @@ class _ProfileManagementState extends State<ProfileManagement> {
           'nickname': nicknameController.text,
           'phone_number': phoneController.text,
           'address': addressController.text,
-          'latitude': 37.5665,
-          'longitude': 126.9780,
         }),
       );
 
@@ -279,6 +287,8 @@ class _ProfileManagementState extends State<ProfileManagement> {
       }
     }
   }
+
+  bool get isNaverUser => loginType == 'naver';
 
   InputDecoration _buildInputDecoration(
     String labelText,
@@ -389,32 +399,51 @@ class _ProfileManagementState extends State<ProfileManagement> {
                 CircleAvatar(
                   radius: 60,
                   backgroundColor: AppTheme.veryLightGray,
-                  child: Icon(
-                    _getProfileIcon(),
-                    size: 50,
-                    color: AppTheme.textSecondary,
-                  ),
+                  child: profileImageUrl != null
+                      ? ClipOval(
+                          child: Image.network(
+                            profileImageUrl!,
+                            width: 120,
+                            height: 120,
+                            fit: BoxFit.cover,
+                            errorBuilder: (context, error, stackTrace) {
+                              debugPrint('[프로필] 이미지 로딩 실패: $error');
+                              return Icon(
+                                _getProfileIcon(),
+                                size: 50,
+                                color: AppTheme.textSecondary,
+                              );
+                            },
+                          ),
+                        )
+                      : Icon(
+                          _getProfileIcon(),
+                          size: 50,
+                          color: AppTheme.textSecondary,
+                        ),
                 ),
-                Positioned(
-                  bottom: 0,
-                  right: 0,
-                  child: GestureDetector(
-                    onTap: () {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('사진 변경 기능 (미구현)')),
-                      );
-                    },
-                    child: CircleAvatar(
-                      radius: 22,
-                      backgroundColor: AppTheme.primaryBlue,
-                      child: Icon(
-                        Icons.camera_alt_outlined,
-                        color: Colors.white,
-                        size: 20,
+                // 네이버 사용자는 사진 수정 불가
+                if (!isNaverUser)
+                  Positioned(
+                    bottom: 0,
+                    right: 0,
+                    child: GestureDetector(
+                      onTap: () {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('사진 변경 기능 (미구현)')),
+                        );
+                      },
+                      child: CircleAvatar(
+                        radius: 22,
+                        backgroundColor: AppTheme.primaryBlue,
+                        child: Icon(
+                          Icons.camera_alt_outlined,
+                          color: Colors.white,
+                          size: 20,
+                        ),
                       ),
                     ),
                   ),
-                ),
               ],
             ),
             const SizedBox(height: AppTheme.spacing16),
@@ -447,28 +476,63 @@ class _ProfileManagementState extends State<ProfileManagement> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
+                      // 네이버 사용자 안내 문구
+                      if (isNaverUser)
+                        Container(
+                          width: double.infinity,
+                          margin: const EdgeInsets.only(bottom: AppTheme.spacing16),
+                          padding: const EdgeInsets.all(AppTheme.spacing12),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF03C75A).withValues(alpha: 0.08),
+                            borderRadius: BorderRadius.circular(AppTheme.radius8),
+                            border: Border.all(
+                              color: const Color(0xFF03C75A).withValues(alpha: 0.3),
+                            ),
+                          ),
+                          child: Row(
+                            children: [
+                              Icon(
+                                Icons.info_outline,
+                                size: 18,
+                                color: const Color(0xFF03C75A),
+                              ),
+                              const SizedBox(width: AppTheme.spacing8),
+                              Expanded(
+                                child: Text(
+                                  '주소 외의 정보는 네이버에서만 변경할 수 있습니다.',
+                                  style: AppTheme.bodySmallStyle.copyWith(
+                                    color: const Color(0xFF03C75A),
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
                       TextField(
                         controller: nameController,
                         maxLength: 30,
+                        readOnly: isNaverUser,
                         decoration: _buildInputDecoration(
                           "이름",
                           Icons.person_outline,
                           30,
                           nameController,
                         ),
-                        onChanged: (value) => setState(() {}),
+                        onChanged: isNaverUser ? null : (value) => setState(() {}),
                       ),
                       const SizedBox(height: AppTheme.spacing20),
                       TextField(
                         controller: nicknameController,
                         maxLength: 30,
+                        readOnly: isNaverUser,
                         decoration: _buildInputDecoration(
                           "닉네임",
                           Icons.badge_outlined,
                           30,
                           nicknameController,
                         ),
-                        onChanged: (value) => setState(() {}),
+                        onChanged: isNaverUser ? null : (value) => setState(() {}),
                       ),
                       const SizedBox(height: AppTheme.spacing20),
                       TextField(
@@ -476,13 +540,57 @@ class _ProfileManagementState extends State<ProfileManagement> {
                         maxLength: 50,
                         maxLines: 2,
                         minLines: 1,
+                        readOnly: true,
                         decoration: _buildInputDecoration(
                           "주소",
                           Icons.location_on_outlined,
                           50,
                           addressController,
+                        ).copyWith(
+                          suffixIcon: Icon(
+                            Icons.search_outlined,
+                            color: AppTheme.textSecondary,
+                          ),
                         ),
-                        onChanged: (value) => setState(() {}),
+                        onTap: () async {
+                          if (!mounted) return;
+                          if (kIsWeb) {
+                            // 웹: 카카오 주소 검색 JS API 팝업 사용
+                            openKakaoPostcode((String address) {
+                              setState(() {
+                                addressController.text = address;
+                              });
+                            });
+                          } else {
+                            // 모바일: 바텀시트로 kpostal 주소 검색
+                            await showModalBottomSheet(
+                              context: context,
+                              isScrollControlled: true,
+                              backgroundColor: Colors.transparent,
+                              builder: (context) => Container(
+                                height: MediaQuery.of(context).size.height * 0.9,
+                                decoration: const BoxDecoration(
+                                  color: Colors.white,
+                                  borderRadius: BorderRadius.vertical(
+                                    top: Radius.circular(20),
+                                  ),
+                                ),
+                                child: ClipRRect(
+                                  borderRadius: const BorderRadius.vertical(
+                                    top: Radius.circular(20),
+                                  ),
+                                  child: KpostalView(
+                                    callback: (Kpostal result) {
+                                      setState(() {
+                                        addressController.text = result.address;
+                                      });
+                                    },
+                                  ),
+                                ),
+                              ),
+                            );
+                          }
+                        },
                       ),
                     ],
                   ),

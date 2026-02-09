@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import '../auth/login.dart';
+import '../auth/naver_callback.dart';
 import 'auth_guard.dart';
 
 class WebRouter {
@@ -13,15 +14,24 @@ class WebRouter {
   static const String adminApprovedPosts = '/admin/approved-posts';
   static const String adminSignupManagement = '/admin/signup';
   static const String adminHospitalCheck = '/admin/hospitals';
+  static const String naverCallback = '/naver-callback';
 
   static Route<dynamic> generateRoute(RouteSettings settings) {
     final routeName = settings.name ?? '/';
-    
+
     // 로그인 페이지만 인증 없이 접근 가능
     if (routeName == login) {
       return MaterialPageRoute(builder: (_) => const LoginScreen());
     }
-    
+
+    // 네이버 로그인 콜백 (인증 없이 접근 가능)
+    if (routeName == naverCallback) {
+      final queryParams = Uri.base.queryParameters;
+      return MaterialPageRoute(
+        builder: (_) => NaverCallbackScreen(queryParams: queryParams),
+      );
+    }
+
     // 모든 경로(루트 경로 포함)는 AuthGuard를 통해 인증 확인
     return MaterialPageRoute(
       builder: (_) => AuthGuard(requestedPath: routeName),

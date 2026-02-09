@@ -62,6 +62,8 @@ dependencies:
   provider: ^6.1.2
   # 리치 텍스트 에디터
   flutter_quill: ^11.5.0
+  # 네이버 소셜 로그인
+  flutter_naver_login: ^1.8.0
 
 dev_dependencies:
   flutter_test:

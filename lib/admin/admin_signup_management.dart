@@ -10,11 +10,13 @@ class SignupUser {
   final int id; // Flutter 모델에서는 'id'로 사용
   final String email;
   final String name;
+  final String nickname;
   final String phoneNumber;
   final String address;
   final double latitude;
   final double longitude;
   final int userType; // Flutter 모델에서는 'userType'으로 사용
+  final String loginType; // 가입 방식: "email" 또는 "naver"
   final DateTime createdTime; // String -> DateTime으로 변경
   String status; // 승인 상태: '대기', '승인', '거절'
 
@@ -22,11 +24,13 @@ class SignupUser {
     required this.id,
     required this.email,
     required this.name,
+    required this.nickname,
     required this.phoneNumber,
     required this.address,
     required this.latitude,
     required this.longitude,
     required this.userType,
+    required this.loginType,
     required this.createdTime,
     required this.status,
   });
@@ -38,6 +42,8 @@ class SignupUser {
             : 0; // 'account_idx' 키를 사용
     final String parsedEmail = json['email'] is String ? json['email'] : '';
     final String parsedName = json['name'] is String ? json['name'] : '';
+    final String parsedNickname =
+        json['nickname'] is String ? json['nickname'] : '';
     final String parsedPhoneNumber =
         json['phone_number'] is String ? json['phone_number'] : '';
     final String parsedAddress =
@@ -50,6 +56,8 @@ class SignupUser {
         json['account_type'] is int
             ? json['account_type']
             : 3; // 'account_type' 키를 사용
+    final String parsedLoginType =
+        json['login_type'] is String ? json['login_type'] : 'email';
 
     final String createdTimeStr =
         json['created_time'] is String ? json['created_time'] : '';
@@ -63,11 +71,13 @@ class SignupUser {
       id: parsedId,
       email: parsedEmail,
       name: parsedName,
+      nickname: parsedNickname,
       phoneNumber: parsedPhoneNumber,
       address: parsedAddress,
       latitude: parsedLatitude,
       longitude: parsedLongitude,
       userType: parsedUserType,
+      loginType: parsedLoginType,
       createdTime: parsedCreatedTime,
       status: approvedBool ? '승인' : '대기',
     );
@@ -562,13 +572,40 @@ class _AdminSignupManagementState extends State<AdminSignupManagement> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text(
-                              '${index + 1}. ${user.name}',
-                              style: AppTheme.h4Style.copyWith(
-                                height: 1.3,
-                              ),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: Text(
+                                    '${index + 1}. ${user.name}',
+                                    style: AppTheme.h4Style.copyWith(
+                                      height: 1.3,
+                                    ),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 8,
+                                    vertical: 3,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: user.loginType == 'naver'
+                                        ? const Color(0xFF03C75A).withValues(alpha: 0.1)
+                                        : AppTheme.primaryBlue.withValues(alpha: 0.1),
+                                    borderRadius: BorderRadius.circular(6),
+                                  ),
+                                  child: Text(
+                                    user.loginType == 'naver' ? '네이버' : '이메일',
+                                    style: AppTheme.bodySmallStyle.copyWith(
+                                      color: user.loginType == 'naver'
+                                          ? const Color(0xFF03C75A)
+                                          : AppTheme.primaryBlue,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                ),
+                              ],
                             ),
                             const SizedBox(height: AppTheme.spacing12),
                             _buildDetailRow(
@@ -577,17 +614,24 @@ class _AdminSignupManagementState extends State<AdminSignupManagement> {
                               '이메일',
                               user.email,
                             ),
+                            if (user.nickname.isNotEmpty)
+                              _buildDetailRow(
+                                context,
+                                Icons.person_outline,
+                                '닉네임',
+                                user.nickname,
+                              ),
                             _buildDetailRow(
                               context,
                               Icons.phone_outlined,
                               '연락처',
-                              user.phoneNumber,
+                              user.phoneNumber.isNotEmpty ? user.phoneNumber : '미제공',
                             ),
                             _buildDetailRow(
                               context,
                               Icons.location_on_outlined,
                               '주소',
-                              user.address,
+                              user.address.isNotEmpty ? user.address : '미제공',
                             ),
                             _buildDetailRow(
                               context,
