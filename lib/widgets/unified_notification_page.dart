@@ -624,8 +624,9 @@ class _UnifiedNotificationPageState extends State<UnifiedNotificationPage> {
                 ],
               ),
             ),
-            // 선택 모드가 아닐 때만 화살표 표시
-            if (!_isSelectionMode)
+            // 선택 모드가 아니고, 사용자가 아닌 경우에만 화살표 표시
+            if (!_isSelectionMode &&
+                context.read<NotificationProvider>().currentUserType != UserType.user)
               Icon(
                 Icons.chevron_right,
                 color: AppTheme.lightGray,
@@ -724,10 +725,12 @@ class _UnifiedNotificationPageState extends State<UnifiedNotificationPage> {
   }
 
   void _onNotificationTap(NotificationModel notification, NotificationProvider provider) {
-    // 먼저 페이지 이동 (rebuild 전에 실행)
-    _navigateToRelevantPage(notification, provider.currentUserType!);
+    // 사용자는 알림 확인만 (읽음 처리), 관리자/병원은 해당 페이지로 이동
+    if (provider.currentUserType != UserType.user) {
+      _navigateToRelevantPage(notification, provider.currentUserType!);
+    }
 
-    // 읽음 처리 (페이지 이동 후 비동기로 처리)
+    // 읽음 처리
     if (!notification.isRead) {
       provider.markAsRead(notification.notificationId);
     }

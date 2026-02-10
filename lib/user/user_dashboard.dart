@@ -58,6 +58,11 @@ class _UserDashboardState extends State<UserDashboard>
   bool isLoadingDonations = false;
   bool isLoadingDashboard = false;
 
+  // 사용자 위치 정보 (프로필 API에서 가져옴)
+  String? userAddress;
+  double? userLatitude;
+  double? userLongitude;
+
   // 지역 선택 관련 변수들 - 다중 선택 지원
   List<Region> selectedLargeRegions = []; // 선택된 시/도 목록
   Map<Region, List<Region>> selectedMediumRegions = {}; // 시/도별 선택된 시/군/구 목록
@@ -77,11 +82,7 @@ class _UserDashboardState extends State<UserDashboard>
         return '${largeRegion.name} ${mediumRegions.first.name} 외 ${mediumRegions.length - 1}곳';
       }
     } else {
-      if (selectedLargeRegions.length <= 3) {
-        return selectedLargeRegions.map((r) => r.name).join(', ');
-      } else {
-        return '${selectedLargeRegions.take(2).map((r) => r.name).join(', ')} 외 ${selectedLargeRegions.length - 2}곳';
-      }
+      return '${selectedLargeRegions.first.name} 외 ${selectedLargeRegions.length - 1}곳';
     }
   }
 
@@ -95,13 +96,9 @@ class _UserDashboardState extends State<UserDashboard>
     _tabController.addListener(() {
       setState(() {}); // 탭이 변경될 때 UI를 다시 그리도록 강제
     });
-    _loadUserName();
     _updateDateTime();
     _startTimer();
-    _loadPreferredRegions().then((_) {
-      // 선호 지역 불러온 후 대시보드 데이터 로드
-      _loadDashboardData();
-    });
+    _initializeDashboard();
     _loadMyApplications();
 
     // 알림 Provider 초기화 (페이지 새로고침 시에도 알림 수신 가능하도록)
@@ -128,11 +125,18 @@ class _UserDashboardState extends State<UserDashboard>
     });
   }
 
-  Future<void> _loadUserName() async {
+  // 대시보드 초기화: 프로필 로드 → 선호 지역 설정 → 데이터 로드
+  Future<void> _initializeDashboard() async {
+    await _loadUserProfile();
+    await _loadPreferredRegions();
+    _loadDashboardData();
+  }
+
+  Future<void> _loadUserProfile() async {
     final prefs = await SharedPreferences.getInstance();
     final token = prefs.getString('auth_token');
 
-    // 서버에서 최신 이름을 먼저 시도
+    // 서버에서 프로필 정보 가져오기
     if (token != null) {
       try {
         final response = await http.get(
@@ -152,6 +156,9 @@ class _UserDashboardState extends State<UserDashboard>
           setState(() {
             userName = userRealName;
             userNickname = userRealNickname;
+            userAddress = data['address'];
+            userLatitude = (data['latitude'] as num?)?.toDouble();
+            userLongitude = (data['longitude'] as num?)?.toDouble();
           });
 
           // 로컬 저장소에도 업데이트
@@ -183,7 +190,7 @@ class _UserDashboardState extends State<UserDashboard>
   }
 
   Future<void> _refreshData() async {
-    await _loadUserName();
+    await _loadUserProfile();
     _updateDateTime();
     await _loadDashboardData();
   }
@@ -482,12 +489,16 @@ class _UserDashboardState extends State<UserDashboard>
     }
     await prefs.setString('preferred_medium_regions', jsonEncode(mediumRegionsMap));
 
+    // 지역 설정 초기화 플래그 (한 번이라도 설정하면 자동 설정 안 함)
+    await prefs.setBool('region_preference_initialized', true);
+
     debugPrint('[UserDashboard] 선호 지역 저장 완료: ${largeRegionCodes.length}개 시/도');
   }
 
   // SharedPreferences에서 선호 지역 불러오기
   Future<void> _loadPreferredRegions() async {
     final prefs = await SharedPreferences.getInstance();
+    final isRegionInitialized = prefs.getBool('region_preference_initialized') ?? false;
 
     // 시/도 코드 목록 불러오기
     final largeRegionCodes = prefs.getStringList('preferred_large_regions') ?? [];
@@ -530,6 +541,63 @@ class _UserDashboardState extends State<UserDashboard>
       });
 
       debugPrint('[UserDashboard] 선호 지역 불러오기 완료: ${loadedLargeRegions.length}개 시/도');
+    }
+
+    // 선호 지역을 한 번도 설정하지 않은 경우 → 주소 기반 기본 지역 자동 설정
+    if (!isRegionInitialized && loadedLargeRegions.isEmpty && userAddress != null) {
+      await _setDefaultRegionFromAddress(userAddress!);
+    }
+  }
+
+  // 주소에서 해당 시/도를 판별하여 기본 지역 1개 자동 설정
+  Future<void> _setDefaultRegionFromAddress(String address) async {
+    // 주소 시작 키워드 → RegionData의 region 코드 매핑
+    const addressToRegionCode = {
+      '서울': 'seoul',
+      '부산': 'busan',
+      '대구': 'daegu',
+      '인천': 'incheon',
+      '광주': 'gwangju',
+      '대전': 'daejeon',
+      '울산': 'ulsan',
+      '세종': 'sejong',
+      '경기': 'gyeonggi',
+      '강원': 'gangwon',
+      '충북': 'chungbuk', '충청북': 'chungbuk',
+      '충남': 'chungnam', '충청남': 'chungnam',
+      '전북': 'jeonbuk', '전라북': 'jeonbuk',
+      '전남': 'jeonnam', '전라남': 'jeonnam',
+      '경북': 'gyeongbuk', '경상북': 'gyeongbuk',
+      '경남': 'gyeongnam', '경상남': 'gyeongnam',
+      '제주': 'jeju',
+    };
+
+    // 주소에서 시/도 코드 판별
+    String? regionCode;
+    for (final entry in addressToRegionCode.entries) {
+      if (address.startsWith(entry.key)) {
+        regionCode = entry.value;
+        break;
+      }
+    }
+
+    if (regionCode == null) {
+      debugPrint('[UserDashboard] 주소에서 시/도를 판별할 수 없음: $address');
+      return;
+    }
+
+    // RegionData에서 해당 Region 객체 조회
+    final region = RegionData.regions.where((r) => r.code == regionCode).firstOrNull;
+
+    if (region != null && mounted) {
+      setState(() {
+        selectedLargeRegions = [region];
+        selectedMediumRegions = {}; // 시/도 전체 선택
+      });
+
+      // 기본 지역을 SharedPreferences에 저장
+      await _savePreferredRegions();
+      debugPrint('[UserDashboard] 주소 기반 기본 지역 설정: ${region.name}');
     }
   }
 
@@ -579,7 +647,7 @@ class _UserDashboardState extends State<UserDashboard>
               ),
             );
             // 프로필 페이지에서 돌아온 후 사용자 정보 새로고침
-            _loadUserName();
+            _loadUserProfile();
           },
           onNotificationPressed: () {
             Navigator.push(
@@ -612,98 +680,96 @@ class _UserDashboardState extends State<UserDashboard>
 
   // 사용자 대시보드의 메인 내용을 구성하는 위젯
   Widget _buildDashboardContent() {
-    return SingleChildScrollView(
-      physics: const AlwaysScrollableScrollPhysics(),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // 상단 고정 컨텐츠
-          Padding(
-            padding: AppTheme.pagePadding,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('안녕하세요, $userNickname 님!', style: AppTheme.h2Style),
-                const SizedBox(height: AppTheme.spacing8),
-                Text(
-                  currentDateTime,
-                  style: AppTheme.bodyLargeStyle.copyWith(
-                    color: AppTheme.textSecondary,
-                  ),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // 상단 고정 컨텐츠
+        Padding(
+          padding: AppTheme.pagePadding,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('안녕하세요, $userNickname 님!', style: AppTheme.h2Style),
+              const SizedBox(height: AppTheme.spacing8),
+              Text(
+                currentDateTime,
+                style: AppTheme.bodyLargeStyle.copyWith(
+                  color: AppTheme.textSecondary,
                 ),
-                const SizedBox(height: AppTheme.spacing20),
+              ),
+              const SizedBox(height: AppTheme.spacing20),
 
-                // 퀵 액세스 메뉴
-                Text('내 헌혈 관리', style: AppTheme.h3Style),
-                const SizedBox(height: AppTheme.spacing12),
-                _buildLongActionCard(
-                  icon: Icons.bloodtype,
-                  title: '헌혈 이력',
-                  subtitle: '헌혈 신청 및 완료 내역',
-                  color: Colors.red.shade600,
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => const DonationHistoryScreen(),
-                      ),
-                    );
-                  },
-                ),
-              ],
-            ),
+              // 퀵 액세스 메뉴
+              Text('내 헌혈 관리', style: AppTheme.h3Style),
+              const SizedBox(height: AppTheme.spacing12),
+              _buildLongActionCard(
+                icon: Icons.bloodtype,
+                title: '헌혈 이력',
+                subtitle: '헌혈 신청 및 완료 내역',
+                color: Colors.red.shade600,
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const DonationHistoryScreen(),
+                    ),
+                  );
+                },
+              ),
+            ],
           ),
-          // 탭바
-          Container(
-            margin: const EdgeInsets.symmetric(horizontal: AppTheme.spacing16),
-            child: TabBar(
-              controller: _tabController,
-              tabs: const [
-                Tab(
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(Icons.bloodtype, size: 20),
-                      SizedBox(width: 8),
-                      Text('헌혈 모집'),
-                    ],
-                  ),
+        ),
+        // 탭바
+        Container(
+          margin: const EdgeInsets.symmetric(horizontal: AppTheme.spacing16),
+          child: TabBar(
+            controller: _tabController,
+            tabs: const [
+              Tab(
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.bloodtype, size: 20),
+                    SizedBox(width: 8),
+                    Text('헌혈 모집'),
+                  ],
                 ),
-                Tab(
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(Icons.announcement, size: 20),
-                      SizedBox(width: 8),
-                      Text('공지사항'),
-                    ],
-                  ),
+              ),
+              Tab(
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.announcement, size: 20),
+                    SizedBox(width: 8),
+                    Text('공지사항'),
+                  ],
                 ),
-                Tab(
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(Icons.article, size: 20),
-                      SizedBox(width: 8),
-                      Text('칼럼'),
-                    ],
-                  ),
+              ),
+              Tab(
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.article, size: 20),
+                    SizedBox(width: 8),
+                    Text('칼럼'),
+                  ],
                 ),
-              ],
-              labelColor: Colors.black87,
-              unselectedLabelColor: Colors.grey,
-              indicatorColor: Colors.black87,
-              dividerColor: Colors.transparent,
-            ),
+              ),
+            ],
+            labelColor: Colors.black87,
+            unselectedLabelColor: Colors.grey,
+            indicatorColor: Colors.black87,
+            dividerColor: Colors.transparent,
           ),
-          // 탭 뷰
-          Container(
+        ),
+        // 탭 뷰 - 남은 공간을 모두 채움
+        Expanded(
+          child: Container(
             margin: const EdgeInsets.only(
               left: AppTheme.spacing16,
               right: AppTheme.spacing16,
-              bottom: AppTheme.spacing16, // 하단 여백
+              bottom: AppTheme.spacing16,
             ),
-            height: 400, // 고정 높이
             decoration: BoxDecoration(
               color: Colors.white,
               borderRadius: BorderRadius.circular(12),
@@ -720,8 +786,8 @@ class _UserDashboardState extends State<UserDashboard>
               ],
             ),
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 
