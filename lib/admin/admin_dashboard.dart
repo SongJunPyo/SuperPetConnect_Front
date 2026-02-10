@@ -12,11 +12,11 @@ import '../widgets/app_card.dart';
 import '../widgets/app_app_bar.dart';
 import '../auth/profile_management.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:intl/intl.dart';
 import 'dart:async';
 import '../utils/config.dart';
+import '../services/auth_http_client.dart';
 import '../providers/notification_provider.dart';
 import '../services/dashboard_service.dart';
 import '../models/hospital_column_model.dart';
@@ -115,15 +115,10 @@ class _AdminDashboardState extends State<AdminDashboard>
 
   Future<void> _fetchPendingCounts() async {
     try {
-      final prefs = await SharedPreferences.getInstance();
-      final token = prefs.getString('auth_token');
-
-      if (token == null) return;
-
       // 동시에 두 API 호출
       await Future.wait([
-        _fetchPendingPosts(token),
-        _fetchPendingSignups(token),
+        _fetchPendingPosts(),
+        _fetchPendingSignups(),
       ]);
 
       if (!mounted) return;
@@ -138,14 +133,10 @@ class _AdminDashboardState extends State<AdminDashboard>
     }
   }
 
-  Future<void> _fetchPendingPosts(String token) async {
+  Future<void> _fetchPendingPosts() async {
     try {
-      final response = await http.get(
+      final response = await AuthHttpClient.get(
         Uri.parse('${Config.serverUrl}/api/admin/pending-posts-count'),
-        headers: {
-          'Authorization': 'Bearer $token',
-          'Content-Type': 'application/json; charset=UTF-8',
-        },
       );
 
       if (response.statusCode == 200) {
@@ -160,14 +151,10 @@ class _AdminDashboardState extends State<AdminDashboard>
     }
   }
 
-  Future<void> _fetchPendingSignups(String token) async {
+  Future<void> _fetchPendingSignups() async {
     try {
-      final response = await http.get(
+      final response = await AuthHttpClient.get(
         Uri.parse('${Config.serverUrl}/api/signup_management/pending-users'),
-        headers: {
-          'Authorization': 'Bearer $token',
-          'Content-Type': 'application/json; charset=UTF-8',
-        },
       );
 
       if (response.statusCode == 200) {

@@ -1,6 +1,5 @@
-import 'package:http/http.dart' as http;
 import 'dart:convert';
-import 'package:shared_preferences/shared_preferences.dart';
+import 'auth_http_client.dart';
 import '../utils/config.dart';
 
 class HospitalInfo {
@@ -168,12 +167,6 @@ class HospitalSearchRequest {
 class AdminHospitalService {
   static String get baseUrl => '${Config.serverUrl}/api/admin/hospitals';
 
-  // 토큰 가져오기
-  static Future<String> _getAuthToken() async {
-    final prefs = await SharedPreferences.getInstance();
-    return prefs.getString('auth_token') ?? '';
-  }
-
   // 병원 목록 조회
   static Future<HospitalListResponse> getHospitalList({
     int page = 1,
@@ -183,11 +176,6 @@ class AdminHospitalService {
     bool? approved,
   }) async {
     try {
-      final token = await _getAuthToken();
-      if (token.isEmpty) {
-        throw Exception('인증 토큰이 없습니다. 다시 로그인해주세요.');
-      }
-
       final queryParams = <String, String>{
         'page': page.toString(),
         'page_size': pageSize.toString(),
@@ -207,19 +195,11 @@ class AdminHospitalService {
         '$baseUrl/list',
       ).replace(queryParameters: queryParams);
 
-      final response = await http.get(
-        uri,
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer $token',
-        },
-      );
+      final response = await AuthHttpClient.get(uri);
 
       if (response.statusCode == 200) {
         final data = jsonDecode(utf8.decode(response.bodyBytes));
         return HospitalListResponse.fromJson(data);
-      } else if (response.statusCode == 401) {
-        throw Exception('권한이 없습니다. 관리자 계정으로 로그인해주세요.');
       } else if (response.statusCode == 403) {
         throw Exception('관리자 권한이 필요합니다.');
       } else {
@@ -238,25 +218,14 @@ class AdminHospitalService {
     HospitalSearchRequest request,
   ) async {
     try {
-      final token = await _getAuthToken();
-      if (token.isEmpty) {
-        throw Exception('인증 토큰이 없습니다. 다시 로그인해주세요.');
-      }
-
-      final response = await http.post(
+      final response = await AuthHttpClient.post(
         Uri.parse('$baseUrl/search'),
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer $token',
-        },
         body: jsonEncode(request.toJson()),
       );
 
       if (response.statusCode == 200) {
         final data = jsonDecode(utf8.decode(response.bodyBytes));
         return HospitalListResponse.fromJson(data);
-      } else if (response.statusCode == 401) {
-        throw Exception('권한이 없습니다. 관리자 계정으로 로그인해주세요.');
       } else if (response.statusCode == 403) {
         throw Exception('관리자 권한이 필요합니다.');
       } else {
@@ -273,17 +242,8 @@ class AdminHospitalService {
   // 병원 상세 조회
   static Future<HospitalInfo> getHospitalDetail(int accountIdx) async {
     try {
-      final token = await _getAuthToken();
-      if (token.isEmpty) {
-        throw Exception('인증 토큰이 없습니다. 다시 로그인해주세요.');
-      }
-
-      final response = await http.get(
+      final response = await AuthHttpClient.get(
         Uri.parse('$baseUrl/$accountIdx'),
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer $token',
-        },
       );
 
       if (response.statusCode == 200) {
@@ -291,8 +251,6 @@ class AdminHospitalService {
         return HospitalInfo.fromJson(data);
       } else if (response.statusCode == 404) {
         throw Exception('병원을 찾을 수 없습니다.');
-      } else if (response.statusCode == 401) {
-        throw Exception('권한이 없습니다. 관리자 계정으로 로그인해주세요.');
       } else if (response.statusCode == 403) {
         throw Exception('관리자 권한이 필요합니다.');
       } else {
@@ -312,17 +270,8 @@ class AdminHospitalService {
     HospitalUpdateRequest request,
   ) async {
     try {
-      final token = await _getAuthToken();
-      if (token.isEmpty) {
-        throw Exception('인증 토큰이 없습니다. 다시 로그인해주세요.');
-      }
-
-      final response = await http.put(
+      final response = await AuthHttpClient.put(
         Uri.parse('$baseUrl/$accountIdx'),
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer $token',
-        },
         body: jsonEncode(request.toJson()),
       );
 
@@ -337,8 +286,6 @@ class AdminHospitalService {
         return HospitalInfo.fromJson(data);
       } else if (response.statusCode == 404) {
         throw Exception('병원을 찾을 수 없습니다.');
-      } else if (response.statusCode == 401) {
-        throw Exception('권한이 없습니다. 관리자 계정으로 로그인해주세요.');
       } else if (response.statusCode == 403) {
         throw Exception('관리자 권한이 필요합니다.');
       } else {
@@ -355,25 +302,14 @@ class AdminHospitalService {
   // 병원 탈퇴 (삭제)
   static Future<void> deleteHospital(int accountIdx) async {
     try {
-      final token = await _getAuthToken();
-      if (token.isEmpty) {
-        throw Exception('인증 토큰이 없습니다. 다시 로그인해주세요.');
-      }
-
-      final response = await http.delete(
+      final response = await AuthHttpClient.delete(
         Uri.parse('$baseUrl/$accountIdx'),
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer $token',
-        },
       );
 
       if (response.statusCode == 204 || response.statusCode == 200) {
         return; // 성공적으로 삭제됨
       } else if (response.statusCode == 404) {
         throw Exception('병원을 찾을 수 없습니다.');
-      } else if (response.statusCode == 401) {
-        throw Exception('권한이 없습니다. 관리자 계정으로 로그인해주세요.');
       } else if (response.statusCode == 403) {
         throw Exception('관리자 권한이 필요합니다.');
       } else {
@@ -390,23 +326,12 @@ class AdminHospitalService {
   // 병원 통계 조회
   static Future<Map<String, dynamic>> getHospitalStatistics() async {
     try {
-      final token = await _getAuthToken();
-      if (token.isEmpty) {
-        throw Exception('인증 토큰이 없습니다. 다시 로그인해주세요.');
-      }
-
-      final response = await http.get(
+      final response = await AuthHttpClient.get(
         Uri.parse('$baseUrl/statistics/summary'),
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer $token',
-        },
       );
 
       if (response.statusCode == 200) {
         return jsonDecode(utf8.decode(response.bodyBytes));
-      } else if (response.statusCode == 401) {
-        throw Exception('권한이 없습니다. 관리자 계정으로 로그인해주세요.');
       } else if (response.statusCode == 403) {
         throw Exception('관리자 권한이 필요합니다.');
       } else {

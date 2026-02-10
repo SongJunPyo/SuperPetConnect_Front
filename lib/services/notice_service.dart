@@ -1,6 +1,6 @@
 import 'package:http/http.dart' as http;
 import 'dart:convert';
-import 'package:shared_preferences/shared_preferences.dart';
+import 'auth_http_client.dart';
 import '../models/notice_model.dart';
 import '../utils/config.dart';
 
@@ -8,36 +8,17 @@ class NoticeService {
   static String get baseUrl => '${Config.serverUrl}/api/notices';
   static String get adminBaseUrl => '${Config.serverUrl}/api/admin/notices';
 
-  // 토큰 가져오기
-  static Future<String> _getAuthToken() async {
-    final prefs = await SharedPreferences.getInstance();
-    return prefs.getString('auth_token') ?? '';
-  }
-
   // 공지글 작성 (관리자만)
   static Future<Notice> createNotice(NoticeCreateRequest request) async {
     try {
-      final token = await _getAuthToken();
-      if (token.isEmpty) {
-        throw Exception('인증 토큰이 없습니다. 다시 로그인해주세요.');
-      }
-
-
-      final response = await http.post(
+      final response = await AuthHttpClient.post(
         Uri.parse('$baseUrl/'),
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer $token',
-        },
         body: jsonEncode(request.toJson()),
       );
-
 
       if (response.statusCode == 200 || response.statusCode == 201) {
         final data = jsonDecode(utf8.decode(response.bodyBytes));
         return Notice.fromJson(data);
-      } else if (response.statusCode == 401) {
-        throw Exception('권한이 없습니다. 관리자 계정으로 로그인해주세요.');
       } else if (response.statusCode == 403) {
         throw Exception('관리자 권한이 필요합니다.');
       } else {
@@ -56,11 +37,6 @@ class NoticeService {
     bool activeOnly = false,
   }) async {
     try {
-      final token = await _getAuthToken();
-      if (token.isEmpty) {
-        throw Exception('인증 토큰이 없습니다. 다시 로그인해주세요.');
-      }
-
       final queryParams = <String, String>{};
       if (activeOnly) {
         queryParams['active_only'] = 'true';
@@ -70,15 +46,7 @@ class NoticeService {
         '$adminBaseUrl/',
       ).replace(queryParameters: queryParams.isNotEmpty ? queryParams : null);
 
-
-      final response = await http.get(
-        uri,
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer $token',
-        },
-      );
-
+      final response = await AuthHttpClient.get(uri);
 
       if (response.statusCode == 200) {
         final data = jsonDecode(utf8.decode(response.bodyBytes));
@@ -89,8 +57,6 @@ class NoticeService {
         } else {
           throw Exception('예상치 못한 응답 형식');
         }
-      } else if (response.statusCode == 401) {
-        throw Exception('권한이 없습니다. 관리자 계정으로 로그인해주세요.');
       } else if (response.statusCode == 403) {
         throw Exception('관리자 권한이 필요합니다.');
       } else {
@@ -110,11 +76,6 @@ class NoticeService {
     String? userRole, // "admin", "hospital", "user" - 역할별 필터링용
   }) async {
     try {
-      final token = await _getAuthToken();
-      if (token.isEmpty) {
-        throw Exception('인증 토큰이 없습니다. 다시 로그인해주세요.');
-      }
-
       final queryParams = <String, String>{};
       if (activeOnly) {
         queryParams['active_only'] = 'true';
@@ -127,15 +88,7 @@ class NoticeService {
         '$baseUrl/',
       ).replace(queryParameters: queryParams.isNotEmpty ? queryParams : null);
 
-
-      final response = await http.get(
-        uri,
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer $token',
-        },
-      );
-
+      final response = await AuthHttpClient.get(uri);
 
       if (response.statusCode == 200) {
         final data = jsonDecode(utf8.decode(response.bodyBytes));
@@ -146,8 +99,6 @@ class NoticeService {
         } else {
           throw Exception('예상치 못한 응답 형식');
         }
-      } else if (response.statusCode == 401) {
-        throw Exception('권한이 없습니다. 관리자 계정으로 로그인해주세요.');
       } else if (response.statusCode == 403) {
         throw Exception('접근 권한이 없습니다.');
       } else {
@@ -190,27 +141,14 @@ class NoticeService {
     NoticeUpdateRequest request,
   ) async {
     try {
-      final token = await _getAuthToken();
-      if (token.isEmpty) {
-        throw Exception('인증 토큰이 없습니다. 다시 로그인해주세요.');
-      }
-
-
-      final response = await http.put(
+      final response = await AuthHttpClient.put(
         Uri.parse('$baseUrl/$noticeIdx'),
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer $token',
-        },
         body: jsonEncode(request.toJson()),
       );
-
 
       if (response.statusCode == 200) {
         final data = jsonDecode(utf8.decode(response.bodyBytes));
         return Notice.fromJson(data);
-      } else if (response.statusCode == 401) {
-        throw Exception('권한이 없습니다. 관리자 계정으로 로그인해주세요.');
       } else if (response.statusCode == 403) {
         throw Exception('관리자 권한이 필요합니다.');
       } else if (response.statusCode == 404) {
@@ -229,26 +167,13 @@ class NoticeService {
   // 공지글 활성화/비활성화 토글 (관리자만)
   static Future<Notice> toggleNoticeActive(int noticeIdx) async {
     try {
-      final token = await _getAuthToken();
-      if (token.isEmpty) {
-        throw Exception('인증 토큰이 없습니다. 다시 로그인해주세요.');
-      }
-      
-      
-      final response = await http.patch(
+      final response = await AuthHttpClient.patch(
         Uri.parse('$baseUrl/$noticeIdx/toggle'),
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer $token',
-        },
       );
-
 
       if (response.statusCode == 200) {
         final data = jsonDecode(utf8.decode(response.bodyBytes));
         return Notice.fromJson(data);
-      } else if (response.statusCode == 401) {
-        throw Exception('권한이 없습니다. 관리자 계정으로 로그인해주세요.');
       } else if (response.statusCode == 403) {
         throw Exception('관리자 권한이 필요합니다.');
       } else if (response.statusCode == 404) {
@@ -265,25 +190,12 @@ class NoticeService {
   // 공지글 삭제 (관리자만) - 소프트 삭제 (is_active = false)
   static Future<void> deleteNotice(int noticeIdx) async {
     try {
-      final token = await _getAuthToken();
-      if (token.isEmpty) {
-        throw Exception('인증 토큰이 없습니다. 다시 로그인해주세요.');
-      }
-
-
-      final response = await http.delete(
+      final response = await AuthHttpClient.delete(
         Uri.parse('$baseUrl/$noticeIdx'),
-        headers: {
-          'Authorization': 'Bearer $token',
-          'Content-Type': 'application/json',
-        },
       );
-
 
       if (response.statusCode == 204 || response.statusCode == 200) {
         return; // 성공적으로 삭제됨
-      } else if (response.statusCode == 401) {
-        throw Exception('권한이 없습니다. 관리자 계정으로 로그인해주세요.');
       } else if (response.statusCode == 403) {
         throw Exception('관리자 권한이 필요합니다.');
       } else if (response.statusCode == 404) {

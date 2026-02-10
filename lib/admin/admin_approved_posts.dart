@@ -1,8 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
 import 'dart:convert';
-import 'package:shared_preferences/shared_preferences.dart';
 import '../utils/config.dart';
+import '../services/auth_http_client.dart';
 import '../utils/app_theme.dart';
 import '../widgets/marquee_text.dart';
 import '../widgets/rich_text_viewer.dart';
@@ -21,7 +20,6 @@ class _AdminApprovedPostsScreenState extends State<AdminApprovedPostsScreen>
   List<dynamic> posts = [];
   bool isLoading = true;
   String errorMessage = '';
-  String? token;
   String searchQuery = '';
   TextEditingController searchController = TextEditingController();
   DateTime? startDate;
@@ -36,7 +34,7 @@ class _AdminApprovedPostsScreenState extends State<AdminApprovedPostsScreen>
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
     _tabController!.addListener(_handleTabChange);
-    _loadToken().then((_) => fetchPosts());
+    fetchPosts();
   }
 
   void _handleTabChange() {
@@ -69,28 +67,7 @@ class _AdminApprovedPostsScreenState extends State<AdminApprovedPostsScreen>
     return filtered;
   }
 
-  Future<void> _loadToken() async {
-    final prefs = await SharedPreferences.getInstance();
-    final storedToken = prefs.getString('auth_token');
-
-    if (storedToken != null && storedToken.isNotEmpty) {
-    } else {
-    }
-
-    setState(() {
-      token = storedToken;
-    });
-  }
-
   Future<void> fetchPosts() async {
-    if (token == null || token!.isEmpty) {
-      setState(() {
-        errorMessage = '로그인이 필요합니다. (토큰 없음)';
-        isLoading = false;
-      });
-      return;
-    }
-
     if (mounted) {
       setState(() {
         isLoading = true;
@@ -126,13 +103,7 @@ class _AdminApprovedPostsScreenState extends State<AdminApprovedPostsScreen>
       final url = Uri.parse(apiUrl);
 
 
-      final response = await http.get(
-        url,
-        headers: {
-          'Authorization': 'Bearer $token',
-          'Content-Type': 'application/json',
-        },
-      );
+      final response = await AuthHttpClient.get(url);
 
 
       if (response.statusCode == 200) {
@@ -140,13 +111,6 @@ class _AdminApprovedPostsScreenState extends State<AdminApprovedPostsScreen>
         if (mounted) {
           setState(() {
             posts = data is List ? data : [];
-            isLoading = false;
-          });
-        }
-      } else if (response.statusCode == 401) {
-        if (mounted) {
-          setState(() {
-            errorMessage = '인증이 만료되었습니다. 다시 로그인해주세요.';
             isLoading = false;
           });
         }
@@ -406,14 +370,10 @@ class _AdminApprovedPostsScreenState extends State<AdminApprovedPostsScreen>
 
   Future<List<dynamic>> _fetchApplicants(int postTimesIdx) async {
     try {
-      final response = await http.get(
+      final response = await AuthHttpClient.get(
         Uri.parse(
           '${Config.serverUrl}/api/applied_donation/time-slot/$postTimesIdx/applications',
         ),
-        headers: {
-          'Authorization': 'Bearer $token',
-          'Content-Type': 'application/json',
-        },
       );
 
 

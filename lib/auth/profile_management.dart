@@ -1,6 +1,5 @@
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:kpostal/kpostal.dart';
@@ -8,6 +7,7 @@ import '../utils/app_theme.dart';
 import '../utils/config.dart';
 import '../utils/kakao_postcode_stub.dart'
     if (dart.library.html) '../utils/kakao_postcode_web.dart';
+import '../services/auth_http_client.dart';
 
 class ProfileManagement extends StatefulWidget {
   const ProfileManagement({super.key});
@@ -26,7 +26,6 @@ class _ProfileManagementState extends State<ProfileManagement> {
   final TextEditingController phoneController = TextEditingController();
 
   bool isLoading = true;
-  String? token;
   int? userType; // 1: 관리자, 2: 병원, 3: 사용자
   String loginType = 'email'; // 가입 방식: "email" 또는 "naver"
   String? profileImageUrl; // 네이버 사용자 프로필 사진 URL
@@ -50,27 +49,14 @@ class _ProfileManagementState extends State<ProfileManagement> {
 
   Future<void> _loadTokenAndProfile() async {
     final prefs = await SharedPreferences.getInstance();
-    final storedToken = prefs.getString('auth_token');
     final storedUserType = prefs.getInt('user_type');
-    
+
     setState(() {
-      token = storedToken;
       userType = storedUserType;
       profileTitle = _getProfileTitle(storedUserType);
     });
 
-    if (token != null) {
-      await _fetchUserProfile();
-    } else {
-      setState(() {
-        isLoading = false;
-      });
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('로그인 정보를 찾을 수 없습니다.')),
-        );
-      }
-    }
+    await _fetchUserProfile();
   }
 
   String _getProfileTitle(int? userType) {
@@ -101,12 +87,8 @@ class _ProfileManagementState extends State<ProfileManagement> {
 
   Future<void> _fetchUserProfile() async {
     try {
-      final response = await http.get(
+      final response = await AuthHttpClient.get(
         Uri.parse('${Config.serverUrl}/api/auth/profile'),
-        headers: {
-          'Authorization': 'Bearer $token',
-          'Content-Type': 'application/json; charset=UTF-8',
-        },
       );
 
       if (response.statusCode == 200) {
@@ -142,8 +124,20 @@ class _ProfileManagementState extends State<ProfileManagement> {
   // 로그아웃 기능
   Future<void> _logout() async {
     final prefs = await SharedPreferences.getInstance();
+    final refreshToken = prefs.getString('refresh_token');
+
+    // 서버에 로그아웃 API 호출 (Refresh Token 무효화)
+    try {
+      await AuthHttpClient.post(
+        Uri.parse('${Config.serverUrl}/api/auth/logout'),
+        body: jsonEncode({'refresh_token': refreshToken}),
+      );
+    } catch (e) {
+      // 서버 호출 실패해도 로컬 로그아웃은 진행
+    }
+
     await prefs.clear();
-    
+
     if (mounted) {
       Navigator.of(context).pushNamedAndRemoveUntil(
         '/',
@@ -231,20 +225,9 @@ class _ProfileManagementState extends State<ProfileManagement> {
   }
 
   Future<void> _updateUserProfile() async {
-    if (token == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('로그인 정보를 찾을 수 없습니다.')),
-      );
-      return;
-    }
-
     try {
-      final response = await http.put(
+      final response = await AuthHttpClient.put(
         Uri.parse('${Config.serverUrl}/api/auth/profile'),
-        headers: {
-          'Authorization': 'Bearer $token',
-          'Content-Type': 'application/json; charset=UTF-8',
-        },
         body: jsonEncode({
           'name': nameController.text,
           'nickname': nicknameController.text,

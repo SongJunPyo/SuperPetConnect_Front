@@ -1,9 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
 import 'dart:convert';
-import 'package:shared_preferences/shared_preferences.dart';
 
 import '../utils/config.dart';
+import '../services/auth_http_client.dart';
 import '../utils/app_theme.dart';
 import '../widgets/marquee_text.dart';
 import '../widgets/custom_tab_bar.dart';
@@ -26,7 +25,6 @@ class _AdminPostCheckState extends State<AdminPostCheck>
   List<dynamic> posts = [];
   bool isLoading = true;
   String errorMessage = '';
-  String? token;
   String searchQuery = '';
   TextEditingController searchController = TextEditingController();
   DateTime? startDate;
@@ -41,7 +39,7 @@ class _AdminPostCheckState extends State<AdminPostCheck>
     super.initState();
     _tabController = TabController(length: 5, vsync: this);
     _tabController!.addListener(_handleTabChange);
-    _loadToken().then((_) => fetchPosts());
+    fetchPosts();
   }
 
   void _handleTabChange() {
@@ -383,25 +381,8 @@ class _AdminPostCheckState extends State<AdminPostCheck>
     return filtered;
   }
 
-  Future<void> _loadToken() async {
-    final prefs = await SharedPreferences.getInstance();
-    final storedToken = prefs.getString('auth_token');
-
-    setState(() {
-      token = storedToken;
-    });
-  }
-
   // 헌혈완료 목록 조회 (탭 3) - 최종 승인된 헌혈들 (Status 7)
   Future<void> fetchCompletedDonations() async {
-    if (token == null || token!.isEmpty) {
-      setState(() {
-        errorMessage = '로그인이 필요합니다. (토큰 없음)';
-        isLoading = false;
-      });
-      return;
-    }
-
     if (mounted) {
       setState(() {
         isLoading = true;
@@ -414,13 +395,7 @@ class _AdminPostCheckState extends State<AdminPostCheck>
       String apiUrl =
           '${Config.serverUrl}/api/applied_donation/admin/by-status/7';
 
-      final response = await http.get(
-        Uri.parse(apiUrl),
-        headers: {
-          'Authorization': 'Bearer $token',
-          'Content-Type': 'application/json',
-        },
-      );
+      final response = await AuthHttpClient.get(Uri.parse(apiUrl));
 
       if (response.statusCode == 200) {
         final data = json.decode(utf8.decode(response.bodyBytes));
@@ -594,14 +569,6 @@ class _AdminPostCheckState extends State<AdminPostCheck>
 
   // 헌혈취소 목록 조회 (탭 4) - 거절/취소된 헌혈들 (Status 2, 4)
   Future<void> fetchCancelledDonations() async {
-    if (token == null || token!.isEmpty) {
-      setState(() {
-        errorMessage = '로그인이 필요합니다. (토큰 없음)';
-        isLoading = false;
-      });
-      return;
-    }
-
     if (mounted) {
       setState(() {
         isLoading = true;
@@ -615,13 +582,7 @@ class _AdminPostCheckState extends State<AdminPostCheck>
       // Status 2 (모집거절 - posts 테이블)와 Status 4 (헌혈취소 - applied_donation 테이블) 조회
       // 먼저 posts API에서 Status 2 가져오기
       String postsApiUrl = '${Config.serverUrl}/api/admin/posts';
-      final postsResponse = await http.get(
-        Uri.parse(postsApiUrl),
-        headers: {
-          'Authorization': 'Bearer $token',
-          'Content-Type': 'application/json',
-        },
-      );
+      final postsResponse = await AuthHttpClient.get(Uri.parse(postsApiUrl));
 
       if (postsResponse.statusCode == 200) {
         final postsData = json.decode(utf8.decode(postsResponse.bodyBytes));
@@ -636,13 +597,7 @@ class _AdminPostCheckState extends State<AdminPostCheck>
       // Status 4 (헌혈취소) 조회 - applied_donation 테이블
       String apiUrl4 =
           '${Config.serverUrl}/api/applied_donation/admin/by-status/4';
-      final response4 = await http.get(
-        Uri.parse(apiUrl4),
-        headers: {
-          'Authorization': 'Bearer $token',
-          'Content-Type': 'application/json',
-        },
-      );
+      final response4 = await AuthHttpClient.get(Uri.parse(apiUrl4));
 
       if (response4.statusCode == 200) {
         final data4 = json.decode(utf8.decode(response4.bodyBytes));
@@ -772,14 +727,6 @@ class _AdminPostCheckState extends State<AdminPostCheck>
 
   // 헌혈 마감 목록 조회 (탭 2) - 병원에서 1차 완료/중단한 것들
   Future<void> fetchPendingCompletions() async {
-    if (token == null || token!.isEmpty) {
-      setState(() {
-        errorMessage = '로그인이 필요합니다. (토큰 없음)';
-        isLoading = false;
-      });
-      return;
-    }
-
     if (mounted) {
       setState(() {
         isLoading = true;
@@ -796,24 +743,12 @@ class _AdminPostCheckState extends State<AdminPostCheck>
       String apiUrl5 =
           '${Config.serverUrl}/api/applied_donation/admin/by-status/5';
 
-      final response5 = await http.get(
-        Uri.parse(apiUrl5),
-        headers: {
-          'Authorization': 'Bearer $token',
-          'Content-Type': 'application/json',
-        },
-      );
+      final response5 = await AuthHttpClient.get(Uri.parse(apiUrl5));
 
       // 상태 6 (중단 대기) 조회
       String apiUrl6 =
           '${Config.serverUrl}/api/applied_donation/admin/by-status/6';
-      final response6 = await http.get(
-        Uri.parse(apiUrl6),
-        headers: {
-          'Authorization': 'Bearer $token',
-          'Content-Type': 'application/json',
-        },
-      );
+      final response6 = await AuthHttpClient.get(Uri.parse(apiUrl6));
 
       if (response5.statusCode == 200 || response6.statusCode == 200) {
         // 상태 5 데이터 처리
@@ -990,14 +925,6 @@ class _AdminPostCheckState extends State<AdminPostCheck>
 
   // 헌혈모집 탭: donation_posts 기반 조회 (status 1, 3)
   Future<void> fetchAppliedDonations() async {
-    if (token == null || token!.isEmpty) {
-      setState(() {
-        errorMessage = '로그인이 필요합니다. (토큰 없음)';
-        isLoading = false;
-      });
-      return;
-    }
-
     if (mounted) {
       setState(() {
         isLoading = true;
@@ -1033,12 +960,7 @@ class _AdminPostCheckState extends State<AdminPostCheck>
         apiUrl += '?${queryParams.join('&')}';
       }
 
-      final headers = {
-        'Authorization': 'Bearer $token',
-        'Content-Type': 'application/json',
-      };
-
-      final response = await http.get(Uri.parse(apiUrl), headers: headers);
+      final response = await AuthHttpClient.get(Uri.parse(apiUrl));
 
       if (response.statusCode == 200) {
         final data = json.decode(utf8.decode(response.bodyBytes));
@@ -1046,13 +968,6 @@ class _AdminPostCheckState extends State<AdminPostCheck>
         if (mounted) {
           setState(() {
             posts = data is List ? data : [];
-            isLoading = false;
-          });
-        }
-      } else if (response.statusCode == 401) {
-        if (mounted) {
-          setState(() {
-            errorMessage = '인증이 만료되었습니다. 다시 로그인해주세요.';
             isLoading = false;
           });
         }
@@ -1076,14 +991,6 @@ class _AdminPostCheckState extends State<AdminPostCheck>
 
   // 모집대기 탭: donation_posts 기반 조회
   Future<void> fetchPosts() async {
-    if (token == null || token!.isEmpty) {
-      setState(() {
-        errorMessage = '로그인이 필요합니다. (토큰 없음)';
-        isLoading = false;
-      });
-      return;
-    }
-
     if (mounted) {
       setState(() {
         isLoading = true;
@@ -1116,26 +1023,13 @@ class _AdminPostCheckState extends State<AdminPostCheck>
 
       final url = Uri.parse(apiUrl);
 
-      final response = await http.get(
-        url,
-        headers: {
-          'Authorization': 'Bearer $token',
-          'Content-Type': 'application/json',
-        },
-      );
+      final response = await AuthHttpClient.get(url);
 
       if (response.statusCode == 200) {
         final data = json.decode(utf8.decode(response.bodyBytes));
         if (mounted) {
           setState(() {
             posts = data is List ? data : [];
-            isLoading = false;
-          });
-        }
-      } else if (response.statusCode == 401) {
-        if (mounted) {
-          setState(() {
-            errorMessage = '인증이 만료되었습니다. 다시 로그인해주세요.';
             isLoading = false;
           });
         }
@@ -1321,35 +1215,17 @@ class _AdminPostCheckState extends State<AdminPostCheck>
   }
 
   Future<void> approvePost(int postId, bool approve) async {
-    if (token == null || token!.isEmpty) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text("로그인 토큰이 없어 처리할 수 없습니다.")));
-      return;
-    }
-
     try {
       final url = Uri.parse(
         '${Config.serverUrl}/api/admin/posts/$postId/approval',
       );
-      final response = await http.put(
+      final response = await AuthHttpClient.put(
         url,
-        headers: {
-          'Authorization': 'Bearer $token',
-          'Content-Type': 'application/json',
-        },
         body: jsonEncode({'approved': approve}),
       );
 
       if (response.statusCode == 200) {
         _fetchDataForCurrentTab();
-      } else if (response.statusCode == 401) {
-        if (mounted) {
-          setState(() {
-            errorMessage = '인증이 만료되었습니다. 다시 로그인해주세요.';
-            isLoading = false;
-          });
-        }
       } else {
         if (mounted) {
           setState(() {
@@ -1394,14 +1270,10 @@ class _AdminPostCheckState extends State<AdminPostCheck>
     String date,
   ) async {
     try {
-      final response = await http.get(
+      final response = await AuthHttpClient.get(
         Uri.parse(
           '${Config.serverUrl}/api/admin/time-slots/$timeSlotId/applicants',
         ),
-        headers: {
-          'Authorization': 'Bearer $token',
-          'Content-Type': 'application/json',
-        },
       );
 
       if (response.statusCode == 200) {
@@ -1422,14 +1294,10 @@ class _AdminPostCheckState extends State<AdminPostCheck>
     bool approved,
   ) async {
     try {
-      final response = await http.patch(
+      final response = await AuthHttpClient.patch(
         Uri.parse(
           '${Config.serverUrl}/api/admin/applied-donations/$appliedDonationIdx/${approved ? "approve" : "reject"}',
         ),
-        headers: {
-          'Authorization': 'Bearer $token',
-          'Content-Type': 'application/json',
-        },
       );
 
       if (response.statusCode == 200) {
@@ -1456,14 +1324,10 @@ class _AdminPostCheckState extends State<AdminPostCheck>
   // 신청자 상태를 '대기'로 변경하는 메소드
   Future<void> _pendApplicantStatus(int appliedDonationIdx) async {
     try {
-      final response = await http.patch(
+      final response = await AuthHttpClient.patch(
         Uri.parse(
           '${Config.serverUrl}/api/admin/applied-donations/$appliedDonationIdx/pend',
         ),
-        headers: {
-          'Authorization': 'Bearer $token',
-          'Content-Type': 'application/json',
-        },
       );
 
       if (response.statusCode == 200) {
@@ -3250,13 +3114,7 @@ class _AdminPostCheckState extends State<AdminPostCheck>
       final url = Uri.parse(
         '${Config.serverUrl}/api/admin/time-slots/$timeSlotId/close',
       );
-      final response = await http.patch(
-        url,
-        headers: {
-          'Authorization': 'Bearer $token',
-          'Content-Type': 'application/json',
-        },
-      );
+      final response = await AuthHttpClient.patch(url);
 
       if (response.statusCode == 200) {
         // 1. 개선된 API 응답 파싱
@@ -3634,13 +3492,7 @@ class _AdminPostCheckState extends State<AdminPostCheck>
       final url = Uri.parse(
         '${Config.serverUrl}/api/admin/time-slots/$timeSlotId/reopen',
       );
-      final response = await http.patch(
-        url,
-        headers: {
-          'Authorization': 'Bearer $token',
-          'Content-Type': 'application/json',
-        },
-      );
+      final response = await AuthHttpClient.patch(url);
 
       if (response.statusCode == 200) {
         final responseData = json.decode(utf8.decode(response.bodyBytes));
@@ -4129,13 +3981,7 @@ class _AdminPostCheckState extends State<AdminPostCheck>
       final url = Uri.parse(
         '${Config.serverUrl}/api/admin/posts/$postIdx/close',
       );
-      final response = await http.patch(
-        url,
-        headers: {
-          'Authorization': 'Bearer $token',
-          'Content-Type': 'application/json',
-        },
-      );
+      final response = await AuthHttpClient.patch(url);
 
       if (response.statusCode == 200) {
         final responseData = json.decode(utf8.decode(response.bodyBytes));

@@ -1,45 +1,25 @@
 // services/completed_donation_service.dart
 
-import 'package:http/http.dart' as http;
 import 'dart:convert';
-import 'package:shared_preferences/shared_preferences.dart';
+import 'auth_http_client.dart';
 import '../models/completed_donation_model.dart';
 import '../utils/config.dart';
 
 class CompletedDonationService {
   static String get baseUrl => '${Config.serverUrl}/api';
 
-  // 인증 토큰 가져오기
-  static Future<String?> _getAuthToken() async {
-    final prefs = await SharedPreferences.getInstance();
-    return prefs.getString('auth_token');
-  }
-
-  // 공통 헤더 생성
-  static Future<Map<String, String>> _getHeaders() async {
-    final token = await _getAuthToken();
-    return {
-      'Content-Type': 'application/json; charset=UTF-8',
-      'Authorization': 'Bearer $token',
-    };
-  }
-
   // ===== 병원용 API =====
 
   // 1. 병원용 - 1차 헌혈 완료 처리
   static Future<Map<String, dynamic>> hospitalCompleteBloodDonation(CompleteDonationRequest request) async {
     try {
-      final headers = await _getHeaders();
-      
       // 디버깅용 로그
       print('=== 헌혈 완료 요청 ===');
       print('URL: $baseUrl/completed_donation/hospital_complete');
-      print('Headers: $headers');
       print('Body: ${jsonEncode(request.toJson())}');
-      
-      final response = await http.post(
+
+      final response = await AuthHttpClient.post(
         Uri.parse('$baseUrl/completed_donation/hospital_complete'),
-        headers: headers,
         body: jsonEncode(request.toJson()),
       );
 
@@ -74,25 +54,22 @@ class CompletedDonationService {
     DateTime? endDate,
   }) async {
     try {
-      final headers = await _getHeaders();
-      
       String url = '$baseUrl/completed_donation/hospital/stats';
       List<String> queryParams = [];
-      
+
       if (startDate != null) {
         queryParams.add('start_date=${startDate.toIso8601String()}');
       }
       if (endDate != null) {
         queryParams.add('end_date=${endDate.toIso8601String()}');
       }
-      
+
       if (queryParams.isNotEmpty) {
         url += '?${queryParams.join('&')}';
       }
-      
-      final response = await http.get(
+
+      final response = await AuthHttpClient.get(
         Uri.parse(url),
-        headers: headers,
       );
 
       if (response.statusCode == 200) {
@@ -109,11 +86,8 @@ class CompletedDonationService {
   // 3. 게시글별 완료 현황 조회
   static Future<PostDonationCompletions> getPostCompletions(int postIdx) async {
     try {
-      final headers = await _getHeaders();
-      
-      final response = await http.get(
+      final response = await AuthHttpClient.get(
         Uri.parse('$baseUrl/completed_donation/post/$postIdx/completions'),
-        headers: headers,
       );
 
       if (response.statusCode == 200) {
@@ -131,11 +105,8 @@ class CompletedDonationService {
   static Future<CompletedDonation> updateCompletedDonation(
       int completedDonationIdx, double bloodVolume, DateTime completedAt) async {
     try {
-      final headers = await _getHeaders();
-      
-      final response = await http.put(
+      final response = await AuthHttpClient.put(
         Uri.parse('$baseUrl/completed_donation/$completedDonationIdx'),
-        headers: headers,
         body: jsonEncode({
           'blood_volume': bloodVolume,
           'completed_at': completedAt.toIso8601String(),
@@ -156,11 +127,8 @@ class CompletedDonationService {
   // 5. 완료 기록 삭제
   static Future<void> deleteCompletedDonation(int completedDonationIdx) async {
     try {
-      final headers = await _getHeaders();
-      
-      final response = await http.delete(
+      final response = await AuthHttpClient.delete(
         Uri.parse('$baseUrl/completed_donation/$completedDonationIdx'),
-        headers: headers,
       );
 
       if (response.statusCode != 200 && response.statusCode != 204) {
@@ -176,11 +144,8 @@ class CompletedDonationService {
   // 6. 내 반려동물들의 헌혈 이력 조회
   static Future<List<PetDonationHistory>> getMyPetsDonationHistory() async {
     try {
-      final headers = await _getHeaders();
-      
-      final response = await http.get(
+      final response = await AuthHttpClient.get(
         Uri.parse('$baseUrl/completed_donation/my-pets/history'),
-        headers: headers,
       );
 
       if (response.statusCode == 200) {
@@ -197,11 +162,8 @@ class CompletedDonationService {
   // 7. 특정 반려동물의 상세 헌혈 이력 조회
   static Future<PetDonationHistory> getPetDonationHistory(int petIdx) async {
     try {
-      final headers = await _getHeaders();
-      
-      final response = await http.get(
+      final response = await AuthHttpClient.get(
         Uri.parse('$baseUrl/completed_donation/pet/$petIdx/history'),
-        headers: headers,
       );
 
       if (response.statusCode == 200) {
@@ -220,11 +182,8 @@ class CompletedDonationService {
   // 8. 특정 완료 기록 조회
   static Future<CompletedDonation?> getCompletedDonation(int completedDonationIdx) async {
     try {
-      final headers = await _getHeaders();
-      
-      final response = await http.get(
+      final response = await AuthHttpClient.get(
         Uri.parse('$baseUrl/completed_donation/$completedDonationIdx'),
-        headers: headers,
       );
 
       if (response.statusCode == 200) {
@@ -241,11 +200,8 @@ class CompletedDonationService {
   // 9. 월별 헌혈 통계 조회
   static Future<MonthlyDonationStats> getMonthlyStats(int year, int month) async {
     try {
-      final headers = await _getHeaders();
-      
-      final response = await http.get(
+      final response = await AuthHttpClient.get(
         Uri.parse('$baseUrl/completed_donation/stats/monthly/$year/$month'),
-        headers: headers,
       );
 
       if (response.statusCode == 200) {
@@ -269,7 +225,7 @@ class CompletedDonationService {
       bloodVolume: bloodVolume,
       completedAt: DateTime.now(),
     );
-    
+
     return await hospitalCompleteBloodDonation(request);
   }
 
@@ -279,10 +235,10 @@ class CompletedDonationService {
     try {
       final petHistory = await getPetDonationHistory(petIdx);
       final recentDonations = petHistory.donations.take(limit).toList();
-      
+
       // 최신순으로 정렬
       recentDonations.sort((a, b) => b.completedAt.compareTo(a.completedAt));
-      
+
       return recentDonations;
     } catch (e) {
       return [];
@@ -296,20 +252,20 @@ class CompletedDonationService {
   }) async {
     try {
       final endDate = DateTime.now();
-      final startDate = days != null 
+      final startDate = days != null
           ? endDate.subtract(Duration(days: days))
           : endDate.subtract(const Duration(days: 30)); // 기본 30일
-      
+
       final hospitalStats = await getHospitalStats(
         startDate: startDate,
         endDate: endDate,
       );
-      
+
       final recentDonations = hospitalStats.completedDonations.take(limit).toList();
-      
+
       // 최신순으로 정렬
       recentDonations.sort((a, b) => b.completedAt.compareTo(a.completedAt));
-      
+
       return recentDonations;
     } catch (e) {
       return [];
@@ -326,11 +282,11 @@ class CompletedDonationService {
         'level': 'error',
       };
     }
-    
+
     if (petWeight != null && petWeight > 0) {
       final recommended = CompletedDonation.getRecommendedBloodVolume(petWeight);
       final maxSafe = CompletedDonation.getMaxSafeBloodVolume(petWeight);
-      
+
       if (bloodVolume > maxSafe) {
         return {
           'isValid': false,
@@ -349,7 +305,7 @@ class CompletedDonationService {
         };
       }
     }
-    
+
     return {
       'isValid': true,
       'message': '적절한 헌혈량입니다.',
@@ -361,36 +317,36 @@ class CompletedDonationService {
   static Future<Map<String, dynamic>> getMyTotalDonationStats() async {
     try {
       final petHistories = await getMyPetsDonationHistory();
-      
+
       int totalDonations = 0;
       double totalBloodVolume = 0.0;
       DateTime? firstDonationDate;
       DateTime? lastDonationDate;
       int activePetsCount = 0;
-      
+
       for (final petHistory in petHistories) {
         totalDonations += petHistory.totalDonations;
         totalBloodVolume += petHistory.totalBloodVolume;
-        
+
         if (petHistory.totalDonations > 0) {
           activePetsCount++;
         }
-        
+
         if (petHistory.firstDonationDate != null) {
-          if (firstDonationDate == null || 
+          if (firstDonationDate == null ||
               petHistory.firstDonationDate!.isBefore(firstDonationDate)) {
             firstDonationDate = petHistory.firstDonationDate;
           }
         }
-        
+
         if (petHistory.lastDonationDate != null) {
-          if (lastDonationDate == null || 
+          if (lastDonationDate == null ||
               petHistory.lastDonationDate!.isAfter(lastDonationDate)) {
             lastDonationDate = petHistory.lastDonationDate;
           }
         }
       }
-      
+
       return {
         'totalPets': petHistories.length,
         'activePetsCount': activePetsCount,
@@ -411,7 +367,7 @@ class CompletedDonationService {
   static Future<Map<String, dynamic>> getYearlyStats(int year) async {
     try {
       final List<MonthlyDonationStats> monthlyStats = [];
-      
+
       for (int month = 1; month <= 12; month++) {
         try {
           final monthStat = await getMonthlyStats(year, month);
@@ -420,13 +376,13 @@ class CompletedDonationService {
           // 해당 월 데이터가 없어도 계속 진행
         }
       }
-      
+
       // 연간 통계 계산
       int totalCompletedCount = 0;
       double totalBloodVolume = 0.0;
       int totalUniquePets = 0;
       int totalUniqueHospitals = 0;
-      
+
       for (final monthStat in monthlyStats) {
         totalCompletedCount += monthStat.completedCount;
         totalBloodVolume += monthStat.totalBloodVolume;
@@ -438,14 +394,14 @@ class CompletedDonationService {
           totalUniqueHospitals = monthStat.uniqueHospitalsCount;
         }
       }
-      
+
       return {
         'year': year,
         'totalCompletedCount': totalCompletedCount,
         'totalBloodVolume': totalBloodVolume,
         'formattedTotalBloodVolume': '${totalBloodVolume.toStringAsFixed(1)}mL',
-        'averageBloodVolume': totalCompletedCount > 0 
-            ? totalBloodVolume / totalCompletedCount 
+        'averageBloodVolume': totalCompletedCount > 0
+            ? totalBloodVolume / totalCompletedCount
             : 0.0,
         'estimatedUniquePets': totalUniquePets,
         'estimatedUniqueHospitals': totalUniqueHospitals,

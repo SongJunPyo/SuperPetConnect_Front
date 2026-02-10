@@ -1,12 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-import 'package:http/http.dart' as http;
 import 'dart:convert';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import '../utils/app_theme.dart';
 import '../utils/config.dart';
 import '../widgets/app_app_bar.dart';
+import '../services/auth_http_client.dart';
 
 class DonationHistoryScreen extends StatefulWidget {
   const DonationHistoryScreen({super.key});
@@ -52,21 +51,10 @@ class _DonationHistoryScreenState extends State<DonationHistoryScreen>
 
   Future<void> _loadDonationHistory() async {
     setState(() => isLoading = true);
-    
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      final token = prefs.getString('auth_token');
-      
-      if (token == null) {
-        throw Exception('로그인이 필요합니다.');
-      }
 
-      final response = await http.get(
+    try {
+      final response = await AuthHttpClient.get(
         Uri.parse('${Config.serverUrl}/api/donation/my-applications'),
-        headers: {
-          'Authorization': 'Bearer $token',
-          'Content-Type': 'application/json',
-        },
       );
 
       if (response.statusCode == 200) {

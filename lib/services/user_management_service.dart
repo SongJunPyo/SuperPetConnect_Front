@@ -1,15 +1,9 @@
 import 'dart:convert';
-import 'package:http/http.dart' as http;
-import 'package:shared_preferences/shared_preferences.dart';
+import 'auth_http_client.dart';
 import '../utils/config.dart';
 import '../models/user_model.dart';
 
 class UserManagementService {
-  static Future<String?> _getToken() async {
-    final prefs = await SharedPreferences.getInstance();
-    return prefs.getString('auth_token');
-  }
-
   static Future<UserListResponse> getUsers({
     int page = 1,
     int pageSize = 10,
@@ -17,11 +11,6 @@ class UserManagementService {
     int? userType,
     int? status,
   }) async {
-    final token = await _getToken();
-    if (token == null) {
-      throw Exception('로그인이 필요합니다');
-    }
-
     final queryParams = <String, String>{
       'page': page.toString(),
       'page_size': pageSize.toString(),
@@ -41,13 +30,7 @@ class UserManagementService {
       '${Config.serverUrl}/api/admin/users',
     ).replace(queryParameters: queryParams);
 
-    final response = await http.get(
-      uri,
-      headers: {
-        'Authorization': 'Bearer $token',
-        'Content-Type': 'application/json',
-      },
-    );
+    final response = await AuthHttpClient.get(uri);
 
     if (response.statusCode == 200) {
       final data = json.decode(utf8.decode(response.bodyBytes));
@@ -58,17 +41,8 @@ class UserManagementService {
   }
 
   static Future<UserStats> getUserStats() async {
-    final token = await _getToken();
-    if (token == null) {
-      throw Exception('로그인이 필요합니다');
-    }
-
-    final response = await http.get(
+    final response = await AuthHttpClient.get(
       Uri.parse('${Config.serverUrl}/api/admin/users/stats'),
-      headers: {
-        'Authorization': 'Bearer $token',
-        'Content-Type': 'application/json',
-      },
     );
 
     if (response.statusCode == 200) {
@@ -80,17 +54,8 @@ class UserManagementService {
   }
 
   static Future<void> blacklistUser(BlacklistRequest request) async {
-    final token = await _getToken();
-    if (token == null) {
-      throw Exception('로그인이 필요합니다');
-    }
-
-    final response = await http.post(
+    final response = await AuthHttpClient.post(
       Uri.parse('${Config.serverUrl}/api/admin/users/blacklist'),
-      headers: {
-        'Authorization': 'Bearer $token',
-        'Content-Type': 'application/json',
-      },
       body: json.encode(request.toJson()),
     );
 
@@ -100,17 +65,8 @@ class UserManagementService {
   }
 
   static Future<void> updateUserStatus(int userId, int status) async {
-    final token = await _getToken();
-    if (token == null) {
-      throw Exception('로그인이 필요합니다');
-    }
-
-    final response = await http.patch(
+    final response = await AuthHttpClient.patch(
       Uri.parse('${Config.serverUrl}/api/admin/users/$userId/status'),
-      headers: {
-        'Authorization': 'Bearer $token',
-        'Content-Type': 'application/json',
-      },
       body: json.encode({'status': status}),
     );
 

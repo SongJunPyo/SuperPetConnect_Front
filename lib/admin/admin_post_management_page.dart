@@ -1,10 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-import 'package:http/http.dart' as http;
 import 'dart:convert';
-import 'package:shared_preferences/shared_preferences.dart';
 
 import '../utils/config.dart';
+import '../services/auth_http_client.dart';
 import '../utils/app_theme.dart';
 import '../widgets/app_app_bar.dart';
 import '../services/dashboard_service.dart';
@@ -71,19 +70,12 @@ class _AdminPostManagementPageState extends State<AdminPostManagementPage>
     });
 
     try {
-      final prefs = await SharedPreferences.getInstance();
-      final token = prefs.getString('auth_token');
-
-      if (token == null) {
-        throw Exception('인증 토큰이 없습니다.');
-      }
-
       // 병렬로 데이터 로드
       final futures = await Future.wait([
-        _fetchPostsByStatus('pending', token),
-        _fetchPostsByStatus('approved', token),
-        _fetchPostsByStatus('rejected', token),
-        _fetchPostsByStatus('completed', token),
+        _fetchPostsByStatus('pending'),
+        _fetchPostsByStatus('approved'),
+        _fetchPostsByStatus('rejected'),
+        _fetchPostsByStatus('completed'),
       ]);
 
       setState(() {
@@ -100,14 +92,10 @@ class _AdminPostManagementPageState extends State<AdminPostManagementPage>
     }
   }
 
-  Future<List<DonationPost>> _fetchPostsByStatus(String status, String token) async {
+  Future<List<DonationPost>> _fetchPostsByStatus(String status) async {
     try {
-      final response = await http.get(
+      final response = await AuthHttpClient.get(
         Uri.parse('${Config.serverUrl}/api/admin/posts?status=$status'),
-        headers: {
-          'Authorization': 'Bearer $token',
-          'Content-Type': 'application/json; charset=UTF-8',
-        },
       );
 
       if (response.statusCode == 200) {
@@ -241,17 +229,8 @@ class _AdminPostManagementPageState extends State<AdminPostManagementPage>
 
   Future<void> _approvePost(int postIdx) async {
     try {
-      final prefs = await SharedPreferences.getInstance();
-      final token = prefs.getString('auth_token');
-
-      if (token == null) throw Exception('인증 토큰이 없습니다.');
-
-      final response = await http.put(
+      final response = await AuthHttpClient.put(
         Uri.parse('${Config.serverUrl}/api/admin/posts/$postIdx/approval'),
-        headers: {
-          'Authorization': 'Bearer $token',
-          'Content-Type': 'application/json',
-        },
         body: jsonEncode({'status': 'approved'}),
       );
 
@@ -389,17 +368,8 @@ class _AdminPostManagementPageState extends State<AdminPostManagementPage>
 
   Future<void> _rejectPost(int postIdx) async {
     try {
-      final prefs = await SharedPreferences.getInstance();
-      final token = prefs.getString('auth_token');
-
-      if (token == null) throw Exception('인증 토큰이 없습니다.');
-
-      final response = await http.put(
+      final response = await AuthHttpClient.put(
         Uri.parse('${Config.serverUrl}/api/admin/posts/$postIdx/approval'),
-        headers: {
-          'Authorization': 'Bearer $token',
-          'Content-Type': 'application/json',
-        },
         body: jsonEncode({'status': 'rejected'}),
       );
 

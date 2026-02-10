@@ -37,6 +37,10 @@ class _LoginScreenState extends State<LoginScreen> {
   Future<void> _handleLoginSuccess(Map<String, dynamic> data) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString('auth_token', data['access_token']);
+    // Refresh Token 저장 (보안 업데이트: Access Token 15분 + Refresh Token 7일)
+    if (data['refresh_token'] != null) {
+      await prefs.setString('refresh_token', data['refresh_token']);
+    }
 
     // 사용자 정보 저장
     await prefs.setString('user_email', data['email'] ?? '');
@@ -163,6 +167,16 @@ class _LoginScreenState extends State<LoginScreen> {
               context,
               '승인 대기 중',
               '관리자의 승인을 기다리고 있습니다. \n승인 후 로그인이 가능합니다.',
+            );
+          }
+        } else if (response.statusCode == 429) {
+          if (mounted) {
+            final retryAfter = response.headers['retry-after'];
+            final seconds = int.tryParse(retryAfter ?? '') ?? 60;
+            _showAlertDialog(
+              context,
+              '요청 제한',
+              '너무 많은 로그인 시도를 했습니다.\n$seconds초 후 다시 시도해주세요.',
             );
           }
         } else if (response.statusCode == 401) {

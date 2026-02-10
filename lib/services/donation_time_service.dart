@@ -1,38 +1,19 @@
 // services/donation_time_service.dart
 
-import 'package:http/http.dart' as http;
 import 'dart:convert';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter/material.dart';
 import '../models/donation_post_time_model.dart';
 import '../utils/config.dart';
+import 'auth_http_client.dart';
 
 class DonationTimeService {
   static String get baseUrl => '${Config.serverUrl}/api';
 
-  // 인증 토큰 가져오기
-  static Future<String?> _getAuthToken() async {
-    final prefs = await SharedPreferences.getInstance();
-    return prefs.getString('auth_token');
-  }
-
-  // 공통 헤더 생성
-  static Future<Map<String, String>> _getHeaders() async {
-    final token = await _getAuthToken();
-    return {
-      'Content-Type': 'application/json; charset=UTF-8',
-      'Authorization': 'Bearer $token',
-    };
-  }
-
   // 1. 특정 날짜의 시간들 조회 (GET /api/donation_post_times/date/{post_dates_idx})
   static Future<List<DonationPostTime>> getTimesByDateIdx(int postDatesIdx) async {
     try {
-      final headers = await _getHeaders();
-      
-      final response = await http.get(
+      final response = await AuthHttpClient.get(
         Uri.parse('$baseUrl/donation_post_times/date/$postDatesIdx'),
-        headers: headers,
       );
 
       if (response.statusCode == 200) {
@@ -49,11 +30,8 @@ class DonationTimeService {
   // 2. 특정 시간 조회 (GET /api/donation_post_times/{post_times_idx})
   static Future<DonationPostTime?> getTimeById(int postTimesIdx) async {
     try {
-      final headers = await _getHeaders();
-      
-      final response = await http.get(
+      final response = await AuthHttpClient.get(
         Uri.parse('$baseUrl/donation_post_times/$postTimesIdx'),
-        headers: headers,
       );
 
       if (response.statusCode == 200) {
@@ -70,11 +48,8 @@ class DonationTimeService {
   // 3. 단일 시간 등록 (POST /api/donation_post_times/)
   static Future<DonationPostTime> addDonationTime(int postDatesIdx, DateTime donationTime) async {
     try {
-      final headers = await _getHeaders();
-      
-      final response = await http.post(
+      final response = await AuthHttpClient.post(
         Uri.parse('$baseUrl/donation_post_times/'),
-        headers: headers,
         body: jsonEncode({
           'post_dates_idx': postDatesIdx,
           'donation_time': donationTime.toIso8601String(),
@@ -95,11 +70,8 @@ class DonationTimeService {
   // 4. 여러 시간 한번에 등록 (POST /api/donation_post_times/bulk)
   static Future<List<DonationPostTime>> addMultipleDonationTimes(int postDatesIdx, List<DateTime> donationTimes) async {
     try {
-      final headers = await _getHeaders();
-      
-      final response = await http.post(
+      final response = await AuthHttpClient.post(
         Uri.parse('$baseUrl/donation_post_times/bulk'),
-        headers: headers,
         body: jsonEncode({
           'post_dates_idx': postDatesIdx,
           'donation_times': donationTimes.map((time) => time.toIso8601String()).toList(),
@@ -121,11 +93,8 @@ class DonationTimeService {
   // 5. 날짜+시간 함께 생성 (POST /api/donation_post_times/date-time)
   static Future<DonationDateWithTimes> createDateWithTimes(int postIdx, DateTime donationDate, List<DateTime> donationTimes) async {
     try {
-      final headers = await _getHeaders();
-      
-      final response = await http.post(
+      final response = await AuthHttpClient.post(
         Uri.parse('$baseUrl/donation_post_times/date-time'),
-        headers: headers,
         body: jsonEncode({
           'post_idx': postIdx,
           'donation_date': donationDate.toIso8601String(),
@@ -147,11 +116,8 @@ class DonationTimeService {
   // 6. 시간 수정 (PUT /api/donation_post_times/{post_times_idx})
   static Future<DonationPostTime> updateDonationTime(int postTimesIdx, DateTime newDonationTime) async {
     try {
-      final headers = await _getHeaders();
-      
-      final response = await http.put(
+      final response = await AuthHttpClient.put(
         Uri.parse('$baseUrl/donation_post_times/$postTimesIdx'),
-        headers: headers,
         body: jsonEncode({
           'donation_time': newDonationTime.toIso8601String(),
         }),
@@ -171,11 +137,8 @@ class DonationTimeService {
   // 7. 시간 삭제 (DELETE /api/donation_post_times/{post_times_idx})
   static Future<void> deleteDonationTime(int postTimesIdx) async {
     try {
-      final headers = await _getHeaders();
-      
-      final response = await http.delete(
+      final response = await AuthHttpClient.delete(
         Uri.parse('$baseUrl/donation_post_times/$postTimesIdx'),
-        headers: headers,
       );
 
       if (response.statusCode != 200 && response.statusCode != 204) {
@@ -189,11 +152,8 @@ class DonationTimeService {
   // 8. 게시글의 모든 날짜+시간 조회 (GET /api/donation_post_times/post/{post_idx}/dates-with-times)
   static Future<List<DonationDateWithTimes>> getPostDatesWithTimes(int postIdx) async {
     try {
-      final headers = await _getHeaders();
-      
-      final response = await http.get(
+      final response = await AuthHttpClient.get(
         Uri.parse('$baseUrl/donation_post_times/post/$postIdx/dates-with-times'),
-        headers: headers,
       );
 
       if (response.statusCode == 200) {
@@ -225,7 +185,7 @@ class DonationTimeService {
   // 10. 편의 메서드: 시간 범위 생성 (예: 9:00부터 17:00까지 1시간 간격)
   static List<DateTime> generateTimeRange(DateTime baseDate, TimeOfDay startTime, TimeOfDay endTime, int intervalMinutes) {
     final List<DateTime> times = [];
-    
+
     DateTime currentTime = DateTime(
       baseDate.year,
       baseDate.month,
@@ -233,7 +193,7 @@ class DonationTimeService {
       startTime.hour,
       startTime.minute,
     );
-    
+
     final DateTime endDateTime = DateTime(
       baseDate.year,
       baseDate.month,

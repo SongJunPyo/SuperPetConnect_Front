@@ -1,8 +1,7 @@
 // lib/services/manage_pet_info.dart
 
-import 'package:http/http.dart' as http;
 import 'dart:convert';
-import 'package:shared_preferences/shared_preferences.dart';
+import 'auth_http_client.dart';
 import '../models/pet_model.dart';
 import '../utils/config.dart';
 
@@ -35,15 +34,8 @@ class PetService {
   // 반려동물 정보 조회
   static Future<List<Pet>> fetchPets() async {
     try {
-      final prefs = await SharedPreferences.getInstance();
-      final token = prefs.getString('auth_token');
-
-      final response = await http.get(
+      final response = await AuthHttpClient.get(
         Uri.parse('$baseUrl/pets'),
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer $token',
-        },
       );
 
       if (response.statusCode == 200) {
@@ -59,15 +51,8 @@ class PetService {
 
   static Future<void> deletePet(int petIdx) async {
     try {
-      final prefs = await SharedPreferences.getInstance();
-      final token = prefs.getString('auth_token');
-
-      final response = await http.delete(
+      final response = await AuthHttpClient.delete(
         Uri.parse('$baseUrl/pets/$petIdx'),
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer $token',
-        },
       );
 
       if (response.statusCode != 204 && response.statusCode != 200) {

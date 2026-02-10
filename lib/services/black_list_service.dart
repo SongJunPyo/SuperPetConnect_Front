@@ -1,49 +1,26 @@
 // services/black_list_service.dart
 
-import 'package:http/http.dart' as http;
 import 'dart:convert';
-import 'package:shared_preferences/shared_preferences.dart';
+import 'auth_http_client.dart';
 import '../models/black_list_model.dart';
 import '../utils/config.dart';
 
 class BlackListService {
   static String get baseUrl => '${Config.serverUrl}/api/admin/black-list';
 
-  // 인증 토큰 가져오기
-  static Future<String?> _getAuthToken() async {
-    final prefs = await SharedPreferences.getInstance();
-    return prefs.getString('auth_token');
-  }
-
-  // 공통 헤더 생성 (관리자 권한 포함)
-  static Future<Map<String, String>> _getHeaders() async {
-    final token = await _getAuthToken();
-    return {
-      'Content-Type': 'application/json; charset=UTF-8',
-      'Authorization': 'Bearer $token',
-    };
-  }
-
   // ===== 블랙리스트 관리 API =====
 
   // 1. 블랙리스트 등록 (관리자)
   static Future<BlackList> createBlackList(BlackListCreateRequest request) async {
     try {
-      final headers = await _getHeaders();
-      
-
-      final response = await http.post(
+      final response = await AuthHttpClient.post(
         Uri.parse(baseUrl),
-        headers: headers,
         body: jsonEncode(request.toJson()),
       );
-
 
       if (response.statusCode == 200 || response.statusCode == 201) {
         final data = json.decode(utf8.decode(response.bodyBytes));
         return BlackList.fromJson(data);
-      } else if (response.statusCode == 401) {
-        throw Exception('권한이 없습니다. 관리자 계정으로 로그인해주세요.');
       } else if (response.statusCode == 403) {
         throw Exception('관리자 권한이 필요합니다.');
       } else {
@@ -65,32 +42,26 @@ class BlackListService {
     bool? activeOnly, // true: 정지 중, false: 해제됨, null: 전체
   }) async {
     try {
-      final headers = await _getHeaders();
-      
       final queryParams = <String, String>{
         'page': page.toString(),
         'page_size': pageSize.toString(),
       };
-      
+
       if (search != null && search.isNotEmpty) {
         queryParams['search'] = search;
       }
-      
+
       if (activeOnly != null) {
         queryParams['active_only'] = activeOnly.toString();
       }
 
       final uri = Uri.parse(baseUrl).replace(queryParameters: queryParams);
-      
 
-      final response = await http.get(uri, headers: headers);
-
+      final response = await AuthHttpClient.get(uri);
 
       if (response.statusCode == 200) {
         final data = json.decode(utf8.decode(response.bodyBytes));
         return BlackListResponse.fromJson(data);
-      } else if (response.statusCode == 401) {
-        throw Exception('권한이 없습니다. 관리자 계정으로 로그인해주세요.');
       } else if (response.statusCode == 403) {
         throw Exception('관리자 권한이 필요합니다.');
       } else {
@@ -107,22 +78,15 @@ class BlackListService {
   // 3. 특정 블랙리스트 상세 조회 (관리자)
   static Future<BlackList> getBlackListDetail(int blackUserIdx) async {
     try {
-      final headers = await _getHeaders();
-      
-
-      final response = await http.get(
+      final response = await AuthHttpClient.get(
         Uri.parse('$baseUrl/$blackUserIdx'),
-        headers: headers,
       );
-
 
       if (response.statusCode == 200) {
         final data = json.decode(utf8.decode(response.bodyBytes));
         return BlackList.fromJson(data);
       } else if (response.statusCode == 404) {
         throw Exception('블랙리스트를 찾을 수 없습니다.');
-      } else if (response.statusCode == 401) {
-        throw Exception('권한이 없습니다. 관리자 계정으로 로그인해주세요.');
       } else if (response.statusCode == 403) {
         throw Exception('관리자 권한이 필요합니다.');
       } else {
@@ -142,21 +106,14 @@ class BlackListService {
     BlackListUpdateRequest request,
   ) async {
     try {
-      final headers = await _getHeaders();
-      
-
-      final response = await http.put(
+      final response = await AuthHttpClient.put(
         Uri.parse('$baseUrl/$blackUserIdx'),
-        headers: headers,
         body: jsonEncode(request.toJson()),
       );
-
 
       if (response.statusCode == 200) {
         final data = json.decode(utf8.decode(response.bodyBytes));
         return BlackList.fromJson(data);
-      } else if (response.statusCode == 401) {
-        throw Exception('권한이 없습니다. 관리자 계정으로 로그인해주세요.');
       } else if (response.statusCode == 403) {
         throw Exception('관리자 권한이 필요합니다.');
       } else if (response.statusCode == 404) {
@@ -175,19 +132,12 @@ class BlackListService {
   // 5. 블랙리스트 삭제 (관리자)
   static Future<void> deleteBlackList(int blackUserIdx) async {
     try {
-      final headers = await _getHeaders();
-      
-
-      final response = await http.delete(
+      final response = await AuthHttpClient.delete(
         Uri.parse('$baseUrl/$blackUserIdx'),
-        headers: headers,
       );
-
 
       if (response.statusCode == 204 || response.statusCode == 200) {
         return; // 성공적으로 삭제됨
-      } else if (response.statusCode == 401) {
-        throw Exception('권한이 없습니다. 관리자 계정으로 로그인해주세요.');
       } else if (response.statusCode == 403) {
         throw Exception('관리자 권한이 필요합니다.');
       } else if (response.statusCode == 404) {
@@ -206,20 +156,13 @@ class BlackListService {
   // 6. 즉시 해제 (관리자)
   static Future<BlackList> releaseBlackList(int blackUserIdx) async {
     try {
-      final headers = await _getHeaders();
-      
-
-      final response = await http.patch(
+      final response = await AuthHttpClient.patch(
         Uri.parse('$baseUrl/$blackUserIdx/release'),
-        headers: headers,
       );
-
 
       if (response.statusCode == 200) {
         final data = json.decode(utf8.decode(response.bodyBytes));
         return BlackList.fromJson(data);
-      } else if (response.statusCode == 401) {
-        throw Exception('권한이 없습니다. 관리자 계정으로 로그인해주세요.');
       } else if (response.statusCode == 403) {
         throw Exception('관리자 권한이 필요합니다.');
       } else if (response.statusCode == 404) {
@@ -238,21 +181,15 @@ class BlackListService {
   // 7. 사용자 정지 상태 확인 (본인 또는 관리자)
   static Future<UserBlackListStatus> getUserBlackListStatus(int accountIdx) async {
     try {
-      final headers = await _getHeaders();
-      
       final url = '${Config.serverUrl}/api/admin/user/$accountIdx/black-list-status';
 
-      final response = await http.get(
+      final response = await AuthHttpClient.get(
         Uri.parse(url),
-        headers: headers,
       );
-
 
       if (response.statusCode == 200) {
         final data = json.decode(utf8.decode(response.bodyBytes));
         return UserBlackListStatus.fromJson(data);
-      } else if (response.statusCode == 401) {
-        throw Exception('권한이 없습니다. 로그인해주세요.');
       } else if (response.statusCode == 404) {
         throw Exception('사용자를 찾을 수 없습니다.');
       } else {
@@ -312,13 +249,13 @@ class BlackListService {
   static Future<BlackList?> getUserCurrentBlackList(int accountIdx) async {
     try {
       final blackLists = await getActiveBlackLists(pageSize: 100); // 충분히 큰 페이지 크기
-      
+
       for (final blackList in blackLists) {
         if (blackList.accountIdx == accountIdx && blackList.isActive) {
           return blackList;
         }
       }
-      
+
       return null; // 활성화된 블랙리스트가 없음
     } catch (e) {
       return null;

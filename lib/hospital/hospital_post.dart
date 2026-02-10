@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:interval_time_picker/interval_time_picker.dart';
-import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
@@ -11,6 +10,7 @@ import '../models/donation_post_time_model.dart';
 import '../models/donation_post_image_model.dart';
 import '../widgets/rich_text_editor.dart';
 import 'hospital_dashboard.dart';
+import '../services/auth_http_client.dart';
 
 class HospitalPost extends StatefulWidget {
   // PostCreationPage -> HospitalPost로 클래스명 변경
@@ -38,34 +38,14 @@ class _HospitalPostState extends State<HospitalPost> {
   String hospitalNickname = "병원"; // 병원 닉네임을 저장할 변수
   List<Map<String, dynamic>> timeEntries = []; // 시간대 목록
 
-  // 토큰 가져오는 함수 수정 - 디버깅 정보 추가
-  Future<String> _getAuthToken() async {
-    final prefs = await SharedPreferences.getInstance();
-    final token = prefs.getString('auth_token') ?? '';
-
-    if (token.isEmpty) {
-      return '';
-    }
-    return token;
-  }
-
   // Removed unused _getUserInfo method
 
   // 사용자 주소를 API에서 가져오기
   Future<String> _getUserAddress() async {
     try {
-      final token = await _getAuthToken();
-      if (token.isEmpty) {
-        return '';
-      }
-
       // 올바른 API 엔드포인트 사용
-      final response = await http.get(
+      final response = await AuthHttpClient.get(
         Uri.parse('${Config.serverUrl}/api/auth/profile'),
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer $token',
-        },
       );
 
 
@@ -111,15 +91,6 @@ class _HospitalPostState extends State<HospitalPost> {
     }
 
     try {
-      final token = await _getAuthToken();
-      if (token.isEmpty) {
-        _showAlertDialog('로그인 필요', '로그인이 필요합니다.', () {
-          Navigator.of(context).pop(); // 다이얼로그 닫기
-          Navigator.pushReplacementNamed(context, '/login'); // 로그인 페이지로 이동
-        });
-        return;
-      }
-
       // 병원 코드 가져오기
       final prefs = await SharedPreferences.getInstance();
       final hospitalCode = prefs.getString('hospital_code');
@@ -180,12 +151,8 @@ class _HospitalPostState extends State<HospitalPost> {
 
       final url = Uri.parse('${Config.serverUrl}/api/hospital/post');
 
-      final response = await http.post(
+      final response = await AuthHttpClient.post(
         url,
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer $token',
-        },
         body: json.encode(postData),
       );
 

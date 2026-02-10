@@ -1,41 +1,22 @@
 // services/applied_donation_service.dart
 
-import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+import 'auth_http_client.dart';
 import '../models/applied_donation_model.dart';
 import '../utils/config.dart';
 
 class AppliedDonationService {
   static String get baseUrl => '${Config.serverUrl}/api';
 
-  // 인증 토큰 가져오기
-  static Future<String?> _getAuthToken() async {
-    final prefs = await SharedPreferences.getInstance();
-    return prefs.getString('auth_token');
-  }
-
-  // 공통 헤더 생성
-  static Future<Map<String, String>> _getHeaders() async {
-    final token = await _getAuthToken();
-    return {
-      'Content-Type': 'application/json; charset=UTF-8',
-      'Authorization': 'Bearer $token',
-    };
-  }
-
   // ===== 사용자용 API =====
 
   // 1. 헌혈 신청 생성
   static Future<AppliedDonation> createApplication(int petIdx, int postTimesIdx) async {
-    final headers = await _getHeaders();
-
     debugPrint('[AppliedDonationService] 헌혈 신청 요청 - petIdx: $petIdx, postTimesIdx: $postTimesIdx');
 
-    final response = await http.post(
+    final response = await AuthHttpClient.post(
       Uri.parse('$baseUrl/donation/apply'),
-      headers: headers,
       body: jsonEncode({
         'pet_idx': petIdx,
         'post_times_idx': postTimesIdx,
@@ -74,11 +55,8 @@ class AppliedDonationService {
   // 2. 특정 신청 조회
   static Future<AppliedDonation?> getApplication(int appliedDonationIdx) async {
     try {
-      final headers = await _getHeaders();
-      
-      final response = await http.get(
+      final response = await AuthHttpClient.get(
         Uri.parse('$baseUrl/applied_donation/$appliedDonationIdx'),
-        headers: headers,
       );
 
       if (response.statusCode == 200) {
@@ -95,11 +73,8 @@ class AppliedDonationService {
   // 3. 내 반려동물들의 신청 목록 조회
   static Future<List<MyPetApplications>> getMyApplications() async {
     try {
-      final headers = await _getHeaders();
-      
-      final response = await http.get(
+      final response = await AuthHttpClient.get(
         Uri.parse('$baseUrl/applied_donation/my-pets/applications'),
-        headers: headers,
       );
 
       if (response.statusCode == 200) {
@@ -116,11 +91,8 @@ class AppliedDonationService {
   // 4. 신청 삭제 (사용자)
   static Future<void> deleteApplication(int appliedDonationIdx) async {
     try {
-      final headers = await _getHeaders();
-      
-      final response = await http.delete(
+      final response = await AuthHttpClient.delete(
         Uri.parse('$baseUrl/applied_donation/$appliedDonationIdx'),
-        headers: headers,
       );
 
       if (response.statusCode != 200 && response.statusCode != 204) {
@@ -136,11 +108,8 @@ class AppliedDonationService {
   // 5. 특정 게시글의 모든 신청 조회
   static Future<PostApplications> getPostApplications(int postIdx) async {
     try {
-      final headers = await _getHeaders();
-      
-      final response = await http.get(
+      final response = await AuthHttpClient.get(
         Uri.parse('$baseUrl/applied_donation/post/$postIdx/applications'),
-        headers: headers,
       );
 
       if (response.statusCode == 200) {
@@ -157,11 +126,8 @@ class AppliedDonationService {
   // 6. 특정 시간대 신청 현황 조회
   static Future<TimeSlotApplications> getTimeSlotApplications(int postTimesIdx) async {
     try {
-      final headers = await _getHeaders();
-      
-      final response = await http.get(
+      final response = await AuthHttpClient.get(
         Uri.parse('$baseUrl/applied_donation/time-slot/$postTimesIdx/applications'),
-        headers: headers,
       );
 
       if (response.statusCode == 200) {
@@ -179,11 +145,8 @@ class AppliedDonationService {
   static Future<AppliedDonation> updateApplicationStatus(
       int appliedDonationIdx, int newStatus) async {
     try {
-      final headers = await _getHeaders();
-      
-      final response = await http.put(
+      final response = await AuthHttpClient.put(
         Uri.parse('$baseUrl/applied_donation/$appliedDonationIdx/status'),
-        headers: headers,
         body: jsonEncode({
           'status': newStatus,
         }),
@@ -207,11 +170,8 @@ class AppliedDonationService {
   // 8. 게시글 신청 통계 조회 (병원용)
   static Future<Map<String, dynamic>> getPostStats(int postIdx) async {
     try {
-      final headers = await _getHeaders();
-      
-      final response = await http.get(
+      final response = await AuthHttpClient.get(
         Uri.parse('$baseUrl/applied_donation/post/$postIdx/stats'),
-        headers: headers,
       );
 
       if (response.statusCode == 200) {
@@ -230,11 +190,11 @@ class AppliedDonationService {
   static Future<bool> hasUserAppliedToTimeSlot(int postTimesIdx) async {
     try {
       final myApplications = await getMyApplications();
-      
+
       for (final petApps in myApplications) {
         for (final application in petApps.applications) {
-          if (application.postTimesIdx == postTimesIdx && 
-              (application.status == AppliedDonationStatus.pending || 
+          if (application.postTimesIdx == postTimesIdx &&
+              (application.status == AppliedDonationStatus.pending ||
                application.status == AppliedDonationStatus.approved)) {
             return true;
           }
@@ -251,16 +211,16 @@ class AppliedDonationService {
     try {
       final myApplications = await getMyApplications();
       final activeApplications = <AppliedDonation>[];
-      
+
       for (final petApps in myApplications) {
         for (final application in petApps.applications) {
-          if (application.status == AppliedDonationStatus.pending || 
+          if (application.status == AppliedDonationStatus.pending ||
               application.status == AppliedDonationStatus.approved) {
             activeApplications.add(application);
           }
         }
       }
-      
+
       // 날짜순 정렬 (가까운 날짜 먼저)
       activeApplications.sort((a, b) {
         if (a.donationTime != null && b.donationTime != null) {
@@ -268,7 +228,7 @@ class AppliedDonationService {
         }
         return 0;
       });
-      
+
       return activeApplications;
     } catch (e) {
       throw Exception('진행 중인 신청 조회 중 오류 발생: $e');
@@ -290,7 +250,7 @@ class AppliedDonationService {
       List<int> appliedDonationIds, int newStatus) async {
     try {
       final results = <AppliedDonation>[];
-      
+
       for (final id in appliedDonationIds) {
         try {
           final result = await updateApplicationStatus(id, newStatus);
@@ -300,7 +260,7 @@ class AppliedDonationService {
           debugPrint('Failed to update application $id: $e');
         }
       }
-      
+
       return results;
     } catch (e) {
       throw Exception('일괄 상태 변경 중 오류 발생: $e');
@@ -357,16 +317,16 @@ class AppliedDonationService {
   static Future<Map<String, dynamic>> getUserDonationStats() async {
     try {
       final myApplications = await getMyApplications();
-      
+
       int totalApplications = 0;
       int completedDonations = 0;
       int pendingApplications = 0;
       int approvedApplications = 0;
-      
+
       for (final petApps in myApplications) {
         for (final application in petApps.applications) {
           totalApplications++;
-          
+
           switch (application.status) {
             case AppliedDonationStatus.completed:
               completedDonations++;
@@ -380,7 +340,7 @@ class AppliedDonationService {
           }
         }
       }
-      
+
       return {
         'totalApplications': totalApplications,
         'completedDonations': completedDonations,
@@ -399,13 +359,10 @@ class AppliedDonationService {
   /// 서버 API 응답 형식에 맞춤
   static Future<List<MyApplicationInfo>> getMyApplicationsFromServer() async {
     try {
-      final headers = await _getHeaders();
-
       debugPrint('[AppliedDonationService] 내 신청 목록 조회 요청');
 
-      final response = await http.get(
+      final response = await AuthHttpClient.get(
         Uri.parse('$baseUrl/donation/my-applications'),
-        headers: headers,
       );
 
       debugPrint('[AppliedDonationService] 응답 코드: ${response.statusCode}');
@@ -440,13 +397,10 @@ class AppliedDonationService {
   /// 대기중(status=0) 상태일 때만 취소 가능
   static Future<bool> cancelApplicationToServer(int applicationId) async {
     try {
-      final headers = await _getHeaders();
-
       debugPrint('[AppliedDonationService] 신청 취소 요청 - applicationId: $applicationId');
 
-      final response = await http.delete(
+      final response = await AuthHttpClient.delete(
         Uri.parse('$baseUrl/donation/applications/$applicationId'),
-        headers: headers,
       );
 
       debugPrint('[AppliedDonationService] 응답 코드: ${response.statusCode}');
@@ -506,11 +460,8 @@ class AppliedDonationService {
   // 16. 특정 상태의 신청 목록 조회 (관리자용)
   static Future<List<AppliedDonation>> getApplicationsByStatus(int status) async {
     try {
-      final headers = await _getHeaders();
-      
-      final response = await http.get(
+      final response = await AuthHttpClient.get(
         Uri.parse('$baseUrl/applied_donation/admin/by-status/$status'),
-        headers: headers,
       );
 
       if (response.statusCode == 200) {

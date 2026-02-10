@@ -1,9 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
 import 'dart:convert';
-import 'package:shared_preferences/shared_preferences.dart';
 import '../utils/app_theme.dart';
 import '../utils/config.dart';
+import '../services/auth_http_client.dart';
 
 // 회원 가입 신청자 데이터 모델
 class SignupUser {
@@ -95,31 +94,14 @@ class _AdminSignupManagementState extends State<AdminSignupManagement> {
   List<SignupUser> pendingUsers = [];
   bool isLoading = true;
   String errorMessage = '';
-  String? token;
 
   @override
   void initState() {
     super.initState();
-    _loadToken().then((_) => fetchPendingUsers());
-  }
-
-  Future<void> _loadToken() async {
-    final prefs = await SharedPreferences.getInstance();
-    final storedToken = prefs.getString('auth_token');
-    setState(() {
-      token = storedToken;
-    });
+    fetchPendingUsers();
   }
 
   Future<void> fetchPendingUsers() async {
-    if (token == null || token!.isEmpty) {
-      setState(() {
-        errorMessage = '로그인이 필요합니다. (토큰 없음)';
-        isLoading = false;
-      });
-      return;
-    }
-
     setState(() {
       isLoading = true;
       errorMessage = '';
@@ -129,13 +111,7 @@ class _AdminSignupManagementState extends State<AdminSignupManagement> {
       final url = Uri.parse(
         '${Config.serverUrl}/api/signup_management/pending-users',
       );
-      final response = await http.get(
-        url,
-        headers: {
-          'Authorization': 'Bearer $token',
-          'Content-Type': 'application/json; charset=UTF-8',
-        },
-      );
+      final response = await AuthHttpClient.get(url);
 
       if (response.statusCode == 200) {
         final List<dynamic> data = json.decode(utf8.decode(response.bodyBytes));
@@ -174,13 +150,6 @@ class _AdminSignupManagementState extends State<AdminSignupManagement> {
     int selectedUserType,
     String? hospitalId,
   ) async {
-    if (token == null || token!.isEmpty) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text("로그인 토큰이 없어 처리할 수 없습니다.")));
-      return;
-    }
-
     try {
       final url = Uri.parse(
         '${Config.serverUrl}/api/signup_management/approve-user/${user.id}',
@@ -194,12 +163,8 @@ class _AdminSignupManagementState extends State<AdminSignupManagement> {
         requestBody['hospital_id'] = hospitalId;
       }
 
-      final response = await http.post(
+      final response = await AuthHttpClient.post(
         url,
-        headers: <String, String>{
-          'Content-Type': 'application/json; charset=UTF-8',
-          'Authorization': 'Bearer $token',
-        },
         body: jsonEncode(requestBody),
       );
 
@@ -233,22 +198,11 @@ class _AdminSignupManagementState extends State<AdminSignupManagement> {
   }
 
   Future<void> rejectUser(SignupUser user) async {
-    if (token == null || token!.isEmpty) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text("로그인 토큰이 없어 처리할 수 없습니다.")));
-      return;
-    }
-
     try {
-      final response = await http.post(
+      final response = await AuthHttpClient.post(
         Uri.parse(
           '${Config.serverUrl}/api/signup_management/reject-user/${user.id}',
         ),
-        headers: <String, String>{
-          'Content-Type': 'application/json; charset=UTF-8',
-          'Authorization': 'Bearer $token',
-        },
       );
 
       if (response.statusCode == 200) {

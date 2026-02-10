@@ -3,7 +3,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'dart:convert';
-import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:connect/utils/config.dart';
 import 'package:connect/models/pet_model.dart';
@@ -11,6 +10,7 @@ import '../utils/app_theme.dart';
 import '../widgets/app_button.dart';
 import '../widgets/app_input_field.dart';
 import '../widgets/app_app_bar.dart';
+import '../services/auth_http_client.dart';
 
 class PetRegisterScreen extends StatefulWidget {
   // 수정 모드를 위해 Pet 객체를 선택적으로 받음
@@ -120,12 +120,9 @@ class _PetRegisterScreenState extends State<PetRegisterScreen> {
     }
 
     final prefs = await SharedPreferences.getInstance();
-    final token = prefs.getString('auth_token');
     final int? accountIdx = prefs.getInt('account_idx'); // account_idx로 사용
 
-    // 🚨 불러온 값 확인하는 디버그 로그 추가
-
-    if (token == null || accountIdx == null || accountIdx == 0) {
+    if (accountIdx == null || accountIdx == 0) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('로그인 정보가 없거나 유효하지 않습니다. 다시 로그인해주세요.')),
@@ -167,31 +164,21 @@ class _PetRegisterScreenState extends State<PetRegisterScreen> {
 
     try {
       final String apiUrl;
-      final http.Response response;
+      final response;
 
       if (_isEditMode) {
         // 수정 모드: PUT 요청
         apiUrl =
             '${Config.serverUrl}/api/pets/${widget.petToEdit!.petIdx}'; // 펫 ID 포함
-        response = await http.put(
-          // PUT 요청
+        response = await AuthHttpClient.put(
           Uri.parse(apiUrl),
-          headers: {
-            'Content-Type': 'application/json; charset=UTF-8',
-            'Authorization': 'Bearer $token',
-          },
           body: jsonEncode(petData),
         );
       } else {
         // 등록 모드: POST 요청
         apiUrl = '${Config.serverUrl}/api/pets';
-        response = await http.post(
-          // POST 요청
+        response = await AuthHttpClient.post(
           Uri.parse(apiUrl),
-          headers: {
-            'Content-Type': 'application/json; charset=UTF-8',
-            'Authorization': 'Bearer $token',
-          },
           body: jsonEncode(petData),
         );
       }

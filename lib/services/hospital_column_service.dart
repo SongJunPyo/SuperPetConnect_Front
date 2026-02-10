@@ -1,42 +1,27 @@
 import 'package:http/http.dart' as http;
 import 'dart:convert';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:intl/intl.dart';
 import 'package:flutter/foundation.dart';
 import '../models/hospital_column_model.dart';
 import '../utils/config.dart';
+import 'auth_http_client.dart';
 
 class HospitalColumnService {
   static String get baseUrl => '${Config.serverUrl}/api/hospital';
   static String get publicBaseUrl => '${Config.serverUrl}/api/hospital/public';
 
-  // 토큰 가져오기
-  static Future<String> _getAuthToken() async {
-    final prefs = await SharedPreferences.getInstance();
-    return prefs.getString('auth_token') ?? '';
-  }
-
   // 병원의 칼럼 작성 권한 확인
   static Future<bool> checkColumnPermission() async {
     try {
-      final token = await _getAuthToken();
-      if (token.isEmpty) {
-        return false;
-      }
-
-      final response = await http.get(
+      final response = await AuthHttpClient.get(
         Uri.parse('${Config.serverUrl}/api/auth/profile'),
-        headers: {
-          'Authorization': 'Bearer $token',
-          'Content-Type': 'application/json; charset=UTF-8',
-        },
       );
 
       if (response.statusCode == 200) {
         final data = json.decode(utf8.decode(response.bodyBytes));
         return data['column_active'] == true;
       }
-      
+
       return false;
     } catch (e) {
       return false;
@@ -48,18 +33,8 @@ class HospitalColumnService {
     HospitalColumnCreateRequest request,
   ) async {
     try {
-      final token = await _getAuthToken();
-      if (token.isEmpty) {
-        throw Exception('인증 토큰이 없습니다. 다시 로그인해주세요.');
-      }
-
-
-      final response = await http.post(
+      final response = await AuthHttpClient.post(
         Uri.parse('$baseUrl/columns'),
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer $token',
-        },
         body: jsonEncode(request.toJson()),
       );
 
@@ -67,8 +42,6 @@ class HospitalColumnService {
       if (response.statusCode == 200 || response.statusCode == 201) {
         final data = jsonDecode(utf8.decode(response.bodyBytes));
         return HospitalColumn.fromJson(data);
-      } else if (response.statusCode == 401) {
-        throw Exception('인증이 만료되었습니다. 다시 로그인해주세요.');
       } else if (response.statusCode == 403) {
         try {
           final error = jsonDecode(utf8.decode(response.bodyBytes));
@@ -100,7 +73,7 @@ class HospitalColumnService {
     }
   }
 
-  // 공개 칼럼 목록 조회 (모든 사용자)
+  // 공개 칼럼 목록 조회 (모든 사용자 - 인증 불필요)
   static Future<HospitalColumnListResponse> getPublicColumns({
     int page = 1,
     int pageSize = 10,
@@ -138,15 +111,15 @@ class HospitalColumnService {
     }
   }
 
-  // 서버 API 테스트용 함수
+  // 서버 API 테스트용 함수 (인증 불필요)
   static Future<void> testServerConnection() async {
     try {
-      
+
       // 공개 칼럼 목록 조회 테스트 (인증 불필요)
       await http.get(
         Uri.parse('$publicBaseUrl/columns?page=1&page_size=10'),
       );
-      
+
     } catch (e) {
       // 테스트 연결 실패 시 로그 출력
       debugPrint('Server connection test failed: $e');
@@ -156,16 +129,9 @@ class HospitalColumnService {
   // 칼럼 상세 조회 (모든 사용자)
   static Future<HospitalColumn> getColumnDetail(int columnIdx) async {
     try {
-      final token = await _getAuthToken();
-      
-
-      // 먼저 인증된 사용자로 시도 (미발행 칼럼도 조회 가능)
-      final response = await http.get(
+      // 인증된 사용자로 시도 (미발행 칼럼도 조회 가능)
+      final response = await AuthHttpClient.get(
         Uri.parse('$baseUrl/columns/$columnIdx'),
-        headers: token.isNotEmpty ? {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer $token',
-        } : {},
       );
 
 
@@ -207,11 +173,6 @@ class HospitalColumnService {
     bool? isPublished,
   }) async {
     try {
-      final token = await _getAuthToken();
-      if (token.isEmpty) {
-        throw Exception('인증 토큰이 없습니다. 다시 로그인해주세요.');
-      }
-
       final queryParams = <String, String>{
         'page': page.toString(),
         'page_size': pageSize.toString(),
@@ -226,20 +187,12 @@ class HospitalColumnService {
       );
 
 
-      final response = await http.get(
-        uri,
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer $token',
-        },
-      );
+      final response = await AuthHttpClient.get(uri);
 
 
       if (response.statusCode == 200) {
         final data = jsonDecode(utf8.decode(response.bodyBytes));
         return HospitalColumnListResponse.fromJson(data);
-      } else if (response.statusCode == 401) {
-        throw Exception('인증이 만료되었습니다. 다시 로그인해주세요.');
       } else if (response.statusCode == 403) {
         final error = jsonDecode(utf8.decode(response.bodyBytes));
         final message = error['detail'] ?? error['message'] ?? '권한이 없습니다.';
@@ -261,18 +214,8 @@ class HospitalColumnService {
     HospitalColumnUpdateRequest request,
   ) async {
     try {
-      final token = await _getAuthToken();
-      if (token.isEmpty) {
-        throw Exception('인증 토큰이 없습니다. 다시 로그인해주세요.');
-      }
-
-
-      final response = await http.put(
+      final response = await AuthHttpClient.put(
         Uri.parse('$baseUrl/columns/$columnIdx'),
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer $token',
-        },
         body: jsonEncode(request.toJson()),
       );
 
@@ -280,8 +223,6 @@ class HospitalColumnService {
       if (response.statusCode == 200) {
         final data = jsonDecode(utf8.decode(response.bodyBytes));
         return HospitalColumn.fromJson(data);
-      } else if (response.statusCode == 401) {
-        throw Exception('인증이 만료되었습니다. 다시 로그인해주세요.');
       } else if (response.statusCode == 403) {
         throw Exception('수정 권한이 없습니다.');
       } else if (response.statusCode == 404) {
@@ -300,25 +241,13 @@ class HospitalColumnService {
   // 칼럼 삭제 (작성자만)
   static Future<void> deleteColumn(int columnIdx) async {
     try {
-      final token = await _getAuthToken();
-      if (token.isEmpty) {
-        throw Exception('인증 토큰이 없습니다. 다시 로그인해주세요.');
-      }
-
-
-      final response = await http.delete(
+      final response = await AuthHttpClient.delete(
         Uri.parse('$baseUrl/columns/$columnIdx'),
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer $token',
-        },
       );
 
 
       if (response.statusCode == 204 || response.statusCode == 200) {
         return; // 성공적으로 삭제됨
-      } else if (response.statusCode == 401) {
-        throw Exception('인증이 만료되었습니다. 다시 로그인해주세요.');
       } else if (response.statusCode == 403) {
         throw Exception('삭제 권한이 없습니다.');
       } else if (response.statusCode == 404) {
@@ -344,11 +273,6 @@ class HospitalColumnService {
     String? search,
   }) async {
     try {
-      final token = await _getAuthToken();
-      if (token.isEmpty) {
-        throw Exception('인증 토큰이 없습니다. 다시 로그인해주세요.');
-      }
-
       final queryParams = <String, String>{
         'page': page.toString(),
         'page_size': pageSize.toString(),
@@ -375,13 +299,7 @@ class HospitalColumnService {
       );
 
 
-      final response = await http.get(
-        uri,
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer $token',
-        },
-      );
+      final response = await AuthHttpClient.get(uri);
 
 
       if (response.statusCode == 200) {
@@ -394,8 +312,6 @@ class HospitalColumnService {
           }
         }
         return HospitalColumnListResponse.fromJson(data);
-      } else if (response.statusCode == 401) {
-        throw Exception('인증이 만료되었습니다. 다시 로그인해주세요.');
       } else if (response.statusCode == 403) {
         throw Exception('관리자 권한이 없습니다.');
       } else {
@@ -412,26 +328,14 @@ class HospitalColumnService {
   // 관리자용: 칼럼 발행 승인/해제 (전용 API 사용)
   static Future<HospitalColumn> adminTogglePublish(int columnIdx) async {
     try {
-      final token = await _getAuthToken();
-      if (token.isEmpty) {
-        throw Exception('인증 토큰이 없습니다. 다시 로그인해주세요.');
-      }
-
-
-      final response = await http.patch(
+      final response = await AuthHttpClient.patch(
         Uri.parse('${Config.serverUrl}/api/admin/columns/$columnIdx/publish'),
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer $token',
-        },
       );
 
 
       if (response.statusCode == 200) {
         final data = jsonDecode(utf8.decode(response.bodyBytes));
         return HospitalColumn.fromJson(data);
-      } else if (response.statusCode == 401) {
-        throw Exception('인증이 만료되었습니다. 다시 로그인해주세요.');
       } else if (response.statusCode == 403) {
         throw Exception('관리자 권한이 없습니다.');
       } else if (response.statusCode == 404) {
@@ -448,26 +352,30 @@ class HospitalColumnService {
   }
 
   // 조회수 증가 (세션 스토리지로 중복 방지)
+  // 인증 여부에 관계없이 동작해야 하므로 토큰이 있으면 인증 요청, 없으면 비인증 요청
   static Future<void> increaseViewCount(int columnIdx) async {
     try {
-      final token = await _getAuthToken();
-      
-      
-      final response = await http.post(
-        Uri.parse('$baseUrl/columns/$columnIdx/view'),
-        headers: token.isNotEmpty ? {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer $token',
-        } : {
-          'Content-Type': 'application/json',
-        },
-      );
+      // AuthHttpClient 사용 시도 (토큰이 있으면 인증 헤더 포함)
+      try {
+        final response = await AuthHttpClient.post(
+          Uri.parse('$baseUrl/columns/$columnIdx/view'),
+        );
 
+        if (response.statusCode == 200 || response.statusCode == 201) {
+          return;
+        }
+      } catch (_) {
+        // 인증 실패 시 비인증 요청으로 fallback
+        final response = await http.post(
+          Uri.parse('$baseUrl/columns/$columnIdx/view'),
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        );
 
-      if (response.statusCode == 200 || response.statusCode == 201) {
-        return;
-      } else {
-        // 조회수 증가 실패는 사용자 경험에 영향을 주지 않도록 예외를 던지지 않음
+        if (response.statusCode == 200 || response.statusCode == 201) {
+          return;
+        }
       }
     } catch (e) {
       // 조회수 증가 실패는 사용자 경험에 영향을 주지 않도록 예외를 던지지 않음
@@ -477,26 +385,14 @@ class HospitalColumnService {
   // 관리자용: 칼럼 상세 조회 (전용 API 사용)
   static Future<HospitalColumn> getAdminColumnDetail(int columnIdx) async {
     try {
-      final token = await _getAuthToken();
-      if (token.isEmpty) {
-        throw Exception('인증 토큰이 없습니다. 다시 로그인해주세요.');
-      }
-
-
-      final response = await http.get(
+      final response = await AuthHttpClient.get(
         Uri.parse('${Config.serverUrl}/api/admin/columns/$columnIdx'),
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer $token',
-        },
       );
 
 
       if (response.statusCode == 200) {
         final data = jsonDecode(utf8.decode(response.bodyBytes));
         return HospitalColumn.fromJson(data);
-      } else if (response.statusCode == 401) {
-        throw Exception('인증이 만료되었습니다. 다시 로그인해주세요.');
       } else if (response.statusCode == 403) {
         throw Exception('관리자 권한이 없습니다.');
       } else if (response.statusCode == 404) {

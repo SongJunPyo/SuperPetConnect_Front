@@ -3,7 +3,7 @@ import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:http_parser/http_parser.dart';
 import 'dart:convert';
-import 'package:shared_preferences/shared_preferences.dart';
+import 'auth_http_client.dart';
 import '../models/hospital_column_model.dart';
 import '../utils/config.dart';
 
@@ -12,12 +12,6 @@ import '../utils/config.dart';
 /// 칼럼 이미지 업로드, 삭제 등의 API 통신 담당
 class ColumnImageService {
   static String get baseUrl => Config.serverUrl;
-
-  // 토큰 가져오기
-  static Future<String> _getAuthToken() async {
-    final prefs = await SharedPreferences.getInstance();
-    return prefs.getString('auth_token') ?? '';
-  }
 
   /// 이미지 업로드 (바이트 기반 - 웹/앱 공통)
   ///
@@ -35,13 +29,6 @@ class ColumnImageService {
   }) async {
     debugPrint('[ColumnImageService] uploadImageBytes 시작: fileName=$fileName, size=${imageBytes.length}');
     try {
-      final token = await _getAuthToken();
-      if (token.isEmpty) {
-        debugPrint('[ColumnImageService] 토큰 없음!');
-        throw Exception('인증 토큰이 없습니다.');
-      }
-      debugPrint('[ColumnImageService] 토큰 확인됨');
-
       // 파일 확장자 확인
       final extension = fileName.split('.').last.toLowerCase();
       final mimeType = _getMimeType(extension);
@@ -51,9 +38,6 @@ class ColumnImageService {
       final uri = Uri.parse('$baseUrl/api/hospital/columns/images/upload');
       debugPrint('[ColumnImageService] 요청 URL: $uri');
       final request = http.MultipartRequest('POST', uri);
-
-      // 헤더 설정
-      request.headers['Authorization'] = 'Bearer $token';
 
       // 바이트에서 파일 추가
       final multipartFile = http.MultipartFile.fromBytes(
@@ -73,7 +57,7 @@ class ColumnImageService {
 
       // 요청 전송
       debugPrint('[ColumnImageService] 요청 전송 중...');
-      final streamedResponse = await request.send();
+      final streamedResponse = await AuthHttpClient.sendMultipart(request);
       debugPrint('[ColumnImageService] 응답 상태 코드: ${streamedResponse.statusCode}');
       final response = await http.Response.fromStream(streamedResponse);
       debugPrint('[ColumnImageService] 응답 본문: ${response.body}');
@@ -93,9 +77,6 @@ class ColumnImageService {
         final data = json.decode(utf8.decode(response.bodyBytes));
         debugPrint('[ColumnImageService] 400 에러: ${data['message'] ?? data['detail']}');
         throw Exception(data['message'] ?? data['detail'] ?? '잘못된 요청입니다.');
-      } else if (response.statusCode == 401) {
-        debugPrint('[ColumnImageService] 401 인증 만료');
-        throw Exception('인증이 만료되었습니다. 다시 로그인해주세요.');
       } else if (response.statusCode == 413) {
         debugPrint('[ColumnImageService] 413 이미지 개수 초과');
         throw Exception('칼럼당 최대 5개의 이미지만 업로드할 수 있습니다.');
@@ -114,24 +95,13 @@ class ColumnImageService {
   /// [imageId] - 삭제할 이미지 ID
   static Future<bool> deleteImage(int imageId) async {
     try {
-      final token = await _getAuthToken();
-      if (token.isEmpty) {
-        throw Exception('인증 토큰이 없습니다.');
-      }
-
-      final response = await http.delete(
+      final response = await AuthHttpClient.delete(
         Uri.parse('$baseUrl/api/hospital/columns/images/$imageId'),
-        headers: {
-          'Authorization': 'Bearer $token',
-          'Content-Type': 'application/json; charset=UTF-8',
-        },
       );
 
       if (response.statusCode == 200) {
         final data = json.decode(utf8.decode(response.bodyBytes));
         return data['success'] == true;
-      } else if (response.statusCode == 401) {
-        throw Exception('인증이 만료되었습니다. 다시 로그인해주세요.');
       } else if (response.statusCode == 403) {
         throw Exception('본인 병원의 이미지만 삭제할 수 있습니다.');
       } else if (response.statusCode == 404) {
@@ -149,17 +119,8 @@ class ColumnImageService {
   /// [columnIdx] - 칼럼 ID
   static Future<List<ColumnImage>> getColumnImages(int columnIdx) async {
     try {
-      final token = await _getAuthToken();
-      if (token.isEmpty) {
-        throw Exception('인증 토큰이 없습니다.');
-      }
-
-      final response = await http.get(
+      final response = await AuthHttpClient.get(
         Uri.parse('$baseUrl/api/hospital/columns/$columnIdx/images'),
-        headers: {
-          'Authorization': 'Bearer $token',
-          'Content-Type': 'application/json; charset=UTF-8',
-        },
       );
 
       if (response.statusCode == 200) {
@@ -173,8 +134,6 @@ class ColumnImageService {
               .toList();
         }
         return [];
-      } else if (response.statusCode == 401) {
-        throw Exception('인증이 만료되었습니다. 다시 로그인해주세요.');
       } else if (response.statusCode == 404) {
         return []; // 칼럼에 이미지가 없는 경우
       } else {

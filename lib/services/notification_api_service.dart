@@ -1,7 +1,6 @@
 import 'dart:convert';
-import 'package:http/http.dart' as http;
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter/foundation.dart';
+import 'auth_http_client.dart';
 import '../models/notification_model.dart';
 import '../models/notification_types.dart';
 import '../models/notification_mapping.dart';
@@ -14,27 +13,14 @@ import '../utils/config.dart';
 class NotificationApiService {
   static String get _baseUrl => '${Config.serverUrl}/api/notifications';
 
-  // 공통 헤더 생성
-  static Future<Map<String, String>> _getHeaders() async {
-    final prefs = await SharedPreferences.getInstance();
-    final token = prefs.getString('auth_token');
-
-    return {
-      'Authorization': 'Bearer ${token ?? ''}',
-      'Content-Type': 'application/json; charset=UTF-8',
-    };
-  }
-
   // 관리자 알림 조회
   static Future<NotificationListResponse> getAdminNotifications({
     int page = 1,
     int limit = 20,
   }) async {
     try {
-      final headers = await _getHeaders();
-      final response = await http.get(
+      final response = await AuthHttpClient.get(
         Uri.parse('$_baseUrl/admin?page=$page&limit=$limit'),
-        headers: headers,
       );
 
       if (response.statusCode == 200) {
@@ -66,10 +52,8 @@ class NotificationApiService {
     int limit = 20,
   }) async {
     try {
-      final headers = await _getHeaders();
-      final response = await http.get(
+      final response = await AuthHttpClient.get(
         Uri.parse('$_baseUrl/hospital?page=$page&limit=$limit'),
-        headers: headers,
       );
 
       if (response.statusCode == 200) {
@@ -99,10 +83,8 @@ class NotificationApiService {
     int limit = 20,
   }) async {
     try {
-      final headers = await _getHeaders();
-      final response = await http.get(
+      final response = await AuthHttpClient.get(
         Uri.parse('$_baseUrl/user?page=$page&limit=$limit'),
-        headers: headers,
       );
 
       if (response.statusCode == 200) {
@@ -231,10 +213,8 @@ class NotificationApiService {
   // 개별 알림 읽음 처리
   static Future<bool> markAsRead(int notificationId) async {
     try {
-      final headers = await _getHeaders();
-      final response = await http.patch(
+      final response = await AuthHttpClient.patch(
         Uri.parse('$_baseUrl/$notificationId/read'),
-        headers: headers,
       );
 
       if (response.statusCode == 200) {
@@ -250,10 +230,8 @@ class NotificationApiService {
   // 전체 알림 읽음 처리
   static Future<bool> markAllAsRead() async {
     try {
-      final headers = await _getHeaders();
-      final response = await http.patch(
+      final response = await AuthHttpClient.patch(
         Uri.parse('$_baseUrl/read-all'),
-        headers: headers,
       );
 
       if (response.statusCode == 200) {
@@ -269,10 +247,8 @@ class NotificationApiService {
   // 읽지 않은 알림 개수 조회
   static Future<int> getUnreadCount() async {
     try {
-      final headers = await _getHeaders();
-      final response = await http.get(
+      final response = await AuthHttpClient.get(
         Uri.parse('$_baseUrl/unread-count'),
-        headers: headers,
       );
 
       if (response.statusCode == 200) {
@@ -292,10 +268,8 @@ class NotificationApiService {
   // 개별 알림 삭제
   static Future<bool> deleteNotification(int notificationId) async {
     try {
-      final headers = await _getHeaders();
-      final response = await http.delete(
+      final response = await AuthHttpClient.delete(
         Uri.parse('$_baseUrl/$notificationId'),
-        headers: headers,
       );
 
       if (response.statusCode == 200 || response.statusCode == 204) {
@@ -313,10 +287,8 @@ class NotificationApiService {
   // 다건 알림 삭제
   static Future<bool> deleteNotifications(List<int> notificationIds) async {
     try {
-      final headers = await _getHeaders();
-      final response = await http.delete(
+      final response = await AuthHttpClient.delete(
         Uri.parse('$_baseUrl/batch'),
-        headers: headers,
         body: json.encode({'notification_ids': notificationIds}),
       );
 
@@ -335,10 +307,8 @@ class NotificationApiService {
   // 전체 알림 삭제
   static Future<bool> deleteAllNotifications() async {
     try {
-      final headers = await _getHeaders();
-      final response = await http.delete(
+      final response = await AuthHttpClient.delete(
         Uri.parse('$_baseUrl/all'),
-        headers: headers,
       );
 
       if (response.statusCode == 200 || response.statusCode == 204) {

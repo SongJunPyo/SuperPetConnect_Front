@@ -14,13 +14,13 @@ import '../services/dashboard_service.dart';
 import '../models/hospital_column_model.dart';
 import '../models/notice_model.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:intl/intl.dart';
 import 'dart:async';
 import '../widgets/marquee_text.dart';
 import '../utils/number_format_util.dart';
 import '../utils/config.dart';
+import '../services/auth_http_client.dart';
 import '../widgets/region_selection_sheet.dart';
 import '../models/region_model.dart';
 import '../utils/text_personalization_util.dart';
@@ -134,41 +134,34 @@ class _UserDashboardState extends State<UserDashboard>
 
   Future<void> _loadUserProfile() async {
     final prefs = await SharedPreferences.getInstance();
-    final token = prefs.getString('auth_token');
 
     // 서버에서 프로필 정보 가져오기
-    if (token != null) {
-      try {
-        final response = await http.get(
-          Uri.parse('${Config.serverUrl}/api/auth/profile'),
-          headers: {
-            'Authorization': 'Bearer $token',
-            'Content-Type': 'application/json; charset=UTF-8',
-          },
-        );
+    try {
+      final response = await AuthHttpClient.get(
+        Uri.parse('${Config.serverUrl}/api/auth/profile'),
+      );
 
-        if (response.statusCode == 200) {
-          final data = json.decode(utf8.decode(response.bodyBytes));
-          final userRealName = data['name'] ?? '사용자';
-          final userRealNickname = data['nickname'] ?? userRealName;
+      if (response.statusCode == 200) {
+        final data = json.decode(utf8.decode(response.bodyBytes));
+        final userRealName = data['name'] ?? '사용자';
+        final userRealNickname = data['nickname'] ?? userRealName;
 
-          if (!mounted) return;
-          setState(() {
-            userName = userRealName;
-            userNickname = userRealNickname;
-            userAddress = data['address'];
-            userLatitude = (data['latitude'] as num?)?.toDouble();
-            userLongitude = (data['longitude'] as num?)?.toDouble();
-          });
+        if (!mounted) return;
+        setState(() {
+          userName = userRealName;
+          userNickname = userRealNickname;
+          userAddress = data['address'];
+          userLatitude = (data['latitude'] as num?)?.toDouble();
+          userLongitude = (data['longitude'] as num?)?.toDouble();
+        });
 
-          // 로컬 저장소에도 업데이트
-          await prefs.setString('user_name', userRealName);
-          await prefs.setString('user_nickname', userRealNickname);
-          return;
-        }
-      } catch (e) {
-        // 웹 환경에서는 CORS 문제로 인해 로컬 데이터 사용
+        // 로컬 저장소에도 업데이트
+        await prefs.setString('user_name', userRealName);
+        await prefs.setString('user_nickname', userRealNickname);
+        return;
       }
+    } catch (e) {
+      // 웹 환경에서는 CORS 문제로 인해 로컬 데이터 사용
     }
 
     // 서버 실패 시 로컬에 저장된 이름과 닉네임 사용

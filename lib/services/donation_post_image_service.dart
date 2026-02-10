@@ -3,7 +3,7 @@ import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:http_parser/http_parser.dart';
 import 'dart:convert';
-import 'package:shared_preferences/shared_preferences.dart';
+import 'auth_http_client.dart';
 import '../models/donation_post_image_model.dart';
 import '../utils/config.dart';
 
@@ -15,12 +15,6 @@ import 'donation_post_image_service_io.dart' if (dart.library.html) 'donation_po
 /// 이미지 업로드, 삭제, 순서 변경 등의 API 통신 담당
 class DonationPostImageService {
   static String get baseUrl => Config.serverUrl;
-
-  // 토큰 가져오기
-  static Future<String> _getAuthToken() async {
-    final prefs = await SharedPreferences.getInstance();
-    return prefs.getString('auth_token') ?? '';
-  }
 
   /// 이미지 업로드
   ///
@@ -37,11 +31,6 @@ class DonationPostImageService {
     Function(double)? onProgress,
   }) async {
     try {
-      final token = await _getAuthToken();
-      if (token.isEmpty) {
-        throw Exception('인증 토큰이 없습니다.');
-      }
-
       // 파일 확장자 확인
       final extension = imageFile.path.split('.').last.toLowerCase();
       final mimeType = _getMimeType(extension);
@@ -49,9 +38,6 @@ class DonationPostImageService {
       // multipart 요청 생성
       final uri = Uri.parse('$baseUrl/api/hospital/post/image');
       final request = http.MultipartRequest('POST', uri);
-
-      // 헤더 설정
-      request.headers['Authorization'] = 'Bearer $token';
 
       // 파일 추가
       final multipartFile = await http.MultipartFile.fromPath(
@@ -71,7 +57,7 @@ class DonationPostImageService {
       }
 
       // 요청 전송
-      final streamedResponse = await request.send();
+      final streamedResponse = await AuthHttpClient.sendMultipart(request);
       final response = await http.Response.fromStream(streamedResponse);
 
       if (response.statusCode == 200 || response.statusCode == 201) {
@@ -85,8 +71,6 @@ class DonationPostImageService {
       } else if (response.statusCode == 400) {
         final data = json.decode(utf8.decode(response.bodyBytes));
         throw Exception(data['message'] ?? '잘못된 요청입니다.');
-      } else if (response.statusCode == 401) {
-        throw Exception('인증이 만료되었습니다. 다시 로그인해주세요.');
       } else if (response.statusCode == 413) {
         throw Exception('게시글당 최대 5개의 이미지만 업로드할 수 있습니다.');
       } else {
@@ -115,13 +99,6 @@ class DonationPostImageService {
   }) async {
     debugPrint('[ImageService] uploadImageBytes 시작: fileName=$fileName, size=${imageBytes.length}');
     try {
-      final token = await _getAuthToken();
-      if (token.isEmpty) {
-        debugPrint('[ImageService] 토큰 없음!');
-        throw Exception('인증 토큰이 없습니다.');
-      }
-      debugPrint('[ImageService] 토큰 확인됨');
-
       // 파일 확장자 확인
       final extension = fileName.split('.').last.toLowerCase();
       final mimeType = _getMimeType(extension);
@@ -131,9 +108,6 @@ class DonationPostImageService {
       final uri = Uri.parse('$baseUrl/api/hospital/post/image');
       debugPrint('[ImageService] 요청 URL: $uri');
       final request = http.MultipartRequest('POST', uri);
-
-      // 헤더 설정
-      request.headers['Authorization'] = 'Bearer $token';
 
       // 바이트에서 파일 추가
       final multipartFile = http.MultipartFile.fromBytes(
@@ -156,7 +130,7 @@ class DonationPostImageService {
 
       // 요청 전송
       debugPrint('[ImageService] 요청 전송 중...');
-      final streamedResponse = await request.send();
+      final streamedResponse = await AuthHttpClient.sendMultipart(request);
       debugPrint('[ImageService] 응답 상태 코드: ${streamedResponse.statusCode}');
       final response = await http.Response.fromStream(streamedResponse);
       debugPrint('[ImageService] 응답 본문: ${response.body}');
@@ -175,9 +149,6 @@ class DonationPostImageService {
         final data = json.decode(utf8.decode(response.bodyBytes));
         debugPrint('[ImageService] 400 에러: ${data['message']}');
         throw Exception(data['message'] ?? '잘못된 요청입니다.');
-      } else if (response.statusCode == 401) {
-        debugPrint('[ImageService] 401 인증 만료');
-        throw Exception('인증이 만료되었습니다. 다시 로그인해주세요.');
       } else if (response.statusCode == 413) {
         debugPrint('[ImageService] 413 이미지 개수 초과');
         throw Exception('게시글당 최대 5개의 이미지만 업로드할 수 있습니다.');
@@ -196,24 +167,13 @@ class DonationPostImageService {
   /// [imageId] - 삭제할 이미지 ID
   static Future<bool> deleteImage(int imageId) async {
     try {
-      final token = await _getAuthToken();
-      if (token.isEmpty) {
-        throw Exception('인증 토큰이 없습니다.');
-      }
-
-      final response = await http.delete(
+      final response = await AuthHttpClient.delete(
         Uri.parse('$baseUrl/api/hospital/post/image/$imageId'),
-        headers: {
-          'Authorization': 'Bearer $token',
-          'Content-Type': 'application/json; charset=UTF-8',
-        },
       );
 
       if (response.statusCode == 200) {
         final data = json.decode(utf8.decode(response.bodyBytes));
         return data['success'] == true;
-      } else if (response.statusCode == 401) {
-        throw Exception('인증이 만료되었습니다. 다시 로그인해주세요.');
       } else if (response.statusCode == 403) {
         throw Exception('본인 병원의 이미지만 삭제할 수 있습니다.');
       } else if (response.statusCode == 404) {
@@ -237,29 +197,18 @@ class DonationPostImageService {
     String? caption,
   }) async {
     try {
-      final token = await _getAuthToken();
-      if (token.isEmpty) {
-        throw Exception('인증 토큰이 없습니다.');
-      }
-
       final body = <String, dynamic>{};
       if (imageOrder != null) body['image_order'] = imageOrder;
       if (caption != null) body['caption'] = caption;
 
-      final response = await http.put(
+      final response = await AuthHttpClient.put(
         Uri.parse('$baseUrl/api/hospital/post/image/$imageId'),
-        headers: {
-          'Authorization': 'Bearer $token',
-          'Content-Type': 'application/json; charset=UTF-8',
-        },
         body: json.encode(body),
       );
 
       if (response.statusCode == 200) {
         final data = json.decode(utf8.decode(response.bodyBytes));
         return DonationPostImage.fromJson(data);
-      } else if (response.statusCode == 401) {
-        throw Exception('인증이 만료되었습니다. 다시 로그인해주세요.');
       } else if (response.statusCode == 403) {
         throw Exception('본인 병원의 이미지만 수정할 수 있습니다.');
       } else if (response.statusCode == 404) {
@@ -277,17 +226,8 @@ class DonationPostImageService {
   /// [updates] - 이미지 ID와 새로운 순서 목록
   static Future<bool> updateImageOrders(List<ImageOrderUpdate> updates) async {
     try {
-      final token = await _getAuthToken();
-      if (token.isEmpty) {
-        throw Exception('인증 토큰이 없습니다.');
-      }
-
-      final response = await http.put(
+      final response = await AuthHttpClient.put(
         Uri.parse('$baseUrl/api/hospital/post/image/order'),
-        headers: {
-          'Authorization': 'Bearer $token',
-          'Content-Type': 'application/json; charset=UTF-8',
-        },
         body: json.encode({
           'image_orders': updates.map((u) => u.toJson()).toList(),
         }),
@@ -296,8 +236,6 @@ class DonationPostImageService {
       if (response.statusCode == 200) {
         final data = json.decode(utf8.decode(response.bodyBytes));
         return data['success'] == true;
-      } else if (response.statusCode == 401) {
-        throw Exception('인증이 만료되었습니다. 다시 로그인해주세요.');
       } else {
         throw Exception('이미지 순서 변경에 실패했습니다. (${response.statusCode})');
       }
@@ -311,17 +249,8 @@ class DonationPostImageService {
   /// [postIdx] - 게시글 ID
   static Future<List<DonationPostImage>> getPostImages(int postIdx) async {
     try {
-      final token = await _getAuthToken();
-      if (token.isEmpty) {
-        throw Exception('인증 토큰이 없습니다.');
-      }
-
-      final response = await http.get(
+      final response = await AuthHttpClient.get(
         Uri.parse('$baseUrl/api/hospital/post/images/$postIdx'),
-        headers: {
-          'Authorization': 'Bearer $token',
-          'Content-Type': 'application/json; charset=UTF-8',
-        },
       );
 
       if (response.statusCode == 200) {
@@ -335,8 +264,6 @@ class DonationPostImageService {
               .toList();
         }
         return [];
-      } else if (response.statusCode == 401) {
-        throw Exception('인증이 만료되었습니다. 다시 로그인해주세요.');
       } else if (response.statusCode == 404) {
         return []; // 게시글에 이미지가 없는 경우
       } else {

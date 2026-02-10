@@ -12,11 +12,11 @@ import 'hospital_column_list.dart';
 import 'hospital_column_management_list.dart';
 import '../services/hospital_column_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:intl/intl.dart';
 import 'dart:async';
 import '../utils/config.dart';
+import '../services/auth_http_client.dart';
 import '../services/dashboard_service.dart';
 import '../models/hospital_column_model.dart';
 import '../models/notice_model.dart';
@@ -113,7 +113,6 @@ class _HospitalDashboardState extends State<HospitalDashboard>
 
   Future<void> _loadHospitalName() async {
     final prefs = await SharedPreferences.getInstance();
-    final token = prefs.getString('auth_token');
 
     // 먼저 로컬에 저장된 이름과 닉네임 확인
     final savedName = prefs.getString('hospital_name');
@@ -126,33 +125,27 @@ class _HospitalDashboardState extends State<HospitalDashboard>
     }
 
     // 서버에서 최신 이름 가져오기
-    if (token != null) {
-      try {
-        final response = await http.get(
-          Uri.parse('${Config.serverUrl}/api/auth/profile'),
-          headers: {
-            'Authorization': 'Bearer $token',
-            'Content-Type': 'application/json; charset=UTF-8',
-          },
-        );
+    try {
+      final response = await AuthHttpClient.get(
+        Uri.parse('${Config.serverUrl}/api/auth/profile'),
+      );
 
-        if (response.statusCode == 200) {
-          final data = json.decode(utf8.decode(response.bodyBytes));
-          final userName = data['name'] ?? 'S동물메디컬센터';
-          final userNickname = data['nickname'] ?? userName;
+      if (response.statusCode == 200) {
+        final data = json.decode(utf8.decode(response.bodyBytes));
+        final userName = data['name'] ?? 'S동물메디컬센터';
+        final userNickname = data['nickname'] ?? userName;
 
-          setState(() {
-            hospitalName = userName;
-            hospitalNickname = userNickname;
-          });
+        setState(() {
+          hospitalName = userName;
+          hospitalNickname = userNickname;
+        });
 
-          // 로컬 저장소에도 업데이트
-          await prefs.setString('hospital_name', userName);
-          await prefs.setString('hospital_nickname', userNickname);
-        }
-      } catch (e) {
-        // 오류 발생 시 기본값 유지
+        // 로컬 저장소에도 업데이트
+        await prefs.setString('hospital_name', userName);
+        await prefs.setString('hospital_nickname', userNickname);
       }
+    } catch (e) {
+      // 오류 발생 시 기본값 유지
     }
   }
 

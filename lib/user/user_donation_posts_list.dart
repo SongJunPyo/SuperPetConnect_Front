@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'dart:convert';
-import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import '../utils/app_theme.dart';
 import '../utils/config.dart';
@@ -8,6 +7,7 @@ import '../services/dashboard_service.dart';
 import '../services/applied_donation_service.dart';
 import '../models/applied_donation_model.dart';
 import '../widgets/marquee_text.dart';
+import '../services/auth_http_client.dart';
 import '../widgets/custom_tab_bar.dart';
 import '../widgets/rich_text_viewer.dart';
 import 'package:intl/intl.dart';
@@ -572,19 +572,8 @@ class _UserDonationPostsListScreenState
 
   // 사용자 반려동물 목록 가져오기
   Future<List<Map<String, dynamic>>> _fetchUserPets() async {
-    final prefs = await SharedPreferences.getInstance();
-    final token = prefs.getString('auth_token');
-
-    if (token == null) {
-      throw Exception('로그인이 필요합니다.');
-    }
-
-    final petsResponse = await http.get(
+    final petsResponse = await AuthHttpClient.get(
       Uri.parse('${Config.serverUrl}/api/user/pets'),
-      headers: {
-        'Authorization': 'Bearer $token',
-        'Content-Type': 'application/json; charset=UTF-8',
-      },
     );
 
     if (petsResponse.statusCode == 200) {
@@ -616,14 +605,6 @@ class _UserDonationPostsListScreenState
   // 일반 헌혈 신청 제출 (단일 날짜/시간 버전)
   Future<void> _submitGeneralDonationApplication(DonationPost post) async {
     try {
-      // SharedPreferences에서 JWT 토큰 가져오기
-      final prefs = await SharedPreferences.getInstance();
-      final token = prefs.getString('auth_token');
-
-      if (token == null) {
-        throw Exception('로그인이 필요합니다. 다시 로그인해주세요.');
-      }
-
       // 사용자 반려동물 목록 가져오기
       final userPets = await _fetchUserPets();
       if (userPets.isEmpty) {
@@ -659,12 +640,8 @@ class _UserDonationPostsListScreenState
       // 첫 번째 매칭되는 반려동물로 신청 (추후 선택 UI로 개선 가능)
       final petIdx = availablePets.first['pet_idx'];
 
-      final response = await http.post(
+      final response = await AuthHttpClient.post(
         Uri.parse('${Config.serverUrl}/api/donation/apply/general'),
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer $token',
-        },
         body: jsonEncode({
           'post_idx': post.postIdx,
           'pet_idx': petIdx,
@@ -708,14 +685,6 @@ class _UserDonationPostsListScreenState
     String datetime,
   ) async {
     try {
-      // SharedPreferences에서 JWT 토큰 가져오기
-      final prefs = await SharedPreferences.getInstance();
-      final token = prefs.getString('auth_token');
-
-      if (token == null) {
-        throw Exception('로그인이 필요합니다. 다시 로그인해주세요.');
-      }
-
       // 사용자 반려동물 목록 가져오기
       final userPets = await _fetchUserPets();
       if (userPets.isEmpty) {
@@ -751,12 +720,8 @@ class _UserDonationPostsListScreenState
       // 첫 번째 매칭되는 반려동물로 신청 (추후 선택 UI로 개선 가능)
       final petIdx = availablePets.first['pet_idx'];
 
-      final response = await http.post(
+      final response = await AuthHttpClient.post(
         Uri.parse('${Config.serverUrl}/api/donation/apply'),
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer $token', // 실제 JWT 토큰 사용
-        },
         body: jsonEncode({
           'post_times_idx': postTimesIdx,
           'pet_idx': petIdx,
@@ -2265,29 +2230,14 @@ class _DonationApplicationPageState extends State<DonationApplicationPage> {
 
   Future<void> _loadUserDataAndPets() async {
     try {
-      final prefs = await SharedPreferences.getInstance();
-      final token = prefs.getString('auth_token');
-
-      if (token == null) {
-        throw Exception('로그인이 필요합니다.');
-      }
-
       // 사용자 정보 API 호출
-      final userResponse = await http.get(
+      final userResponse = await AuthHttpClient.get(
         Uri.parse('${Config.serverUrl}/api/user/profile'),
-        headers: {
-          'Authorization': 'Bearer $token',
-          'Content-Type': 'application/json; charset=UTF-8',
-        },
       );
 
       // 반려동물 목록 API 호출
-      final petsResponse = await http.get(
+      final petsResponse = await AuthHttpClient.get(
         Uri.parse('${Config.serverUrl}/api/user/pets'),
-        headers: {
-          'Authorization': 'Bearer $token',
-          'Content-Type': 'application/json; charset=UTF-8',
-        },
       );
 
       if (userResponse.statusCode == 200) {
@@ -2865,24 +2815,13 @@ class _DonationApplicationPageState extends State<DonationApplicationPage> {
         throw Exception('반려동물을 선택해주세요.');
       }
 
-      final prefs = await SharedPreferences.getInstance();
-      final token = prefs.getString('auth_token');
-
-      if (token == null) {
-        throw Exception('로그인이 필요합니다.');
-      }
-
       // 디버그: 전송할 데이터 확인
       debugPrint('[DonationApplication] post_times_idx: ${widget.selectedTimeSlot['post_times_idx']}');
       debugPrint('[DonationApplication] pet_idx: ${selectedPet!['pet_idx']}');
       debugPrint('[DonationApplication] selectedTimeSlot 전체: ${widget.selectedTimeSlot}');
 
-      final response = await http.post(
+      final response = await AuthHttpClient.post(
         Uri.parse('${Config.serverUrl}/api/donation/apply'),
-        headers: {
-          'Authorization': 'Bearer $token',
-          'Content-Type': 'application/json; charset=UTF-8',
-        },
         body: jsonEncode({
           'post_times_idx': widget.selectedTimeSlot['post_times_idx'],
           'pet_idx': selectedPet!['pet_idx'],

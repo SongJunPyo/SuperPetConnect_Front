@@ -1,27 +1,11 @@
 // services/admin_donation_approval_service.dart
 
-import 'package:http/http.dart' as http;
 import 'dart:convert';
-import 'package:shared_preferences/shared_preferences.dart';
+import 'auth_http_client.dart';
 import '../utils/config.dart';
 
 class AdminDonationApprovalService {
   static String get baseUrl => '${Config.serverUrl}/api';
-
-  // 인증 토큰 가져오기
-  static Future<String?> _getAuthToken() async {
-    final prefs = await SharedPreferences.getInstance();
-    return prefs.getString('auth_token');
-  }
-
-  // 공통 헤더 생성
-  static Future<Map<String, String>> _getHeaders() async {
-    final token = await _getAuthToken();
-    return {
-      'Content-Type': 'application/json; charset=UTF-8',
-      'Authorization': 'Bearer $token',
-    };
-  }
 
   // 관리자용 - 헌혈 최종 승인 처리
   static Future<Map<String, dynamic>> finalApproval({
@@ -29,11 +13,8 @@ class AdminDonationApprovalService {
     required String action, // "complete" 또는 "cancel"
   }) async {
     try {
-      final headers = await _getHeaders();
-      
-      final response = await http.post(
+      final response = await AuthHttpClient.post(
         Uri.parse('$baseUrl/admin/donation_final_approval'),
-        headers: headers,
         body: jsonEncode({
           'post_times_idx': postTimesIdx,
           'action': action,
@@ -72,11 +53,8 @@ class AdminDonationApprovalService {
   // 해당 시간대의 대기중인 헌혈 신청 조회
   static Future<Map<String, dynamic>> getPendingApplications(int postTimesIdx) async {
     try {
-      final headers = await _getHeaders();
-      
-      final response = await http.get(
+      final response = await AuthHttpClient.get(
         Uri.parse('$baseUrl/admin/pending_applications/$postTimesIdx'),
-        headers: headers,
       );
 
       if (response.statusCode == 200) {
@@ -109,11 +87,8 @@ class AdminDonationApprovalService {
     required String action,
   }) async {
     try {
-      final headers = await _getHeaders();
-      
-      final response = await http.post(
+      final response = await AuthHttpClient.post(
         Uri.parse('$baseUrl/admin/donation_batch_approval'),
-        headers: headers,
         body: jsonEncode({
           'post_times_idx_list': postTimesIdxList,
           'action': action,
@@ -148,12 +123,10 @@ class AdminDonationApprovalService {
   // 헌혈 완료 대기 목록 조회 (날짜별)
   static Future<Map<String, dynamic>> getPendingByDate(DateTime date) async {
     try {
-      final headers = await _getHeaders();
       final dateStr = '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
-      
-      final response = await http.get(
+
+      final response = await AuthHttpClient.get(
         Uri.parse('$baseUrl/admin/pending_donations?date=$dateStr'),
-        headers: headers,
       );
 
       if (response.statusCode == 200) {
@@ -184,11 +157,8 @@ class AdminDonationApprovalService {
   // 통계 조회 - 승인 대기 현황
   static Future<Map<String, dynamic>> getApprovalStats() async {
     try {
-      final headers = await _getHeaders();
-      
-      final response = await http.get(
+      final response = await AuthHttpClient.get(
         Uri.parse('$baseUrl/admin/donation_approval_stats'),
-        headers: headers,
       );
 
       if (response.statusCode == 200) {

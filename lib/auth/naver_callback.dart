@@ -56,6 +56,10 @@ class _NaverCallbackScreenState extends State<NaverCallbackScreen> {
       // 기존 로그인 성공 처리 로직과 동일
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString('auth_token', accessToken);
+      // Refresh Token 저장 (보안 업데이트: Access Token 15분 + Refresh Token 7일)
+      if (params['refresh_token'] != null && params['refresh_token']!.isNotEmpty) {
+        await prefs.setString('refresh_token', params['refresh_token']!);
+      }
       await prefs.setString('user_email', params['email'] ?? '');
       await prefs.setString('user_name', params['name'] ?? '');
 

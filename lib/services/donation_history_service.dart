@@ -3,37 +3,12 @@
 
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
-import 'package:http/http.dart' as http;
-import 'package:shared_preferences/shared_preferences.dart';
 import '../utils/config.dart';
 import '../models/donation_history_model.dart';
+import 'auth_http_client.dart';
 
 class DonationHistoryService {
   static const String _baseUrl = '/api/pet-donation-history';
-
-  /// JWT 토큰 가져오기
-  static Future<String> _getToken() async {
-    final prefs = await SharedPreferences.getInstance();
-    final token = prefs.getString('auth_token') ?? '';
-    if (kDebugMode) {
-      print('[DonationHistoryService] 토큰 존재 여부: ${token.isNotEmpty}, 토큰 길이: ${token.length}');
-    }
-    return token;
-  }
-
-  /// 공통 헤더 생성
-  static Future<Map<String, String>> _getHeaders() async {
-    final token = await _getToken();
-    final headers = {
-      'Content-Type': 'application/json; charset=UTF-8',
-      'Authorization': 'Bearer $token',
-    };
-    if (kDebugMode) {
-      print('[DonationHistoryService] 헤더: $headers');
-      print('[DonationHistoryService] Authorization 헤더 길이: ${headers['Authorization']?.length}');
-    }
-    return headers;
-  }
 
   /// 헌혈 이력 조회 (페이지네이션)
   /// [petIdx] 반려동물 ID
@@ -45,12 +20,10 @@ class DonationHistoryService {
     int limit = 10,
   }) async {
     try {
-      final headers = await _getHeaders();
       final url = '${Config.serverUrl}$_baseUrl/$petIdx?page=$page&limit=$limit';
 
-      final response = await http.get(
+      final response = await AuthHttpClient.get(
         Uri.parse(url),
-        headers: headers,
       );
 
       if (response.statusCode == 200) {
@@ -73,19 +46,16 @@ class DonationHistoryService {
     required DonationHistoryCreateRequest request,
   }) async {
     try {
-      final headers = await _getHeaders();
       final url = '${Config.serverUrl}$_baseUrl/$petIdx';
 
       if (kDebugMode) {
         print('[DonationHistoryService] addHistory 요청');
         print('[DonationHistoryService] URL: $url');
-        print('[DonationHistoryService] Headers: $headers');
         print('[DonationHistoryService] Body: ${jsonEncode(request.toJson())}');
       }
 
-      final response = await http.post(
+      final response = await AuthHttpClient.post(
         Uri.parse(url),
-        headers: headers,
         body: jsonEncode(request.toJson()),
       );
 
@@ -117,14 +87,12 @@ class DonationHistoryService {
     required List<DonationHistoryCreateRequest> requests,
   }) async {
     try {
-      final headers = await _getHeaders();
       final url = '${Config.serverUrl}$_baseUrl/$petIdx/bulk';
 
       final body = requests.map((r) => r.toJson()).toList();
 
-      final response = await http.post(
+      final response = await AuthHttpClient.post(
         Uri.parse(url),
-        headers: headers,
         body: jsonEncode(body),
       );
 
@@ -148,12 +116,10 @@ class DonationHistoryService {
     required DonationHistoryUpdateRequest request,
   }) async {
     try {
-      final headers = await _getHeaders();
       final url = '${Config.serverUrl}$_baseUrl/$historyIdx';
 
-      final response = await http.put(
+      final response = await AuthHttpClient.put(
         Uri.parse(url),
-        headers: headers,
         body: jsonEncode(request.toJson()),
       );
 
@@ -175,12 +141,10 @@ class DonationHistoryService {
     required int historyIdx,
   }) async {
     try {
-      final headers = await _getHeaders();
       final url = '${Config.serverUrl}$_baseUrl/$historyIdx';
 
-      final response = await http.delete(
+      final response = await AuthHttpClient.delete(
         Uri.parse(url),
-        headers: headers,
       );
 
       if (response.statusCode == 204) {
