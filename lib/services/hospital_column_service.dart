@@ -126,10 +126,31 @@ class HospitalColumnService {
     }
   }
 
-  // 칼럼 상세 조회 (모든 사용자)
+  // 공개 칼럼 상세 조회 (인증 불필요 - 웰컴 페이지 등 로그인 전 화면에서 사용)
+  static Future<HospitalColumn> getPublicColumnDetail(int columnIdx) async {
+    final endpoints = [
+      '${Config.serverUrl}/api/public/columns/$columnIdx',
+      '$publicBaseUrl/columns/$columnIdx',
+    ];
+
+    for (final endpoint in endpoints) {
+      try {
+        final response = await http.get(Uri.parse(endpoint));
+        if (response.statusCode == 200) {
+          final data = jsonDecode(utf8.decode(response.bodyBytes));
+          return HospitalColumn.fromJson(data);
+        }
+      } catch (_) {
+        continue;
+      }
+    }
+
+    throw Exception('칼럼을 불러오지 못했습니다.');
+  }
+
+  // 칼럼 상세 조회 (인증된 사용자 - 미발행 칼럼도 조회 가능)
   static Future<HospitalColumn> getColumnDetail(int columnIdx) async {
     try {
-      // 인증된 사용자로 시도 (미발행 칼럼도 조회 가능)
       final response = await AuthHttpClient.get(
         Uri.parse('$baseUrl/columns/$columnIdx'),
       );
