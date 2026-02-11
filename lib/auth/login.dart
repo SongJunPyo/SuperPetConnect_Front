@@ -277,6 +277,13 @@ class _LoginScreenState extends State<LoginScreen> {
   // 모바일: 네이버 SDK로 로그인 후 서버에 토큰 전달
   void _naverLoginMobile() async {
     try {
+      // 먼저 로그아웃 상태로 초기화 (이전 세션 클리어)
+      try {
+        await FlutterNaverLogin.logOut();
+      } catch (e) {
+        // 기존 세션 없음 (정상)
+      }
+
       showDialog(
         context: context,
         barrierDismissible: false,

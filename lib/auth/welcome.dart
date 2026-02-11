@@ -107,6 +107,7 @@ class _WelcomeScreenState extends State<WelcomeScreen>
                 }
 
                 final detailColumn = snapshot.data!;
+
                 final displayNickname =
                     (detailColumn.authorNickname != null &&
                             detailColumn.authorNickname!.toLowerCase() !=
@@ -312,17 +313,15 @@ class _WelcomeScreenState extends State<WelcomeScreen>
     });
 
     try {
-      final futures = await Future.wait([
-        DashboardService.getPublicColumns(
-          limit: DashboardService.dashboardColumnLimit,
-        ),
-        DashboardService.getPublicNotices(
-          limit: DashboardService.dashboardNoticeLimit,
-        ),
-      ]);
+      // 통합 대시보드 API 사용 (인증 불필요)
+      final dashboardData = await DashboardService.getDashboardData(
+        donationLimit: 0, // 헌혈 글은 필요 없음
+        columnLimit: DashboardService.dashboardColumnLimit,
+        noticeLimit: DashboardService.dashboardNoticeLimit,
+      );
 
-      final columnPosts = futures[0] as List<ColumnPost>;
-      final noticePosts = futures[1] as List<NoticePost>;
+      final columnPosts = dashboardData.data.columns;
+      final noticePosts = dashboardData.data.notices;
 
       // 칼럼 변환
       final sortedColumns =
@@ -413,6 +412,16 @@ class _WelcomeScreenState extends State<WelcomeScreen>
         isLoadingColumns = false;
         isLoadingNotices = false;
       });
+      // 사용자에게 에러 표시
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('데이터를 불러오는 중 오류가 발생했습니다.'),
+            backgroundColor: AppTheme.error,
+            duration: const Duration(seconds: 2),
+          ),
+        );
+      }
     }
   }
 
