@@ -8,6 +8,9 @@ import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter_naver_login/flutter_naver_login.dart';
+import 'package:flutter_naver_login/interface/types/naver_login_status.dart';
+import 'package:flutter_naver_login/interface/types/naver_login_result.dart';
+import 'package:flutter_naver_login/interface/types/naver_token.dart';
 import '../utils/config.dart';
 import '../utils/app_theme.dart';
 import '../widgets/app_button.dart';
@@ -293,8 +296,8 @@ class _LoginScreenState extends State<LoginScreen> {
       }
 
       // 네이버 SDK에서 access token 추출
-      final NaverAccessToken naverToken =
-          await FlutterNaverLogin.currentAccessToken;
+      final NaverToken naverToken =
+          await FlutterNaverLogin.getCurrentAccessToken();
 
       // 서버에 네이버 access token 전달
       final response = await http
