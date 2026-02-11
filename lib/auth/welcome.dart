@@ -44,7 +44,8 @@ class _WelcomeScreenState extends State<WelcomeScreen>
   }
 
   void _showColumnBottomSheet(HospitalColumn column) {
-    final detailFuture = HospitalColumnService.getColumnDetail(
+    // 웰컴 페이지는 로그인 전 상태이므로 공개 API 사용 (인증 불필요)
+    final detailFuture = HospitalColumnService.getPublicColumnDetail(
       column.columnIdx,
     );
 
