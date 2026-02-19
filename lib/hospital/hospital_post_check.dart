@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'dart:ui' as ui;
-import '../models/hospital_post_model.dart';
+import '../models/unified_post_model.dart';
 import '../models/donation_application_model.dart';
 import '../models/post_time_item_model.dart';
 import '../services/hospital_post_service.dart';
@@ -21,8 +21,8 @@ class HospitalPostCheck extends StatefulWidget {
 
 class _HospitalPostCheckState extends State<HospitalPostCheck>
     with SingleTickerProviderStateMixin {
-  List<HospitalPost> posts = [];
-  List<HospitalPost> filteredPosts = [];
+  List<UnifiedPostModel> posts = [];
+  List<UnifiedPostModel> filteredPosts = [];
   List<PostTimeItem> postTimeItems = [];
   List<PostTimeItem> filteredPostTimeItems = [];
   List<RejectedPost> rejectedPosts = [];
@@ -93,7 +93,7 @@ class _HospitalPostCheckState extends State<HospitalPostCheck>
                 filteredPosts
                     .where(
                       (post) => _isSameDay(
-                        DateTime.parse(post.createdDate),
+                        post.createdDate,
                         selectedDate!,
                       ),
                     )
@@ -123,7 +123,7 @@ class _HospitalPostCheckState extends State<HospitalPostCheck>
                 filteredPosts
                     .where(
                       (post) => _isSameDay(
-                        DateTime.parse(post.createdDate),
+                        post.createdDate,
                         selectedDate!,
                       ),
                     )
@@ -269,7 +269,7 @@ class _HospitalPostCheckState extends State<HospitalPostCheck>
         case 1:
           // 모집대기, 헌혈모집: 기존 게시글 API 사용
           final loadedPosts =
-              await HospitalPostService.getHospitalPostsForCurrentUser();
+              await HospitalPostService.getUnifiedPostModelsForCurrentUser();
           if (mounted) {
             setState(() {
               posts = loadedPosts;
@@ -338,7 +338,7 @@ class _HospitalPostCheckState extends State<HospitalPostCheck>
         default:
           // 기본적으로 전체 게시글 로드
           final loadedPosts =
-              await HospitalPostService.getHospitalPostsForCurrentUser();
+              await HospitalPostService.getUnifiedPostModelsForCurrentUser();
           if (mounted) {
             setState(() {
               posts = loadedPosts;
@@ -674,7 +674,7 @@ class _HospitalPostCheckState extends State<HospitalPostCheck>
     );
   }
 
-  Widget _buildPostListItem(HospitalPost post) {
+  Widget _buildPostListItem(UnifiedPostModel post) {
     return InkWell(
       onTap: () => _showPostBottomSheet(post),
       child: Container(
@@ -729,7 +729,7 @@ class _HospitalPostCheckState extends State<HospitalPostCheck>
               width: 80,
               alignment: Alignment.center,
               child: Text(
-                _formatDate(post.createdDate),
+                DateFormat('MM.dd').format(post.createdDate),
                 style: AppTheme.bodySmallStyle.copyWith(
                   fontSize: 11,
                   color: Colors.grey[600],
@@ -1068,7 +1068,7 @@ class _HospitalPostCheckState extends State<HospitalPostCheck>
               width: 80,
               alignment: Alignment.center,
               child: Text(
-                _formatDate(post.createdDate),
+                DateFormat('MM.dd').format(DateTime.parse(post.createdDate)),
                 style: AppTheme.bodySmallStyle.copyWith(
                   fontSize: 11,
                   color: Colors.grey[600],
@@ -1127,7 +1127,7 @@ class _HospitalPostCheckState extends State<HospitalPostCheck>
     );
   }
 
-  void _showPostBottomSheet(HospitalPost post) {
+  void _showPostBottomSheet(UnifiedPostModel post) {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -1806,7 +1806,7 @@ class _HospitalPostCheckState extends State<HospitalPostCheck>
 
 // 바텀시트 위젯 - 사용자 헌혈 모집 게시글 페이지 스타일로 변경
 class PostDetailBottomSheet extends StatefulWidget {
-  final HospitalPost post;
+  final UnifiedPostModel post;
   final VoidCallback onDeleted;
 
   const PostDetailBottomSheet({
@@ -1838,7 +1838,7 @@ class _PostDetailBottomSheetState extends State<PostDetailBottomSheet> {
       });
 
       final response = await HospitalPostService.getApplicants(
-        widget.post.postIdx.toString(),
+        widget.post.id.toString(),
       );
       setState(() {
         applicants = response.applications;
@@ -1875,7 +1875,7 @@ class _PostDetailBottomSheetState extends State<PostDetailBottomSheet> {
 
     if (confirm == true) {
       try {
-        await HospitalPostService.deletePost(widget.post.postIdx.toString());
+        await HospitalPostService.deletePost(widget.post.id.toString());
 
         if (mounted) {
           Navigator.of(context).pop(); // 바텀시트 닫기
@@ -1925,7 +1925,7 @@ class _PostDetailBottomSheetState extends State<PostDetailBottomSheet> {
               )
               : null,
       postTitle: widget.post.title,
-      hospitalName: widget.post.nickname,
+      hospitalName: widget.post.hospitalNickname ?? widget.post.hospitalName,
     );
 
     showModalBottomSheet(
@@ -1978,7 +1978,7 @@ class _PostDetailBottomSheetState extends State<PostDetailBottomSheet> {
               )
               : null,
       postTitle: widget.post.title,
-      hospitalName: widget.post.nickname,
+      hospitalName: widget.post.hospitalNickname ?? widget.post.hospitalName,
     );
 
     showModalBottomSheet(
@@ -2130,7 +2130,7 @@ class _PostDetailBottomSheetState extends State<PostDetailBottomSheet> {
                                 ),
                               ),
                               Text(
-                                widget.post.nickname,
+                                widget.post.hospitalNickname ?? widget.post.hospitalName,
                                 style: AppTheme.bodyMediumStyle.copyWith(
                                   fontWeight: FontWeight.w600,
                                   color: AppTheme.textPrimary,
@@ -2142,7 +2142,7 @@ class _PostDetailBottomSheetState extends State<PostDetailBottomSheet> {
                           Text(
                             DateFormat(
                               'yy.MM.dd',
-                            ).format(DateTime.parse(widget.post.createdDate)),
+                            ).format(widget.post.createdDate),
                             style: AppTheme.bodySmallStyle.copyWith(
                               color: AppTheme.textSecondary,
                             ),
@@ -2169,7 +2169,7 @@ class _PostDetailBottomSheetState extends State<PostDetailBottomSheet> {
                           ),
                           Expanded(
                             child: Text(
-                              widget.post.name,
+                              widget.post.hospitalNickname ?? widget.post.hospitalName,
                               style: AppTheme.bodyMediumStyle.copyWith(
                                 fontWeight: FontWeight.w600,
                                 color: AppTheme.textPrimary,
@@ -2212,7 +2212,7 @@ class _PostDetailBottomSheetState extends State<PostDetailBottomSheet> {
                       Row(
                         children: [
                           Icon(
-                            widget.post.animalTypeString == "dog"
+                            widget.post.animalType == 0
                                 ? FontAwesomeIcons.dog
                                 : FontAwesomeIcons.cat,
                             size: 16,
@@ -2228,7 +2228,7 @@ class _PostDetailBottomSheetState extends State<PostDetailBottomSheet> {
                           ),
                           Expanded(
                             child: Text(
-                              widget.post.animalTypeText,
+                              widget.post.animalTypeKorean,
                               style: AppTheme.bodyMediumStyle.copyWith(
                                 fontWeight: FontWeight.w600,
                                 color: AppTheme.textPrimary,
@@ -2269,8 +2269,7 @@ class _PostDetailBottomSheetState extends State<PostDetailBottomSheet> {
                       // 설명글 (있는 경우만)
                       if ((widget.post.contentDelta != null &&
                               widget.post.contentDelta!.isNotEmpty) ||
-                          (widget.post.description != null &&
-                              widget.post.description!.isNotEmpty)) ...[
+                          widget.post.description.isNotEmpty) ...[
                         const SizedBox(height: 12),
                         Container(
                           width: double.infinity,
@@ -2622,7 +2621,7 @@ class _PostDetailBottomSheetState extends State<PostDetailBottomSheet> {
   }
 
   Widget _buildDateTimeDropdown() {
-    if (widget.post.timeRanges.isEmpty) {
+    if (widget.post.timeRanges == null || widget.post.timeRanges!.isEmpty) {
       return Container(
         margin: const EdgeInsets.only(bottom: 8.0),
         padding: const EdgeInsets.all(12.0),
@@ -2645,8 +2644,8 @@ class _PostDetailBottomSheetState extends State<PostDetailBottomSheet> {
     final Map<String, List<TimeRange>> groupedByDate = {};
     final Set<String> seenTimeSlots = {}; // 중복 체크용
 
-    for (final timeRange in widget.post.timeRanges) {
-      final dateStr = timeRange.date ?? widget.post.createdDate;
+    for (final timeRange in widget.post.timeRanges!) {
+      final dateStr = timeRange.date ?? widget.post.createdDate.toString().split(' ')[0];
       // 날짜+시간+팀으로 고유키 생성하여 중복 체크
       final uniqueKey = '$dateStr-${timeRange.time}-${timeRange.team}';
 

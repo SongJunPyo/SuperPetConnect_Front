@@ -1,6 +1,6 @@
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
-import '../models/hospital_post_model.dart';
+import '../models/unified_post_model.dart';
 import '../models/donation_application_model.dart';
 import '../models/post_time_item_model.dart';
 import '../utils/config.dart';
@@ -17,7 +17,7 @@ class HospitalPostService {
   }
 
   // 병원의 헌혈 게시글 목록 조회
-  static Future<List<HospitalPost>> getHospitalPosts({
+  static Future<List<UnifiedPostModel>> getUnifiedPostModels({
     String? hospitalCode,
   }) async {
     try {
@@ -35,7 +35,7 @@ class HospitalPostService {
         if (data is List) {
           final posts =
               data.map((post) {
-                return HospitalPost.fromJson(post);
+                return UnifiedPostModel.fromJson(post);
               }).toList();
           return posts;
         }
@@ -43,7 +43,7 @@ class HospitalPostService {
         else if (data is Map && data['posts'] != null) {
           final posts =
               (data['posts'] as List).map((post) {
-                return HospitalPost.fromJson(post);
+                return UnifiedPostModel.fromJson(post);
               }).toList();
           return posts;
         }
@@ -58,17 +58,17 @@ class HospitalPostService {
   }
 
   // 현재 병원 사용자의 게시글만 조회
-  static Future<List<HospitalPost>> getHospitalPostsForCurrentUser() async {
+  static Future<List<UnifiedPostModel>> getUnifiedPostModelsForCurrentUser() async {
     try {
       final hospitalCode = await _getHospitalCode();
 
       if (hospitalCode == null || hospitalCode.isEmpty) {
-        return await getHospitalPosts();
+        return await getUnifiedPostModels();
       }
 
       // 먼저 기존 hospital API 시도
       try {
-        final hospitalPosts = await _getHospitalPostsViaHospitalAPI();
+        final hospitalPosts = await _getUnifiedPostModelsViaHospitalAPI();
         if (hospitalPosts.isNotEmpty) {
           return hospitalPosts;
         }
@@ -78,17 +78,17 @@ class HospitalPostService {
       }
 
       // hospital API가 실패하거나 빈 결과면 필터링 API 시도
-      final filteredPosts = await getHospitalPosts(hospitalCode: hospitalCode);
+      final filteredPosts = await getUnifiedPostModels(hospitalCode: hospitalCode);
       if (filteredPosts.isNotEmpty) {
         return filteredPosts;
       }
 
       // 모두 실패하면 전체 게시글 조회
-      return await getHospitalPosts();
+      return await getUnifiedPostModels();
     } catch (e) {
       // 에러 발생 시에도 전체 게시글 조회 시도
       try {
-        return await getHospitalPosts();
+        return await getUnifiedPostModels();
       } catch (fallbackError) {
         rethrow; // 원래 에러 throw
       }
@@ -96,7 +96,7 @@ class HospitalPostService {
   }
 
   // 기존 hospital API 사용
-  static Future<List<HospitalPost>> _getHospitalPostsViaHospitalAPI() async {
+  static Future<List<UnifiedPostModel>> _getUnifiedPostModelsViaHospitalAPI() async {
     final response = await AuthHttpClient.get(
       Uri.parse('${Config.serverUrl}${ApiEndpoints.hospitalPosts}'),
     );
@@ -104,14 +104,14 @@ class HospitalPostService {
     if (response.statusCode == 200) {
       final data = response.parseJsonDynamic();
       debugPrint(
-        '[HospitalPostService] API 응답 데이터 샘플: ${data is List && data.isNotEmpty ? data[0] : data}',
+        '[UnifiedPostModelService] API 응답 데이터 샘플: ${data is List && data.isNotEmpty ? data[0] : data}',
       );
 
       if (data is List) {
-        return data.map((post) => HospitalPost.fromJson(post)).toList();
+        return data.map((post) => UnifiedPostModel.fromJson(post)).toList();
       } else if (data is Map && data['posts'] != null) {
         return (data['posts'] as List)
-            .map((post) => HospitalPost.fromJson(post))
+            .map((post) => UnifiedPostModel.fromJson(post))
             .toList();
       }
       return [];
