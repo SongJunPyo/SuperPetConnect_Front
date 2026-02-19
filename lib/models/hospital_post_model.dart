@@ -1,3 +1,5 @@
+import '../utils/app_constants.dart';
+
 class HospitalPost {
   final int postIdx;
   final String title;
@@ -16,6 +18,12 @@ class HospitalPost {
   final int animalType; // 0: 강아지, 1: 고양이
   final int? viewCount;
 
+  // 긴급 헌혈 시 수혈환자 정보 (모두 nullable)
+  final String? patientName; // 환자 이름
+  final String? breed; // 견종/묘종
+  final int? age; // 나이
+  final String? diagnosis; // 병명/증상
+
   HospitalPost({
     required this.postIdx,
     required this.title,
@@ -33,11 +41,14 @@ class HospitalPost {
     this.contentDelta,
     required this.animalType,
     this.viewCount,
+    this.patientName,
+    this.breed,
+    this.age,
+    this.diagnosis,
   });
 
   factory HospitalPost.fromJson(Map<String, dynamic> json) {
     try {
-
       // 각 필드를 개별적으로 파싱하여 어디서 에러가 발생하는지 확인
       final postIdx = json['postIdx'] ?? json['id'] ?? 0;
 
@@ -65,11 +76,14 @@ class HospitalPost {
       final animalTypeRaw = json['animalType'] ?? json['animal_type'] ?? 0;
       int animalType;
       if (animalTypeRaw is String) {
-        animalType = (animalTypeRaw == 'dog') ? 0 : 1;
+        animalType =
+            (animalTypeRaw == AppConstants.animalTypeDog)
+                ? AppConstants.animalTypeDogNum
+                : AppConstants.animalTypeCatNum;
       } else if (animalTypeRaw is int) {
         animalType = animalTypeRaw;
       } else {
-        animalType = 0; // 기본값: 강아지
+        animalType = AppConstants.animalTypeDogNum; // 기본값: 강아지
       }
       final applicantCountRaw =
           json['applicantCount'] ?? json['applicant_count'] ?? 0;
@@ -105,38 +119,30 @@ class HospitalPost {
         contentDelta: json['content_delta'] ?? json['contentDelta'],
         animalType: animalType,
         viewCount: json['viewCount'] ?? json['view_count'],
+        // 수혈환자 정보
+        patientName: json['patient_name'] ?? json['patientName'],
+        breed: json['breed'],
+        age: json['age'] is int ? json['age'] : (json['age'] != null ? int.tryParse(json['age'].toString()) : null),
+        diagnosis: json['diagnosis'],
       );
     } catch (e) {
       rethrow;
     }
   }
 
-  bool get isUrgent => types == 0;
+  bool get isUrgent => types == AppConstants.postTypeUrgent;
 
-  String get typeText => types == 0 ? '긴급' : '정기';
+  String get typeText => AppConstants.getPostTypeText(types);
 
-  String get statusText {
-    switch (status) {
-      case 0:
-        return '대기';
-      case 1:
-        return '승인';
-      case 2:
-        return '거절';
-      case 3:
-        return '마감';
-      default:
-        return '알 수 없음';
-    }
-  }
+  String get statusText => AppConstants.getPostStatusText(status);
 
-  String get animalTypeText => animalType == 0 ? '강아지' : '고양이';
+  String get animalTypeText => AppConstants.getAnimalTypeText(animalType);
 
   // API에서 사용하는 문자열 형태로 반환
-  String get animalTypeString => animalType == 0 ? 'dog' : 'cat';
+  String get animalTypeString => AppConstants.getAnimalTypeString(animalType);
 
   String get displayBloodType {
-    if (types == 0 && bloodType != null) {
+    if (types == AppConstants.postTypeUrgent && bloodType != null) {
       return bloodType!;
     }
     return '혈액형 무관';
@@ -153,7 +159,6 @@ class TimeRange {
 
   factory TimeRange.fromJson(Map<String, dynamic> json) {
     try {
-
       final id = json['id'];
 
       final time = json['time'] ?? '';

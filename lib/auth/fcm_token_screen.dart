@@ -37,7 +37,6 @@ class _FcmTokenScreenState extends State<FcmTokenScreen> {
         _fcmToken = token ?? 'FCM 토큰을 가져오지 못했습니다. Firebase 설정을 확인하세요.';
       });
 
-
       if (token == null) {
         _showSnackBar('FCM 토큰을 가져오지 못했습니다. Firebase 설정을 확인하세요.');
       } else {

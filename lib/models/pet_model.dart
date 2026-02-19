@@ -56,7 +56,7 @@ class Pet {
       if (value is String) return double.tryParse(value) ?? 0.0;
       return 0.0;
     }
-    
+
     // age_number 안전하게 파싱
     int parseAge(dynamic value) {
       if (value == null) return 0;
@@ -65,7 +65,7 @@ class Pet {
       if (value is double) return value.toInt();
       return 0;
     }
-    
+
     return Pet(
       petIdx: json['pet_idx'] ?? json['pet_id'], // 하위 호환성 지원
       accountIdx: json['account_idx'] ?? json['guardian_idx'], // 하위 호환성 지원
@@ -77,14 +77,40 @@ class Pet {
       ageNumber: parseAge(json['age_number']),
       bloodType: json['blood_type'],
       weightKg: parseWeight(json['weight_kg']),
-      pregnant: json['pregnant'] == null ? false : (json['pregnant'] == 1 || json['pregnant'] == true),
-      vaccinated: json['vaccinated'] == null ? null : (json['vaccinated'] == 1 || json['vaccinated'] == true),
-      hasDisease: json['has_disease'] == null ? null : (json['has_disease'] == 1 || json['has_disease'] == true),
-      hasBirthExperience: json['has_birth_experience'] == null ? null : (json['has_birth_experience'] == 1 || json['has_birth_experience'] == true),
-      prevDonationDate: json['prev_donation_date'] != null ? DateTime.tryParse(json['prev_donation_date']) : null,
-      isNeutered: json['is_neutered'] == null ? null : (json['is_neutered'] == 1 || json['is_neutered'] == true),
-      neuteredDate: json['neutered_date'] != null ? DateTime.tryParse(json['neutered_date']) : null,
-      hasPreventiveMedication: json['has_preventive_medication'] == null ? null : (json['has_preventive_medication'] == 1 || json['has_preventive_medication'] == true),
+      pregnant:
+          json['pregnant'] == null
+              ? false
+              : (json['pregnant'] == 1 || json['pregnant'] == true),
+      vaccinated:
+          json['vaccinated'] == null
+              ? null
+              : (json['vaccinated'] == 1 || json['vaccinated'] == true),
+      hasDisease:
+          json['has_disease'] == null
+              ? null
+              : (json['has_disease'] == 1 || json['has_disease'] == true),
+      hasBirthExperience:
+          json['has_birth_experience'] == null
+              ? null
+              : (json['has_birth_experience'] == 1 ||
+                  json['has_birth_experience'] == true),
+      prevDonationDate:
+          json['prev_donation_date'] != null
+              ? DateTime.tryParse(json['prev_donation_date'])
+              : null,
+      isNeutered:
+          json['is_neutered'] == null
+              ? null
+              : (json['is_neutered'] == 1 || json['is_neutered'] == true),
+      neuteredDate:
+          json['neutered_date'] != null
+              ? DateTime.tryParse(json['neutered_date'])
+              : null,
+      hasPreventiveMedication:
+          json['has_preventive_medication'] == null
+              ? null
+              : (json['has_preventive_medication'] == 1 ||
+                  json['has_preventive_medication'] == true),
       ageMonths: json['age_months'],
     );
   }
@@ -105,38 +131,42 @@ class Pet {
       'pregnant': pregnant ? 1 : 0,
       'vaccinated': vaccinated == null ? null : (vaccinated! ? 1 : 0),
       'has_disease': hasDisease == null ? null : (hasDisease! ? 1 : 0),
-      'has_birth_experience': hasBirthExperience == null ? null : (hasBirthExperience! ? 1 : 0),
+      'has_birth_experience':
+          hasBirthExperience == null ? null : (hasBirthExperience! ? 1 : 0),
       'prev_donation_date': prevDonationDate?.toIso8601String(),
       'is_neutered': isNeutered == null ? null : (isNeutered! ? 1 : 0),
       'neutered_date': neuteredDate?.toIso8601String().split('T')[0], // DATE 형식
-      'has_preventive_medication': hasPreventiveMedication == null ? null : (hasPreventiveMedication! ? 1 : 0),
+      'has_preventive_medication':
+          hasPreventiveMedication == null
+              ? null
+              : (hasPreventiveMedication! ? 1 : 0),
       'age_months': ageMonths,
     };
   }
-  
+
   // 헌혈 가능 여부 판단 (8주 간격)
   bool get canDonate {
     if (prevDonationDate == null) return true; // 첫 헌혈
-    
+
     final now = DateTime.now();
     final daysSince = now.difference(prevDonationDate!).inDays;
-    
+
     return daysSince >= 56; // 8주(56일) 이상 경과
   }
-  
+
   // 다음 헌혈 가능일
   DateTime? get nextDonationDate {
     if (prevDonationDate == null) return null; // 첫 헌혈인 경우
-    
+
     return prevDonationDate!.add(const Duration(days: 56));
   }
-  
+
   // 헌혈 상태 텍스트
   String get donationStatusText {
     if (prevDonationDate == null) {
       return '첫 헌혈 예정';
     }
-    
+
     if (canDonate) {
       return '헌혈 가능';
     } else {
@@ -148,7 +178,12 @@ class Pet {
 
   // 반려동물 정보 표시용 getter
   String get displayInfo {
-    final speciesText = species == 'dog' ? '반려견' : species == 'cat' ? '반려묘' : species;
+    final speciesText =
+        species == 'dog'
+            ? '반려견'
+            : species == 'cat'
+            ? '반려묘'
+            : species;
     final breedText = breed != null ? ' • $breed' : '';
     final bloodText = bloodType != null ? ' • $bloodType형' : '';
     return '$name ($speciesText • $age • ${weightKg}kg$breedText$bloodText)';

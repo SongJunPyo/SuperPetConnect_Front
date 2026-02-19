@@ -17,10 +17,12 @@ class DonationCancellationDialog extends StatefulWidget {
   });
 
   @override
-  State<DonationCancellationDialog> createState() => _DonationCancellationDialogState();
+  State<DonationCancellationDialog> createState() =>
+      _DonationCancellationDialogState();
 }
 
-class _DonationCancellationDialogState extends State<DonationCancellationDialog> {
+class _DonationCancellationDialogState
+    extends State<DonationCancellationDialog> {
   final TextEditingController _reasonController = TextEditingController();
   List<String> reasonTemplates = [];
   bool isSubmitting = false;
@@ -36,9 +38,10 @@ class _DonationCancellationDialogState extends State<DonationCancellationDialog>
 
   Future<void> _loadReasonTemplates() async {
     try {
-      final templates = await CancelledDonationService.getReasonTemplatesForSubject(
-        CancelledSubject.hospital
-      );
+      final templates =
+          await CancelledDonationService.getReasonTemplatesForSubject(
+            CancelledSubject.hospital,
+          );
       setState(() {
         reasonTemplates = templates;
         isLoadingTemplates = false;
@@ -52,9 +55,9 @@ class _DonationCancellationDialogState extends State<DonationCancellationDialog>
 
   void _validateReason() {
     final validation = CancelledDonationService.validateCancellationReason(
-      _reasonController.text
+      _reasonController.text,
     );
-    
+
     setState(() {
       validationMessage = validation['message'];
       validationLevel = validation['level'];
@@ -75,263 +78,276 @@ class _DonationCancellationDialogState extends State<DonationCancellationDialog>
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
             children: [
-            // 제목
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        '헌혈 중지 처리',
-                        style: AppTheme.h3Style.copyWith(fontWeight: FontWeight.w700),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        widget.appliedDonation.postTitle ?? '헌혈 요청',
-                        style: AppTheme.bodyMediumStyle.copyWith(
-                          color: AppTheme.textSecondary,
-                        ),
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ],
-                  ),
-                ),
-                IconButton(
-                  onPressed: () => Navigator.of(context).pop(),
-                  icon: const Icon(Icons.close),
-                ),
-              ],
-            ),
-            const SizedBox(height: AppTheme.spacing20),
-
-            // 반려동물 정보
-            Container(
-              padding: const EdgeInsets.all(AppTheme.spacing16),
-              decoration: BoxDecoration(
-                color: Colors.orange.shade50,
-                borderRadius: BorderRadius.circular(AppTheme.radius12),
-                border: Border.all(color: Colors.orange.shade200),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+              // 제목
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Row(
-                    children: [
-                      Icon(Icons.warning, color: Colors.orange.shade700, size: 20),
-                      const SizedBox(width: AppTheme.spacing8),
-                      Text(
-                        '헌혈 중지 알림',
-                        style: AppTheme.bodyLargeStyle.copyWith(
-                          fontWeight: FontWeight.w600,
-                          color: Colors.orange.shade800,
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          '헌혈 중지 처리',
+                          style: AppTheme.h3Style.copyWith(
+                            fontWeight: FontWeight.w700,
+                          ),
                         ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: AppTheme.spacing8),
-                  Text(
-                    '해당 헌혈 신청을 중지하시겠습니까?\n반려동물: ${widget.appliedDonation.pet?.displayInfo ?? '정보 없음'}',
-                    style: AppTheme.bodyMediumStyle.copyWith(
-                      color: Colors.orange.shade800,
+                        const SizedBox(height: 4),
+                        Text(
+                          widget.appliedDonation.postTitle ?? '헌혈 요청',
+                          style: AppTheme.bodyMediumStyle.copyWith(
+                            color: AppTheme.textSecondary,
+                          ),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ],
                     ),
                   ),
-                  if (widget.appliedDonation.donationTime != null) ...[
-                    const SizedBox(height: AppTheme.spacing8),
+                  IconButton(
+                    onPressed: () => Navigator.of(context).pop(),
+                    icon: const Icon(Icons.close),
+                  ),
+                ],
+              ),
+              const SizedBox(height: AppTheme.spacing20),
+
+              // 반려동물 정보
+              Container(
+                padding: const EdgeInsets.all(AppTheme.spacing16),
+                decoration: BoxDecoration(
+                  color: Colors.orange.shade50,
+                  borderRadius: BorderRadius.circular(AppTheme.radius12),
+                  border: Border.all(color: Colors.orange.shade200),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
                     Row(
                       children: [
-                        Icon(Icons.schedule, size: 16, color: Colors.orange.shade700),
-                        const SizedBox(width: AppTheme.spacing4),
+                        Icon(
+                          Icons.warning,
+                          color: Colors.orange.shade700,
+                          size: 20,
+                        ),
+                        const SizedBox(width: AppTheme.spacing8),
                         Text(
-                          '예정 시간: ${widget.appliedDonation.formattedDateTime}',
-                          style: AppTheme.bodySmallStyle.copyWith(
-                            color: Colors.orange.shade700,
+                          '헌혈 중지 알림',
+                          style: AppTheme.bodyLargeStyle.copyWith(
+                            fontWeight: FontWeight.w600,
+                            color: Colors.orange.shade800,
                           ),
                         ),
                       ],
                     ),
+                    const SizedBox(height: AppTheme.spacing8),
+                    Text(
+                      '해당 헌혈 신청을 중지하시겠습니까?\n반려동물: ${widget.appliedDonation.pet?.displayInfo ?? '정보 없음'}',
+                      style: AppTheme.bodyMediumStyle.copyWith(
+                        color: Colors.orange.shade800,
+                      ),
+                    ),
+                    if (widget.appliedDonation.donationTime != null) ...[
+                      const SizedBox(height: AppTheme.spacing8),
+                      Row(
+                        children: [
+                          Icon(
+                            Icons.schedule,
+                            size: 16,
+                            color: Colors.orange.shade700,
+                          ),
+                          const SizedBox(width: AppTheme.spacing4),
+                          Text(
+                            '예정 시간: ${widget.appliedDonation.formattedDateTime}',
+                            style: AppTheme.bodySmallStyle.copyWith(
+                              color: Colors.orange.shade700,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
                   ],
-                ],
+                ),
               ),
-            ),
 
-            const SizedBox(height: AppTheme.spacing20),
+              const SizedBox(height: AppTheme.spacing20),
 
-            // 취소 사유 템플릿 선택
-            if (!isLoadingTemplates && reasonTemplates.isNotEmpty) ...[
+              // 취소 사유 템플릿 선택
+              if (!isLoadingTemplates && reasonTemplates.isNotEmpty) ...[
+                Text(
+                  '자주 사용하는 중지 사유',
+                  style: AppTheme.bodyLargeStyle.copyWith(
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(height: AppTheme.spacing8),
+                Container(
+                  height: 120,
+                  decoration: BoxDecoration(
+                    border: Border.all(color: AppTheme.lightGray),
+                    borderRadius: BorderRadius.circular(AppTheme.radius8),
+                  ),
+                  child: ListView.builder(
+                    itemCount: reasonTemplates.length,
+                    itemBuilder: (context, index) {
+                      final template = reasonTemplates[index];
+                      return ListTile(
+                        dense: true,
+                        title: Text(template, style: AppTheme.bodySmallStyle),
+                        onTap: () {
+                          setState(() {
+                            _reasonController.text = template;
+                          });
+                          _validateReason();
+                        },
+                      );
+                    },
+                  ),
+                ),
+                const SizedBox(height: AppTheme.spacing20),
+              ],
+
+              // 취소 사유 입력
               Text(
-                '자주 사용하는 중지 사유',
+                '중지 사유 *',
                 style: AppTheme.bodyLargeStyle.copyWith(
                   fontWeight: FontWeight.w600,
                 ),
               ),
               const SizedBox(height: AppTheme.spacing8),
-              Container(
-                height: 120,
-                decoration: BoxDecoration(
-                  border: Border.all(color: AppTheme.lightGray),
-                  borderRadius: BorderRadius.circular(AppTheme.radius8),
+              TextField(
+                controller: _reasonController,
+                maxLines: 4,
+                decoration: InputDecoration(
+                  hintText: '헌혈을 중지하는 사유를 입력해주세요',
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(AppTheme.radius8),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(AppTheme.radius8),
+                    borderSide: BorderSide(
+                      color: AppTheme.primaryBlue,
+                      width: 2,
+                    ),
+                  ),
+                  errorBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(AppTheme.radius8),
+                    borderSide: const BorderSide(color: Colors.red, width: 2),
+                  ),
                 ),
-                child: ListView.builder(
-                  itemCount: reasonTemplates.length,
-                  itemBuilder: (context, index) {
-                    final template = reasonTemplates[index];
-                    return ListTile(
-                      dense: true,
-                      title: Text(
-                        template,
-                        style: AppTheme.bodySmallStyle,
+                onChanged: (value) => _validateReason(),
+              ),
+
+              // 유효성 검사 메시지
+              if (validationMessage != null) ...[
+                const SizedBox(height: AppTheme.spacing8),
+                Container(
+                  padding: const EdgeInsets.all(AppTheme.spacing12),
+                  decoration: BoxDecoration(
+                    color: _getValidationColor().withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(AppTheme.radius8),
+                    border: Border.all(color: _getValidationColor()),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(
+                        _getValidationIcon(),
+                        size: 16,
+                        color: _getValidationColor(),
                       ),
-                      onTap: () {
-                        setState(() {
-                          _reasonController.text = template;
-                        });
-                        _validateReason();
-                      },
-                    );
-                  },
+                      const SizedBox(width: AppTheme.spacing8),
+                      Expanded(
+                        child: Text(
+                          validationMessage!,
+                          style: AppTheme.bodySmallStyle.copyWith(
+                            color: _getValidationColor(),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
-              ),
+              ],
+
               const SizedBox(height: AppTheme.spacing20),
-            ],
 
-            // 취소 사유 입력
-            Text(
-              '중지 사유 *',
-              style: AppTheme.bodyLargeStyle.copyWith(
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-            const SizedBox(height: AppTheme.spacing8),
-            TextField(
-              controller: _reasonController,
-              maxLines: 4,
-              decoration: InputDecoration(
-                hintText: '헌혈을 중지하는 사유를 입력해주세요',
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(AppTheme.radius8),
-                ),
-                focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(AppTheme.radius8),
-                  borderSide: BorderSide(
-                    color: AppTheme.primaryBlue,
-                    width: 2,
-                  ),
-                ),
-                errorBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(AppTheme.radius8),
-                  borderSide: const BorderSide(
-                    color: Colors.red,
-                    width: 2,
-                  ),
-                ),
-              ),
-              onChanged: (value) => _validateReason(),
-            ),
-
-            // 유효성 검사 메시지
-            if (validationMessage != null) ...[
-              const SizedBox(height: AppTheme.spacing8),
+              // 주의사항
               Container(
                 padding: const EdgeInsets.all(AppTheme.spacing12),
                 decoration: BoxDecoration(
-                  color: _getValidationColor().withValues(alpha: 0.1),
+                  color: Colors.red.shade50,
                   borderRadius: BorderRadius.circular(AppTheme.radius8),
-                  border: Border.all(color: _getValidationColor()),
+                  border: Border.all(color: Colors.red.shade200),
                 ),
                 child: Row(
                   children: [
                     Icon(
-                      _getValidationIcon(),
+                      Icons.info_outline,
+                      color: Colors.red.shade600,
                       size: 16,
-                      color: _getValidationColor(),
                     ),
                     const SizedBox(width: AppTheme.spacing8),
                     Expanded(
                       child: Text(
-                        validationMessage!,
+                        '중지 후 관리자 승인이 필요하며, 사용자에게 알림이 발송됩니다.',
                         style: AppTheme.bodySmallStyle.copyWith(
-                          color: _getValidationColor(),
+                          color: Colors.red.shade700,
                         ),
                       ),
                     ),
                   ],
                 ),
               ),
-            ],
 
-            const SizedBox(height: AppTheme.spacing20),
+              const SizedBox(height: AppTheme.spacing20),
 
-            // 주의사항
-            Container(
-              padding: const EdgeInsets.all(AppTheme.spacing12),
-              decoration: BoxDecoration(
-                color: Colors.red.shade50,
-                borderRadius: BorderRadius.circular(AppTheme.radius8),
-                border: Border.all(color: Colors.red.shade200),
-              ),
-              child: Row(
+              // 버튼 영역
+              Row(
                 children: [
-                  Icon(Icons.info_outline, color: Colors.red.shade600, size: 16),
-                  const SizedBox(width: AppTheme.spacing8),
                   Expanded(
-                    child: Text(
-                      '중지 후 관리자 승인이 필요하며, 사용자에게 알림이 발송됩니다.',
-                      style: AppTheme.bodySmallStyle.copyWith(
-                        color: Colors.red.shade700,
+                    child: OutlinedButton(
+                      onPressed: () => Navigator.of(context).pop(),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: AppTheme.textSecondary,
+                        padding: const EdgeInsets.symmetric(
+                          vertical: AppTheme.spacing16,
+                        ),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(AppTheme.radius8),
+                        ),
                       ),
+                      child: const Text('취소'),
+                    ),
+                  ),
+                  const SizedBox(width: AppTheme.spacing12),
+                  Expanded(
+                    child: ElevatedButton(
+                      onPressed: _canSubmit() ? _cancelBloodDonation : null,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.red,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(
+                          vertical: AppTheme.spacing16,
+                        ),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(AppTheme.radius8),
+                        ),
+                      ),
+                      child:
+                          isSubmitting
+                              ? const SizedBox(
+                                width: 20,
+                                height: 20,
+                                child: CircularProgressIndicator(
+                                  color: Colors.white,
+                                  strokeWidth: 2,
+                                ),
+                              )
+                              : const Text('헌혈 중지'),
                     ),
                   ),
                 ],
               ),
-            ),
-
-            const SizedBox(height: AppTheme.spacing20),
-
-            // 버튼 영역
-            Row(
-              children: [
-                Expanded(
-                  child: OutlinedButton(
-                    onPressed: () => Navigator.of(context).pop(),
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: AppTheme.textSecondary,
-                      padding: const EdgeInsets.symmetric(vertical: AppTheme.spacing16),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(AppTheme.radius8),
-                      ),
-                    ),
-                    child: const Text('취소'),
-                  ),
-                ),
-                const SizedBox(width: AppTheme.spacing12),
-                Expanded(
-                  child: ElevatedButton(
-                    onPressed: _canSubmit() ? _cancelBloodDonation : null,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.red,
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(vertical: AppTheme.spacing16),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(AppTheme.radius8),
-                      ),
-                    ),
-                    child: isSubmitting 
-                        ? const SizedBox(
-                            width: 20,
-                            height: 20,
-                            child: CircularProgressIndicator(
-                              color: Colors.white,
-                              strokeWidth: 2,
-                            ),
-                          )
-                        : const Text('헌혈 중지'),
-                  ),
-                ),
-              ],
-            ),
             ],
           ),
         ),
@@ -368,7 +384,7 @@ class _DonationCancellationDialogState extends State<DonationCancellationDialog>
   bool _canSubmit() {
     if (isSubmitting) return false;
     if (validationLevel == 'error') return false;
-    
+
     final reasonText = _reasonController.text.trim();
     return reasonText.isNotEmpty && reasonText.length >= 2;
   }
@@ -382,7 +398,7 @@ class _DonationCancellationDialogState extends State<DonationCancellationDialog>
 
     try {
       final reason = _reasonController.text.trim();
-      
+
       // 병원용 1차 헌혈 중단 처리 API 호출
       final result = await CancelledDonationService.cancelByHospital(
         widget.appliedDonation.appliedDonationIdx!,
@@ -399,14 +415,14 @@ class _DonationCancellationDialogState extends State<DonationCancellationDialog>
           petName: widget.appliedDonation.pet?.name,
           postTitle: widget.appliedDonation.postTitle,
         );
-        
+
         widget.onCancelled(tempCancelledDonation);
         Navigator.of(context).pop();
-        
+
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
-              result['message'] ?? '1차 중단 처리되었습니다! 관리자 승인 후 최종 중단됩니다.'
+              result['message'] ?? '1차 중단 처리되었습니다! 관리자 승인 후 최종 중단됩니다.',
             ),
             backgroundColor: Colors.orange,
             duration: const Duration(seconds: 4),
@@ -418,7 +434,7 @@ class _DonationCancellationDialogState extends State<DonationCancellationDialog>
         setState(() {
           isSubmitting = false;
         });
-        
+
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('헌혈 중지 처리 실패: $e'),

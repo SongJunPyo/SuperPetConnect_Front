@@ -1,24 +1,19 @@
 import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import '../models/notification_model.dart';
 import '../models/notification_types.dart';
 import '../services/notification_api_service.dart';
 import '../services/unified_notification_manager.dart';
 import '../services/notification_service.dart';
+import '../utils/preferences_manager.dart';
 import '../widgets/unified_notification_page.dart';
 // 웹 브라우저 알림 (조건부 import)
 import '../services/web_notification_helper_stub.dart'
     if (dart.library.html) '../services/web_notification_helper.dart';
 
 /// 알림 연결 상태
-enum ConnectionStatus {
-  disconnected,
-  connecting,
-  connected,
-  error,
-}
+enum ConnectionStatus { disconnected, connecting, connected, error }
 
 /// NotificationConnectionStatus를 ConnectionStatus로 변환
 ConnectionStatus _convertConnectionStatus(NotificationConnectionStatus status) {
@@ -62,7 +57,8 @@ class NotificationProvider extends ChangeNotifier {
   UnifiedNotificationManager? _notificationManager;
 
   // === Getters ===
-  List<NotificationModel> get notifications => List.unmodifiable(_notifications);
+  List<NotificationModel> get notifications =>
+      List.unmodifiable(_notifications);
   int get unreadCount => _unreadCount;
   bool get isLoading => _isLoading;
   bool get isInitialized => _isInitialized;
@@ -77,7 +73,9 @@ class NotificationProvider extends ChangeNotifier {
   /// Provider 초기화
   /// 앱 시작 시 또는 로그인 후 호출됩니다.
   Future<void> initialize() async {
-    debugPrint('[NotificationProvider] initialize() 호출 - isInitialized: $_isInitialized, isInitializing: $_isInitializing');
+    debugPrint(
+      '[NotificationProvider] initialize() 호출 - isInitialized: $_isInitialized, isInitializing: $_isInitializing',
+    );
     if (_isInitialized) {
       debugPrint('[NotificationProvider] 이미 초기화됨, 건너뜀');
       return;
@@ -94,8 +92,7 @@ class NotificationProvider extends ChangeNotifier {
 
     try {
       // 사용자 타입 확인
-      final prefs = await SharedPreferences.getInstance();
-      final accountType = prefs.getInt('account_type');
+      final accountType = await PreferencesManager.getAccountType();
 
       if (accountType == null) {
         _connectionStatus = ConnectionStatus.disconnected;
@@ -127,13 +124,17 @@ class NotificationProvider extends ChangeNotifier {
       debugPrint('[NotificationProvider] loadNotifications 호출 전');
       _isLoading = false;
       await loadNotifications(refresh: true);
-      debugPrint('[NotificationProvider] loadNotifications 완료 - 알림 수: ${_notifications.length}');
+      debugPrint(
+        '[NotificationProvider] loadNotifications 완료 - 알림 수: ${_notifications.length}',
+      );
 
       _isInitialized = true;
       _isInitializing = false;
       _connectionStatus = ConnectionStatus.connected;
       _isLoading = false;
-      debugPrint('[NotificationProvider] 초기화 완료 - isInitialized: $_isInitialized, connectionStatus: $_connectionStatus');
+      debugPrint(
+        '[NotificationProvider] 초기화 완료 - isInitialized: $_isInitialized, connectionStatus: $_connectionStatus',
+      );
       notifyListeners(); // 초기화 완료 후 UI 갱신
     } catch (e) {
       _errorMessage = '알림 시스템 초기화 실패: $e';
@@ -172,12 +173,11 @@ class NotificationProvider extends ChangeNotifier {
 
     // 연결 상태 스트림 구독
     _connectionSubscription?.cancel();
-    _connectionSubscription = _notificationManager!.connectionStatusStream.listen(
-      (status) {
-        _connectionStatus = _convertConnectionStatus(status);
-        notifyListeners();
-      },
-    );
+    _connectionSubscription = _notificationManager!.connectionStatusStream
+        .listen((status) {
+          _connectionStatus = _convertConnectionStatus(status);
+          notifyListeners();
+        });
   }
 
   // === 알림 목록 관리 ===
@@ -249,7 +249,9 @@ class NotificationProvider extends ChangeNotifier {
   Future<void> refresh() async {
     debugPrint('[NotificationProvider] refresh() 호출');
     await loadNotifications(refresh: true);
-    debugPrint('[NotificationProvider] refresh() 완료 - 알림 수: ${_notifications.length}');
+    debugPrint(
+      '[NotificationProvider] refresh() 완료 - 알림 수: ${_notifications.length}',
+    );
   }
 
   /// 다음 페이지 로드
@@ -306,56 +308,56 @@ class NotificationProvider extends ChangeNotifier {
     try {
       // ScaffoldMessenger를 통해 SnackBar 표시
       ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Row(
-          children: [
-            const Icon(Icons.notifications, color: Colors.white, size: 20),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    notification.title,
-                    style: const TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 14,
+        SnackBar(
+          content: Row(
+            children: [
+              const Icon(Icons.notifications, color: Colors.white, size: 20),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      notification.title,
+                      style: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 14,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    notification.content,
-                    style: const TextStyle(fontSize: 12),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ],
+                    const SizedBox(height: 2),
+                    Text(
+                      notification.content,
+                      style: const TextStyle(fontSize: 12),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
+          backgroundColor: const Color(0xFF3182F6),
+          behavior: SnackBarBehavior.floating,
+          margin: const EdgeInsets.all(16),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+          duration: const Duration(seconds: 4),
+          action: SnackBarAction(
+            label: '보기',
+            textColor: Colors.white,
+            onPressed: () {
+              // 알림 페이지로 이동
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) => const UnifiedNotificationPage(),
+                ),
+              );
+            },
+          ),
         ),
-        backgroundColor: const Color(0xFF3182F6),
-        behavior: SnackBarBehavior.floating,
-        margin: const EdgeInsets.all(16),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-        duration: const Duration(seconds: 4),
-        action: SnackBarAction(
-          label: '보기',
-          textColor: Colors.white,
-          onPressed: () {
-            // 알림 페이지로 이동
-            Navigator.of(context).push(
-              MaterialPageRoute(
-                builder: (_) => const UnifiedNotificationPage(),
-              ),
-            );
-          },
-        ),
-      ),
-    );
+      );
       debugPrint('[NotificationProvider] 토스트 알림 표시 완료');
     } catch (e) {
       debugPrint('[NotificationProvider] 토스트 알림 표시 실패: $e');
@@ -371,7 +373,9 @@ class NotificationProvider extends ChangeNotifier {
 
   /// 개별 알림 읽음 처리
   Future<bool> markAsRead(int notificationId) async {
-    debugPrint('[NotificationProvider] markAsRead 호출 - notificationId: $notificationId');
+    debugPrint(
+      '[NotificationProvider] markAsRead 호출 - notificationId: $notificationId',
+    );
     try {
       final success = await NotificationApiService.markAsRead(notificationId);
       debugPrint('[NotificationProvider] markAsRead API 결과: $success');
@@ -386,7 +390,9 @@ class NotificationProvider extends ChangeNotifier {
           final oldNotification = _notifications[index];
           _notifications[index] = _notifications[index].markAsRead();
           _unreadCount = _unreadCount > 0 ? _unreadCount - 1 : 0;
-          debugPrint('[NotificationProvider] 읽음 처리 완료 - 이전 isRead: ${oldNotification.isRead}, 현재 isRead: ${_notifications[index].isRead}');
+          debugPrint(
+            '[NotificationProvider] 읽음 처리 완료 - 이전 isRead: ${oldNotification.isRead}, 현재 isRead: ${_notifications[index].isRead}',
+          );
           notifyListeners();
         } else {
           debugPrint('[NotificationProvider] 읽음 처리 스킵 - 이미 읽음 상태');
@@ -423,7 +429,9 @@ class NotificationProvider extends ChangeNotifier {
   /// 개별 알림 삭제
   Future<bool> deleteNotification(int notificationId) async {
     try {
-      final success = await NotificationApiService.deleteNotification(notificationId);
+      final success = await NotificationApiService.deleteNotification(
+        notificationId,
+      );
 
       if (success) {
         final index = _notifications.indexWhere(
@@ -450,7 +458,9 @@ class NotificationProvider extends ChangeNotifier {
   /// 다건 알림 삭제
   Future<bool> deleteNotifications(List<int> notificationIds) async {
     try {
-      final success = await NotificationApiService.deleteNotifications(notificationIds);
+      final success = await NotificationApiService.deleteNotifications(
+        notificationIds,
+      );
 
       if (success) {
         // 삭제된 알림 중 읽지 않은 개수 계산
@@ -458,15 +468,16 @@ class NotificationProvider extends ChangeNotifier {
         for (final id in notificationIds) {
           final notification = _notifications.firstWhere(
             (n) => n.notificationId == id,
-            orElse: () => NotificationModel(
-              notificationId: 0,
-              userId: 0,
-              typeId: 0,
-              title: '',
-              content: '',
-              createdAt: DateTime.now(),
-              isRead: true,
-            ),
+            orElse:
+                () => NotificationModel(
+                  notificationId: 0,
+                  userId: 0,
+                  typeId: 0,
+                  title: '',
+                  content: '',
+                  createdAt: DateTime.now(),
+                  isRead: true,
+                ),
           );
           if (!notification.isRead && notification.notificationId != 0) {
             unreadDeletedCount++;
@@ -474,8 +485,13 @@ class NotificationProvider extends ChangeNotifier {
         }
 
         // 목록에서 삭제된 알림 제거
-        _notifications.removeWhere((n) => notificationIds.contains(n.notificationId));
-        _unreadCount = (_unreadCount - unreadDeletedCount).clamp(0, _unreadCount);
+        _notifications.removeWhere(
+          (n) => notificationIds.contains(n.notificationId),
+        );
+        _unreadCount = (_unreadCount - unreadDeletedCount).clamp(
+          0,
+          _unreadCount,
+        );
         notifyListeners();
       }
 

@@ -668,7 +668,9 @@ class _AdminHospitalDetailScreenState extends State<AdminHospitalDetailScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('삭제 실패: ${e.toString().replaceAll('Exception: ', '')}'),
+            content: Text(
+              '삭제 실패: ${e.toString().replaceAll('Exception: ', '')}',
+            ),
             backgroundColor: Colors.red,
           ),
         );
@@ -790,7 +792,9 @@ class _AdminHospitalDetailScreenState extends State<AdminHospitalDetailScreen> {
                                     vertical: 6.0,
                                   ),
                                   decoration: BoxDecoration(
-                                    color: _getStatusColor().withValues(alpha: 0.15),
+                                    color: _getStatusColor().withValues(
+                                      alpha: 0.15,
+                                    ),
                                     borderRadius: BorderRadius.circular(12.0),
                                   ),
                                   child: Text(
@@ -974,7 +978,7 @@ class _AdminHospitalDetailScreenState extends State<AdminHospitalDetailScreen> {
                                       isLoading
                                           ? null
                                           : (value) => _toggleColumnActive(),
-                                  activeColor: Colors.green,
+                                  activeThumbColor: Colors.green,
                                 ),
                               ],
                             ),

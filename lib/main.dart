@@ -85,6 +85,7 @@ void main() async {
   // 🔥 release 모드에서도 print() 로그 보이게
   const bool kReleaseMode = bool.fromEnvironment('dart.vm.product');
   if (kReleaseMode) {
+    // ignore: avoid_print
     debugPrint = (String? message, {int? wrapWidth}) => print(message);
   }
   // 0. 환경변수 로드 (가장 먼저)

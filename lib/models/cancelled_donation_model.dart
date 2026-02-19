@@ -46,15 +46,17 @@ class CancelledDonation {
       petName: json['pet_name'],
       petBloodType: json['pet_blood_type'],
       petWeight: json['pet_weight']?.toDouble(),
-      donationTime: json['donation_time'] != null
-          ? DateTime.parse(json['donation_time'])
-          : null,
+      donationTime:
+          json['donation_time'] != null
+              ? DateTime.parse(json['donation_time'])
+              : null,
       postTitle: json['post_title'],
       hospitalName: json['hospital_name'],
       userName: json['user_name'],
-      appliedDonation: json['applied_donation'] != null
-          ? AppliedDonation.fromJson(json['applied_donation'])
-          : null,
+      appliedDonation:
+          json['applied_donation'] != null
+              ? AppliedDonation.fromJson(json['applied_donation'])
+              : null,
     );
   }
 
@@ -194,10 +196,10 @@ class CancelledDonation {
 
 // 취소 주체 상수
 class CancelledSubject {
-  static const int user = 0;     // 사용자
+  static const int user = 0; // 사용자
   static const int hospital = 1; // 병원
-  static const int system = 2;   // 시스템
-  static const int admin = 3;    // 관리자
+  static const int system = 2; // 시스템
+  static const int admin = 3; // 관리자
 }
 
 // 병원별 취소 통계를 위한 모델
@@ -237,9 +239,10 @@ class HospitalCancellationStats {
       hospitalCancelled: json['cancelled_by_hospital'] ?? 0,
       systemCancelled: json['cancelled_by_system'] ?? 0,
       adminCancelled: json['cancelled_by_admin'] ?? 0,
-      cancelledDonations: (json['cancelled_donations'] as List? ?? [])
-          .map((item) => CancelledDonation.fromJson(item))
-          .toList(),
+      cancelledDonations:
+          (json['cancelled_donations'] as List? ?? [])
+              .map((item) => CancelledDonation.fromJson(item))
+              .toList(),
     );
   }
 
@@ -279,10 +282,13 @@ class PostCancellationStatus {
       totalApplications: json['total_applications'] ?? 0,
       cancelledCount: json['cancelled_count'] ?? 0,
       cancellationRate: (json['cancellation_rate'] ?? 0).toDouble(),
-      cancellationBySubject: Map<int, int>.from(json['cancellation_by_subject'] ?? {}),
-      cancelledDonations: (json['cancelled_donations'] as List? ?? [])
-          .map((item) => CancelledDonation.fromJson(item))
-          .toList(),
+      cancellationBySubject: Map<int, int>.from(
+        json['cancellation_by_subject'] ?? {},
+      ),
+      cancelledDonations:
+          (json['cancelled_donations'] as List? ?? [])
+              .map((item) => CancelledDonation.fromJson(item))
+              .toList(),
     );
   }
 
@@ -356,20 +362,24 @@ class CancelDonationRequest {
       'cancelled_subject': cancelledSubject,
       'cancelled_reason': cancelledReason,
     };
-    
+
     if (cancelledAt != null) {
       json['cancelled_at'] = cancelledAt!.toIso8601String();
     }
-    
+
     return json;
   }
 
   // 유효성 검사
   bool isValid() {
-    return appliedDonationIdx > 0 && 
-           CancelledDonation.isValidCancelledReason(cancelledReason) &&
-           [CancelledSubject.user, CancelledSubject.hospital, CancelledSubject.system, CancelledSubject.admin]
-               .contains(cancelledSubject);
+    return appliedDonationIdx > 0 &&
+        CancelledDonation.isValidCancelledReason(cancelledReason) &&
+        [
+          CancelledSubject.user,
+          CancelledSubject.hospital,
+          CancelledSubject.system,
+          CancelledSubject.admin,
+        ].contains(cancelledSubject);
   }
 
   String? getValidationError() {
@@ -379,8 +389,12 @@ class CancelDonationRequest {
     if (!CancelledDonation.isValidCancelledReason(cancelledReason)) {
       return '취소 사유를 2글자 이상 입력해주세요.';
     }
-    if (![CancelledSubject.user, CancelledSubject.hospital, CancelledSubject.system, CancelledSubject.admin]
-            .contains(cancelledSubject)) {
+    if (![
+      CancelledSubject.user,
+      CancelledSubject.hospital,
+      CancelledSubject.system,
+      CancelledSubject.admin,
+    ].contains(cancelledSubject)) {
       return '올바르지 않은 취소 주체입니다.';
     }
     return null;
@@ -399,11 +413,11 @@ class AdminPendingDonation {
   final String? userName;
   final DateTime? donationTime;
   final DateTime createdAt;
-  
+
   // 완료 관련 정보 (pending_completion인 경우)
   final double? bloodVolume;
   final DateTime? completedAt;
-  
+
   // 취소 관련 정보 (pending_cancellation인 경우)
   final int? cancelledSubject;
   final String? cancelledReason;
@@ -437,19 +451,22 @@ class AdminPendingDonation {
       postTitle: json['post_title'],
       hospitalName: json['hospital_name'],
       userName: json['user_name'],
-      donationTime: json['donation_time'] != null
-          ? DateTime.parse(json['donation_time'])
-          : null,
+      donationTime:
+          json['donation_time'] != null
+              ? DateTime.parse(json['donation_time'])
+              : null,
       createdAt: DateTime.parse(json['created_at']),
       bloodVolume: json['blood_volume']?.toDouble(),
-      completedAt: json['completed_at'] != null
-          ? DateTime.parse(json['completed_at'])
-          : null,
+      completedAt:
+          json['completed_at'] != null
+              ? DateTime.parse(json['completed_at'])
+              : null,
       cancelledSubject: json['cancelled_subject'],
       cancelledReason: json['cancelled_reason'],
-      cancelledAt: json['cancelled_at'] != null
-          ? DateTime.parse(json['cancelled_at'])
-          : null,
+      cancelledAt:
+          json['cancelled_at'] != null
+              ? DateTime.parse(json['cancelled_at'])
+              : null,
     );
   }
 
@@ -487,7 +504,10 @@ class AdminPendingDonation {
   bool get isPendingCancellation => status == 'pending_cancellation';
 
   // AppliedDonation에서 AdminPendingDonation으로 변환하는 팩토리 메서드
-  static AdminPendingDonation fromAppliedDonation(dynamic application, String status) {
+  static AdminPendingDonation fromAppliedDonation(
+    dynamic application,
+    String status,
+  ) {
     return AdminPendingDonation(
       appliedDonationIdx: application.appliedDonationIdx ?? 0,
       status: status,

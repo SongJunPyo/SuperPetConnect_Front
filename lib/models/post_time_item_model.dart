@@ -1,5 +1,8 @@
 // lib/models/post_time_item_model.dart
 
+import '../utils/app_constants.dart';
+import 'applied_donation_model.dart';
+
 /// 시간대별로 분해된 게시글 아이템
 /// 서버 API /api/hospital/post-times의 응답을 파싱하는 모델
 class PostTimeItem {
@@ -106,15 +109,15 @@ class PostTimeItem {
   }
 
   // 긴급 여부
-  bool get isUrgent => postTypes == 0;
+  bool get isUrgent => postTypes == AppConstants.postTypeUrgent;
 
   // 타입 텍스트
-  String get typeText => isUrgent ? '긴급' : '정기';
+  String get typeText => AppConstants.getPostTypeText(postTypes);
 
   // 동물 타입 텍스트
   String? get animalTypeText {
     if (animalType == null) return null;
-    return animalType == 0 ? '강아지' : '고양이';
+    return AppConstants.getAnimalTypeText(animalType!);
   }
 
   // 날짜와 시간을 합친 표시 문자열
@@ -123,26 +126,7 @@ class PostTimeItem {
   // 신청자 상태 텍스트
   String? get applicantStatusText {
     if (applicantStatus == null) return null;
-    switch (applicantStatus) {
-      case 0:
-        return '대기';
-      case 1:
-        return '승인';
-      case 2:
-        return '거절';
-      case 3:
-        return '마감';
-      case 4:
-        return '취소';
-      case 5:
-        return '완료대기';
-      case 6:
-        return '중단대기';
-      case 7:
-        return '완료';
-      default:
-        return '알 수 없음';
-    }
+    return AppliedDonationStatus.getStatusText(applicantStatus!);
   }
 }
 

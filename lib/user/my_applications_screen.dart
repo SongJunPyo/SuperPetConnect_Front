@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../models/donation_application_model.dart';
+import '../models/applied_donation_model.dart';
 import '../services/hospital_post_service.dart';
 import '../utils/app_theme.dart';
 
@@ -51,36 +52,30 @@ class _MyApplicationsScreenState extends State<MyApplicationsScreen> {
       builder: (BuildContext context) {
         return AlertDialog(
           title: const Text('상태 필터'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              RadioListTile<String?>(
-                title: const Text('전체'),
-                value: null,
-                groupValue: selectedStatus,
-                onChanged: (value) {
-                  setState(() {
-                    selectedStatus = value;
-                  });
-                  Navigator.of(context).pop();
-                  _loadApplications();
-                },
-              ),
-              ...['대기중', '승인됨', '거절됨', '완료됨'].map(
-                (status) => RadioListTile<String?>(
-                  title: Text(status),
-                  value: status,
-                  groupValue: selectedStatus,
-                  onChanged: (value) {
-                    setState(() {
-                      selectedStatus = value;
-                    });
-                    Navigator.of(context).pop();
-                    _loadApplications();
-                  },
+          content: RadioGroup<String?>(
+            groupValue: selectedStatus,
+            onChanged: (value) {
+              setState(() {
+                selectedStatus = value;
+              });
+              Navigator.of(context).pop();
+              _loadApplications();
+            },
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                RadioListTile<String?>(
+                  title: const Text('전체'),
+                  value: null,
                 ),
-              ),
-            ],
+                ...['대기중', '승인됨', '거절됨', '완료됨'].map(
+                  (status) => RadioListTile<String?>(
+                    title: Text(status),
+                    value: status,
+                  ),
+                ),
+              ],
+            ),
           ),
           actions: [
             TextButton(
@@ -223,16 +218,7 @@ class _MyApplicationsScreenState extends State<MyApplicationsScreen> {
   }
 
   Color _getStatusColor(int status) {
-    switch (status) {
-      case 0:
-        return AppTheme.warning; // 대기
-      case 1:
-        return AppTheme.success; // 승인
-      case 2:
-        return AppTheme.error; // 거절
-      default:
-        return AppTheme.mediumGray;
-    }
+    return AppliedDonationStatus.getStatusColorValue(status);
   }
 
   String _formatDateTime(DateTime dateTime) {

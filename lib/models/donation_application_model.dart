@@ -1,21 +1,21 @@
 // 헌혈 신청 관련 모델 클래스들
 
 class DonationApplication {
-  final int appliedDonationIdx;  // applied_donation_idx
-  final int petIdx;              // pet_idx
-  final int postTimesIdx;        // post_times_idx
-  final int status;              // status (0=대기, 1=승인, 2=거절)
+  final int appliedDonationIdx; // applied_donation_idx
+  final int petIdx; // pet_idx
+  final int postTimesIdx; // post_times_idx
+  final int status; // status (0=대기, 1=승인, 2=거절)
   final DonationPet pet;
-  final DateTime donationTime;   // donation_time
-  final String donationDate;     // donation_date
-  final String postTitle;        // post_title
-  final String statusKr;         // status_kr
+  final DateTime donationTime; // donation_time
+  final String donationDate; // donation_date
+  final String postTitle; // post_title
+  final String statusKr; // status_kr
   // 서버에서 추가 제공되는 시간대 정보
-  final String? selectedDate;    // selected_date
-  final String? selectedTime;    // selected_time
-  final String? selectedTeam;    // selected_team
-  final String? appliedDate;     // applied_date
-  final String? userNickname;    // user_nickname - 신청자 닉네임
+  final String? selectedDate; // selected_date
+  final String? selectedTime; // selected_time
+  final String? selectedTeam; // selected_team
+  final String? appliedDate; // applied_date
+  final String? userNickname; // user_nickname - 신청자 닉네임
 
   DonationApplication({
     required this.appliedDonationIdx,
@@ -41,7 +41,9 @@ class DonationApplication {
       postTimesIdx: json['post_times_idx'] ?? 0,
       status: json['status'] ?? 0,
       pet: DonationPet.fromJson(json['pet'] ?? {}),
-      donationTime: DateTime.parse(json['donation_time'] ?? DateTime.now().toIso8601String()),
+      donationTime: DateTime.parse(
+        json['donation_time'] ?? DateTime.now().toIso8601String(),
+      ),
       donationDate: json['donation_date'] ?? '',
       postTitle: json['post_title'] ?? '',
       statusKr: json['status_kr'] ?? '',
@@ -74,7 +76,7 @@ class DonationApplication {
 }
 
 class DonationPet {
-  final int petIdx;     // pet_idx
+  final int petIdx; // pet_idx
   final String name;
   final String species;
   final String? breed;
@@ -106,7 +108,7 @@ class DonationPet {
 
   Map<String, dynamic> toJson() {
     return {
-      'pet_idx': petIdx,  // pet_idx로 변경
+      'pet_idx': petIdx, // pet_idx로 변경
       'name': name,
       'species': species,
       'breed': breed,
@@ -117,7 +119,8 @@ class DonationPet {
   }
 
   String get displayText => '$name ($bloodType)';
-  String get speciesKorean => (species == 'dog' || species == '강아지' || species == '개') ? '반려견' : '반려묘';
+  String get speciesKorean =>
+      (species == 'dog' || species == '강아지' || species == '개') ? '반려견' : '반려묘';
   String get age => ageNumber <= 0 ? '1살 미만' : '$ageNumber살';
 }
 
@@ -145,16 +148,10 @@ class CreateApplicationRequest {
   final int postId;
   final int petId;
 
-  CreateApplicationRequest({
-    required this.postId,
-    required this.petId,
-  });
+  CreateApplicationRequest({required this.postId, required this.petId});
 
   Map<String, dynamic> toJson() {
-    return {
-      'post_idx': postId,
-      'pet_id': petId,
-    };
+    return {'post_idx': postId, 'pet_id': petId};
   }
 }
 
@@ -163,10 +160,7 @@ class UpdateApplicationRequest {
   final ApplicationStatus status;
   final String? hospitalNotes;
 
-  UpdateApplicationRequest({
-    required this.status,
-    this.hospitalNotes,
-  });
+  UpdateApplicationRequest({required this.status, this.hospitalNotes});
 
   Map<String, dynamic> toJson() {
     return {
@@ -195,9 +189,10 @@ class ApplicationListResponse {
       postIdx: json['post_idx'] ?? 0,
       postTitle: json['post_title'] ?? '',
       totalApplications: json['total_applications'] ?? 0,
-      applications: (json['applications'] as List? ?? [])
-          .map((app) => DonationApplication.fromJson(app))
-          .toList(),
+      applications:
+          (json['applications'] as List? ?? [])
+              .map((app) => DonationApplication.fromJson(app))
+              .toList(),
     );
   }
 

@@ -1,13 +1,16 @@
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'dart:convert';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:kpostal/kpostal.dart';
+import 'package:provider/provider.dart';
 import '../utils/app_theme.dart';
 import '../utils/config.dart';
 import '../utils/kakao_postcode_stub.dart'
     if (dart.library.html) '../utils/kakao_postcode_web.dart';
 import '../services/auth_http_client.dart';
+import '../utils/preferences_manager.dart';
+import '../utils/app_constants.dart';
+import '../providers/notification_provider.dart';
 
 class ProfileManagement extends StatefulWidget {
   const ProfileManagement({super.key});
@@ -20,7 +23,7 @@ class _ProfileManagementState extends State<ProfileManagement> {
   final TextEditingController nameController = TextEditingController();
   final TextEditingController nicknameController = TextEditingController();
   final TextEditingController addressController = TextEditingController();
-  
+
   // 내부적으로만 사용 (화면에 표시하지 않음)
   final TextEditingController emailController = TextEditingController();
   final TextEditingController phoneController = TextEditingController();
@@ -48,8 +51,7 @@ class _ProfileManagementState extends State<ProfileManagement> {
   }
 
   Future<void> _loadTokenAndProfile() async {
-    final prefs = await SharedPreferences.getInstance();
-    final storedUserType = prefs.getInt('user_type');
+    final storedUserType = await PreferencesManager.getAccountType();
 
     setState(() {
       userType = storedUserType;
@@ -61,11 +63,11 @@ class _ProfileManagementState extends State<ProfileManagement> {
 
   String _getProfileTitle(int? userType) {
     switch (userType) {
-      case 1:
+      case AppConstants.accountTypeAdmin:
         return "관리자 프로필";
-      case 2:
+      case AppConstants.accountTypeHospital:
         return "병원 프로필";
-      case 3:
+      case AppConstants.accountTypeUser:
         return "사용자 프로필";
       default:
         return "프로필 관리";
@@ -74,11 +76,11 @@ class _ProfileManagementState extends State<ProfileManagement> {
 
   IconData _getProfileIcon() {
     switch (userType) {
-      case 1:
+      case AppConstants.accountTypeAdmin:
         return Icons.admin_panel_settings_outlined;
-      case 2:
+      case AppConstants.accountTypeHospital:
         return Icons.local_hospital_outlined;
-      case 3:
+      case AppConstants.accountTypeUser:
         return Icons.person_outline;
       default:
         return Icons.person_outline;
@@ -114,17 +116,16 @@ class _ProfileManagementState extends State<ProfileManagement> {
         isLoading = false;
       });
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('오류가 발생했습니다: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('오류가 발생했습니다: $e')));
       }
     }
   }
 
   // 로그아웃 기능
   Future<void> _logout() async {
-    final prefs = await SharedPreferences.getInstance();
-    final refreshToken = prefs.getString('refresh_token');
+    final refreshToken = await PreferencesManager.getRefreshToken();
 
     // 서버에 로그아웃 API 호출 (Refresh Token 무효화)
     try {
@@ -136,16 +137,20 @@ class _ProfileManagementState extends State<ProfileManagement> {
       // 서버 호출 실패해도 로컬 로그아웃은 진행
     }
 
-    await prefs.clear();
+    // NotificationProvider 초기화 (알림 상태 및 연결 정리)
+    if (mounted) {
+      context.read<NotificationProvider>().reset();
+    }
+
+    await PreferencesManager.clearAll();
 
     if (mounted) {
-      Navigator.of(context).pushNamedAndRemoveUntil(
-        '/',
-        (Route<dynamic> route) => false,
-      );
+      Navigator.of(
+        context,
+      ).pushNamedAndRemoveUntil('/', (Route<dynamic> route) => false);
     }
   }
-  
+
   // 로그아웃 팝업
   void _showLogoutDialog() {
     showDialog(
@@ -171,7 +176,7 @@ class _ProfileManagementState extends State<ProfileManagement> {
       },
     );
   }
-  
+
   // 저장 팝업
   void _showSaveDialog() {
     showDialog(
@@ -197,7 +202,7 @@ class _ProfileManagementState extends State<ProfileManagement> {
       },
     );
   }
-  
+
   // 닫기 팝업
   void _showCloseDialog() {
     showDialog(
@@ -238,22 +243,21 @@ class _ProfileManagementState extends State<ProfileManagement> {
 
       if (response.statusCode == 200) {
         // 이름과 닉네임이 변경된 경우 사용자 타입에 따라 SharedPreferences에 저장
-        final prefs = await SharedPreferences.getInstance();
         switch (userType) {
-          case 1: // 관리자
-            await prefs.setString('admin_name', nameController.text);
-            await prefs.setString('admin_nickname', nicknameController.text);
+          case AppConstants.accountTypeAdmin: // 관리자
+            await PreferencesManager.setAdminName(nameController.text);
+            await PreferencesManager.setAdminNickname(nicknameController.text);
             break;
-          case 2: // 병원
-            await prefs.setString('hospital_name', nameController.text);
-            await prefs.setString('hospital_nickname', nicknameController.text);
+          case AppConstants.accountTypeHospital: // 병원
+            await PreferencesManager.setHospitalName(nameController.text);
+            await PreferencesManager.setHospitalNickname(nicknameController.text);
             break;
-          case 3: // 사용자
-            await prefs.setString('user_name', nameController.text);
-            await prefs.setString('user_nickname', nicknameController.text);
+          case AppConstants.accountTypeUser: // 사용자
+            await PreferencesManager.setUserName(nameController.text);
+            await PreferencesManager.setUserNickname(nicknameController.text);
             break;
         }
-        
+
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('프로필이 성공적으로 업데이트되었습니다.')),
@@ -264,9 +268,9 @@ class _ProfileManagementState extends State<ProfileManagement> {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('오류가 발생했습니다: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('오류가 발생했습니다: $e')));
       }
     }
   }
@@ -289,10 +293,7 @@ class _ProfileManagementState extends State<ProfileManagement> {
       ),
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(AppTheme.radius12),
-        borderSide: BorderSide(
-          color: AppTheme.primaryBlue,
-          width: 2,
-        ),
+        borderSide: BorderSide(color: AppTheme.primaryBlue, width: 2),
       ),
       enabledBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(AppTheme.radius12),
@@ -327,9 +328,7 @@ class _ProfileManagementState extends State<ProfileManagement> {
           elevation: 0,
           iconTheme: IconThemeData(color: AppTheme.textPrimary),
         ),
-        body: const Center(
-          child: CircularProgressIndicator(),
-        ),
+        body: const Center(child: CircularProgressIndicator()),
       );
     }
 
@@ -368,10 +367,7 @@ class _ProfileManagementState extends State<ProfileManagement> {
         ],
       ),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.symmetric(
-          horizontal: 20.0,
-          vertical: 24.0,
-        ),
+        padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 24.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
@@ -382,28 +378,29 @@ class _ProfileManagementState extends State<ProfileManagement> {
                 CircleAvatar(
                   radius: 60,
                   backgroundColor: AppTheme.veryLightGray,
-                  child: profileImageUrl != null
-                      ? ClipOval(
-                          child: Image.network(
-                            profileImageUrl!,
-                            width: 120,
-                            height: 120,
-                            fit: BoxFit.cover,
-                            errorBuilder: (context, error, stackTrace) {
-                              debugPrint('[프로필] 이미지 로딩 실패: $error');
-                              return Icon(
-                                _getProfileIcon(),
-                                size: 50,
-                                color: AppTheme.textSecondary,
-                              );
-                            },
+                  child:
+                      profileImageUrl != null
+                          ? ClipOval(
+                            child: Image.network(
+                              profileImageUrl!,
+                              width: 120,
+                              height: 120,
+                              fit: BoxFit.cover,
+                              errorBuilder: (context, error, stackTrace) {
+                                debugPrint('[프로필] 이미지 로딩 실패: $error');
+                                return Icon(
+                                  _getProfileIcon(),
+                                  size: 50,
+                                  color: AppTheme.textSecondary,
+                                );
+                              },
+                            ),
+                          )
+                          : Icon(
+                            _getProfileIcon(),
+                            size: 50,
+                            color: AppTheme.textSecondary,
                           ),
-                        )
-                      : Icon(
-                          _getProfileIcon(),
-                          size: 50,
-                          color: AppTheme.textSecondary,
-                        ),
                 ),
                 // 네이버 사용자는 사진 수정 불가
                 if (!isNaverUser)
@@ -431,9 +428,11 @@ class _ProfileManagementState extends State<ProfileManagement> {
             ),
             const SizedBox(height: AppTheme.spacing16),
             Text(
-              nicknameController.text.isNotEmpty ? nicknameController.text : (
-                nameController.text.isNotEmpty ? nameController.text : "사용자"
-              ),
+              nicknameController.text.isNotEmpty
+                  ? nicknameController.text
+                  : (nameController.text.isNotEmpty
+                      ? nameController.text
+                      : "사용자"),
               style: AppTheme.h2Style.copyWith(
                 fontWeight: FontWeight.bold,
                 color: AppTheme.textPrimary,
@@ -463,13 +462,21 @@ class _ProfileManagementState extends State<ProfileManagement> {
                       if (isNaverUser)
                         Container(
                           width: double.infinity,
-                          margin: const EdgeInsets.only(bottom: AppTheme.spacing16),
+                          margin: const EdgeInsets.only(
+                            bottom: AppTheme.spacing16,
+                          ),
                           padding: const EdgeInsets.all(AppTheme.spacing12),
                           decoration: BoxDecoration(
-                            color: const Color(0xFF03C75A).withValues(alpha: 0.08),
-                            borderRadius: BorderRadius.circular(AppTheme.radius8),
+                            color: const Color(
+                              0xFF03C75A,
+                            ).withValues(alpha: 0.08),
+                            borderRadius: BorderRadius.circular(
+                              AppTheme.radius8,
+                            ),
                             border: Border.all(
-                              color: const Color(0xFF03C75A).withValues(alpha: 0.3),
+                              color: const Color(
+                                0xFF03C75A,
+                              ).withValues(alpha: 0.3),
                             ),
                           ),
                           child: Row(
@@ -502,7 +509,8 @@ class _ProfileManagementState extends State<ProfileManagement> {
                           30,
                           nameController,
                         ),
-                        onChanged: isNaverUser ? null : (value) => setState(() {}),
+                        onChanged:
+                            isNaverUser ? null : (value) => setState(() {}),
                       ),
                       const SizedBox(height: AppTheme.spacing20),
                       TextField(
@@ -515,7 +523,8 @@ class _ProfileManagementState extends State<ProfileManagement> {
                           30,
                           nicknameController,
                         ),
-                        onChanged: isNaverUser ? null : (value) => setState(() {}),
+                        onChanged:
+                            isNaverUser ? null : (value) => setState(() {}),
                       ),
                       const SizedBox(height: AppTheme.spacing20),
                       TextField(
@@ -550,27 +559,31 @@ class _ProfileManagementState extends State<ProfileManagement> {
                               context: context,
                               isScrollControlled: true,
                               backgroundColor: Colors.transparent,
-                              builder: (context) => Container(
-                                height: MediaQuery.of(context).size.height * 0.9,
-                                decoration: const BoxDecoration(
-                                  color: Colors.white,
-                                  borderRadius: BorderRadius.vertical(
-                                    top: Radius.circular(20),
+                              builder:
+                                  (context) => Container(
+                                    height:
+                                        MediaQuery.of(context).size.height *
+                                        0.9,
+                                    decoration: const BoxDecoration(
+                                      color: Colors.white,
+                                      borderRadius: BorderRadius.vertical(
+                                        top: Radius.circular(20),
+                                      ),
+                                    ),
+                                    child: ClipRRect(
+                                      borderRadius: const BorderRadius.vertical(
+                                        top: Radius.circular(20),
+                                      ),
+                                      child: KpostalView(
+                                        callback: (Kpostal result) {
+                                          setState(() {
+                                            addressController.text =
+                                                result.address;
+                                          });
+                                        },
+                                      ),
+                                    ),
                                   ),
-                                ),
-                                child: ClipRRect(
-                                  borderRadius: const BorderRadius.vertical(
-                                    top: Radius.circular(20),
-                                  ),
-                                  child: KpostalView(
-                                    callback: (Kpostal result) {
-                                      setState(() {
-                                        addressController.text = result.address;
-                                      });
-                                    },
-                                  ),
-                                ),
-                              ),
                             );
                           }
                         },

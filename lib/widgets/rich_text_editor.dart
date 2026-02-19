@@ -1,11 +1,9 @@
 import 'dart:convert';
-import 'dart:typed_data';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_quill/flutter_quill.dart';
 import 'package:image_picker/image_picker.dart';
 import '../models/donation_post_image_model.dart';
-import '../models/hospital_column_model.dart';
 import '../services/donation_post_image_service.dart';
 import '../services/column_image_service.dart';
 import '../utils/app_theme.dart';
@@ -90,7 +88,8 @@ class RichTextEditorState extends State<RichTextEditor> {
   /// 에디터 초기화
   void _initializeEditor() {
     // Delta JSON이 있으면 파싱하여 초기화
-    if (widget.initialContentDelta != null && widget.initialContentDelta!.isNotEmpty) {
+    if (widget.initialContentDelta != null &&
+        widget.initialContentDelta!.isNotEmpty) {
       try {
         final deltaJson = jsonDecode(widget.initialContentDelta!);
         if (deltaJson is List) {
@@ -233,10 +232,7 @@ class RichTextEditorState extends State<RichTextEditor> {
                 if (widget.enabled) _buildToolbar(),
 
                 // 에디터 영역 (반응형)
-                Flexible(
-                  fit: FlexFit.loose,
-                  child: _buildEditor(),
-                ),
+                Flexible(fit: FlexFit.loose, child: _buildEditor()),
 
                 // 업로드 진행 표시
                 if (_uploadingImage != null) _buildUploadProgress(),
@@ -280,11 +276,23 @@ class RichTextEditorState extends State<RichTextEditor> {
         _buildDivider(),
 
         // 정렬 버튼들
-        _buildAlignButton(Attribute.leftAlignment, Icons.format_align_left, '왼쪽 정렬'),
+        _buildAlignButton(
+          Attribute.leftAlignment,
+          Icons.format_align_left,
+          '왼쪽 정렬',
+        ),
         const SizedBox(width: 4),
-        _buildAlignButton(Attribute.centerAlignment, Icons.format_align_center, '가운데 정렬'),
+        _buildAlignButton(
+          Attribute.centerAlignment,
+          Icons.format_align_center,
+          '가운데 정렬',
+        ),
         const SizedBox(width: 4),
-        _buildAlignButton(Attribute.rightAlignment, Icons.format_align_right, '오른쪽 정렬'),
+        _buildAlignButton(
+          Attribute.rightAlignment,
+          Icons.format_align_right,
+          '오른쪽 정렬',
+        ),
 
         // 구분선
         _buildDivider(),
@@ -309,9 +317,7 @@ class RichTextEditorState extends State<RichTextEditor> {
         horizontal: AppTheme.spacing16,
         vertical: AppTheme.spacing12,
       ),
-      decoration: const BoxDecoration(
-        color: AppTheme.veryLightGray,
-      ),
+      decoration: const BoxDecoration(color: AppTheme.veryLightGray),
       child: Center(
         child: SingleChildScrollView(
           scrollDirection: Axis.horizontal,
@@ -362,7 +368,8 @@ class RichTextEditorState extends State<RichTextEditor> {
   /// 정렬 버튼
   Widget _buildAlignButton(Attribute attribute, IconData icon, String tooltip) {
     final style = _controller.getSelectionStyle();
-    final isActive = style.containsKey(Attribute.align.key) &&
+    final isActive =
+        style.containsKey(Attribute.align.key) &&
         style.attributes[Attribute.align.key]?.value == attribute.value;
 
     return Tooltip(
@@ -430,7 +437,8 @@ class RichTextEditorState extends State<RichTextEditor> {
 
   /// 에디터 영역
   Widget _buildEditor() {
-    final placeholderText = widget.placeholder ??
+    final placeholderText =
+        widget.placeholder ??
         (widget.editorType == EditorType.column
             ? '칼럼 내용을 작성해주세요...'
             : '헌혈에 대한 추가 설명을 작성해주세요...');
@@ -524,9 +532,7 @@ class RichTextEditorState extends State<RichTextEditor> {
         horizontal: AppTheme.spacing16,
         vertical: AppTheme.spacing12,
       ),
-      decoration: const BoxDecoration(
-        color: AppTheme.veryLightGray,
-      ),
+      decoration: const BoxDecoration(color: AppTheme.veryLightGray),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.end,
         children: [
@@ -549,18 +555,21 @@ class RichTextEditorState extends State<RichTextEditor> {
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
-      builder: (context) => _ImagePickerBottomSheet(
-        onImageSelected: (XFile file) async {
-          Navigator.pop(context);
-          await _uploadImage(file);
-        },
-      ),
+      builder:
+          (context) => _ImagePickerBottomSheet(
+            onImageSelected: (XFile file) async {
+              Navigator.pop(context);
+              await _uploadImage(file);
+            },
+          ),
     );
   }
 
   /// 이미지 업로드 및 에디터에 삽입
   Future<void> _uploadImage(XFile file) async {
-    debugPrint('[RichTextEditor] 이미지 업로드 시작: ${file.name}, 타입: ${widget.editorType}');
+    debugPrint(
+      '[RichTextEditor] 이미지 업로드 시작: ${file.name}, 타입: ${widget.editorType}',
+    );
     try {
       final bytes = await file.readAsBytes();
       final fileSize = bytes.length;
@@ -636,7 +645,9 @@ class RichTextEditorState extends State<RichTextEditor> {
       if (index < 0 || index >= docLength) {
         index = docLength > 1 ? docLength - 1 : 0;
       }
-      debugPrint('[RichTextEditor] 에디터에 이미지 삽입: $imageUrl (index: $index, docLength: $docLength)');
+      debugPrint(
+        '[RichTextEditor] 에디터에 이미지 삽입: $imageUrl (index: $index, docLength: $docLength)',
+      );
 
       // 새 줄 추가 후 이미지 삽입
       _controller.document.insert(index, '\n');
@@ -668,10 +679,11 @@ class RichTextEditorState extends State<RichTextEditor> {
   /// 에디터에서 이미지 삭제
   void _removeImageFromEditor(String imageUrl) {
     // 이미지 목록에서 해당 이미지 찾기
-    final imageToRemove = _images.where((img) {
-      final fullUrl = _getFullImageUrl(img.imagePath);
-      return fullUrl == imageUrl || img.imagePath == imageUrl;
-    }).firstOrNull;
+    final imageToRemove =
+        _images.where((img) {
+          final fullUrl = _getFullImageUrl(img.imagePath);
+          return fullUrl == imageUrl || img.imagePath == imageUrl;
+        }).firstOrNull;
 
     if (imageToRemove != null) {
       _confirmDeleteImage(imageToRemove, imageUrl);
@@ -682,24 +694,25 @@ class RichTextEditorState extends State<RichTextEditor> {
   void _confirmDeleteImage(DonationPostImage image, String imageUrl) {
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('이미지 삭제'),
-        content: const Text('이 이미지를 삭제하시겠습니까?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('취소'),
+      builder:
+          (context) => AlertDialog(
+            title: const Text('이미지 삭제'),
+            content: const Text('이 이미지를 삭제하시겠습니까?'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('취소'),
+              ),
+              TextButton(
+                onPressed: () {
+                  Navigator.pop(context);
+                  _removeImage(image, imageUrl);
+                },
+                style: TextButton.styleFrom(foregroundColor: AppTheme.error),
+                child: const Text('삭제'),
+              ),
+            ],
           ),
-          TextButton(
-            onPressed: () {
-              Navigator.pop(context);
-              _removeImage(image, imageUrl);
-            },
-            style: TextButton.styleFrom(foregroundColor: AppTheme.error),
-            child: const Text('삭제'),
-          ),
-        ],
-      ),
     );
   }
 
@@ -860,7 +873,10 @@ class RichTextEditorState extends State<RichTextEditor> {
 
   List<DonationPostImage> get images => _images;
   List<int> get imageIds =>
-      _images.where((img) => !img.isTemporary).map((img) => img.imageId).toList();
+      _images
+          .where((img) => !img.isTemporary)
+          .map((img) => img.imageId)
+          .toList();
 }
 
 /// 커스텀 이미지 임베드 빌더
@@ -868,19 +884,13 @@ class _CustomImageEmbedBuilder extends EmbedBuilder {
   final Function(String imageUrl) onDelete;
   final bool enabled;
 
-  _CustomImageEmbedBuilder({
-    required this.onDelete,
-    required this.enabled,
-  });
+  _CustomImageEmbedBuilder({required this.onDelete, required this.enabled});
 
   @override
   String get key => BlockEmbed.imageType;
 
   @override
-  Widget build(
-    BuildContext context,
-    EmbedContext embedContext,
-  ) {
+  Widget build(BuildContext context, EmbedContext embedContext) {
     final imageUrl = embedContext.node.value.data;
 
     return Container(
@@ -947,11 +957,7 @@ class _CustomImageEmbedBuilder extends EmbedBuilder {
                       ),
                     ],
                   ),
-                  child: const Icon(
-                    Icons.close,
-                    size: 18,
-                    color: Colors.white,
-                  ),
+                  child: const Icon(Icons.close, size: 18, color: Colors.white),
                 ),
               ),
             ),
@@ -965,12 +971,11 @@ class _CustomImageEmbedBuilder extends EmbedBuilder {
 class _ImagePickerBottomSheet extends StatefulWidget {
   final Function(XFile) onImageSelected;
 
-  const _ImagePickerBottomSheet({
-    required this.onImageSelected,
-  });
+  const _ImagePickerBottomSheet({required this.onImageSelected});
 
   @override
-  State<_ImagePickerBottomSheet> createState() => _ImagePickerBottomSheetState();
+  State<_ImagePickerBottomSheet> createState() =>
+      _ImagePickerBottomSheetState();
 }
 
 class _ImagePickerBottomSheetState extends State<_ImagePickerBottomSheet> {

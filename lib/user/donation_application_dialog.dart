@@ -27,7 +27,8 @@ class DonationApplicationDialog extends StatefulWidget {
   });
 
   @override
-  State<DonationApplicationDialog> createState() => _DonationApplicationDialogState();
+  State<DonationApplicationDialog> createState() =>
+      _DonationApplicationDialogState();
 }
 
 class _DonationApplicationDialogState extends State<DonationApplicationDialog> {
@@ -53,24 +54,29 @@ class _DonationApplicationDialogState extends State<DonationApplicationDialog> {
     debugPrint('[DonationDialog] 내 신청 목록 로드 시작 - postIdx: ${widget.postIdx}');
 
     try {
-      final applications = await AppliedDonationService.getMyApplicationsForPost(widget.postIdx);
+      final applications =
+          await AppliedDonationService.getMyApplicationsForPost(widget.postIdx);
 
       debugPrint('[DonationDialog] API 응답 - 신청 수: ${applications.length}');
       for (final app in applications) {
-        debugPrint('[DonationDialog] - 신청 ID: ${app.applicationId}, postTimesIdx: ${app.postTimesIdx}, status: ${app.statusCode} (${app.status}), shouldShowBorder: ${app.shouldShowAppliedBorder}');
+        debugPrint(
+          '[DonationDialog] - 신청 ID: ${app.applicationId}, postTimesIdx: ${app.postTimesIdx}, status: ${app.statusCode} (${app.status}), shouldShowBorder: ${app.shouldShowAppliedBorder}',
+        );
       }
 
       if (mounted) {
         setState(() {
           myApplicationsMap = {
             for (final app in applications)
-              if (app.shouldShowAppliedBorder) app.postTimesIdx: app
+              if (app.shouldShowAppliedBorder) app.postTimesIdx: app,
           };
           isLoadingMyApplications = false;
         });
       }
 
-      debugPrint('[DonationDialog] 빨간 테두리 표시할 시간대: ${myApplicationsMap.keys.toList()}');
+      debugPrint(
+        '[DonationDialog] 빨간 테두리 표시할 시간대: ${myApplicationsMap.keys.toList()}',
+      );
     } catch (e) {
       debugPrint('[DonationDialog] 내 신청 목록 로드 실패: $e');
       if (mounted) {
@@ -84,14 +90,15 @@ class _DonationApplicationDialogState extends State<DonationApplicationDialog> {
   Future<void> _loadTimeSlotStats() async {
     try {
       final Map<int, TimeSlotApplications> stats = {};
-      
+
       for (final dateWithTimes in widget.availableDatesWithTimes) {
         for (final time in dateWithTimes.times) {
           if (time.postTimesId != null) {
             try {
-              final slotStats = await AppliedDonationService.getTimeSlotApplications(
-                time.postTimesId!
-              );
+              final slotStats =
+                  await AppliedDonationService.getTimeSlotApplications(
+                    time.postTimesId!,
+                  );
               stats[time.postTimesId!] = slotStats;
             } catch (e) {
               // 시간대별 통계 로딩 실패 시 로그 출력
@@ -100,7 +107,7 @@ class _DonationApplicationDialogState extends State<DonationApplicationDialog> {
           }
         }
       }
-      
+
       if (mounted) {
         setState(() {
           timeSlotStats = stats;
@@ -135,7 +142,9 @@ class _DonationApplicationDialogState extends State<DonationApplicationDialog> {
                     children: [
                       Text(
                         '헌혈 신청하기',
-                        style: AppTheme.h3Style.copyWith(fontWeight: FontWeight.w700),
+                        style: AppTheme.h3Style.copyWith(
+                          fontWeight: FontWeight.w700,
+                        ),
                       ),
                       const SizedBox(height: 4),
                       Text(
@@ -165,195 +174,246 @@ class _DonationApplicationDialogState extends State<DonationApplicationDialog> {
               ),
             ),
             const SizedBox(height: AppTheme.spacing8),
-            
-            // 반려동물 목록 (헌혈 가능/불가능 모두 표시)
-            Builder(builder: (context) {
-              // 동물 종류가 일치하는 반려동물만 필터링
-              final matchingPets = widget.userPets.where((pet) {
-                return DonationEligibility.matchesAnimalType(pet, widget.animalType);
-              }).toList();
 
-              if (matchingPets.isEmpty) {
-                return Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: Colors.grey.shade50,
-                    borderRadius: BorderRadius.circular(AppTheme.radius8),
-                    border: Border.all(color: AppTheme.lightGray),
-                  ),
-                  child: Row(
-                    children: [
-                      Icon(
-                        widget.animalType == 0 ? Icons.pets : Icons.cruelty_free,
-                        color: AppTheme.mediumGray,
-                        size: 20,
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          '등록된 ${widget.animalType == 0 ? "강아지" : "고양이"}가 없습니다',
-                          style: AppTheme.bodyMediumStyle.copyWith(
-                            color: AppTheme.textSecondary,
+            // 반려동물 목록 (헌혈 가능/불가능 모두 표시)
+            Builder(
+              builder: (context) {
+                // 동물 종류가 일치하는 반려동물만 필터링
+                final matchingPets =
+                    widget.userPets.where((pet) {
+                      return DonationEligibility.matchesAnimalType(
+                        pet,
+                        widget.animalType,
+                      );
+                    }).toList();
+
+                if (matchingPets.isEmpty) {
+                  return Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: Colors.grey.shade50,
+                      borderRadius: BorderRadius.circular(AppTheme.radius8),
+                      border: Border.all(color: AppTheme.lightGray),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(
+                          widget.animalType == 0
+                              ? Icons.pets
+                              : Icons.cruelty_free,
+                          color: AppTheme.mediumGray,
+                          size: 20,
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            '등록된 ${widget.animalType == 0 ? "강아지" : "고양이"}가 없습니다',
+                            style: AppTheme.bodyMediumStyle.copyWith(
+                              color: AppTheme.textSecondary,
+                            ),
                           ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
+                  );
+                }
+
+                // 디버그: 일치하는 반려동물 수 출력
+                debugPrint(
+                  '[DonationDialog] 일치하는 반려동물 수: ${matchingPets.length}',
+                );
+
+                return Container(
+                  constraints: const BoxConstraints(maxHeight: 180),
+                  child: ListView.builder(
+                    shrinkWrap: true,
+                    itemCount: matchingPets.length,
+                    itemBuilder: (context, index) {
+                      final pet = matchingPets[index];
+                      final eligibility = DonationEligibility.checkEligibility(
+                        pet,
+                      );
+                      final isSelectable =
+                          eligibility.isEligible ||
+                          eligibility.needsConsultation;
+                      final isSelected = selectedPet?.petIdx == pet.petIdx;
+
+                      // 디버그: 각 반려동물의 eligibility 결과 출력
+                      debugPrint(
+                        '[DonationDialog] ${pet.name}: isSelectable=$isSelectable, status=${eligibility.overallStatus}, failed=${eligibility.failedConditions.length}',
+                      );
+
+                      return GestureDetector(
+                        onTap:
+                            isSelectable
+                                ? () {
+                                  setState(() {
+                                    selectedPet = pet;
+                                  });
+                                }
+                                : null,
+                        child: Container(
+                          margin: const EdgeInsets.only(bottom: 8),
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color:
+                                !isSelectable
+                                    ? Colors.grey.shade100
+                                    : isSelected
+                                    ? AppTheme.primaryBlue.withValues(alpha: 0.1)
+                                    : Colors.white,
+                            borderRadius: BorderRadius.circular(
+                              AppTheme.radius8,
+                            ),
+                            border: Border.all(
+                              color:
+                                  !isSelectable
+                                      ? Colors.grey.shade300
+                                      : isSelected
+                                      ? AppTheme.primaryBlue
+                                      : AppTheme.lightGray,
+                              width: isSelected ? 2 : 1,
+                            ),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
+                                  if (isSelectable)
+                                    Icon(
+                                      isSelected
+                                          ? Icons.check_circle
+                                          : Icons.radio_button_unchecked,
+                                      color:
+                                          isSelected
+                                              ? AppTheme.primaryBlue
+                                              : AppTheme.mediumGray,
+                                      size: 20,
+                                    )
+                                  else
+                                    const Icon(
+                                      Icons.block,
+                                      color: Colors.red,
+                                      size: 20,
+                                    ),
+                                  const SizedBox(width: 8),
+                                  Expanded(
+                                    child: Text(
+                                      pet.name,
+                                      style: AppTheme.bodyMediumStyle.copyWith(
+                                        fontWeight: FontWeight.w600,
+                                        color:
+                                            isSelectable
+                                                ? AppTheme.textPrimary
+                                                : AppTheme.textSecondary,
+                                      ),
+                                    ),
+                                  ),
+                                  if (eligibility.needsConsultation)
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 8,
+                                        vertical: 2,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color: Colors.orange.shade100,
+                                        borderRadius: BorderRadius.circular(4),
+                                      ),
+                                      child: Text(
+                                        '협의 필요',
+                                        style: AppTheme.bodySmallStyle.copyWith(
+                                          color: Colors.orange.shade800,
+                                          fontSize: 10,
+                                        ),
+                                      ),
+                                    ),
+                                  if (!isSelectable)
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 8,
+                                        vertical: 2,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color: Colors.red.shade100,
+                                        borderRadius: BorderRadius.circular(4),
+                                      ),
+                                      child: Text(
+                                        '헌혈 불가',
+                                        style: AppTheme.bodySmallStyle.copyWith(
+                                          color: Colors.red.shade800,
+                                          fontSize: 10,
+                                        ),
+                                      ),
+                                    ),
+                                ],
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                '${pet.age} • ${pet.weightKg}kg${pet.bloodType != null ? ' • ${pet.bloodType}' : ''}',
+                                style: AppTheme.bodySmallStyle.copyWith(
+                                  color: AppTheme.textSecondary,
+                                ),
+                              ),
+                              // 헌혈 불가능 이유 표시
+                              if (!isSelectable &&
+                                  eligibility.failedConditions.isNotEmpty) ...[
+                                const SizedBox(height: 6),
+                                Container(
+                                  padding: const EdgeInsets.all(8),
+                                  decoration: BoxDecoration(
+                                    color: Colors.red.shade50,
+                                    borderRadius: BorderRadius.circular(4),
+                                  ),
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children:
+                                        eligibility.failedConditions.take(3).map((
+                                          condition,
+                                        ) {
+                                          return Padding(
+                                            padding: const EdgeInsets.only(
+                                              bottom: 2,
+                                            ),
+                                            child: Row(
+                                              children: [
+                                                Icon(
+                                                  Icons.close,
+                                                  size: 12,
+                                                  color: Colors.red.shade700,
+                                                ),
+                                                const SizedBox(width: 4),
+                                                Expanded(
+                                                  child: Text(
+                                                    '${condition.conditionName}: ${condition.message}',
+                                                    style: AppTheme
+                                                        .bodySmallStyle
+                                                        .copyWith(
+                                                          color:
+                                                              Colors
+                                                                  .red
+                                                                  .shade700,
+                                                          fontSize: 11,
+                                                        ),
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                          );
+                                        }).toList(),
+                                  ),
+                                ),
+                              ],
+                            ],
+                          ),
+                        ),
+                      );
+                    },
                   ),
                 );
-              }
-
-              // 디버그: 일치하는 반려동물 수 출력
-              debugPrint('[DonationDialog] 일치하는 반려동물 수: ${matchingPets.length}');
-
-              return Container(
-                constraints: const BoxConstraints(maxHeight: 180),
-                child: ListView.builder(
-                  shrinkWrap: true,
-                  itemCount: matchingPets.length,
-                  itemBuilder: (context, index) {
-                    final pet = matchingPets[index];
-                    final eligibility = DonationEligibility.checkEligibility(pet);
-                    final isSelectable = eligibility.isEligible || eligibility.needsConsultation;
-                    final isSelected = selectedPet?.petIdx == pet.petIdx;
-
-                    // 디버그: 각 반려동물의 eligibility 결과 출력
-                    debugPrint('[DonationDialog] ${pet.name}: isSelectable=$isSelectable, status=${eligibility.overallStatus}, failed=${eligibility.failedConditions.length}');
-
-                    return GestureDetector(
-                      onTap: isSelectable
-                          ? () {
-                              setState(() {
-                                selectedPet = pet;
-                              });
-                            }
-                          : null,
-                      child: Container(
-                        margin: const EdgeInsets.only(bottom: 8),
-                        padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          color: !isSelectable
-                              ? Colors.grey.shade100
-                              : isSelected
-                                  ? AppTheme.primaryBlue.withOpacity(0.1)
-                                  : Colors.white,
-                          borderRadius: BorderRadius.circular(AppTheme.radius8),
-                          border: Border.all(
-                            color: !isSelectable
-                                ? Colors.grey.shade300
-                                : isSelected
-                                    ? AppTheme.primaryBlue
-                                    : AppTheme.lightGray,
-                            width: isSelected ? 2 : 1,
-                          ),
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Row(
-                              children: [
-                                if (isSelectable)
-                                  Icon(
-                                    isSelected ? Icons.check_circle : Icons.radio_button_unchecked,
-                                    color: isSelected ? AppTheme.primaryBlue : AppTheme.mediumGray,
-                                    size: 20,
-                                  )
-                                else
-                                  const Icon(
-                                    Icons.block,
-                                    color: Colors.red,
-                                    size: 20,
-                                  ),
-                                const SizedBox(width: 8),
-                                Expanded(
-                                  child: Text(
-                                    pet.name,
-                                    style: AppTheme.bodyMediumStyle.copyWith(
-                                      fontWeight: FontWeight.w600,
-                                      color: isSelectable ? AppTheme.textPrimary : AppTheme.textSecondary,
-                                    ),
-                                  ),
-                                ),
-                                if (eligibility.needsConsultation)
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                                    decoration: BoxDecoration(
-                                      color: Colors.orange.shade100,
-                                      borderRadius: BorderRadius.circular(4),
-                                    ),
-                                    child: Text(
-                                      '협의 필요',
-                                      style: AppTheme.bodySmallStyle.copyWith(
-                                        color: Colors.orange.shade800,
-                                        fontSize: 10,
-                                      ),
-                                    ),
-                                  ),
-                                if (!isSelectable)
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                                    decoration: BoxDecoration(
-                                      color: Colors.red.shade100,
-                                      borderRadius: BorderRadius.circular(4),
-                                    ),
-                                    child: Text(
-                                      '헌혈 불가',
-                                      style: AppTheme.bodySmallStyle.copyWith(
-                                        color: Colors.red.shade800,
-                                        fontSize: 10,
-                                      ),
-                                    ),
-                                  ),
-                              ],
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              '${pet.age} • ${pet.weightKg}kg${pet.bloodType != null ? ' • ${pet.bloodType}' : ''}',
-                              style: AppTheme.bodySmallStyle.copyWith(
-                                color: AppTheme.textSecondary,
-                              ),
-                            ),
-                            // 헌혈 불가능 이유 표시
-                            if (!isSelectable && eligibility.failedConditions.isNotEmpty) ...[
-                              const SizedBox(height: 6),
-                              Container(
-                                padding: const EdgeInsets.all(8),
-                                decoration: BoxDecoration(
-                                  color: Colors.red.shade50,
-                                  borderRadius: BorderRadius.circular(4),
-                                ),
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: eligibility.failedConditions.take(3).map((condition) {
-                                    return Padding(
-                                      padding: const EdgeInsets.only(bottom: 2),
-                                      child: Row(
-                                        children: [
-                                          Icon(Icons.close, size: 12, color: Colors.red.shade700),
-                                          const SizedBox(width: 4),
-                                          Expanded(
-                                            child: Text(
-                                              '${condition.conditionName}: ${condition.message}',
-                                              style: AppTheme.bodySmallStyle.copyWith(
-                                                color: Colors.red.shade700,
-                                                fontSize: 11,
-                                              ),
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    );
-                                  }).toList(),
-                                ),
-                              ),
-                            ],
-                          ],
-                        ),
-                      ),
-                    );
-                  },
-                ),
-              );
-            }),
+              },
+            ),
 
             const SizedBox(height: AppTheme.spacing20),
 
@@ -420,16 +480,17 @@ class _DonationApplicationDialogState extends State<DonationApplicationDialog> {
                     borderRadius: BorderRadius.circular(AppTheme.radius8),
                   ),
                 ),
-                child: isSubmitting 
-                    ? const SizedBox(
-                        width: 20,
-                        height: 20,
-                        child: CircularProgressIndicator(
-                          color: Colors.white,
-                          strokeWidth: 2,
-                        ),
-                      )
-                    : const Text('헌혈 신청하기'),
+                child:
+                    isSubmitting
+                        ? const SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(
+                            color: Colors.white,
+                            strokeWidth: 2,
+                          ),
+                        )
+                        : const Text('헌혈 신청하기'),
               ),
             ),
           ],
@@ -440,11 +501,14 @@ class _DonationApplicationDialogState extends State<DonationApplicationDialog> {
 
   Widget _buildDateCard(DonationDateWithTimes dateWithTimes) {
     final isSelected = selectedDateWithTimes == dateWithTimes;
-    
+
     return Container(
       margin: const EdgeInsets.only(bottom: AppTheme.spacing8),
       decoration: BoxDecoration(
-        color: isSelected ? AppTheme.lightBlue.withValues(alpha: 0.2) : Colors.white,
+        color:
+            isSelected
+                ? AppTheme.lightBlue.withValues(alpha: 0.2)
+                : Colors.white,
         borderRadius: BorderRadius.circular(AppTheme.radius8),
         border: Border.all(
           color: isSelected ? AppTheme.primaryBlue : AppTheme.lightGray,
@@ -468,7 +532,10 @@ class _DonationApplicationDialogState extends State<DonationApplicationDialog> {
                 Icon(
                   Icons.calendar_today,
                   size: 20,
-                  color: isSelected ? AppTheme.primaryBlue : AppTheme.textSecondary,
+                  color:
+                      isSelected
+                          ? AppTheme.primaryBlue
+                          : AppTheme.textSecondary,
                 ),
                 const SizedBox(width: AppTheme.spacing8),
                 Expanded(
@@ -479,7 +546,10 @@ class _DonationApplicationDialogState extends State<DonationApplicationDialog> {
                         dateWithTimes.dateOnly,
                         style: AppTheme.bodyMediumStyle.copyWith(
                           fontWeight: FontWeight.w600,
-                          color: isSelected ? AppTheme.primaryBlue : AppTheme.textPrimary,
+                          color:
+                              isSelected
+                                  ? AppTheme.primaryBlue
+                                  : AppTheme.textPrimary,
                         ),
                       ),
                       Text(
@@ -507,58 +577,67 @@ class _DonationApplicationDialogState extends State<DonationApplicationDialog> {
     final isClosed = time.isClosed; // 시간대 마감 여부 (status = 1)
 
     // 내가 이미 신청한 시간대인지 확인
-    final myApplication = time.postTimesId != null
-        ? myApplicationsMap[time.postTimesId!]
-        : null;
+    final myApplication =
+        time.postTimesId != null ? myApplicationsMap[time.postTimesId!] : null;
     final isAlreadyApplied = myApplication != null;
 
     // 디버그 로그
-    debugPrint('[TimeCard] postTimesId: ${time.postTimesId}, isAlreadyApplied: $isAlreadyApplied, myApplicationsMap keys: ${myApplicationsMap.keys.toList()}');
+    debugPrint(
+      '[TimeCard] postTimesId: ${time.postTimesId}, isAlreadyApplied: $isAlreadyApplied, myApplicationsMap keys: ${myApplicationsMap.keys.toList()}',
+    );
 
     final isDisabled = isClosed || isFullyBooked; // 마감되었거나 정원 초과
 
     return Container(
       decoration: BoxDecoration(
-        color: isAlreadyApplied
-            ? Colors.red.shade50  // 이미 신청한 시간대는 연한 빨간 배경
-            : isSelected
+        color:
+            isAlreadyApplied
+                ? Colors
+                    .red
+                    .shade50 // 이미 신청한 시간대는 연한 빨간 배경
+                : isSelected
                 ? AppTheme.primaryBlue.withValues(alpha: 0.1)
                 : isDisabled
-                    ? Colors.grey.shade100
-                    : Colors.white,
+                ? Colors.grey.shade100
+                : Colors.white,
         borderRadius: BorderRadius.circular(AppTheme.radius8),
         border: Border.all(
-          color: isAlreadyApplied
-              ? Colors.red  // 빨간 테두리
-              : isSelected
+          color:
+              isAlreadyApplied
+                  ? Colors
+                      .red // 빨간 테두리
+                  : isSelected
                   ? AppTheme.primaryBlue
                   : isDisabled
-                      ? Colors.grey
-                      : AppTheme.lightGray,
+                  ? Colors.grey
+                  : AppTheme.lightGray,
           width: isAlreadyApplied ? 2 : (isSelected ? 2 : 1),
         ),
       ),
       child: Material(
         color: Colors.transparent,
         child: InkWell(
-          onTap: isAlreadyApplied
-              ? () => _showCancelBottomSheet(myApplication) // 취소 바텀시트 표시
-              : isDisabled
+          onTap:
+              isAlreadyApplied
+                  ? () => _showCancelBottomSheet(myApplication) // 취소 바텀시트 표시
+                  : isDisabled
                   ? () {
-                      // 마감된 시간대 클릭 시 안내 메시지 표시
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text(isClosed ? '이미 마감된 시간대입니다.' : '정원이 마감된 시간대입니다.'),
-                          backgroundColor: Colors.orange.shade700,
-                          duration: const Duration(seconds: 2),
+                    // 마감된 시간대 클릭 시 안내 메시지 표시
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text(
+                          isClosed ? '이미 마감된 시간대입니다.' : '정원이 마감된 시간대입니다.',
                         ),
-                      );
-                    }
+                        backgroundColor: Colors.orange.shade700,
+                        duration: const Duration(seconds: 2),
+                      ),
+                    );
+                  }
                   : () {
-                      setState(() {
-                        selectedTime = time;
-                      });
-                    },
+                    setState(() {
+                      selectedTime = time;
+                    });
+                  },
           borderRadius: BorderRadius.circular(AppTheme.radius8),
           child: Padding(
             padding: const EdgeInsets.all(AppTheme.spacing8),
@@ -569,13 +648,14 @@ class _DonationApplicationDialogState extends State<DonationApplicationDialog> {
                   time.formatted12Hour,
                   style: AppTheme.bodyMediumStyle.copyWith(
                     fontWeight: FontWeight.w600,
-                    color: isAlreadyApplied
-                        ? Colors.red
-                        : isDisabled
+                    color:
+                        isAlreadyApplied
+                            ? Colors.red
+                            : isDisabled
                             ? Colors.grey
                             : isSelected
-                                ? AppTheme.primaryBlue
-                                : AppTheme.textPrimary,
+                            ? AppTheme.primaryBlue
+                            : AppTheme.textPrimary,
                   ),
                 ),
                 const SizedBox(height: 2),
@@ -583,20 +663,21 @@ class _DonationApplicationDialogState extends State<DonationApplicationDialog> {
                   isAlreadyApplied
                       ? '신청완료 (${myApplication.status})'
                       : isClosed
-                          ? '마감'
-                          : isFullyBooked
-                              ? '마감'
-                              : applicationsCount > 0
-                                  ? '$applicationsCount명 신청'
-                                  : '신청 가능',
+                      ? '마감'
+                      : isFullyBooked
+                      ? '마감'
+                      : applicationsCount > 0
+                      ? '$applicationsCount명 신청'
+                      : '신청 가능',
                   style: AppTheme.captionStyle.copyWith(
-                    color: isAlreadyApplied
-                        ? Colors.red
-                        : isDisabled
+                    color:
+                        isAlreadyApplied
+                            ? Colors.red
+                            : isDisabled
                             ? Colors.red
                             : applicationsCount > 0
-                                ? Colors.orange.shade700
-                                : Colors.green.shade700,
+                            ? Colors.orange.shade700
+                            : Colors.green.shade700,
                     fontSize: 10,
                   ),
                 ),
@@ -616,40 +697,44 @@ class _DonationApplicationDialogState extends State<DonationApplicationDialog> {
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
-      builder: (context) => _CancelApplicationBottomSheet(
-        application: application,
-        onCancelSuccess: () {
-          // 취소 성공 후 목록 새로고침
-          _loadMyApplications();
-          _loadTimeSlotStats();
-        },
-      ),
+      builder:
+          (context) => _CancelApplicationBottomSheet(
+            application: application,
+            onCancelSuccess: () {
+              // 취소 성공 후 목록 새로고침
+              _loadMyApplications();
+              _loadTimeSlotStats();
+            },
+          ),
     );
   }
 
   bool _canSubmit() {
     // 헌혈 가능한 반려동물 필터링
-    final availablePets = widget.userPets.where((pet) {
-      // 동물 종류 매칭 (새로운 animal_type 필드 사용)
-      bool animalTypeMatch = pet.animalType == widget.animalType;
+    final availablePets =
+        widget.userPets.where((pet) {
+          // 동물 종류 매칭 (새로운 animal_type 필드 사용)
+          bool animalTypeMatch = pet.animalType == widget.animalType;
 
-      // animal_type이 null인 경우 기존 species로 매칭 (하위 호환성)
-      if (pet.animalType == null) {
-        if (widget.animalType == 0) { // 강아지
-          animalTypeMatch = pet.species == '강아지' || pet.species == '개';
-        } else if (widget.animalType == 1) { // 고양이
-          animalTypeMatch = pet.species == '고양이';
-        }
-      }
+          // animal_type이 null인 경우 기존 species로 매칭 (하위 호환성)
+          if (pet.animalType == null) {
+            if (widget.animalType == 0) {
+              // 강아지
+              animalTypeMatch = pet.species == '강아지' || pet.species == '개';
+            } else if (widget.animalType == 1) {
+              // 고양이
+              animalTypeMatch = pet.species == '고양이';
+            }
+          }
 
-      return animalTypeMatch;
-    }).toList();
+          return animalTypeMatch;
+        }).toList();
 
     return availablePets.isNotEmpty &&
-           selectedPet != null &&
-           selectedTime != null &&
-           !selectedTime!.isClosed && // 마감된 시간대는 신청 불가
-           !isSubmitting;
+        selectedPet != null &&
+        selectedTime != null &&
+        !selectedTime!.isClosed && // 마감된 시간대는 신청 불가
+        !isSubmitting;
   }
 
   Future<void> _submitApplication() async {
@@ -729,10 +814,12 @@ class _CancelApplicationBottomSheet extends StatefulWidget {
   });
 
   @override
-  State<_CancelApplicationBottomSheet> createState() => _CancelApplicationBottomSheetState();
+  State<_CancelApplicationBottomSheet> createState() =>
+      _CancelApplicationBottomSheetState();
 }
 
-class _CancelApplicationBottomSheetState extends State<_CancelApplicationBottomSheet> {
+class _CancelApplicationBottomSheetState
+    extends State<_CancelApplicationBottomSheet> {
   bool isCancelling = false;
 
   @override
@@ -788,12 +875,18 @@ class _CancelApplicationBottomSheetState extends State<_CancelApplicationBottomS
               children: [
                 _buildInfoRow('게시글', widget.application.postTitle),
                 const SizedBox(height: 8),
-                _buildInfoRow('반려동물', '${widget.application.petName} (${widget.application.speciesText})'),
+                _buildInfoRow(
+                  '반려동물',
+                  '${widget.application.petName} (${widget.application.speciesText})',
+                ),
                 const SizedBox(height: 8),
                 _buildInfoRow('헌혈 시간', widget.application.donationTime),
                 const SizedBox(height: 8),
-                _buildInfoRow('상태', widget.application.status,
-                    statusColor: _getStatusColor(widget.application.statusCode)),
+                _buildInfoRow(
+                  '상태',
+                  widget.application.status,
+                  statusColor: _getStatusColor(widget.application.statusCode),
+                ),
               ],
             ),
           ),
@@ -810,7 +903,11 @@ class _CancelApplicationBottomSheetState extends State<_CancelApplicationBottomS
               ),
               child: Row(
                 children: [
-                  Icon(Icons.warning_amber, color: Colors.orange.shade700, size: 20),
+                  Icon(
+                    Icons.warning_amber,
+                    color: Colors.orange.shade700,
+                    size: 20,
+                  ),
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
@@ -855,16 +952,17 @@ class _CancelApplicationBottomSheetState extends State<_CancelApplicationBottomS
                         borderRadius: BorderRadius.circular(8),
                       ),
                     ),
-                    child: isCancelling
-                        ? const SizedBox(
-                            width: 20,
-                            height: 20,
-                            child: CircularProgressIndicator(
-                              color: Colors.white,
-                              strokeWidth: 2,
-                            ),
-                          )
-                        : const Text('신청 취소'),
+                    child:
+                        isCancelling
+                            ? const SizedBox(
+                              width: 20,
+                              height: 20,
+                              child: CircularProgressIndicator(
+                                color: Colors.white,
+                                strokeWidth: 2,
+                              ),
+                            )
+                            : const Text('신청 취소'),
                   ),
                 ),
               ],
@@ -903,25 +1001,7 @@ class _CancelApplicationBottomSheetState extends State<_CancelApplicationBottomS
   }
 
   Color _getStatusColor(int statusCode) {
-    switch (statusCode) {
-      case AppliedDonationStatus.pending:
-        return Colors.orange;
-      case AppliedDonationStatus.approved:
-        return Colors.blue;
-      case AppliedDonationStatus.rejected:
-        return Colors.grey;
-      case AppliedDonationStatus.completed:
-      case AppliedDonationStatus.finalCompleted:
-        return Colors.green;
-      case AppliedDonationStatus.cancelled:
-        return Colors.grey;
-      case AppliedDonationStatus.pendingCompletion:
-        return Colors.purple;
-      case AppliedDonationStatus.pendingCancellation:
-        return Colors.orange;
-      default:
-        return AppTheme.textPrimary;
-    }
+    return AppliedDonationStatus.getStatusColorValue(statusCode);
   }
 
   Future<void> _handleCancel() async {
@@ -931,7 +1011,8 @@ class _CancelApplicationBottomSheetState extends State<_CancelApplicationBottomS
 
     try {
       await AppliedDonationService.cancelApplicationToServer(
-          widget.application.applicationId);
+        widget.application.applicationId,
+      );
 
       if (mounted) {
         Navigator.pop(context);

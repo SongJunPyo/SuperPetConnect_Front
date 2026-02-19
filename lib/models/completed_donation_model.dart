@@ -41,14 +41,16 @@ class CompletedDonation {
       petName: json['pet_name'],
       petBloodType: json['pet_blood_type'],
       petWeight: json['pet_weight']?.toDouble(),
-      donationTime: json['donation_time'] != null
-          ? DateTime.parse(json['donation_time'])
-          : null,
+      donationTime:
+          json['donation_time'] != null
+              ? DateTime.parse(json['donation_time'])
+              : null,
       postTitle: json['post_title'],
       hospitalName: json['hospital_name'],
-      appliedDonation: json['applied_donation'] != null
-          ? AppliedDonation.fromJson(json['applied_donation'])
-          : null,
+      appliedDonation:
+          json['applied_donation'] != null
+              ? AppliedDonation.fromJson(json['applied_donation'])
+              : null,
     );
   }
 
@@ -198,18 +200,21 @@ class PetDonationHistory {
       petBloodType: json['pet_blood_type'],
       petWeight: json['pet_weight']?.toDouble(),
       animalType: json['animal_type'],
-      firstDonationDate: json['first_donation_date'] != null
-          ? DateTime.parse(json['first_donation_date'])
-          : null,
-      lastDonationDate: json['last_donation_date'] != null
-          ? DateTime.parse(json['last_donation_date'])
-          : null,
+      firstDonationDate:
+          json['first_donation_date'] != null
+              ? DateTime.parse(json['first_donation_date'])
+              : null,
+      lastDonationDate:
+          json['last_donation_date'] != null
+              ? DateTime.parse(json['last_donation_date'])
+              : null,
       totalDonations: json['total_donations'] ?? 0,
       totalBloodVolume: (json['total_blood_volume'] ?? 0).toDouble(),
       averageBloodVolume: (json['average_blood_volume'] ?? 0).toDouble(),
-      donations: (json['donations'] as List? ?? [])
-          .map((item) => CompletedDonation.fromJson(item))
-          .toList(),
+      donations:
+          (json['donations'] as List? ?? [])
+              .map((item) => CompletedDonation.fromJson(item))
+              .toList(),
     );
   }
 
@@ -310,9 +315,10 @@ class HospitalDonationStats {
       totalCompleted: json['total_completed'] ?? 0,
       totalBloodVolume: (json['total_blood_volume'] ?? 0).toDouble(),
       averageBloodVolume: (json['average_blood_volume'] ?? 0).toDouble(),
-      completedDonations: (json['completed_donations'] as List? ?? [])
-          .map((item) => CompletedDonation.fromJson(item))
-          .toList(),
+      completedDonations:
+          (json['completed_donations'] as List? ?? [])
+              .map((item) => CompletedDonation.fromJson(item))
+              .toList(),
     );
   }
 
@@ -357,9 +363,10 @@ class PostDonationCompletions {
       completedCount: json['completed_count'] ?? 0,
       totalBloodVolume: (json['total_blood_volume'] ?? 0).toDouble(),
       completionRate: (json['completion_rate'] ?? 0).toDouble(),
-      completedDonations: (json['completed_donations'] as List? ?? [])
-          .map((item) => CompletedDonation.fromJson(item))
-          .toList(),
+      completedDonations:
+          (json['completed_donations'] as List? ?? [])
+              .map((item) => CompletedDonation.fromJson(item))
+              .toList(),
     );
   }
 
@@ -435,18 +442,18 @@ class CompleteDonationRequest {
       'applied_donation_idx': appliedDonationIdx,
       'blood_volume': bloodVolume,
     };
-    
+
     if (completedAt != null) {
       json['completed_at'] = completedAt!.millisecondsSinceEpoch;
     }
-    
+
     return json;
   }
 
   // 유효성 검사
   bool isValid() {
-    return appliedDonationIdx > 0 && 
-           CompletedDonation.isValidBloodVolume(bloodVolume);
+    return appliedDonationIdx > 0 &&
+        CompletedDonation.isValidBloodVolume(bloodVolume);
   }
 
   String? getValidationError() {

@@ -3,6 +3,7 @@ import 'dart:convert';
 import '../utils/app_theme.dart';
 import '../utils/config.dart';
 import '../services/auth_http_client.dart';
+import '../utils/app_constants.dart';
 
 // 회원 가입 신청자 데이터 모델
 class SignupUser {
@@ -157,7 +158,7 @@ class _AdminSignupManagementState extends State<AdminSignupManagement> {
 
       final Map<String, dynamic> requestBody = {'user_type': selectedUserType};
 
-      if (selectedUserType == 2 &&
+      if (selectedUserType == AppConstants.accountTypeHospital &&
           hospitalId != null &&
           hospitalId.isNotEmpty) {
         requestBody['hospital_id'] = hospitalId;
@@ -235,16 +236,7 @@ class _AdminSignupManagementState extends State<AdminSignupManagement> {
   }
 
   String getUserTypeText(int userType) {
-    switch (userType) {
-      case 1:
-        return '관리자';
-      case 2:
-        return '병원';
-      case 3:
-        return '일반 사용자';
-      default:
-        return '알 수 없음';
-    }
+    return AppConstants.getAccountTypeText(userType);
   }
 
   Color getStatusColor(String status) {
@@ -284,12 +276,12 @@ class _AdminSignupManagementState extends State<AdminSignupManagement> {
                   ),
                   const SizedBox(height: 16),
                   DropdownButtonFormField<int>(
-                    value: selectedUserType,
+                    initialValue: selectedUserType,
                     isExpanded: true,
                     items: const [
-                      DropdownMenuItem(value: 1, child: Text('관리자')),
-                      DropdownMenuItem(value: 2, child: Text('병원')),
-                      DropdownMenuItem(value: 3, child: Text('일반 사용자')),
+                      DropdownMenuItem(value: AppConstants.accountTypeAdmin, child: Text('관리자')),
+                      DropdownMenuItem(value: AppConstants.accountTypeHospital, child: Text('병원')),
+                      DropdownMenuItem(value: AppConstants.accountTypeUser, child: Text('일반 사용자')),
                     ],
                     onChanged: (value) {
                       if (value != null) {
@@ -316,7 +308,7 @@ class _AdminSignupManagementState extends State<AdminSignupManagement> {
                       ),
                     ),
                   ),
-                  if (selectedUserType == 2)
+                  if (selectedUserType == AppConstants.accountTypeHospital)
                     Padding(
                       padding: const EdgeInsets.only(top: 16.0),
                       child: TextField(
@@ -517,7 +509,9 @@ class _AdminSignupManagementState extends State<AdminSignupManagement> {
                       child: Container(
                         padding: const EdgeInsets.all(AppTheme.spacing16),
                         decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(AppTheme.radius12),
+                          borderRadius: BorderRadius.circular(
+                            AppTheme.radius12,
+                          ),
                           border: Border.all(
                             color: AppTheme.lightGray.withValues(alpha: 0.8),
                             width: 1,
@@ -544,17 +538,23 @@ class _AdminSignupManagementState extends State<AdminSignupManagement> {
                                     vertical: 3,
                                   ),
                                   decoration: BoxDecoration(
-                                    color: user.loginType == 'naver'
-                                        ? const Color(0xFF03C75A).withValues(alpha: 0.1)
-                                        : AppTheme.primaryBlue.withValues(alpha: 0.1),
+                                    color:
+                                        user.loginType == 'naver'
+                                            ? const Color(
+                                              0xFF03C75A,
+                                            ).withValues(alpha: 0.1)
+                                            : AppTheme.primaryBlue.withValues(
+                                              alpha: 0.1,
+                                            ),
                                     borderRadius: BorderRadius.circular(6),
                                   ),
                                   child: Text(
                                     user.loginType == 'naver' ? '네이버' : '이메일',
                                     style: AppTheme.bodySmallStyle.copyWith(
-                                      color: user.loginType == 'naver'
-                                          ? const Color(0xFF03C75A)
-                                          : AppTheme.primaryBlue,
+                                      color:
+                                          user.loginType == 'naver'
+                                              ? const Color(0xFF03C75A)
+                                              : AppTheme.primaryBlue,
                                       fontWeight: FontWeight.w600,
                                     ),
                                   ),
@@ -579,7 +579,9 @@ class _AdminSignupManagementState extends State<AdminSignupManagement> {
                               context,
                               Icons.phone_outlined,
                               '연락처',
-                              user.phoneNumber.isNotEmpty ? user.phoneNumber : '미제공',
+                              user.phoneNumber.isNotEmpty
+                                  ? user.phoneNumber
+                                  : '미제공',
                             ),
                             _buildDetailRow(
                               context,
@@ -612,23 +614,27 @@ class _AdminSignupManagementState extends State<AdminSignupManagement> {
                                   child: SizedBox(
                                     height: 44,
                                     child: ElevatedButton(
-                                      onPressed: user.status == '대기'
-                                          ? () => showApprovalDialog(user)
-                                          : null,
+                                      onPressed:
+                                          user.status == '대기'
+                                              ? () => showApprovalDialog(user)
+                                              : null,
                                       style: ElevatedButton.styleFrom(
                                         backgroundColor: AppTheme.success,
                                         foregroundColor: Colors.white,
                                         shape: RoundedRectangleBorder(
-                                          borderRadius: BorderRadius.circular(AppTheme.radius12),
+                                          borderRadius: BorderRadius.circular(
+                                            AppTheme.radius12,
+                                          ),
                                         ),
                                         elevation: 0,
                                       ),
                                       child: Text(
                                         "승인",
-                                        style: AppTheme.bodyMediumStyle.copyWith(
-                                          fontWeight: FontWeight.w600,
-                                          color: Colors.white,
-                                        ),
+                                        style: AppTheme.bodyMediumStyle
+                                            .copyWith(
+                                              fontWeight: FontWeight.w600,
+                                              color: Colors.white,
+                                            ),
                                       ),
                                     ),
                                   ),
@@ -638,23 +644,27 @@ class _AdminSignupManagementState extends State<AdminSignupManagement> {
                                   child: SizedBox(
                                     height: 44,
                                     child: ElevatedButton(
-                                      onPressed: user.status == '대기'
-                                          ? () => rejectUser(user)
-                                          : null,
+                                      onPressed:
+                                          user.status == '대기'
+                                              ? () => rejectUser(user)
+                                              : null,
                                       style: ElevatedButton.styleFrom(
                                         backgroundColor: AppTheme.error,
                                         foregroundColor: Colors.white,
                                         shape: RoundedRectangleBorder(
-                                          borderRadius: BorderRadius.circular(AppTheme.radius12),
+                                          borderRadius: BorderRadius.circular(
+                                            AppTheme.radius12,
+                                          ),
                                         ),
                                         elevation: 0,
                                       ),
                                       child: Text(
                                         "거절",
-                                        style: AppTheme.bodyMediumStyle.copyWith(
-                                          fontWeight: FontWeight.w600,
-                                          color: Colors.white,
-                                        ),
+                                        style: AppTheme.bodyMediumStyle
+                                            .copyWith(
+                                              fontWeight: FontWeight.w600,
+                                              color: Colors.white,
+                                            ),
                                       ),
                                     ),
                                   ),

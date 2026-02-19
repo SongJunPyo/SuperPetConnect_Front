@@ -18,7 +18,8 @@ class DonationCancellationSheet extends StatefulWidget {
   });
 
   @override
-  State<DonationCancellationSheet> createState() => _DonationCancellationSheetState();
+  State<DonationCancellationSheet> createState() =>
+      _DonationCancellationSheetState();
 }
 
 class _DonationCancellationSheetState extends State<DonationCancellationSheet> {
@@ -33,7 +34,6 @@ class _DonationCancellationSheetState extends State<DonationCancellationSheet> {
       setState(() {});
     });
   }
-
 
   @override
   Widget build(BuildContext context) {
@@ -74,7 +74,9 @@ class _DonationCancellationSheetState extends State<DonationCancellationSheet> {
                     children: [
                       Text(
                         '헌혈 중단 처리',
-                        style: AppTheme.h3Style.copyWith(fontWeight: FontWeight.w700),
+                        style: AppTheme.h3Style.copyWith(
+                          fontWeight: FontWeight.w700,
+                        ),
                       ),
                       const SizedBox(height: 8),
                       Text(
@@ -94,7 +96,7 @@ class _DonationCancellationSheetState extends State<DonationCancellationSheet> {
               ],
             ),
             const SizedBox(height: AppTheme.spacing20),
-            
+
             // 구분선
             Container(
               height: 1,
@@ -119,7 +121,7 @@ class _DonationCancellationSheetState extends State<DonationCancellationSheet> {
                     ),
                   ),
                   const SizedBox(height: 12),
-                  
+
                   // 신청자
                   Row(
                     mainAxisAlignment: MainAxisAlignment.start,
@@ -148,7 +150,7 @@ class _DonationCancellationSheetState extends State<DonationCancellationSheet> {
                     ],
                   ),
                   const SizedBox(height: 12),
-                  
+
                   // 반려동물
                   Row(
                     mainAxisAlignment: MainAxisAlignment.start,
@@ -159,9 +161,9 @@ class _DonationCancellationSheetState extends State<DonationCancellationSheet> {
                         height: 20,
                         child: Center(
                           child: FaIcon(
-                            (widget.appliedDonation.pet?.animalTypeKr == '강아지') 
-                              ? FontAwesomeIcons.dog 
-                              : FontAwesomeIcons.cat,
+                            (widget.appliedDonation.pet?.animalTypeKr == '강아지')
+                                ? FontAwesomeIcons.dog
+                                : FontAwesomeIcons.cat,
                             size: 16,
                             color: Colors.black,
                           ),
@@ -179,7 +181,7 @@ class _DonationCancellationSheetState extends State<DonationCancellationSheet> {
                     ],
                   ),
                   const SizedBox(height: 12),
-                  
+
                   // 혈액형
                   Row(
                     mainAxisAlignment: MainAxisAlignment.start,
@@ -208,7 +210,7 @@ class _DonationCancellationSheetState extends State<DonationCancellationSheet> {
                     ],
                   ),
                   const SizedBox(height: 12),
-                  
+
                   // 몸무게
                   Row(
                     mainAxisAlignment: MainAxisAlignment.start,
@@ -237,7 +239,7 @@ class _DonationCancellationSheetState extends State<DonationCancellationSheet> {
                     ],
                   ),
                   const SizedBox(height: 12),
-                  
+
                   // 나이
                   Row(
                     mainAxisAlignment: MainAxisAlignment.start,
@@ -292,21 +294,14 @@ class _DonationCancellationSheetState extends State<DonationCancellationSheet> {
                 ),
                 focusedBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(AppTheme.radius8),
-                  borderSide: BorderSide(
-                    color: AppTheme.primaryBlue,
-                    width: 2,
-                  ),
+                  borderSide: BorderSide(color: AppTheme.primaryBlue, width: 2),
                 ),
                 errorBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(AppTheme.radius8),
-                  borderSide: const BorderSide(
-                    color: Colors.red,
-                    width: 2,
-                  ),
+                  borderSide: const BorderSide(color: Colors.red, width: 2),
                 ),
               ),
             ),
-
 
             const SizedBox(height: AppTheme.spacing24),
 
@@ -318,8 +313,12 @@ class _DonationCancellationSheetState extends State<DonationCancellationSheet> {
                     onPressed: () => Navigator.of(context).pop(),
                     style: OutlinedButton.styleFrom(
                       foregroundColor: AppTheme.textSecondary,
-                      padding: const EdgeInsets.symmetric(vertical: AppTheme.spacing16),
-                      side: BorderSide(color: AppTheme.textSecondary.withValues(alpha: 0.3)),
+                      padding: const EdgeInsets.symmetric(
+                        vertical: AppTheme.spacing16,
+                      ),
+                      side: BorderSide(
+                        color: AppTheme.textSecondary.withValues(alpha: 0.3),
+                      ),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(AppTheme.radius8),
                       ),
@@ -335,21 +334,27 @@ class _DonationCancellationSheetState extends State<DonationCancellationSheet> {
                       backgroundColor: Colors.red.shade50,
                       foregroundColor: Colors.red.shade700,
                       side: BorderSide(color: Colors.red.shade400),
-                      padding: const EdgeInsets.symmetric(vertical: AppTheme.spacing16),
+                      padding: const EdgeInsets.symmetric(
+                        vertical: AppTheme.spacing16,
+                      ),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(AppTheme.radius8),
                       ),
                     ),
-                    child: isSubmitting 
-                        ? SizedBox(
-                            width: 20,
-                            height: 20,
-                            child: CircularProgressIndicator(
-                              color: Colors.red.shade700,
-                              strokeWidth: 2,
+                    child:
+                        isSubmitting
+                            ? SizedBox(
+                              width: 20,
+                              height: 20,
+                              child: CircularProgressIndicator(
+                                color: Colors.red.shade700,
+                                strokeWidth: 2,
+                              ),
+                            )
+                            : const Text(
+                              '헌혈 중단',
+                              style: TextStyle(fontSize: 16),
                             ),
-                          )
-                        : const Text('헌혈 중단', style: TextStyle(fontSize: 16)),
                   ),
                 ),
               ],
@@ -361,10 +366,9 @@ class _DonationCancellationSheetState extends State<DonationCancellationSheet> {
     );
   }
 
-
   bool _canSubmit() {
     if (isSubmitting) return false;
-    
+
     final reason = _reasonController.text.trim();
     return reason.isNotEmpty && reason.length >= 2;
   }
@@ -385,7 +389,7 @@ class _DonationCancellationSheetState extends State<DonationCancellationSheet> {
       );
 
       // 병원용 1차 헌혈 중단 처리 API 호출
-      final result = await CancelledDonationService.hospitalCancelBloodDonation(
+      await CancelledDonationService.hospitalCancelBloodDonation(
         request,
       );
 
@@ -408,7 +412,7 @@ class _DonationCancellationSheetState extends State<DonationCancellationSheet> {
         setState(() {
           isSubmitting = false;
         });
-        
+
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('헌혈 중단 처리 실패: $e'),

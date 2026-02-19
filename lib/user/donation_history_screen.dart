@@ -17,11 +17,11 @@ class DonationHistoryScreen extends StatefulWidget {
 class _DonationHistoryScreenState extends State<DonationHistoryScreen>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
-  
+
   // 통계 데이터
   int totalApplications = 0;
   int completedDonations = 0;
-  
+
   // UI 상태
   bool isLoading = true;
   String searchQuery = '';
@@ -32,7 +32,7 @@ class _DonationHistoryScreenState extends State<DonationHistoryScreen>
   List<DonationApplication> completed = [];
   List<DonationApplication> filteredApplications = [];
   List<DonationApplication> filteredCompleted = [];
-  
+
   final TextEditingController _searchController = TextEditingController();
 
   @override
@@ -64,17 +64,26 @@ class _DonationHistoryScreenState extends State<DonationHistoryScreen>
         // 디버그: API 응답 확인
         debugPrint('[DonationHistory] API 응답: $data');
         for (var app in applicationsJson) {
-          debugPrint('[DonationHistory] 신청 데이터: status=${app['status']}, status_kr=${app['status_kr']}, status_code=${app['status_code']}');
+          debugPrint(
+            '[DonationHistory] 신청 데이터: status=${app['status']}, status_kr=${app['status_kr']}, status_code=${app['status_code']}',
+          );
         }
 
-        final allApplications = applicationsJson.map((json) => DonationApplication.fromJson(json)).toList();
+        final allApplications =
+            applicationsJson
+                .map((json) => DonationApplication.fromJson(json))
+                .toList();
 
         // 신청 중인 것과 완료된 것 분리
         // status_code: 0=대기중, 1=승인됨, 2=거절됨, 4=취소됨, 7=헌혈완료
-        applications = allApplications.where((app) => app.statusCode != 7).toList();
-        completed = allApplications.where((app) => app.statusCode == 7).toList();
+        applications =
+            allApplications.where((app) => app.statusCode != 7).toList();
+        completed =
+            allApplications.where((app) => app.statusCode == 7).toList();
 
-        debugPrint('[DonationHistory] 신청 중: ${applications.length}개, 완료: ${completed.length}개');
+        debugPrint(
+          '[DonationHistory] 신청 중: ${applications.length}개, 완료: ${completed.length}개',
+        );
 
         totalApplications = allApplications.length;
         completedDonations = completed.length;
@@ -98,26 +107,44 @@ class _DonationHistoryScreenState extends State<DonationHistoryScreen>
 
     // 검색어 필터링
     if (searchQuery.isNotEmpty) {
-      filteredApplications = filteredApplications.where((app) =>
-        app.postTitle.toLowerCase().contains(searchQuery.toLowerCase()) ||
-        app.petName.toLowerCase().contains(searchQuery.toLowerCase())
-      ).toList();
+      filteredApplications =
+          filteredApplications
+              .where(
+                (app) =>
+                    app.postTitle.toLowerCase().contains(
+                      searchQuery.toLowerCase(),
+                    ) ||
+                    app.petName.toLowerCase().contains(
+                      searchQuery.toLowerCase(),
+                    ),
+              )
+              .toList();
 
-      filteredCompleted = filteredCompleted.where((app) =>
-        app.postTitle.toLowerCase().contains(searchQuery.toLowerCase()) ||
-        app.petName.toLowerCase().contains(searchQuery.toLowerCase())
-      ).toList();
+      filteredCompleted =
+          filteredCompleted
+              .where(
+                (app) =>
+                    app.postTitle.toLowerCase().contains(
+                      searchQuery.toLowerCase(),
+                    ) ||
+                    app.petName.toLowerCase().contains(
+                      searchQuery.toLowerCase(),
+                    ),
+              )
+              .toList();
     }
 
     // 날짜 필터링
     if (selectedDate != null) {
-      filteredApplications = filteredApplications.where((app) =>
-        _isSameDay(app.donationTime, selectedDate!)
-      ).toList();
+      filteredApplications =
+          filteredApplications
+              .where((app) => _isSameDay(app.donationTime, selectedDate!))
+              .toList();
 
-      filteredCompleted = filteredCompleted.where((app) =>
-        _isSameDay(app.donationTime, selectedDate!)
-      ).toList();
+      filteredCompleted =
+          filteredCompleted
+              .where((app) => _isSameDay(app.donationTime, selectedDate!))
+              .toList();
     }
 
     setState(() {});
@@ -208,10 +235,17 @@ class _DonationHistoryScreenState extends State<DonationHistoryScreen>
               ),
               child: Row(
                 children: [
-                  Icon(Icons.calendar_today, size: 16, color: Colors.blue.shade700),
+                  Icon(
+                    Icons.calendar_today,
+                    size: 16,
+                    color: Colors.blue.shade700,
+                  ),
                   const SizedBox(width: 8),
                   Text(
-                    DateFormat('yyyy년 MM월 dd일 (E)', 'ko_KR').format(selectedDate!),
+                    DateFormat(
+                      'yyyy년 MM월 dd일 (E)',
+                      'ko_KR',
+                    ).format(selectedDate!),
                     style: AppTheme.bodyMediumStyle.copyWith(
                       color: Colors.blue.shade700,
                       fontWeight: FontWeight.w500,
@@ -225,7 +259,11 @@ class _DonationHistoryScreenState extends State<DonationHistoryScreen>
                       });
                       _applySearchFilter();
                     },
-                    child: Icon(Icons.close, size: 18, color: Colors.blue.shade700),
+                    child: Icon(
+                      Icons.close,
+                      size: 18,
+                      color: Colors.blue.shade700,
+                    ),
                   ),
                 ],
               ),
@@ -239,36 +277,31 @@ class _DonationHistoryScreenState extends State<DonationHistoryScreen>
               onChanged: _onSearchChanged,
               decoration: InputDecoration(
                 hintText: '게시글 제목, 반려동물 이름으로 검색...',
-                prefixIcon: const Icon(
-                  Icons.search,
-                  color: Colors.black,
-                ),
+                prefixIcon: const Icon(Icons.search, color: Colors.black),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
                   borderSide: BorderSide(color: Colors.grey.shade300),
                 ),
                 focusedBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
-                  borderSide: const BorderSide(
-                    color: Colors.black,
-                    width: 2,
-                  ),
+                  borderSide: const BorderSide(color: Colors.black, width: 2),
                 ),
                 filled: true,
                 fillColor: Colors.grey.shade50,
-                suffixIcon: searchQuery.isNotEmpty
-                    ? IconButton(
-                        icon: const Icon(Icons.clear),
-                        onPressed: () {
-                          _searchController.clear();
-                          _onSearchChanged('');
-                        },
-                      )
-                    : null,
+                suffixIcon:
+                    searchQuery.isNotEmpty
+                        ? IconButton(
+                          icon: const Icon(Icons.clear),
+                          onPressed: () {
+                            _searchController.clear();
+                            _onSearchChanged('');
+                          },
+                        )
+                        : null,
               ),
             ),
           ),
-          
+
           // 탭바
           Container(
             decoration: BoxDecoration(
@@ -291,7 +324,7 @@ class _DonationHistoryScreenState extends State<DonationHistoryScreen>
               ],
             ),
           ),
-          
+
           // 탭 내용
           Expanded(
             child: TabBarView(
@@ -371,7 +404,6 @@ class _DonationHistoryScreenState extends State<DonationHistoryScreen>
     );
   }
 
-
   Widget _buildApplicationsList(List<DonationApplication> applications) {
     if (isLoading) {
       return const Center(
@@ -386,17 +418,11 @@ class _DonationHistoryScreenState extends State<DonationHistoryScreen>
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(
-              Icons.bloodtype,
-              size: 64,
-              color: Colors.grey.shade300,
-            ),
+            Icon(Icons.bloodtype, size: 64, color: Colors.grey.shade300),
             const SizedBox(height: 16),
             Text(
               '헌혈 내역이 없습니다',
-              style: AppTheme.h4Style.copyWith(
-                color: Colors.grey.shade500,
-              ),
+              style: AppTheme.h4Style.copyWith(color: Colors.grey.shade500),
             ),
           ],
         ),
@@ -420,7 +446,7 @@ class _DonationHistoryScreenState extends State<DonationHistoryScreen>
   Widget _buildApplicationCard(DonationApplication application) {
     Color statusColor;
     Color statusBackgroundColor;
-    
+
     switch (application.status) {
       case '대기중':
         statusColor = Colors.orange.shade700;
@@ -466,7 +492,10 @@ class _DonationHistoryScreenState extends State<DonationHistoryScreen>
                   ),
                 ),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 6,
+                  ),
                   decoration: BoxDecoration(
                     color: statusBackgroundColor,
                     borderRadius: BorderRadius.circular(20),
@@ -486,7 +515,8 @@ class _DonationHistoryScreenState extends State<DonationHistoryScreen>
             Row(
               children: [
                 FaIcon(
-                  application.petSpecies.contains('강아지') || application.petSpecies.contains('개')
+                  application.petSpecies.contains('강아지') ||
+                          application.petSpecies.contains('개')
                       ? FontAwesomeIcons.dog
                       : FontAwesomeIcons.cat,
                   size: 16,
@@ -502,7 +532,10 @@ class _DonationHistoryScreenState extends State<DonationHistoryScreen>
                 ),
                 const Spacer(),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 4,
+                  ),
                   decoration: BoxDecoration(
                     color: Colors.red.shade50,
                     borderRadius: BorderRadius.circular(8),
@@ -523,7 +556,9 @@ class _DonationHistoryScreenState extends State<DonationHistoryScreen>
                 Icon(Icons.schedule, size: 18, color: Colors.grey.shade600),
                 const SizedBox(width: 6),
                 Text(
-                  DateFormat('yyyy년 MM월 dd일 HH:mm').format(application.donationTime),
+                  DateFormat(
+                    'yyyy년 MM월 dd일 HH:mm',
+                  ).format(application.donationTime),
                   style: AppTheme.bodyMediumStyle.copyWith(
                     color: Colors.grey.shade700,
                   ),
@@ -568,7 +603,8 @@ class DonationApplication {
       petName: json['pet_name'] ?? '',
       petSpecies: json['pet_species'] ?? '',
       petBloodType: json['pet_blood_type'] ?? '',
-      donationTime: DateTime.tryParse(json['donation_time'] ?? '') ?? DateTime.now(),
+      donationTime:
+          DateTime.tryParse(json['donation_time'] ?? '') ?? DateTime.now(),
       status: json['status'] ?? '대기중',
       statusCode: json['status_code'] ?? 0,
     );

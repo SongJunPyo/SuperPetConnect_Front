@@ -52,10 +52,10 @@ class _MarqueeTextState extends State<MarqueeText>
       maxLines: 1,
     );
     textPainter.layout();
-    
+
     // 컨테이너 크기 가져오기
     final RenderBox? renderBox = context.findRenderObject() as RenderBox?;
-    
+
     if (renderBox != null && renderBox.hasSize) {
       setState(() {
         _textWidth = textPainter.width;
@@ -74,14 +74,16 @@ class _MarqueeTextState extends State<MarqueeText>
     // 스크롤 거리: 텍스트 폭에서 컨테이너 폭을 뺀 만큼 + 추가 공백
     final double extraSpace = 32.0; // 2개 정도의 공백 (16px * 2)
     final double scrollDistance = _textWidth - _containerWidth + extraSpace;
-    
+
     _animation = Tween<double>(
       begin: 0.0,
       end: scrollDistance > 0 ? scrollDistance : 0.0,
-    ).animate(CurvedAnimation(
-      parent: _animationController,
-      curve: Curves.linear, // 일정한 속도로 변경
-    ));
+    ).animate(
+      CurvedAnimation(
+        parent: _animationController,
+        curve: Curves.linear, // 일정한 속도로 변경
+      ),
+    );
 
     _animation.addListener(() {
       if (_scrollController.hasClients) {
@@ -122,20 +124,16 @@ class _MarqueeTextState extends State<MarqueeText>
   Widget build(BuildContext context) {
     return _needsScrolling
         ? SingleChildScrollView(
-            controller: _scrollController,
-            scrollDirection: Axis.horizontal,
-            physics: const NeverScrollableScrollPhysics(), // 사용자 스크롤 비활성화
-            child: Text(
-              widget.text,
-              style: widget.style,
-              maxLines: 1,
-            ),
-          )
+          controller: _scrollController,
+          scrollDirection: Axis.horizontal,
+          physics: const NeverScrollableScrollPhysics(), // 사용자 스크롤 비활성화
+          child: Text(widget.text, style: widget.style, maxLines: 1),
+        )
         : Text(
-            widget.text,
-            style: widget.style,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-          );
+          widget.text,
+          style: widget.style,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+        );
   }
 }

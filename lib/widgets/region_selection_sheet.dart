@@ -111,7 +111,7 @@ class _RegionSelectionSheetState extends State<RegionSelectionSheet> {
                 ),
               ),
               const Divider(height: 1),
-              
+
               // 현재 선택된 지역 표시
               if (selectedLargeRegions.isNotEmpty)
                 Container(
@@ -130,39 +130,44 @@ class _RegionSelectionSheetState extends State<RegionSelectionSheet> {
                       Wrap(
                         spacing: 8,
                         runSpacing: 4,
-                        children: selectedLargeRegions.map((region) {
-                          final mediums = selectedMediumRegions[region] ?? [];
-                          final displayText = mediums.isEmpty 
-                              ? '${region.name} 전체'
-                              : '${region.name} ${mediums.length}곳';
-                          
-                          return Chip(
-                            label: Text(
-                              displayText,
-                              style: AppTheme.bodySmallStyle.copyWith(
-                                fontSize: 12,
-                              ),
-                            ),
-                            backgroundColor: AppTheme.primaryBlue.withValues(alpha: 0.1),
-                            deleteIcon: const Icon(Icons.close, size: 16),
-                            onDeleted: () {
-                              setState(() {
-                                selectedLargeRegions.remove(region);
-                                selectedMediumRegions.remove(region);
-                                if (currentViewingRegion == region) {
-                                  currentViewingRegion = selectedLargeRegions.isNotEmpty 
-                                      ? selectedLargeRegions.first 
-                                      : null;
-                                }
-                              });
-                            },
-                          );
-                        }).toList(),
+                        children:
+                            selectedLargeRegions.map((region) {
+                              final mediums =
+                                  selectedMediumRegions[region] ?? [];
+                              final displayText =
+                                  mediums.isEmpty
+                                      ? '${region.name} 전체'
+                                      : '${region.name} ${mediums.length}곳';
+
+                              return Chip(
+                                label: Text(
+                                  displayText,
+                                  style: AppTheme.bodySmallStyle.copyWith(
+                                    fontSize: 12,
+                                  ),
+                                ),
+                                backgroundColor: AppTheme.primaryBlue
+                                    .withValues(alpha: 0.1),
+                                deleteIcon: const Icon(Icons.close, size: 16),
+                                onDeleted: () {
+                                  setState(() {
+                                    selectedLargeRegions.remove(region);
+                                    selectedMediumRegions.remove(region);
+                                    if (currentViewingRegion == region) {
+                                      currentViewingRegion =
+                                          selectedLargeRegions.isNotEmpty
+                                              ? selectedLargeRegions.first
+                                              : null;
+                                    }
+                                  });
+                                },
+                              );
+                            }).toList(),
                       ),
                     ],
                   ),
                 ),
-              
+
               // 컨텐츠
               Expanded(
                 child: Row(
@@ -184,12 +189,14 @@ class _RegionSelectionSheetState extends State<RegionSelectionSheet> {
                           ),
                           Expanded(
                             child: ListView.builder(
-                              itemCount: largeRegions.length + 1, // "전체" 옵션을 위해 +1
+                              itemCount:
+                                  largeRegions.length + 1, // "전체" 옵션을 위해 +1
                               itemBuilder: (context, index) {
                                 // 첫 번째 아이템은 "전체" 옵션
                                 if (index == 0) {
-                                  final isSelected = selectedLargeRegions.isEmpty;
-                                  
+                                  final isSelected =
+                                      selectedLargeRegions.isEmpty;
+
                                   return InkWell(
                                     onTap: () {
                                       setState(() {
@@ -208,59 +215,72 @@ class _RegionSelectionSheetState extends State<RegionSelectionSheet> {
                                         vertical: 2,
                                       ),
                                       decoration: BoxDecoration(
-                                        color: isSelected 
-                                            ? AppTheme.primaryBlue.withValues(alpha: 0.1)
-                                            : Colors.transparent,
+                                        color:
+                                            isSelected
+                                                ? AppTheme.primaryBlue
+                                                    .withValues(alpha: 0.1)
+                                                : Colors.transparent,
                                         borderRadius: BorderRadius.circular(8),
                                       ),
                                       child: Text(
                                         '전체',
-                                        style: AppTheme.bodyMediumStyle.copyWith(
-                                          color: isSelected 
-                                              ? AppTheme.primaryBlue 
-                                              : AppTheme.textPrimary,
-                                          fontWeight: isSelected 
-                                              ? FontWeight.w600 
-                                              : FontWeight.normal,
-                                        ),
+                                        style: AppTheme.bodyMediumStyle
+                                            .copyWith(
+                                              color:
+                                                  isSelected
+                                                      ? AppTheme.primaryBlue
+                                                      : AppTheme.textPrimary,
+                                              fontWeight:
+                                                  isSelected
+                                                      ? FontWeight.w600
+                                                      : FontWeight.normal,
+                                            ),
                                       ),
                                     ),
                                   );
                                 }
-                                
+
                                 // 나머지는 기존 지역 데이터
                                 final region = largeRegions[index - 1];
-                                final isSelected = selectedLargeRegions.contains(region);
-                                final isViewing = currentViewingRegion == region;
+                                final isSelected = selectedLargeRegions
+                                    .contains(region);
+                                final isViewing =
+                                    currentViewingRegion == region;
 
                                 return InkWell(
                                   onTap: () {
                                     setState(() {
-                                      if (selectedLargeRegions.length >= 5 && !isSelected) {
-                                        ScaffoldMessenger.of(context).showSnackBar(
+                                      if (selectedLargeRegions.length >= 5 &&
+                                          !isSelected) {
+                                        ScaffoldMessenger.of(
+                                          context,
+                                        ).showSnackBar(
                                           const SnackBar(
-                                            content: Text('최대 5개 지역까지만 선택할 수 있습니다.'),
+                                            content: Text(
+                                              '최대 5개 지역까지만 선택할 수 있습니다.',
+                                            ),
                                             duration: Duration(seconds: 2),
                                           ),
                                         );
                                         return;
                                       }
-                                      
+
                                       if (isSelected) {
                                         // 이미 선택된 지역이면 해제
                                         selectedLargeRegions.remove(region);
                                         selectedMediumRegions.remove(region);
                                         if (currentViewingRegion == region) {
-                                          currentViewingRegion = selectedLargeRegions.isNotEmpty 
-                                              ? selectedLargeRegions.first 
-                                              : null;
+                                          currentViewingRegion =
+                                              selectedLargeRegions.isNotEmpty
+                                                  ? selectedLargeRegions.first
+                                                  : null;
                                         }
                                       } else {
                                         // 새로운 지역 선택
                                         selectedLargeRegions.add(region);
                                         selectedMediumRegions[region] = [];
                                       }
-                                      
+
                                       // 오른쪽 패널에 표시할 지역 설정
                                       currentViewingRegion = region;
                                     });
@@ -275,21 +295,32 @@ class _RegionSelectionSheetState extends State<RegionSelectionSheet> {
                                       vertical: 2,
                                     ),
                                     decoration: BoxDecoration(
-                                      color: isViewing
-                                          ? AppTheme.lightGray.withValues(alpha: 0.3)
-                                          : isSelected
-                                              ? AppTheme.primaryBlue.withValues(alpha: 0.1)
+                                      color:
+                                          isViewing
+                                              ? AppTheme.lightGray.withValues(
+                                                alpha: 0.3,
+                                              )
+                                              : isSelected
+                                              ? AppTheme.primaryBlue.withValues(
+                                                alpha: 0.1,
+                                              )
                                               : Colors.transparent,
                                       borderRadius: BorderRadius.circular(8),
-                                      border: isSelected
-                                          ? Border.all(color: AppTheme.primaryBlue, width: 1)
-                                          : null,
+                                      border:
+                                          isSelected
+                                              ? Border.all(
+                                                color: AppTheme.primaryBlue,
+                                                width: 1,
+                                              )
+                                              : null,
                                     ),
                                     child: Row(
                                       children: [
                                         if (isSelected)
                                           Container(
-                                            margin: const EdgeInsets.only(right: 8),
+                                            margin: const EdgeInsets.only(
+                                              right: 8,
+                                            ),
                                             child: Icon(
                                               Icons.check_circle,
                                               size: 16,
@@ -299,14 +330,18 @@ class _RegionSelectionSheetState extends State<RegionSelectionSheet> {
                                         Expanded(
                                           child: Text(
                                             region.name,
-                                            style: AppTheme.bodyMediumStyle.copyWith(
-                                              color: isSelected 
-                                                  ? AppTheme.primaryBlue 
-                                                  : AppTheme.textPrimary,
-                                              fontWeight: isSelected 
-                                                  ? FontWeight.w600 
-                                                  : FontWeight.normal,
-                                            ),
+                                            style: AppTheme.bodyMediumStyle
+                                                .copyWith(
+                                                  color:
+                                                      isSelected
+                                                          ? AppTheme.primaryBlue
+                                                          : AppTheme
+                                                              .textPrimary,
+                                                  fontWeight:
+                                                      isSelected
+                                                          ? FontWeight.w600
+                                                          : FontWeight.normal,
+                                                ),
                                           ),
                                         ),
                                         Icon(
@@ -324,9 +359,9 @@ class _RegionSelectionSheetState extends State<RegionSelectionSheet> {
                         ],
                       ),
                     ),
-                    
+
                     Container(width: 1, color: AppTheme.lightGray),
-                    
+
                     // 중간 단위 (시/군/구) - 오른쪽
                     Expanded(
                       flex: 1,
@@ -356,18 +391,28 @@ class _RegionSelectionSheetState extends State<RegionSelectionSheet> {
                           else
                             Expanded(
                               child: ListView.builder(
-                                itemCount: mediumRegions.length + 1, // "전체" 옵션을 위해 +1
+                                itemCount:
+                                    mediumRegions.length + 1, // "전체" 옵션을 위해 +1
                                 itemBuilder: (context, index) {
                                   // 첫 번째 아이템은 "전체" 옵션
                                   if (index == 0) {
-                                    final selectedMediums = selectedMediumRegions[currentViewingRegion!] ?? [];
-                                    final isAllSelected = selectedMediums.isEmpty && selectedLargeRegions.contains(currentViewingRegion!);
-                                    
+                                    final selectedMediums =
+                                        selectedMediumRegions[currentViewingRegion!] ??
+                                        [];
+                                    final isAllSelected =
+                                        selectedMediums.isEmpty &&
+                                        selectedLargeRegions.contains(
+                                          currentViewingRegion!,
+                                        );
+
                                     return InkWell(
                                       onTap: () {
                                         setState(() {
-                                          if (selectedLargeRegions.contains(currentViewingRegion!)) {
-                                            selectedMediumRegions[currentViewingRegion!] = [];
+                                          if (selectedLargeRegions.contains(
+                                            currentViewingRegion!,
+                                          )) {
+                                            selectedMediumRegions[currentViewingRegion!] =
+                                                [];
                                           }
                                         });
                                       },
@@ -381,16 +426,22 @@ class _RegionSelectionSheetState extends State<RegionSelectionSheet> {
                                           vertical: 2,
                                         ),
                                         decoration: BoxDecoration(
-                                          color: isAllSelected
-                                              ? AppTheme.primaryBlue.withValues(alpha: 0.1)
-                                              : Colors.transparent,
-                                          borderRadius: BorderRadius.circular(8),
+                                          color:
+                                              isAllSelected
+                                                  ? AppTheme.primaryBlue
+                                                      .withValues(alpha: 0.1)
+                                                  : Colors.transparent,
+                                          borderRadius: BorderRadius.circular(
+                                            8,
+                                          ),
                                         ),
                                         child: Row(
                                           children: [
                                             if (isAllSelected)
                                               Container(
-                                                margin: const EdgeInsets.only(right: 8),
+                                                margin: const EdgeInsets.only(
+                                                  right: 8,
+                                                ),
                                                 child: Icon(
                                                   Icons.check_circle,
                                                   size: 16,
@@ -399,36 +450,50 @@ class _RegionSelectionSheetState extends State<RegionSelectionSheet> {
                                               ),
                                             Text(
                                               '전체',
-                                              style: AppTheme.bodyMediumStyle.copyWith(
-                                                color: isAllSelected 
-                                                    ? AppTheme.primaryBlue 
-                                                    : AppTheme.textPrimary,
-                                                fontWeight: isAllSelected 
-                                                    ? FontWeight.w600 
-                                                    : FontWeight.normal,
-                                              ),
+                                              style: AppTheme.bodyMediumStyle
+                                                  .copyWith(
+                                                    color:
+                                                        isAllSelected
+                                                            ? AppTheme
+                                                                .primaryBlue
+                                                            : AppTheme
+                                                                .textPrimary,
+                                                    fontWeight:
+                                                        isAllSelected
+                                                            ? FontWeight.w600
+                                                            : FontWeight.normal,
+                                                  ),
                                             ),
                                           ],
                                         ),
                                       ),
                                     );
                                   }
-                                  
+
                                   final mediumRegion = mediumRegions[index - 1];
-                                  final selectedMediums = selectedMediumRegions[currentViewingRegion!] ?? [];
-                                  final isSelected = selectedMediums.contains(mediumRegion);
-                                  
+                                  final selectedMediums =
+                                      selectedMediumRegions[currentViewingRegion!] ??
+                                      [];
+                                  final isSelected = selectedMediums.contains(
+                                    mediumRegion,
+                                  );
+
                                   return InkWell(
                                     onTap: () {
                                       setState(() {
-                                        if (selectedLargeRegions.contains(currentViewingRegion!)) {
-                                          final currentMediums = selectedMediumRegions[currentViewingRegion!] ?? [];
+                                        if (selectedLargeRegions.contains(
+                                          currentViewingRegion!,
+                                        )) {
+                                          final currentMediums =
+                                              selectedMediumRegions[currentViewingRegion!] ??
+                                              [];
                                           if (isSelected) {
                                             currentMediums.remove(mediumRegion);
                                           } else {
                                             currentMediums.add(mediumRegion);
                                           }
-                                          selectedMediumRegions[currentViewingRegion!] = currentMediums;
+                                          selectedMediumRegions[currentViewingRegion!] =
+                                              currentMediums;
                                         }
                                       });
                                     },
@@ -442,16 +507,20 @@ class _RegionSelectionSheetState extends State<RegionSelectionSheet> {
                                         vertical: 2,
                                       ),
                                       decoration: BoxDecoration(
-                                        color: isSelected
-                                            ? AppTheme.primaryBlue.withValues(alpha: 0.1)
-                                            : Colors.transparent,
+                                        color:
+                                            isSelected
+                                                ? AppTheme.primaryBlue
+                                                    .withValues(alpha: 0.1)
+                                                : Colors.transparent,
                                         borderRadius: BorderRadius.circular(8),
                                       ),
                                       child: Row(
                                         children: [
                                           if (isSelected)
                                             Container(
-                                              margin: const EdgeInsets.only(right: 8),
+                                              margin: const EdgeInsets.only(
+                                                right: 8,
+                                              ),
                                               child: Icon(
                                                 Icons.check_circle,
                                                 size: 16,
@@ -461,14 +530,19 @@ class _RegionSelectionSheetState extends State<RegionSelectionSheet> {
                                           Expanded(
                                             child: Text(
                                               mediumRegion.name,
-                                              style: AppTheme.bodyMediumStyle.copyWith(
-                                                color: isSelected 
-                                                    ? AppTheme.primaryBlue 
-                                                    : AppTheme.textPrimary,
-                                                fontWeight: isSelected 
-                                                    ? FontWeight.w600 
-                                                    : FontWeight.normal,
-                                              ),
+                                              style: AppTheme.bodyMediumStyle
+                                                  .copyWith(
+                                                    color:
+                                                        isSelected
+                                                            ? AppTheme
+                                                                .primaryBlue
+                                                            : AppTheme
+                                                                .textPrimary,
+                                                    fontWeight:
+                                                        isSelected
+                                                            ? FontWeight.w600
+                                                            : FontWeight.normal,
+                                                  ),
                                             ),
                                           ),
                                         ],
@@ -484,7 +558,7 @@ class _RegionSelectionSheetState extends State<RegionSelectionSheet> {
                   ],
                 ),
               ),
-              
+
               // 하단 버튼
               Container(
                 padding: const EdgeInsets.all(20),
@@ -502,7 +576,10 @@ class _RegionSelectionSheetState extends State<RegionSelectionSheet> {
                       width: double.infinity,
                       child: ElevatedButton(
                         onPressed: () {
-                          widget.onRegionSelected(selectedLargeRegions, selectedMediumRegions);
+                          widget.onRegionSelected(
+                            selectedLargeRegions,
+                            selectedMediumRegions,
+                          );
                           Navigator.pop(context);
                         },
                         style: ElevatedButton.styleFrom(
@@ -538,11 +615,11 @@ class _RegionSelectionSheetState extends State<RegionSelectionSheet> {
     if (selectedLargeRegions.isEmpty) {
       return '전체 지역';
     }
-    
+
     if (selectedLargeRegions.length == 1) {
       final region = selectedLargeRegions.first;
       final mediums = selectedMediumRegions[region] ?? [];
-      
+
       if (mediums.isEmpty) {
         return '${region.name} 전체';
       } else if (mediums.length == 1) {

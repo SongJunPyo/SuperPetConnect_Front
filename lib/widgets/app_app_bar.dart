@@ -95,9 +95,7 @@ class AppDashboardAppBar extends StatelessWidget
       showBackButton: onBackPressed != null,
       actions: [
         // 알림 버튼 (Provider 기반 자동 뱃지 표시)
-        NotificationBadge(
-          onPressed: onNotificationPressed,
-        ),
+        NotificationBadge(onPressed: onNotificationPressed),
 
         // 추가 액션 버튼 (있는 경우)
         if (additionalAction != null) additionalAction!,

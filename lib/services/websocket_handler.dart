@@ -1,10 +1,10 @@
 import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
 import '../models/notification_model.dart';
 import '../utils/config.dart';
+import '../utils/preferences_manager.dart';
 import 'notification_converter.dart';
 
 /// WebSocket 전용 핸들러 (웹 환경)
@@ -12,7 +12,8 @@ import 'notification_converter.dart';
 /// WebSocket을 통한 실시간 알림 수신을 담당합니다.
 class WebSocketHandler {
   static WebSocketHandler? _instance;
-  static WebSocketHandler get instance => _instance ??= WebSocketHandler._internal();
+  static WebSocketHandler get instance =>
+      _instance ??= WebSocketHandler._internal();
 
   WebSocketHandler._internal();
   factory WebSocketHandler() => instance;
@@ -37,7 +38,8 @@ class WebSocketHandler {
       StreamController<bool>.broadcast();
 
   /// 새 알림 스트림
-  Stream<NotificationModel> get notificationStream => _notificationController.stream;
+  Stream<NotificationModel> get notificationStream =>
+      _notificationController.stream;
 
   /// 연결 상태 스트림
   Stream<bool> get connectionStatusStream => _connectionController.stream;
@@ -57,8 +59,7 @@ class WebSocketHandler {
     if (_isDisposed) return;
 
     try {
-      final prefs = await SharedPreferences.getInstance();
-      final token = prefs.getString('auth_token');
+      final token = await PreferencesManager.getAuthToken();
 
       if (token == null || token.isEmpty) {
         debugPrint('[WebSocketHandler] 인증 토큰 없음, 연결 스킵');
@@ -79,9 +80,7 @@ class WebSocketHandler {
 
       debugPrint('[WebSocketHandler] 연결 시도: $wsUrl');
 
-      _channel = WebSocketChannel.connect(
-        Uri.parse(wsUrl),
-      );
+      _channel = WebSocketChannel.connect(Uri.parse(wsUrl));
 
       // 연결 리스너 등록
       _subscription = _channel!.stream.listen(

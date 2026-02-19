@@ -6,7 +6,7 @@ import '../utils/config.dart';
 import '../services/auth_http_client.dart';
 import '../utils/app_theme.dart';
 import '../widgets/app_app_bar.dart';
-import '../services/dashboard_service.dart';
+import '../models/donation_post_model.dart';
 
 class AdminPostManagementPage extends StatefulWidget {
   final String? postId;
@@ -21,7 +21,8 @@ class AdminPostManagementPage extends StatefulWidget {
   });
 
   @override
-  State<AdminPostManagementPage> createState() => _AdminPostManagementPageState();
+  State<AdminPostManagementPage> createState() =>
+      _AdminPostManagementPageState();
 }
 
 class _AdminPostManagementPageState extends State<AdminPostManagementPage>
@@ -36,7 +37,7 @@ class _AdminPostManagementPageState extends State<AdminPostManagementPage>
   @override
   void initState() {
     super.initState();
-    
+
     // 초기 탭 설정
     int initialTabIndex = 0;
     if (widget.initialTab == 'approved') {
@@ -48,13 +49,13 @@ class _AdminPostManagementPageState extends State<AdminPostManagementPage>
     } else if (widget.initialTab == 'completed') {
       initialTabIndex = 3;
     }
-    
+
     _tabController = TabController(
       length: 4,
       vsync: this,
       initialIndex: initialTabIndex,
     );
-    
+
     _loadPosts();
   }
 
@@ -118,112 +119,111 @@ class _AdminPostManagementPageState extends State<AdminPostManagementPage>
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
-      builder: (context) => Container(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            // 핸들바
-            Center(
-              child: Container(
-                width: 40,
-                height: 4,
-                margin: const EdgeInsets.only(bottom: 20),
-                decoration: BoxDecoration(
-                  color: Colors.grey[300],
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              ),
-            ),
-
-            // 제목
-            Text(
-              '게시글 승인',
-              style: AppTheme.h3Style.copyWith(
-                fontWeight: FontWeight.bold,
-              ),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 16),
-
-            // 내용
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: AppTheme.lightGray.withValues(alpha: 0.3),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    post.title,
-                    style: AppTheme.bodyLargeStyle.copyWith(
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    '병원: ${post.hospitalName}',
-                    style: AppTheme.bodyMediumStyle.copyWith(
-                      color: AppTheme.textSecondary,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 24),
-
-            Text(
-              '이 게시글을 승인하시겠습니까?',
-              style: AppTheme.bodyMediumStyle.copyWith(
-                color: AppTheme.textSecondary,
-              ),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 24),
-
-            // 버튼들
-            Row(
+      builder:
+          (context) => Container(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                Expanded(
-                  child: OutlinedButton(
-                    onPressed: () => Navigator.pop(context),
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: AppTheme.textSecondary,
-                      side: BorderSide(color: AppTheme.lightGray),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      padding: const EdgeInsets.symmetric(vertical: 16),
+                // 핸들바
+                Center(
+                  child: Container(
+                    width: 40,
+                    height: 4,
+                    margin: const EdgeInsets.only(bottom: 20),
+                    decoration: BoxDecoration(
+                      color: Colors.grey[300],
+                      borderRadius: BorderRadius.circular(2),
                     ),
-                    child: const Text('취소'),
                   ),
                 ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: ElevatedButton(
-                    onPressed: () {
-                      Navigator.pop(context);
-                      _approvePost(post.postIdx);
-                    },
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppTheme.success,
-                      foregroundColor: Colors.white,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                    ),
-                    child: const Text('승인'),
+
+                // 제목
+                Text(
+                  '게시글 승인',
+                  style: AppTheme.h3Style.copyWith(fontWeight: FontWeight.bold),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 16),
+
+                // 내용
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: AppTheme.lightGray.withValues(alpha: 0.3),
+                    borderRadius: BorderRadius.circular(12),
                   ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        post.title,
+                        style: AppTheme.bodyLargeStyle.copyWith(
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        '병원: ${post.hospitalName}',
+                        style: AppTheme.bodyMediumStyle.copyWith(
+                          color: AppTheme.textSecondary,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 24),
+
+                Text(
+                  '이 게시글을 승인하시겠습니까?',
+                  style: AppTheme.bodyMediumStyle.copyWith(
+                    color: AppTheme.textSecondary,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 24),
+
+                // 버튼들
+                Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton(
+                        onPressed: () => Navigator.pop(context),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: AppTheme.textSecondary,
+                          side: BorderSide(color: AppTheme.lightGray),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                        ),
+                        child: const Text('취소'),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: ElevatedButton(
+                        onPressed: () {
+                          Navigator.pop(context);
+                          _approvePost(post.postIdx);
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppTheme.success,
+                          foregroundColor: Colors.white,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                        ),
+                        child: const Text('승인'),
+                      ),
+                    ),
+                  ],
                 ),
               ],
             ),
-          ],
-        ),
-      ),
+          ),
     );
   }
 
@@ -257,112 +257,111 @@ class _AdminPostManagementPageState extends State<AdminPostManagementPage>
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
-      builder: (context) => Container(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            // 핸들바
-            Center(
-              child: Container(
-                width: 40,
-                height: 4,
-                margin: const EdgeInsets.only(bottom: 20),
-                decoration: BoxDecoration(
-                  color: Colors.grey[300],
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              ),
-            ),
-
-            // 제목
-            Text(
-              '게시글 거절',
-              style: AppTheme.h3Style.copyWith(
-                fontWeight: FontWeight.bold,
-              ),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 16),
-
-            // 내용
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: AppTheme.lightGray.withValues(alpha: 0.3),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    post.title,
-                    style: AppTheme.bodyLargeStyle.copyWith(
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    '병원: ${post.hospitalName}',
-                    style: AppTheme.bodyMediumStyle.copyWith(
-                      color: AppTheme.textSecondary,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 24),
-
-            Text(
-              '이 게시글을 거절하시겠습니까?',
-              style: AppTheme.bodyMediumStyle.copyWith(
-                color: AppTheme.textSecondary,
-              ),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 24),
-
-            // 버튼들
-            Row(
+      builder:
+          (context) => Container(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                Expanded(
-                  child: OutlinedButton(
-                    onPressed: () => Navigator.pop(context),
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: AppTheme.textSecondary,
-                      side: BorderSide(color: AppTheme.lightGray),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      padding: const EdgeInsets.symmetric(vertical: 16),
+                // 핸들바
+                Center(
+                  child: Container(
+                    width: 40,
+                    height: 4,
+                    margin: const EdgeInsets.only(bottom: 20),
+                    decoration: BoxDecoration(
+                      color: Colors.grey[300],
+                      borderRadius: BorderRadius.circular(2),
                     ),
-                    child: const Text('취소'),
                   ),
                 ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: ElevatedButton(
-                    onPressed: () {
-                      Navigator.pop(context);
-                      _rejectPost(post.postIdx);
-                    },
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppTheme.error,
-                      foregroundColor: Colors.white,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                    ),
-                    child: const Text('거절'),
+
+                // 제목
+                Text(
+                  '게시글 거절',
+                  style: AppTheme.h3Style.copyWith(fontWeight: FontWeight.bold),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 16),
+
+                // 내용
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: AppTheme.lightGray.withValues(alpha: 0.3),
+                    borderRadius: BorderRadius.circular(12),
                   ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        post.title,
+                        style: AppTheme.bodyLargeStyle.copyWith(
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        '병원: ${post.hospitalName}',
+                        style: AppTheme.bodyMediumStyle.copyWith(
+                          color: AppTheme.textSecondary,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 24),
+
+                Text(
+                  '이 게시글을 거절하시겠습니까?',
+                  style: AppTheme.bodyMediumStyle.copyWith(
+                    color: AppTheme.textSecondary,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 24),
+
+                // 버튼들
+                Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton(
+                        onPressed: () => Navigator.pop(context),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: AppTheme.textSecondary,
+                          side: BorderSide(color: AppTheme.lightGray),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                        ),
+                        child: const Text('취소'),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: ElevatedButton(
+                        onPressed: () {
+                          Navigator.pop(context);
+                          _rejectPost(post.postIdx);
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppTheme.error,
+                          foregroundColor: Colors.white,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                        ),
+                        child: const Text('거절'),
+                      ),
+                    ),
+                  ],
                 ),
               ],
             ),
-          ],
-        ),
-      ),
+          ),
     );
   }
 
@@ -415,17 +414,18 @@ class _AdminPostManagementPageState extends State<AdminPostManagementPage>
             ),
           ),
           Expanded(
-            child: _isLoading
-                ? const Center(child: CircularProgressIndicator())
-                : TabBarView(
-                    controller: _tabController,
-                    children: [
-                      _buildPostList(_approvedPosts, 'approved'),
-                      _buildPostList(_pendingPosts, 'pending'),
-                      _buildPostList(_rejectedPosts, 'rejected'),
-                      _buildPostList(_completedPosts, 'completed'),
-                    ],
-                  ),
+            child:
+                _isLoading
+                    ? const Center(child: CircularProgressIndicator())
+                    : TabBarView(
+                      controller: _tabController,
+                      children: [
+                        _buildPostList(_approvedPosts, 'approved'),
+                        _buildPostList(_pendingPosts, 'pending'),
+                        _buildPostList(_rejectedPosts, 'rejected'),
+                        _buildPostList(_completedPosts, 'completed'),
+                      ],
+                    ),
           ),
         ],
       ),
@@ -438,11 +438,7 @@ class _AdminPostManagementPageState extends State<AdminPostManagementPage>
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(
-              Icons.inbox_outlined,
-              size: 64,
-              color: AppTheme.textTertiary,
-            ),
+            Icon(Icons.inbox_outlined, size: 64, color: AppTheme.textTertiary),
             const SizedBox(height: 16),
             Text(
               '${_getStatusText(status)} 게시글이 없습니다.',
@@ -462,28 +458,34 @@ class _AdminPostManagementPageState extends State<AdminPostManagementPage>
         itemCount: posts.length,
         itemBuilder: (context, index) {
           final post = posts[index];
-          final isHighlighted = widget.highlightPostId != null &&
+          final isHighlighted =
+              widget.highlightPostId != null &&
               post.postIdx.toString() == widget.highlightPostId;
 
           return Container(
             margin: const EdgeInsets.only(bottom: 12),
             decoration: BoxDecoration(
-              border: isHighlighted
-                  ? Border.all(color: AppTheme.primaryBlue, width: 2)
-                  : null,
+              border:
+                  isHighlighted
+                      ? Border.all(color: AppTheme.primaryBlue, width: 2)
+                      : null,
               borderRadius: BorderRadius.circular(12),
-              boxShadow: isHighlighted
-                  ? [
-                      BoxShadow(
-                        color: AppTheme.primaryBlue.withValues(alpha: 0.2),
-                        blurRadius: 8,
-                        offset: const Offset(0, 4),
-                      ),
-                    ]
-                  : null,
+              boxShadow:
+                  isHighlighted
+                      ? [
+                        BoxShadow(
+                          color: AppTheme.primaryBlue.withValues(alpha: 0.2),
+                          blurRadius: 8,
+                          offset: const Offset(0, 4),
+                        ),
+                      ]
+                      : null,
             ),
             child: Card(
-              color: isHighlighted ? AppTheme.lightBlue.withValues(alpha: 0.1) : null,
+              color:
+                  isHighlighted
+                      ? AppTheme.lightBlue.withValues(alpha: 0.1)
+                      : null,
               elevation: isHighlighted ? 4 : 1,
               margin: EdgeInsets.zero,
               shape: RoundedRectangleBorder(
@@ -501,7 +503,10 @@ class _AdminPostManagementPageState extends State<AdminPostManagementPage>
                           child: Text(
                             post.title,
                             style: AppTheme.h4Style.copyWith(
-                              fontWeight: isHighlighted ? FontWeight.bold : FontWeight.w600,
+                              fontWeight:
+                                  isHighlighted
+                                      ? FontWeight.bold
+                                      : FontWeight.w600,
                             ),
                             maxLines: 2,
                             overflow: TextOverflow.ellipsis,
@@ -616,7 +621,7 @@ class _AdminPostManagementPageState extends State<AdminPostManagementPage>
   Widget _buildStatusChip(String status) {
     Color color;
     String text;
-    
+
     switch (status) {
       case 'approved':
         color = AppTheme.success;

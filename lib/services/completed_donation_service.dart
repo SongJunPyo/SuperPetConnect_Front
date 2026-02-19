@@ -4,30 +4,24 @@ import 'dart:convert';
 import 'auth_http_client.dart';
 import '../models/completed_donation_model.dart';
 import '../utils/config.dart';
+import '../utils/api_endpoints.dart';
 
 class CompletedDonationService {
-  static String get baseUrl => '${Config.serverUrl}/api';
 
   // ===== 병원용 API =====
 
   // 1. 병원용 - 1차 헌혈 완료 처리
-  static Future<Map<String, dynamic>> hospitalCompleteBloodDonation(CompleteDonationRequest request) async {
+  static Future<Map<String, dynamic>> hospitalCompleteBloodDonation(
+    CompleteDonationRequest request,
+  ) async {
     try {
-      // 디버깅용 로그
-      print('=== 헌혈 완료 요청 ===');
-      print('URL: $baseUrl/completed_donation/hospital_complete');
-      print('Body: ${jsonEncode(request.toJson())}');
-
       final response = await AuthHttpClient.post(
-        Uri.parse('$baseUrl/completed_donation/hospital_complete'),
+        Uri.parse('${Config.serverUrl}${ApiEndpoints.completedDonationHospitalComplete}'),
         body: jsonEncode(request.toJson()),
       );
 
-      print('Response Status: ${response.statusCode}');
-      print('Response Body: ${response.body}');
-
       if (response.statusCode == 200 || response.statusCode == 201) {
-        final data = json.decode(utf8.decode(response.bodyBytes));
+        final data = response.parseJson();
         return {
           'message': data['message'] ?? '1차 완료 처리되었습니다. 관리자 승인 대기 중입니다.',
           'status': data['status'] ?? 'pendingCompletion',
@@ -44,7 +38,9 @@ class CompletedDonationService {
   }
 
   // 1-1. 기존 메서드 유지 (하위 호환성)
-  static Future<Map<String, dynamic>> completeBloodDonation(CompleteDonationRequest request) async {
+  static Future<Map<String, dynamic>> completeBloodDonation(
+    CompleteDonationRequest request,
+  ) async {
     return hospitalCompleteBloodDonation(request);
   }
 
@@ -54,7 +50,7 @@ class CompletedDonationService {
     DateTime? endDate,
   }) async {
     try {
-      String url = '$baseUrl/completed_donation/hospital/stats';
+      String url = '${Config.serverUrl}${ApiEndpoints.completedDonationHospitalStats}';
       List<String> queryParams = [];
 
       if (startDate != null) {
@@ -68,12 +64,10 @@ class CompletedDonationService {
         url += '?${queryParams.join('&')}';
       }
 
-      final response = await AuthHttpClient.get(
-        Uri.parse(url),
-      );
+      final response = await AuthHttpClient.get(Uri.parse(url));
 
       if (response.statusCode == 200) {
-        final data = json.decode(utf8.decode(response.bodyBytes));
+        final data = response.parseJson();
         return HospitalDonationStats.fromJson(data);
       } else {
         throw Exception('병원 통계 조회 실패: ${response.body}');
@@ -87,11 +81,11 @@ class CompletedDonationService {
   static Future<PostDonationCompletions> getPostCompletions(int postIdx) async {
     try {
       final response = await AuthHttpClient.get(
-        Uri.parse('$baseUrl/completed_donation/post/$postIdx/completions'),
+        Uri.parse('${Config.serverUrl}${ApiEndpoints.completedDonationByPost(postIdx)}'),
       );
 
       if (response.statusCode == 200) {
-        final data = json.decode(utf8.decode(response.bodyBytes));
+        final data = response.parseJson();
         return PostDonationCompletions.fromJson(data);
       } else {
         throw Exception('게시글별 완료 현황 조회 실패: ${response.body}');
@@ -103,10 +97,13 @@ class CompletedDonationService {
 
   // 4. 완료 기록 수정
   static Future<CompletedDonation> updateCompletedDonation(
-      int completedDonationIdx, double bloodVolume, DateTime completedAt) async {
+    int completedDonationIdx,
+    double bloodVolume,
+    DateTime completedAt,
+  ) async {
     try {
       final response = await AuthHttpClient.put(
-        Uri.parse('$baseUrl/completed_donation/$completedDonationIdx'),
+        Uri.parse('${Config.serverUrl}${ApiEndpoints.completedDonationDetail(completedDonationIdx)}'),
         body: jsonEncode({
           'blood_volume': bloodVolume,
           'completed_at': completedAt.toIso8601String(),
@@ -114,7 +111,7 @@ class CompletedDonationService {
       );
 
       if (response.statusCode == 200) {
-        final data = json.decode(utf8.decode(response.bodyBytes));
+        final data = response.parseJson();
         return CompletedDonation.fromJson(data);
       } else {
         throw Exception('완료 기록 수정 실패: ${response.body}');
@@ -128,7 +125,7 @@ class CompletedDonationService {
   static Future<void> deleteCompletedDonation(int completedDonationIdx) async {
     try {
       final response = await AuthHttpClient.delete(
-        Uri.parse('$baseUrl/completed_donation/$completedDonationIdx'),
+        Uri.parse('${Config.serverUrl}${ApiEndpoints.completedDonationDetail(completedDonationIdx)}'),
       );
 
       if (response.statusCode != 200 && response.statusCode != 204) {
@@ -145,11 +142,11 @@ class CompletedDonationService {
   static Future<List<PetDonationHistory>> getMyPetsDonationHistory() async {
     try {
       final response = await AuthHttpClient.get(
-        Uri.parse('$baseUrl/completed_donation/my-pets/history'),
+        Uri.parse('${Config.serverUrl}${ApiEndpoints.completedDonationMyPetsHistory}'),
       );
 
       if (response.statusCode == 200) {
-        final List<dynamic> data = json.decode(utf8.decode(response.bodyBytes));
+        final List<dynamic> data = response.parseJsonList();
         return data.map((item) => PetDonationHistory.fromJson(item)).toList();
       } else {
         throw Exception('내 반려동물 헌혈 이력 조회 실패: ${response.body}');
@@ -163,11 +160,11 @@ class CompletedDonationService {
   static Future<PetDonationHistory> getPetDonationHistory(int petIdx) async {
     try {
       final response = await AuthHttpClient.get(
-        Uri.parse('$baseUrl/completed_donation/pet/$petIdx/history'),
+        Uri.parse('${Config.serverUrl}${ApiEndpoints.completedDonationByPet(petIdx)}'),
       );
 
       if (response.statusCode == 200) {
-        final data = json.decode(utf8.decode(response.bodyBytes));
+        final data = response.parseJson();
         return PetDonationHistory.fromJson(data);
       } else {
         throw Exception('반려동물 헌혈 이력 조회 실패: ${response.body}');
@@ -180,14 +177,16 @@ class CompletedDonationService {
   // ===== 공통 API =====
 
   // 8. 특정 완료 기록 조회
-  static Future<CompletedDonation?> getCompletedDonation(int completedDonationIdx) async {
+  static Future<CompletedDonation?> getCompletedDonation(
+    int completedDonationIdx,
+  ) async {
     try {
       final response = await AuthHttpClient.get(
-        Uri.parse('$baseUrl/completed_donation/$completedDonationIdx'),
+        Uri.parse('${Config.serverUrl}${ApiEndpoints.completedDonationDetail(completedDonationIdx)}'),
       );
 
       if (response.statusCode == 200) {
-        final data = json.decode(utf8.decode(response.bodyBytes));
+        final data = response.parseJson();
         return CompletedDonation.fromJson(data);
       } else {
         throw Exception('완료 기록 조회 실패: ${response.body}');
@@ -198,14 +197,17 @@ class CompletedDonationService {
   }
 
   // 9. 월별 헌혈 통계 조회
-  static Future<MonthlyDonationStats> getMonthlyStats(int year, int month) async {
+  static Future<MonthlyDonationStats> getMonthlyStats(
+    int year,
+    int month,
+  ) async {
     try {
       final response = await AuthHttpClient.get(
-        Uri.parse('$baseUrl/completed_donation/stats/monthly/$year/$month'),
+        Uri.parse('${Config.serverUrl}${ApiEndpoints.completedDonationMonthlyStats(year, month)}'),
       );
 
       if (response.statusCode == 200) {
-        final data = json.decode(utf8.decode(response.bodyBytes));
+        final data = response.parseJson();
         return MonthlyDonationStats.fromJson(data);
       } else {
         throw Exception('월별 통계 조회 실패: ${response.body}');
@@ -219,7 +221,9 @@ class CompletedDonationService {
 
   // 10. 간편 헌혈 완료 처리 (현재 시간 사용)
   static Future<Map<String, dynamic>> completeBloodDonationNow(
-      int appliedDonationIdx, double bloodVolume) async {
+    int appliedDonationIdx,
+    double bloodVolume,
+  ) async {
     final request = CompleteDonationRequest(
       appliedDonationIdx: appliedDonationIdx,
       bloodVolume: bloodVolume,
@@ -231,7 +235,9 @@ class CompletedDonationService {
 
   // 11. 반려동물의 최근 헌혈 이력 조회 (제한된 개수)
   static Future<List<CompletedDonation>> getRecentPetDonations(
-      int petIdx, {int limit = 5}) async {
+    int petIdx, {
+    int limit = 5,
+  }) async {
     try {
       final petHistory = await getPetDonationHistory(petIdx);
       final recentDonations = petHistory.donations.take(limit).toList();
@@ -252,16 +258,18 @@ class CompletedDonationService {
   }) async {
     try {
       final endDate = DateTime.now();
-      final startDate = days != null
-          ? endDate.subtract(Duration(days: days))
-          : endDate.subtract(const Duration(days: 30)); // 기본 30일
+      final startDate =
+          days != null
+              ? endDate.subtract(Duration(days: days))
+              : endDate.subtract(const Duration(days: 30)); // 기본 30일
 
       final hospitalStats = await getHospitalStats(
         startDate: startDate,
         endDate: endDate,
       );
 
-      final recentDonations = hospitalStats.completedDonations.take(limit).toList();
+      final recentDonations =
+          hospitalStats.completedDonations.take(limit).toList();
 
       // 최신순으로 정렬
       recentDonations.sort((a, b) => b.completedAt.compareTo(a.completedAt));
@@ -274,7 +282,9 @@ class CompletedDonationService {
 
   // 13. 헌혈량 유효성 검사 (반려동물 체중 고려)
   static Map<String, dynamic> validateBloodVolume(
-      double bloodVolume, double? petWeight) {
+    double bloodVolume,
+    double? petWeight,
+  ) {
     if (!CompletedDonation.isValidBloodVolume(bloodVolume)) {
       return {
         'isValid': false,
@@ -284,13 +294,16 @@ class CompletedDonationService {
     }
 
     if (petWeight != null && petWeight > 0) {
-      final recommended = CompletedDonation.getRecommendedBloodVolume(petWeight);
+      final recommended = CompletedDonation.getRecommendedBloodVolume(
+        petWeight,
+      );
       final maxSafe = CompletedDonation.getMaxSafeBloodVolume(petWeight);
 
       if (bloodVolume > maxSafe) {
         return {
           'isValid': false,
-          'message': '체중 ${petWeight}kg 반려동물의 최대 안전 헌혈량(${maxSafe.toStringAsFixed(1)}mL)을 초과했습니다.',
+          'message':
+              '체중 ${petWeight}kg 반려동물의 최대 안전 헌혈량(${maxSafe.toStringAsFixed(1)}mL)을 초과했습니다.',
           'level': 'error',
           'recommended': recommended,
           'maxSafe': maxSafe,
@@ -298,7 +311,8 @@ class CompletedDonationService {
       } else if (bloodVolume > recommended * 1.2) {
         return {
           'isValid': true,
-          'message': '권장 헌혈량(${recommended.toStringAsFixed(1)}mL)보다 많습니다. 주의해주세요.',
+          'message':
+              '권장 헌혈량(${recommended.toStringAsFixed(1)}mL)보다 많습니다. 주의해주세요.',
           'level': 'warning',
           'recommended': recommended,
           'maxSafe': maxSafe,
@@ -306,11 +320,7 @@ class CompletedDonationService {
       }
     }
 
-    return {
-      'isValid': true,
-      'message': '적절한 헌혈량입니다.',
-      'level': 'success',
-    };
+    return {'isValid': true, 'message': '적절한 헌혈량입니다.', 'level': 'success'};
   }
 
   // 14. 전체 헌혈 통계 조회 (사용자용 - 내 모든 반려동물 통합)
@@ -353,7 +363,8 @@ class CompletedDonationService {
         'totalDonations': totalDonations,
         'totalBloodVolume': totalBloodVolume,
         'formattedTotalBloodVolume': '${totalBloodVolume.toStringAsFixed(1)}mL',
-        'averageBloodVolume': totalDonations > 0 ? totalBloodVolume / totalDonations : 0.0,
+        'averageBloodVolume':
+            totalDonations > 0 ? totalBloodVolume / totalDonations : 0.0,
         'firstDonationDate': firstDonationDate,
         'lastDonationDate': lastDonationDate,
         'petHistories': petHistories,
@@ -400,9 +411,10 @@ class CompletedDonationService {
         'totalCompletedCount': totalCompletedCount,
         'totalBloodVolume': totalBloodVolume,
         'formattedTotalBloodVolume': '${totalBloodVolume.toStringAsFixed(1)}mL',
-        'averageBloodVolume': totalCompletedCount > 0
-            ? totalBloodVolume / totalCompletedCount
-            : 0.0,
+        'averageBloodVolume':
+            totalCompletedCount > 0
+                ? totalBloodVolume / totalCompletedCount
+                : 0.0,
         'estimatedUniquePets': totalUniquePets,
         'estimatedUniqueHospitals': totalUniqueHospitals,
         'monthlyData': monthlyStats,

@@ -102,9 +102,7 @@ class _AdminApprovedPostsScreenState extends State<AdminApprovedPostsScreen>
 
       final url = Uri.parse(apiUrl);
 
-
       final response = await AuthHttpClient.get(url);
-
 
       if (response.statusCode == 200) {
         final data = json.decode(utf8.decode(response.bodyBytes));
@@ -376,7 +374,6 @@ class _AdminApprovedPostsScreenState extends State<AdminApprovedPostsScreen>
         ),
       );
 
-
       if (response.statusCode == 200) {
         final data = json.decode(utf8.decode(response.bodyBytes));
         // 새로운 API 응답 구조에 맞게 수정 - applications 배열 반환
@@ -560,9 +557,7 @@ class _AdminApprovedPostsScreenState extends State<AdminApprovedPostsScreen>
                         fontWeight: FontWeight.normal,
                         fontSize: 16,
                       ),
-                      overlayColor: WidgetStateProperty.all(
-                        Colors.transparent,
-                      ),
+                      overlayColor: WidgetStateProperty.all(Colors.transparent),
                     ),
                   ),
 
@@ -885,7 +880,9 @@ class _AdminApprovedPostsScreenState extends State<AdminApprovedPostsScreen>
                       vertical: 6.0,
                     ),
                     decoration: BoxDecoration(
-                      color: _getStatusColor(postStatus).withValues(alpha: 0.15),
+                      color: _getStatusColor(
+                        postStatus,
+                      ).withValues(alpha: 0.15),
                       borderRadius: BorderRadius.circular(8.0),
                     ),
                     child: Text(
@@ -965,11 +962,16 @@ class _AdminApprovedPostsScreenState extends State<AdminApprovedPostsScreen>
                         Row(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Icon(Icons.description_outlined,
-                                size: 20, color: AppTheme.textSecondary),
+                            Icon(
+                              Icons.description_outlined,
+                              size: 20,
+                              color: AppTheme.textSecondary,
+                            ),
                             const SizedBox(width: 12),
-                            const Text('설명',
-                                style: TextStyle(fontWeight: FontWeight.w500)),
+                            const Text(
+                              '설명',
+                              style: TextStyle(fontWeight: FontWeight.w500),
+                            ),
                           ],
                         ),
                         const SizedBox(height: 8),
@@ -1023,21 +1025,26 @@ class _AdminApprovedPostsScreenState extends State<AdminApprovedPostsScreen>
                         // 중복 제거를 위한 Set 사용
                         final Set<String> seenTimeSlots = {};
                         final List<Map<String, dynamic>> uniqueTimeRanges = [];
-                        
+
                         for (final timeRange in timeRanges) {
-                          final donationDate = timeRange['donation_date'] ?? timeRange['date'] ?? '';
+                          final donationDate =
+                              timeRange['donation_date'] ??
+                              timeRange['date'] ??
+                              '';
                           final time = timeRange['time'] ?? '';
                           final team = timeRange['team'] ?? 0;
-                          
+
                           // 날짜+시간+팀으로 고유키 생성하여 중복 체크
                           final uniqueKey = '$donationDate-$time-$team';
-                          
+
                           if (!seenTimeSlots.contains(uniqueKey)) {
                             seenTimeSlots.add(uniqueKey);
-                            uniqueTimeRanges.add(timeRange as Map<String, dynamic>);
+                            uniqueTimeRanges.add(
+                              timeRange as Map<String, dynamic>,
+                            );
                           }
                         }
-                        
+
                         return Column(
                           children:
                               uniqueTimeRanges.map<Widget>((timeRange) {

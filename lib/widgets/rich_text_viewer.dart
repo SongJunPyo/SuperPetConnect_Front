@@ -2,7 +2,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_quill/flutter_quill.dart';
 import 'package:flutter_quill/quill_delta.dart';
-import '../services/donation_post_image_service.dart';
+import '../utils/config.dart';
 import '../utils/app_theme.dart';
 
 /// 리치 텍스트 뷰어 위젯 (flutter_quill 기반)
@@ -151,11 +151,11 @@ class _RichTextViewerState extends State<RichTextViewer> {
     }
 
     // 상대 경로를 절대 URL로 변환
-    final baseUrl = DonationPostImageService.baseUrl;
+    final serverUrl = Config.serverUrl;
     if (path.startsWith('/')) {
-      return '$baseUrl$path';
+      return '$serverUrl$path';
     }
-    return '$baseUrl/$path';
+    return '$serverUrl/$path';
   }
 
   @override
@@ -174,9 +174,7 @@ class _RichTextViewerState extends State<RichTextViewer> {
           scrollable: false, // 외부 스크롤 사용
           showCursor: false,
           enableInteractiveSelection: true,
-          embedBuilders: [
-            _ReadOnlyImageEmbedBuilder(),
-          ],
+          embedBuilders: [_ReadOnlyImageEmbedBuilder()],
           customStyles: DefaultStyles(
             paragraph: DefaultTextBlockStyle(
               TextStyle(
@@ -202,10 +200,7 @@ class _ReadOnlyImageEmbedBuilder extends EmbedBuilder {
   String get key => BlockEmbed.imageType;
 
   @override
-  Widget build(
-    BuildContext context,
-    EmbedContext embedContext,
-  ) {
+  Widget build(BuildContext context, EmbedContext embedContext) {
     final imageUrl = embedContext.node.value.data;
 
     return Container(
@@ -227,10 +222,11 @@ class _ReadOnlyImageEmbedBuilder extends EmbedBuilder {
               ),
               child: Center(
                 child: CircularProgressIndicator(
-                  value: loadingProgress.expectedTotalBytes != null
-                      ? loadingProgress.cumulativeBytesLoaded /
-                          loadingProgress.expectedTotalBytes!
-                      : null,
+                  value:
+                      loadingProgress.expectedTotalBytes != null
+                          ? loadingProgress.cumulativeBytesLoaded /
+                              loadingProgress.expectedTotalBytes!
+                          : null,
                   strokeWidth: 2,
                 ),
               ),

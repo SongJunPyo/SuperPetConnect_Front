@@ -39,20 +39,21 @@ class _SuspendedUserBottomSheetState extends State<SuspendedUserBottomSheet> {
   Future<void> _activateUser() async {
     final confirmed = await showDialog<bool>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('계정 활성화'),
-        content: Text('${widget.user.name}님의 계정을 활성화하시겠습니까?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('취소'),
+      builder:
+          (context) => AlertDialog(
+            title: const Text('계정 활성화'),
+            content: Text('${widget.user.name}님의 계정을 활성화하시겠습니까?'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(false),
+                child: const Text('취소'),
+              ),
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(true),
+                child: const Text('활성화'),
+              ),
+            ],
           ),
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(true),
-            child: const Text('활성화'),
-          ),
-        ],
-      ),
     );
 
     if (confirmed != true) return;
@@ -187,16 +188,17 @@ class _SuspendedUserBottomSheetState extends State<SuspendedUserBottomSheet> {
                   borderRadius: BorderRadius.circular(12),
                 ),
               ),
-              child: _isActivating
-                  ? const SizedBox(
-                      width: 20,
-                      height: 20,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        color: Colors.white,
-                      ),
-                    )
-                  : const Text('계정 활성화'),
+              child:
+                  _isActivating
+                      ? const SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: Colors.white,
+                        ),
+                      )
+                      : const Text('계정 활성화'),
             ),
           ),
           const SizedBox(height: 16),
@@ -214,10 +216,7 @@ class _SuspendedUserBottomSheetState extends State<SuspendedUserBottomSheet> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
-                  '정지 사유',
-                  style: AppTheme.bodyMediumStyle,
-                ),
+                const Text('정지 사유', style: AppTheme.bodyMediumStyle),
                 const SizedBox(height: 8),
                 TextFormField(
                   controller: _reasonController,
@@ -236,10 +235,7 @@ class _SuspendedUserBottomSheetState extends State<SuspendedUserBottomSheet> {
                   },
                 ),
                 const SizedBox(height: 16),
-                const Text(
-                  '정지 일수',
-                  style: AppTheme.bodyMediumStyle,
-                ),
+                const Text('정지 일수', style: AppTheme.bodyMediumStyle),
                 const SizedBox(height: 8),
                 TextFormField(
                   controller: _daysController,
@@ -279,16 +275,17 @@ class _SuspendedUserBottomSheetState extends State<SuspendedUserBottomSheet> {
                         borderRadius: BorderRadius.circular(12),
                       ),
                     ),
-                    child: _isUpdating
-                        ? const SizedBox(
-                            width: 20,
-                            height: 20,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              color: Colors.white,
-                            ),
-                          )
-                        : const Text('수정'),
+                    child:
+                        _isUpdating
+                            ? const SizedBox(
+                              width: 20,
+                              height: 20,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: Colors.white,
+                              ),
+                            )
+                            : const Text('수정'),
                   ),
                 ),
               ],
@@ -335,7 +332,7 @@ class ActiveUserBottomSheet extends StatelessWidget {
   final VoidCallback? onBlacklistPressed;
 
   const ActiveUserBottomSheet({
-    super.key, 
+    super.key,
     required this.user,
     this.onBlacklistPressed,
   });

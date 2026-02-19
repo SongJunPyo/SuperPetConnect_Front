@@ -4,11 +4,7 @@ class Region {
   final String name;
   final List<Region>? children;
 
-  Region({
-    required this.code,
-    required this.name,
-    this.children,
-  });
+  Region({required this.code, required this.name, this.children});
 }
 
 // 한국 지역 데이터

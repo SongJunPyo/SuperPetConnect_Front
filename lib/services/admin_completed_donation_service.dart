@@ -1,16 +1,17 @@
 import 'dart:convert';
 import 'auth_http_client.dart';
 import '../utils/config.dart';
+import '../utils/api_endpoints.dart';
 
 class AdminCompletedDonationService {
   // 헌혈 완료 대기 목록 조회 (병원이 1차 처리한 후 관리자 승인 대기)
   static Future<Map<String, dynamic>> getPendingCompletions() async {
     final response = await AuthHttpClient.get(
-      Uri.parse('${Config.serverUrl}/api/admin/completed_donation/pending'),
+      Uri.parse('${Config.serverUrl}${ApiEndpoints.adminCompletedDonationPending}'),
     );
 
     if (response.statusCode == 200) {
-      return json.decode(utf8.decode(response.bodyBytes));
+      return response.parseJson();
     } else {
       throw Exception('데이터를 불러오는데 실패했습니다.');
     }
@@ -19,11 +20,11 @@ class AdminCompletedDonationService {
   // 헌혈 완료 목록 조회 (최종 승인된 모든 헌혈)
   static Future<Map<String, dynamic>> getCompletedDonations() async {
     final response = await AuthHttpClient.get(
-      Uri.parse('${Config.serverUrl}/api/admin/completed_donation/completed'),
+      Uri.parse('${Config.serverUrl}${ApiEndpoints.adminCompletedDonationCompleted}'),
     );
 
     if (response.statusCode == 200) {
-      return json.decode(utf8.decode(response.bodyBytes));
+      return response.parseJson();
     } else {
       throw Exception('데이터를 불러오는데 실패했습니다.');
     }
@@ -32,14 +33,15 @@ class AdminCompletedDonationService {
   // 관리자 최종 헌혈 완료 승인
   static Future<Map<String, dynamic>> finalApprove(int applicationId) async {
     final response = await AuthHttpClient.post(
-      Uri.parse('${Config.serverUrl}/api/admin/completed_donation/approve-completion/$applicationId'),
+      Uri.parse(
+        '${Config.serverUrl}${ApiEndpoints.adminCompletedDonationApprove(applicationId)}',
+      ),
     );
 
     if (response.statusCode == 200) {
-      return json.decode(utf8.decode(response.bodyBytes));
+      return response.parseJson();
     } else {
-      final error = json.decode(utf8.decode(response.bodyBytes));
-      throw Exception(error['message'] ?? '승인에 실패했습니다.');
+      throw response.toException('승인에 실패했습니다.');
     }
   }
 
@@ -49,17 +51,16 @@ class AdminCompletedDonationService {
     String reason,
   ) async {
     final response = await AuthHttpClient.post(
-      Uri.parse('${Config.serverUrl}/api/admin/completed_donation/approve-cancellation/$applicationId'),
-      body: json.encode({
-        'reason': reason,
-      }),
+      Uri.parse(
+        '${Config.serverUrl}${ApiEndpoints.adminCompletedDonationApproveCancellation(applicationId)}',
+      ),
+      body: json.encode({'reason': reason}),
     );
 
     if (response.statusCode == 200) {
-      return json.decode(utf8.decode(response.bodyBytes));
+      return response.parseJson();
     } else {
-      final error = json.decode(utf8.decode(response.bodyBytes));
-      throw Exception(error['message'] ?? '반려에 실패했습니다.');
+      throw response.toException('반려에 실패했습니다.');
     }
   }
 
@@ -68,17 +69,16 @@ class AdminCompletedDonationService {
     int applicationId,
   ) async {
     final response = await AuthHttpClient.post(
-      Uri.parse('${Config.serverUrl}/api/admin/cancelled_donation/final_approve'),
-      body: json.encode({
-        'application_id': applicationId,
-      }),
+      Uri.parse(
+        '${Config.serverUrl}${ApiEndpoints.adminCancelledDonationFinalApprove}',
+      ),
+      body: json.encode({'application_id': applicationId}),
     );
 
     if (response.statusCode == 200) {
-      return json.decode(utf8.decode(response.bodyBytes));
+      return response.parseJson();
     } else {
-      final error = json.decode(utf8.decode(response.bodyBytes));
-      throw Exception(error['message'] ?? '승인에 실패했습니다.');
+      throw response.toException('승인에 실패했습니다.');
     }
   }
 }

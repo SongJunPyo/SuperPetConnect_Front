@@ -4,36 +4,27 @@ import 'dart:convert';
 import 'auth_http_client.dart';
 import '../models/cancelled_donation_model.dart';
 import '../utils/config.dart';
+import '../utils/api_endpoints.dart';
 
 class CancelledDonationService {
-  static String get baseUrl => '${Config.serverUrl}/api';
 
   // ===== 공통 API =====
 
   // 1. 병원용 - 1차 헌혈 중단 처리
-  static Future<Map<String, dynamic>> hospitalCancelBloodDonation(CancelDonationRequest request) async {
+  static Future<Map<String, dynamic>> hospitalCancelBloodDonation(
+    CancelDonationRequest request,
+  ) async {
     try {
-      // 디버깅용 로그
-      print('=== 헌혈 중단 요청 ===');
-      print('URL: $baseUrl/cancelled_donation/hospital_cancel');
-      print('Body: ${jsonEncode({
-        'applied_donation_idx': request.appliedDonationIdx,
-        'cancelled_reason': request.cancelledReason,
-      })}');
-
       final response = await AuthHttpClient.post(
-        Uri.parse('$baseUrl/cancelled_donation/hospital_cancel'),
+        Uri.parse('${Config.serverUrl}${ApiEndpoints.cancelledDonationHospitalCancel}'),
         body: jsonEncode({
           'applied_donation_idx': request.appliedDonationIdx,
           'cancelled_reason': request.cancelledReason,
         }),
       );
 
-      print('Response Status: ${response.statusCode}');
-      print('Response Body: ${response.body}');
-
       if (response.statusCode == 200 || response.statusCode == 201) {
-        final data = json.decode(utf8.decode(response.bodyBytes));
+        final data = response.parseJson();
         return {
           'message': data['message'] ?? '1차 중단 처리되었습니다. 관리자 승인 대기 중입니다.',
           'status': data['status'] ?? 'pendingCancellation',
@@ -50,19 +41,23 @@ class CancelledDonationService {
   }
 
   // 1-1. 기존 메서드 유지 (하위 호환성)
-  static Future<Map<String, dynamic>> cancelBloodDonation(CancelDonationRequest request) async {
+  static Future<Map<String, dynamic>> cancelBloodDonation(
+    CancelDonationRequest request,
+  ) async {
     return hospitalCancelBloodDonation(request);
   }
 
   // 2. 특정 취소 기록 조회
-  static Future<CancelledDonation?> getCancelledDonation(int cancelledDonationIdx) async {
+  static Future<CancelledDonation?> getCancelledDonation(
+    int cancelledDonationIdx,
+  ) async {
     try {
       final response = await AuthHttpClient.get(
-        Uri.parse('$baseUrl/cancelled_donation/$cancelledDonationIdx'),
+        Uri.parse('${Config.serverUrl}${ApiEndpoints.cancelledDonationDetail(cancelledDonationIdx)}'),
       );
 
       if (response.statusCode == 200) {
-        final data = json.decode(utf8.decode(response.bodyBytes));
+        final data = response.parseJson();
         return CancelledDonation.fromJson(data);
       } else {
         throw Exception('취소 기록 조회 실패: ${response.body}');
@@ -76,11 +71,11 @@ class CancelledDonationService {
   static Future<List<Map<String, dynamic>>> getReasonTemplates() async {
     try {
       final response = await AuthHttpClient.get(
-        Uri.parse('$baseUrl/cancelled_donation/templates/reasons'),
+        Uri.parse('${Config.serverUrl}${ApiEndpoints.cancelledDonationReasons}'),
       );
 
       if (response.statusCode == 200) {
-        final List<dynamic> data = json.decode(utf8.decode(response.bodyBytes));
+        final List<dynamic> data = response.parseJsonList();
         return data.cast<Map<String, dynamic>>();
       } else {
         // 서버 API 실패 시 기본 템플릿 반환
@@ -94,8 +89,8 @@ class CancelledDonationService {
               '병원 사정으로 인한 취소',
               '의료진 부재',
               '기타 병원 사유',
-            ]
-          }
+            ],
+          },
         ];
       }
     } catch (e) {
@@ -110,8 +105,8 @@ class CancelledDonationService {
             '병원 사정으로 인한 취소',
             '의료진 부재',
             '기타 병원 사유',
-          ]
-        }
+          ],
+        },
       ];
     }
   }
@@ -119,14 +114,15 @@ class CancelledDonationService {
   // ===== 사용자용 API =====
 
   // 4. 내 반려동물들의 취소 이력 조회
-  static Future<List<Map<String, dynamic>>> getMyPetsCancellationHistory() async {
+  static Future<List<Map<String, dynamic>>>
+  getMyPetsCancellationHistory() async {
     try {
       final response = await AuthHttpClient.get(
-        Uri.parse('$baseUrl/cancelled_donation/my-pets/history'),
+        Uri.parse('${Config.serverUrl}${ApiEndpoints.cancelledDonationMyPetsHistory}'),
       );
 
       if (response.statusCode == 200) {
-        final List<dynamic> data = json.decode(utf8.decode(response.bodyBytes));
+        final List<dynamic> data = response.parseJsonList();
         return data.cast<Map<String, dynamic>>();
       } else {
         throw Exception('내 반려동물 취소 이력 조회 실패: ${response.body}');
@@ -144,7 +140,7 @@ class CancelledDonationService {
     DateTime? endDate,
   }) async {
     try {
-      String url = '$baseUrl/cancelled_donation/hospital/stats';
+      String url = '${Config.serverUrl}${ApiEndpoints.cancelledDonationHospitalStats}';
       List<String> queryParams = [];
 
       if (startDate != null) {
@@ -158,12 +154,10 @@ class CancelledDonationService {
         url += '?${queryParams.join('&')}';
       }
 
-      final response = await AuthHttpClient.get(
-        Uri.parse(url),
-      );
+      final response = await AuthHttpClient.get(Uri.parse(url));
 
       if (response.statusCode == 200) {
-        final data = json.decode(utf8.decode(response.bodyBytes));
+        final data = response.parseJson();
         return HospitalCancellationStats.fromJson(data);
       } else {
         throw Exception('병원 취소 통계 조회 실패: ${response.body}');
@@ -174,14 +168,16 @@ class CancelledDonationService {
   }
 
   // 6. 게시글별 취소 현황 조회
-  static Future<PostCancellationStatus> getPostCancellations(int postIdx) async {
+  static Future<PostCancellationStatus> getPostCancellations(
+    int postIdx,
+  ) async {
     try {
       final response = await AuthHttpClient.get(
-        Uri.parse('$baseUrl/cancelled_donation/post/$postIdx/cancellations'),
+        Uri.parse('${Config.serverUrl}${ApiEndpoints.cancelledDonationByPost(postIdx)}'),
       );
 
       if (response.statusCode == 200) {
-        final data = json.decode(utf8.decode(response.bodyBytes));
+        final data = response.parseJson();
         return PostCancellationStatus.fromJson(data);
       } else {
         throw Exception('게시글별 취소 현황 조회 실패: ${response.body}');
@@ -193,10 +189,13 @@ class CancelledDonationService {
 
   // 7. 취소 기록 수정 (병원용)
   static Future<CancelledDonation> updateCancelledDonation(
-      int cancelledDonationIdx, String cancelledReason, DateTime cancelledAt) async {
+    int cancelledDonationIdx,
+    String cancelledReason,
+    DateTime cancelledAt,
+  ) async {
     try {
       final response = await AuthHttpClient.put(
-        Uri.parse('$baseUrl/cancelled_donation/$cancelledDonationIdx'),
+        Uri.parse('${Config.serverUrl}${ApiEndpoints.cancelledDonationDetail(cancelledDonationIdx)}'),
         body: jsonEncode({
           'cancelled_reason': cancelledReason,
           'cancelled_at': cancelledAt.toIso8601String(),
@@ -204,7 +203,7 @@ class CancelledDonationService {
       );
 
       if (response.statusCode == 200) {
-        final data = json.decode(utf8.decode(response.bodyBytes));
+        final data = response.parseJson();
         return CancelledDonation.fromJson(data);
       } else {
         throw Exception('취소 기록 수정 실패: ${response.body}');
@@ -217,14 +216,17 @@ class CancelledDonationService {
   // ===== 관리자용 API =====
 
   // 8. 월별 취소 통계 조회
-  static Future<MonthlyCancellationStats> getMonthlyCancellationStats(int year, int month) async {
+  static Future<MonthlyCancellationStats> getMonthlyCancellationStats(
+    int year,
+    int month,
+  ) async {
     try {
       final response = await AuthHttpClient.get(
-        Uri.parse('$baseUrl/cancelled_donation/stats/monthly/$year/$month'),
+        Uri.parse('${Config.serverUrl}${ApiEndpoints.cancelledDonationMonthlyStats(year, month)}'),
       );
 
       if (response.statusCode == 200) {
-        final data = json.decode(utf8.decode(response.bodyBytes));
+        final data = response.parseJson();
         return MonthlyCancellationStats.fromJson(data);
       } else {
         throw Exception('월별 취소 통계 조회 실패: ${response.body}');
@@ -238,7 +240,10 @@ class CancelledDonationService {
 
   // 9. 간편 헌혈 취소 처리 (현재 시간 사용)
   static Future<Map<String, dynamic>> cancelBloodDonationNow(
-      int appliedDonationIdx, int cancelledSubject, String cancelledReason) async {
+    int appliedDonationIdx,
+    int cancelledSubject,
+    String cancelledReason,
+  ) async {
     final request = CancelDonationRequest(
       appliedDonationIdx: appliedDonationIdx,
       cancelledSubject: cancelledSubject,
@@ -251,17 +256,21 @@ class CancelledDonationService {
 
   // 10. 사용자용 헌혈 취소 처리
   static Future<Map<String, dynamic>> cancelByUser(
-      int appliedDonationIdx, String cancelledReason) async {
+    int appliedDonationIdx,
+    String cancelledReason,
+  ) async {
     return await cancelBloodDonationNow(
       appliedDonationIdx,
       CancelledSubject.user,
-      cancelledReason
+      cancelledReason,
     );
   }
 
   // 11. 병원용 헌혈 취소 처리
   static Future<Map<String, dynamic>> cancelByHospital(
-      int appliedDonationIdx, String cancelledReason) async {
+    int appliedDonationIdx,
+    String cancelledReason,
+  ) async {
     final request = CancelDonationRequest(
       appliedDonationIdx: appliedDonationIdx,
       cancelledSubject: CancelledSubject.hospital,
@@ -272,22 +281,20 @@ class CancelledDonationService {
 
   // 12. 관리자용 헌혈 취소 처리
   static Future<Map<String, dynamic>> cancelByAdmin(
-      int appliedDonationIdx, String cancelledReason) async {
+    int appliedDonationIdx,
+    String cancelledReason,
+  ) async {
     return await cancelBloodDonationNow(
       appliedDonationIdx,
       CancelledSubject.admin,
-      cancelledReason
+      cancelledReason,
     );
   }
 
   // 13. 취소 사유 유효성 검사 (로컬)
   static Map<String, dynamic> validateCancellationReason(String reason) {
     if (reason.trim().isEmpty) {
-      return {
-        'isValid': false,
-        'message': '취소 사유를 입력해주세요.',
-        'level': 'error',
-      };
+      return {'isValid': false, 'message': '취소 사유를 입력해주세요.', 'level': 'error'};
     }
 
     if (reason.trim().length < 2) {
@@ -306,11 +313,7 @@ class CancelledDonationService {
       };
     }
 
-    return {
-      'isValid': true,
-      'message': '올바른 취소 사유입니다.',
-      'level': 'success',
-    };
+    return {'isValid': true, 'message': '올바른 취소 사유입니다.', 'level': 'success'};
   }
 
   // 14. 취소 주체별 템플릿 가져오기
@@ -322,7 +325,8 @@ class CancelledDonationService {
         orElse: () => <String, dynamic>{},
       );
 
-      if (subjectTemplate.isNotEmpty && subjectTemplate['template_reasons'] != null) {
+      if (subjectTemplate.isNotEmpty &&
+          subjectTemplate['template_reasons'] != null) {
         return List<String>.from(subjectTemplate['template_reasons']);
       }
 
@@ -354,19 +358,9 @@ class CancelledDonationService {
           '기타 병원 사유',
         ];
       case CancelledSubject.system:
-        return [
-          '시간 만료',
-          '중복 신청',
-          '자동 취소',
-        ];
+        return ['시간 만료', '중복 신청', '자동 취소'];
       case CancelledSubject.admin:
-        return [
-          '정책 위반',
-          '부적절한 신청',
-          '관리자 판단',
-          '시스템 오류',
-          '기타 관리자 사유',
-        ];
+        return ['정책 위반', '부적절한 신청', '관리자 판단', '시스템 오류', '기타 관리자 사유'];
       default:
         return ['기타 사유'];
     }
@@ -379,19 +373,23 @@ class CancelledDonationService {
   }) async {
     try {
       final endDate = DateTime.now();
-      final startDate = days != null
-          ? endDate.subtract(Duration(days: days))
-          : endDate.subtract(const Duration(days: 30)); // 기본 30일
+      final startDate =
+          days != null
+              ? endDate.subtract(Duration(days: days))
+              : endDate.subtract(const Duration(days: 30)); // 기본 30일
 
       final hospitalStats = await getHospitalCancellationStats(
         startDate: startDate,
         endDate: endDate,
       );
 
-      final recentCancellations = hospitalStats.cancelledDonations.take(limit).toList();
+      final recentCancellations =
+          hospitalStats.cancelledDonations.take(limit).toList();
 
       // 최신순으로 정렬
-      recentCancellations.sort((a, b) => b.cancelledAt.compareTo(a.cancelledAt));
+      recentCancellations.sort(
+        (a, b) => b.cancelledAt.compareTo(a.cancelledAt),
+      );
 
       return recentCancellations;
     } catch (e) {

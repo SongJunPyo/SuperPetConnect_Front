@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
 import 'dart:convert';
-import 'package:shared_preferences/shared_preferences.dart';
+import '../utils/preferences_manager.dart';
 import '../utils/app_theme.dart';
 import '../utils/config.dart';
 import '../services/dashboard_service.dart';
+import '../models/donation_post_model.dart';
 import '../services/applied_donation_service.dart';
 import '../models/applied_donation_model.dart';
 import '../widgets/marquee_text.dart';
@@ -115,19 +116,24 @@ class _UserDonationPostsListScreenState
   /// 내 신청 목록 로드
   Future<void> _loadMyApplications() async {
     try {
-      final applications = await AppliedDonationService.getMyApplicationsFromServer();
+      final applications =
+          await AppliedDonationService.getMyApplicationsFromServer();
 
       if (mounted) {
         setState(() {
           myApplicationsMap = {
             for (final app in applications)
-              if (app.shouldShowAppliedBorder) app.postTimesIdx: app
+              if (app.shouldShowAppliedBorder) app.postTimesIdx: app,
           };
         });
       }
 
-      debugPrint('[UserDonationPostsList] 내 신청 목록 로드 완료: ${myApplicationsMap.length}개');
-      debugPrint('[UserDonationPostsList] 신청한 시간대 IDs: ${myApplicationsMap.keys.toList()}');
+      debugPrint(
+        '[UserDonationPostsList] 내 신청 목록 로드 완료: ${myApplicationsMap.length}개',
+      );
+      debugPrint(
+        '[UserDonationPostsList] 신청한 시간대 IDs: ${myApplicationsMap.keys.toList()}',
+      );
     } catch (e) {
       debugPrint('[UserDonationPostsList] 내 신청 목록 로드 실패: $e');
     }
@@ -1026,7 +1032,8 @@ class _UserDonationPostsListScreenState
                               ),
                               Expanded(
                                 child: Text(
-                                  (displayPost.hospitalNickname?.isNotEmpty ?? false)
+                                  (displayPost.hospitalNickname?.isNotEmpty ??
+                                          false)
                                       ? displayPost.hospitalNickname!
                                       : displayPost.hospitalName.isNotEmpty
                                       ? displayPost.hospitalName
@@ -1093,8 +1100,8 @@ class _UserDonationPostsListScreenState
                             children: [
                               Icon(
                                 displayPost.animalType == 0
-                                  ? FontAwesomeIcons.dog
-                                  : FontAwesomeIcons.cat,
+                                    ? FontAwesomeIcons.dog
+                                    : FontAwesomeIcons.cat,
                                 size: 16,
                                 color: AppTheme.textSecondary,
                               ),
@@ -1771,7 +1778,9 @@ class _UserDonationPostsListScreenState
                               onTap: () {
                                 if (isAlreadyApplied) {
                                   // 이미 신청한 시간대 클릭 시 취소 바텀시트 표시
-                                  _showCancelApplicationBottomSheet(myApplication);
+                                  _showCancelApplicationBottomSheet(
+                                    myApplication,
+                                  );
                                 } else {
                                   // 신청하지 않은 시간대 클릭 시 신청 페이지 표시
                                   final displayText =
@@ -1791,14 +1800,16 @@ class _UserDonationPostsListScreenState
                                   vertical: 14,
                                 ),
                                 decoration: BoxDecoration(
-                                  color: isAlreadyApplied
-                                      ? Colors.red.shade50
-                                      : Colors.grey.shade50,
+                                  color:
+                                      isAlreadyApplied
+                                          ? Colors.red.shade50
+                                          : Colors.grey.shade50,
                                   borderRadius: BorderRadius.circular(8),
                                   border: Border.all(
-                                    color: isAlreadyApplied
-                                        ? Colors.red
-                                        : Colors.black,
+                                    color:
+                                        isAlreadyApplied
+                                            ? Colors.red
+                                            : Colors.black,
                                     width: isAlreadyApplied ? 2.0 : 1.0,
                                   ),
                                 ),
@@ -1806,32 +1817,37 @@ class _UserDonationPostsListScreenState
                                   children: [
                                     Icon(
                                       Icons.access_time,
-                                      color: isAlreadyApplied
-                                          ? Colors.red
-                                          : Colors.black,
+                                      color:
+                                          isAlreadyApplied
+                                              ? Colors.red
+                                              : Colors.black,
                                       size: 20,
                                     ),
                                     const SizedBox(width: 12),
                                     Expanded(
                                       child: Column(
-                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
                                         children: [
                                           Text(
                                             _formatTime(timeSlot['time'] ?? ''),
-                                            style: AppTheme.bodyLargeStyle.copyWith(
-                                              fontWeight: FontWeight.w600,
-                                              color: isAlreadyApplied
-                                                  ? Colors.red
-                                                  : Colors.black,
-                                            ),
+                                            style: AppTheme.bodyLargeStyle
+                                                .copyWith(
+                                                  fontWeight: FontWeight.w600,
+                                                  color:
+                                                      isAlreadyApplied
+                                                          ? Colors.red
+                                                          : Colors.black,
+                                                ),
                                           ),
                                           if (isAlreadyApplied)
                                             Text(
                                               '신청완료 (${myApplication.status})',
-                                              style: AppTheme.captionStyle.copyWith(
-                                                color: Colors.red,
-                                                fontSize: 11,
-                                              ),
+                                              style: AppTheme.captionStyle
+                                                  .copyWith(
+                                                    color: Colors.red,
+                                                    fontSize: 11,
+                                                  ),
                                             ),
                                         ],
                                       ),
@@ -1840,9 +1856,10 @@ class _UserDonationPostsListScreenState
                                       isAlreadyApplied
                                           ? Icons.edit_outlined
                                           : Icons.keyboard_arrow_right,
-                                      color: isAlreadyApplied
-                                          ? Colors.red
-                                          : Colors.black,
+                                      color:
+                                          isAlreadyApplied
+                                              ? Colors.red
+                                              : Colors.black,
                                       size: 20,
                                     ),
                                   ],
@@ -2083,16 +2100,17 @@ class _CancelApplicationBottomSheetState
                         borderRadius: BorderRadius.circular(8),
                       ),
                     ),
-                    child: isCancelling
-                        ? const SizedBox(
-                            width: 20,
-                            height: 20,
-                            child: CircularProgressIndicator(
-                              color: Colors.white,
-                              strokeWidth: 2,
-                            ),
-                          )
-                        : const Text('신청 취소'),
+                    child:
+                        isCancelling
+                            ? const SizedBox(
+                              width: 20,
+                              height: 20,
+                              child: CircularProgressIndicator(
+                                color: Colors.white,
+                                strokeWidth: 2,
+                              ),
+                            )
+                            : const Text('신청 취소'),
                   ),
                 ),
               ],
@@ -2131,25 +2149,7 @@ class _CancelApplicationBottomSheetState
   }
 
   Color _getStatusColor(int statusCode) {
-    switch (statusCode) {
-      case AppliedDonationStatus.pending:
-        return Colors.orange;
-      case AppliedDonationStatus.approved:
-        return Colors.blue;
-      case AppliedDonationStatus.rejected:
-        return Colors.grey;
-      case AppliedDonationStatus.completed:
-      case AppliedDonationStatus.finalCompleted:
-        return Colors.green;
-      case AppliedDonationStatus.cancelled:
-        return Colors.grey;
-      case AppliedDonationStatus.pendingCompletion:
-        return Colors.purple;
-      case AppliedDonationStatus.pendingCancellation:
-        return Colors.orange;
-      default:
-        return AppTheme.textPrimary;
-    }
+    return AppliedDonationStatus.getStatusColorValue(statusCode);
   }
 
   Future<void> _handleCancel() async {
@@ -2242,13 +2242,14 @@ class _DonationApplicationPageState extends State<DonationApplicationPage> {
 
       if (userResponse.statusCode == 200) {
         final userData = jsonDecode(utf8.decode(userResponse.bodyBytes));
-        final prefs = await SharedPreferences.getInstance();
+        final userNickname =
+            (await PreferencesManager.getUserNickname()) ?? '닉네임 없음';
 
         setState(() {
           // 사용자 정보 매핑 (DB 스키마 기준)
           userInfo = {
             'name': userData['data']['name'] ?? '',
-            'nickname': prefs.getString('user_nickname') ?? '닉네임 없음',
+            'nickname': userNickname,
             'phone': userData['data']['phone_number'] ?? '',
             'address': userData['data']['address'] ?? '',
             'email': userData['data']['email'] ?? '',
@@ -2816,9 +2817,13 @@ class _DonationApplicationPageState extends State<DonationApplicationPage> {
       }
 
       // 디버그: 전송할 데이터 확인
-      debugPrint('[DonationApplication] post_times_idx: ${widget.selectedTimeSlot['post_times_idx']}');
+      debugPrint(
+        '[DonationApplication] post_times_idx: ${widget.selectedTimeSlot['post_times_idx']}',
+      );
       debugPrint('[DonationApplication] pet_idx: ${selectedPet!['pet_idx']}');
-      debugPrint('[DonationApplication] selectedTimeSlot 전체: ${widget.selectedTimeSlot}');
+      debugPrint(
+        '[DonationApplication] selectedTimeSlot 전체: ${widget.selectedTimeSlot}',
+      );
 
       final response = await AuthHttpClient.post(
         Uri.parse('${Config.serverUrl}/api/donation/apply'),
@@ -3007,7 +3012,9 @@ class _TermsAgreementBottomSheetState extends State<TermsAgreementBottomSheet> {
                                 ? () {
                                   Navigator.pop(context);
                                   // Navigator가 완전히 닫힌 후 콜백 실행
-                                  WidgetsBinding.instance.addPostFrameCallback((_) {
+                                  WidgetsBinding.instance.addPostFrameCallback((
+                                    _,
+                                  ) {
                                     widget.onConfirm();
                                   });
                                 }

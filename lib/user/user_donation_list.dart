@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../utils/app_theme.dart';
 import '../services/dashboard_service.dart';
+import '../models/donation_post_model.dart';
 import 'package:intl/intl.dart';
 import '../widgets/marquee_text.dart';
 import '../utils/number_format_util.dart';
@@ -673,10 +674,12 @@ class _UserDonationListScreenState extends State<UserDonationListScreen> {
     final String location = post.location;
     final String bloodType = post.displayBloodType;
     final String donationDatesText = post.donationDatesText;
-    final String applicantText =
-        NumberFormatUtil.formatViewCount(post.applicantCount);
-    final String viewCountText =
-        NumberFormatUtil.formatViewCount(post.viewCount);
+    final String applicantText = NumberFormatUtil.formatViewCount(
+      post.applicantCount,
+    );
+    final String viewCountText = NumberFormatUtil.formatViewCount(
+      post.viewCount,
+    );
 
     showModalBottomSheet(
       context: context,
@@ -693,10 +696,7 @@ class _UserDonationListScreenState extends State<UserDonationListScreen> {
           expand: false,
           builder: (context, scrollController) {
             return Padding(
-              padding: const EdgeInsets.symmetric(
-                horizontal: 20,
-                vertical: 16,
-              ),
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -720,7 +720,9 @@ class _UserDonationListScreenState extends State<UserDonationListScreen> {
                           style: AppTheme.h3Style.copyWith(
                             fontWeight: FontWeight.bold,
                             color:
-                                isUrgent ? AppTheme.error : AppTheme.textPrimary,
+                                isUrgent
+                                    ? AppTheme.error
+                                    : AppTheme.textPrimary,
                           ),
                         ),
                       ),
@@ -888,7 +890,7 @@ class _UserDonationListScreenState extends State<UserDonationListScreen> {
                         ),
                         const SizedBox(width: 4),
                         Text(
-                          '조회수 ${viewCountText}회',
+                          '조회수 $viewCountText회',
                           style: AppTheme.bodySmallStyle.copyWith(
                             color: Colors.grey[600],
                           ),

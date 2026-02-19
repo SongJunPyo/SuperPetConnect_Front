@@ -1,10 +1,10 @@
 import 'dart:convert';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import '../models/notification_model.dart';
 import '../models/notification_types.dart';
 import '../models/notification_mapping.dart';
+import '../utils/preferences_manager.dart';
 
 /// 서버/FCM 알림을 클라이언트 모델로 변환하는 유틸리티
 ///
@@ -21,7 +21,9 @@ class NotificationConverter {
 
       // 서버 알림 타입 매핑 확인
       if (!ServerNotificationMapping.isNotificationForUserType(
-          notificationType, userType)) {
+        notificationType,
+        userType,
+      )) {
         return null;
       }
 
@@ -80,8 +82,8 @@ class NotificationConverter {
       if (clientType == null) return null;
 
       // notification_id 우선, 없으면 timestamp 사용
-      final notificationId = serverNotification.notificationId ??
-          serverNotification.timestamp;
+      final notificationId =
+          serverNotification.notificationId ?? serverNotification.timestamp;
 
       return createNotificationByUserType(
         userType: userType,
@@ -105,9 +107,10 @@ class NotificationConverter {
   /// 현재 사용자 타입 가져오기
   static Future<UserType?> getCurrentUserType() async {
     try {
-      final prefs = await SharedPreferences.getInstance();
-      final accountType = prefs.getInt('account_type');
-      return accountType != null ? UserTypeMapper.fromDbType(accountType) : null;
+      final accountType = await PreferencesManager.getAccountType();
+      return accountType != null
+          ? UserTypeMapper.fromDbType(accountType)
+          : null;
     } catch (e) {
       debugPrint('[NotificationConverter] 사용자 타입 조회 실패: $e');
       return null;
@@ -121,9 +124,10 @@ class NotificationConverter {
     // navigation 데이터 파싱
     if (data.containsKey('navigation')) {
       try {
-        final navData = data['navigation'] is String
-            ? jsonDecode(data['navigation'])
-            : data['navigation'];
+        final navData =
+            data['navigation'] is String
+                ? jsonDecode(data['navigation'])
+                : data['navigation'];
         if (navData is Map<String, dynamic>) {
           relatedData.addAll(navData);
         }
@@ -135,9 +139,10 @@ class NotificationConverter {
     // post_info 데이터 파싱
     if (data.containsKey('post_info')) {
       try {
-        final postInfo = data['post_info'] is String
-            ? jsonDecode(data['post_info'])
-            : data['post_info'];
+        final postInfo =
+            data['post_info'] is String
+                ? jsonDecode(data['post_info'])
+                : data['post_info'];
         if (postInfo is Map<String, dynamic>) {
           relatedData.addAll(postInfo);
         }
@@ -206,7 +211,9 @@ class NotificationConverter {
   }
 
   /// FCM 타입을 관리자 알림 타입으로 변환
-  static AdminNotificationType? getAdminNotificationTypeFromFCM(String fcmType) {
+  static AdminNotificationType? getAdminNotificationTypeFromFCM(
+    String fcmType,
+  ) {
     switch (fcmType) {
       case 'new_user_registration':
         return AdminNotificationType.signupRequest;
@@ -224,7 +231,9 @@ class NotificationConverter {
   }
 
   /// FCM 타입을 병원 알림 타입으로 변환
-  static HospitalNotificationType? getHospitalNotificationTypeFromFCM(String fcmType) {
+  static HospitalNotificationType? getHospitalNotificationTypeFromFCM(
+    String fcmType,
+  ) {
     switch (fcmType) {
       case 'donation_application':
       case 'new_donation_application_hospital':

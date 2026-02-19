@@ -94,7 +94,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
           // 좌표는 서버에서 address 기반으로 자동 geocoding
         };
 
-
         final response = await http.post(
           Uri.parse('${Config.serverUrl}/api/register'),
           headers: {'Content-Type': 'application/json'},
@@ -105,7 +104,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
           Navigator.pop(context);
         }
 
-
         String message;
 
         if (response.statusCode == 201) {
@@ -114,16 +112,15 @@ class _RegisterScreenState extends State<RegisterScreen> {
           if (mounted) {
             Navigator.pushReplacement(
               context,
-              MaterialPageRoute(
-                builder: (context) => const WelcomeScreen(),
-              ),
+              MaterialPageRoute(builder: (context) => const WelcomeScreen()),
             );
           }
         } else if (response.statusCode == 409) {
           message = '이미 가입된 이메일 또는 전화번호입니다.';
           _showSnackBar(message);
         } else if (response.statusCode == 500) {
-          message = '서버 내부 오류가 발생했습니다.\n잠시 후 다시 시도해주세요.\n\n만약 문제가 계속되면 관리자에게 문의해주세요.';
+          message =
+              '서버 내부 오류가 발생했습니다.\n잠시 후 다시 시도해주세요.\n\n만약 문제가 계속되면 관리자에게 문의해주세요.';
           _showSnackBar(message);
         } else if (response.statusCode == 429) {
           final retryAfter = response.headers['retry-after'];
@@ -134,7 +131,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
           // 서버에서 구체적인 에러 메시지가 올 수 있음
           try {
             final errorData = json.decode(response.body);
-            message = errorData['detail'] ?? errorData['message'] ?? '입력 데이터에 오류가 있습니다.';
+            message =
+                errorData['detail'] ??
+                errorData['message'] ??
+                '입력 데이터에 오류가 있습니다.';
           } catch (e) {
             message = '입력 데이터 형식이 올바르지 않습니다.';
           }
@@ -299,10 +299,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 padding: const EdgeInsets.only(left: 12, top: 6),
                 child: Text(
                   '8자 이상, 영문+숫자+특수문자 포함',
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: Colors.grey[500],
-                  ),
+                  style: TextStyle(fontSize: 12, color: Colors.grey[500]),
                 ),
               ),
               const SizedBox(height: 16),

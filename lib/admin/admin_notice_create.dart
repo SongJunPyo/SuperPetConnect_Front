@@ -271,61 +271,45 @@ class _AdminNoticeCreateScreenState extends State<AdminNoticeCreateScreen> {
                   borderRadius: BorderRadius.circular(AppTheme.radius8),
                   border: Border.all(color: AppTheme.lightGray),
                 ),
-                child: Column(
-                  children: [
-                    RadioListTile<int>(
-                      title: const Text('전체'),
-                      subtitle: const Text('모든 사용자에게 표시'),
-                      value: 0,
-                      groupValue: _targetAudience,
-                      onChanged: (value) {
-                        setState(() {
-                          _targetAudience = value!;
-                        });
-                      },
-                      activeColor: AppTheme.black,
-                      contentPadding: EdgeInsets.zero,
-                    ),
-                    RadioListTile<int>(
-                      title: const Text('관리자'),
-                      subtitle: const Text('관리자에게만 표시'),
-                      value: 1,
-                      groupValue: _targetAudience,
-                      onChanged: (value) {
-                        setState(() {
-                          _targetAudience = value!;
-                        });
-                      },
-                      activeColor: AppTheme.primaryBlue,
-                      contentPadding: EdgeInsets.zero,
-                    ),
-                    RadioListTile<int>(
-                      title: const Text('병원'),
-                      subtitle: const Text('병원 사용자에게만 표시'),
-                      value: 2,
-                      groupValue: _targetAudience,
-                      onChanged: (value) {
-                        setState(() {
-                          _targetAudience = value!;
-                        });
-                      },
-                      activeColor: AppTheme.warning,
-                      contentPadding: EdgeInsets.zero,
-                    ),
-                    RadioListTile<int>(
-                      title: const Text('사용자'),
-                      subtitle: const Text('일반 사용자에게만 표시'),
-                      value: 3,
-                      groupValue: _targetAudience,
-                      onChanged: (value) {
-                        setState(() {
-                          _targetAudience = value!;
-                        });
-                      },
-                      activeColor: AppTheme.success,
-                      contentPadding: EdgeInsets.zero,
-                    ),
-                  ],
+                child: RadioGroup<int>(
+                  groupValue: _targetAudience,
+                  onChanged: (value) {
+                    setState(() {
+                      _targetAudience = value!;
+                    });
+                  },
+                  child: Column(
+                    children: [
+                      RadioListTile<int>(
+                        title: const Text('전체'),
+                        subtitle: const Text('모든 사용자에게 표시'),
+                        value: 0,
+                        activeColor: AppTheme.black,
+                        contentPadding: EdgeInsets.zero,
+                      ),
+                      RadioListTile<int>(
+                        title: const Text('관리자'),
+                        subtitle: const Text('관리자에게만 표시'),
+                        value: 1,
+                        activeColor: AppTheme.primaryBlue,
+                        contentPadding: EdgeInsets.zero,
+                      ),
+                      RadioListTile<int>(
+                        title: const Text('병원'),
+                        subtitle: const Text('병원 사용자에게만 표시'),
+                        value: 2,
+                        activeColor: AppTheme.warning,
+                        contentPadding: EdgeInsets.zero,
+                      ),
+                      RadioListTile<int>(
+                        title: const Text('사용자'),
+                        subtitle: const Text('일반 사용자에게만 표시'),
+                        value: 3,
+                        activeColor: AppTheme.success,
+                        contentPadding: EdgeInsets.zero,
+                      ),
+                    ],
+                  ),
                 ),
               ),
 
@@ -341,13 +325,13 @@ class _AdminNoticeCreateScreenState extends State<AdminNoticeCreateScreen> {
                 child: Row(
                   children: [
                     Checkbox(
-                      value: _isImportant == 0, // 0=뱃지 표시이면 체크
+                      value: _isImportant == 1, // 1=뱃지 표시이면 체크
                       onChanged: (value) {
                         setState(() {
                           _isImportant =
                               (value ?? false)
-                                  ? 0
-                                  : 1; // 체크되면 뱃지 표시(0), 아니면 숨김(1)
+                                  ? 1
+                                  : 0; // 체크되면 뱃지 표시(1), 아니면 숨김(0)
                         });
                       },
                       activeColor: AppTheme.black,

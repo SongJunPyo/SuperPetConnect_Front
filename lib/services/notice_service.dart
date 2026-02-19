@@ -3,10 +3,12 @@ import 'dart:convert';
 import 'auth_http_client.dart';
 import '../models/notice_model.dart';
 import '../utils/config.dart';
+import '../utils/api_endpoints.dart';
 
 class NoticeService {
-  static String get baseUrl => '${Config.serverUrl}/api/notices';
-  static String get adminBaseUrl => '${Config.serverUrl}/api/admin/notices';
+  static String get baseUrl => '${Config.serverUrl}${ApiEndpoints.notices}';
+  static String get adminBaseUrl =>
+      '${Config.serverUrl}${ApiEndpoints.adminNotices}';
 
   // 공지글 작성 (관리자만)
   static Future<Notice> createNotice(NoticeCreateRequest request) async {
@@ -17,15 +19,12 @@ class NoticeService {
       );
 
       if (response.statusCode == 200 || response.statusCode == 201) {
-        final data = jsonDecode(utf8.decode(response.bodyBytes));
+        final data = response.parseJson();
         return Notice.fromJson(data);
       } else if (response.statusCode == 403) {
         throw Exception('관리자 권한이 필요합니다.');
       } else {
-        final error = jsonDecode(utf8.decode(response.bodyBytes));
-        throw Exception(
-          '공지글 작성 실패: ${error['detail'] ?? error['message'] ?? response.body}',
-        );
+        throw response.toException('공지글 작성에 실패했습니다.');
       }
     } catch (e) {
       throw Exception('공지글 작성 중 오류 발생: $e');
@@ -33,9 +32,7 @@ class NoticeService {
   }
 
   // 관리자용 공지글 목록 조회 (모든 공지글 포함)
-  static Future<List<Notice>> getAdminNotices({
-    bool activeOnly = false,
-  }) async {
+  static Future<List<Notice>> getAdminNotices({bool activeOnly = false}) async {
     try {
       final queryParams = <String, String>{};
       if (activeOnly) {
@@ -49,7 +46,7 @@ class NoticeService {
       final response = await AuthHttpClient.get(uri);
 
       if (response.statusCode == 200) {
-        final data = jsonDecode(utf8.decode(response.bodyBytes));
+        final data = response.parseJsonDynamic();
 
         // 새로운 API는 직접 배열을 반환
         if (data is List) {
@@ -60,10 +57,7 @@ class NoticeService {
       } else if (response.statusCode == 403) {
         throw Exception('관리자 권한이 필요합니다.');
       } else {
-        final error = jsonDecode(utf8.decode(response.bodyBytes));
-        throw Exception(
-          '공지글 목록 조회 실패: ${error['detail'] ?? error['message'] ?? response.body}',
-        );
+        throw response.toException('공지글 목록 조회에 실패했습니다.');
       }
     } catch (e) {
       throw Exception('공지글 목록 조회 중 오류 발생: $e');
@@ -91,7 +85,7 @@ class NoticeService {
       final response = await AuthHttpClient.get(uri);
 
       if (response.statusCode == 200) {
-        final data = jsonDecode(utf8.decode(response.bodyBytes));
+        final data = response.parseJsonDynamic();
 
         // 새로운 API는 직접 배열을 반환
         if (data is List) {
@@ -102,10 +96,7 @@ class NoticeService {
       } else if (response.statusCode == 403) {
         throw Exception('접근 권한이 없습니다.');
       } else {
-        final error = jsonDecode(utf8.decode(response.bodyBytes));
-        throw Exception(
-          '공지글 목록 조회 실패: ${error['detail'] ?? error['message'] ?? response.body}',
-        );
+        throw response.toException('공지글 목록 조회에 실패했습니다.');
       }
     } catch (e) {
       throw Exception('공지글 목록 조회 중 오류 발생: $e');
@@ -115,20 +106,15 @@ class NoticeService {
   // 특정 공지글 상세 조회 (모든 사용자)
   static Future<Notice> getNoticeDetail(int noticeIdx) async {
     try {
-
       final response = await http.get(Uri.parse('$baseUrl/$noticeIdx'));
 
-
       if (response.statusCode == 200) {
-        final data = jsonDecode(utf8.decode(response.bodyBytes));
+        final data = response.parseJson();
         return Notice.fromJson(data);
       } else if (response.statusCode == 404) {
         throw Exception('공지글을 찾을 수 없습니다.');
       } else {
-        final error = jsonDecode(utf8.decode(response.bodyBytes));
-        throw Exception(
-          '공지글 조회 실패: ${error['detail'] ?? error['message'] ?? response.body}',
-        );
+        throw response.toException('공지글 조회에 실패했습니다.');
       }
     } catch (e) {
       throw Exception('공지글 조회 중 오류 발생: $e');
@@ -147,17 +133,14 @@ class NoticeService {
       );
 
       if (response.statusCode == 200) {
-        final data = jsonDecode(utf8.decode(response.bodyBytes));
+        final data = response.parseJson();
         return Notice.fromJson(data);
       } else if (response.statusCode == 403) {
         throw Exception('관리자 권한이 필요합니다.');
       } else if (response.statusCode == 404) {
         throw Exception('공지글을 찾을 수 없습니다.');
       } else {
-        final error = jsonDecode(utf8.decode(response.bodyBytes));
-        throw Exception(
-          '공지글 수정 실패: ${error['detail'] ?? error['message'] ?? response.body}',
-        );
+        throw response.toException('공지글 수정에 실패했습니다.');
       }
     } catch (e) {
       throw Exception('공지글 수정 중 오류 발생: $e');
@@ -172,15 +155,14 @@ class NoticeService {
       );
 
       if (response.statusCode == 200) {
-        final data = jsonDecode(utf8.decode(response.bodyBytes));
+        final data = response.parseJson();
         return Notice.fromJson(data);
       } else if (response.statusCode == 403) {
         throw Exception('관리자 권한이 필요합니다.');
       } else if (response.statusCode == 404) {
         throw Exception('공지글을 찾을 수 없습니다.');
       } else {
-        final error = jsonDecode(utf8.decode(response.bodyBytes));
-        throw Exception('상태 변경 실패: ${error['detail'] ?? error['message'] ?? response.body}');
+        throw response.toException('상태 변경에 실패했습니다.');
       }
     } catch (e) {
       throw Exception('공지글 상태 변경 중 오류 발생: $e');
@@ -201,10 +183,7 @@ class NoticeService {
       } else if (response.statusCode == 404) {
         throw Exception('공지글을 찾을 수 없습니다.');
       } else {
-        final error = jsonDecode(utf8.decode(response.bodyBytes));
-        throw Exception(
-          '공지글 삭제 실패: ${error['detail'] ?? error['message'] ?? response.body}',
-        );
+        throw response.toException('공지글 삭제에 실패했습니다.');
       }
     } catch (e) {
       throw Exception('공지글 삭제 중 오류 발생: $e');
@@ -214,17 +193,13 @@ class NoticeService {
   // 공개 공지글 조회 (사용자 화면용, 인증 불필요)
   static Future<List<Notice>> getPublicNotices() async {
     try {
-
       final response = await http.get(
         Uri.parse('$baseUrl/public'),
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: {'Content-Type': 'application/json'},
       );
 
-
       if (response.statusCode == 200) {
-        final data = jsonDecode(utf8.decode(response.bodyBytes));
+        final data = response.parseJsonDynamic();
 
         // API는 직접 배열을 반환
         if (data is List) {
@@ -233,10 +208,7 @@ class NoticeService {
           throw Exception('예상치 못한 응답 형식');
         }
       } else {
-        final error = jsonDecode(utf8.decode(response.bodyBytes));
-        throw Exception(
-          '공개 공지글 목록 조회 실패: ${error['detail'] ?? error['message'] ?? response.body}',
-        );
+        throw response.toException('공개 공지글 목록 조회에 실패했습니다.');
       }
     } catch (e) {
       // 인증이 필요한 경우 일반 getNotices로 fallback

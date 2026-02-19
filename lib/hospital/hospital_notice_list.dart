@@ -4,10 +4,12 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../models/notice_model.dart';
 import '../services/dashboard_service.dart';
+import '../models/notice_post_model.dart';
 import '../utils/app_theme.dart';
 import '../utils/number_format_util.dart';
 import '../widgets/app_app_bar.dart';
 import '../widgets/marquee_text.dart';
+import '../utils/app_constants.dart';
 
 class HospitalNoticeListScreen extends StatefulWidget {
   const HospitalNoticeListScreen({super.key});
@@ -69,20 +71,23 @@ class _HospitalNoticeListScreenState extends State<HospitalNoticeListScreen> {
     }
 
     try {
-      final response = await DashboardService.fetchNoticesPage(
+      // 병원은 인증된 API 사용 (targetAudience 0, 2 포함)
+      final response = await DashboardService.fetchAuthenticatedNoticesPage(
         page: _currentPage,
         pageSize: DashboardService.detailListPageSize,
       );
 
       final visibleNotices = response.notices.where(
         (noticePost) =>
-            noticePost.targetAudience == 0 || noticePost.targetAudience == 2,
+            noticePost.targetAudience == AppConstants.noticeTargetAll || noticePost.targetAudience == AppConstants.noticeTargetHospital,
       );
 
       final mappedNotices = visibleNotices.map(_mapToNotice).toList();
 
       for (final notice in mappedNotices) {
-        final exists = _allNotices.any((stored) => stored.noticeIdx == notice.noticeIdx);
+        final exists = _allNotices.any(
+          (stored) => stored.noticeIdx == notice.noticeIdx,
+        );
         if (!exists) {
           _allNotices.add(notice);
         }
@@ -98,9 +103,10 @@ class _HospitalNoticeListScreenState extends State<HospitalNoticeListScreen> {
         _isLoadingMore = false;
         _isEndOfList = pagination.isEnd;
         _hasNextPage = pagination.hasNext;
-        _currentPage = pagination.hasNext
-            ? pagination.currentPage + 1
-            : pagination.currentPage;
+        _currentPage =
+            pagination.hasNext
+                ? pagination.currentPage + 1
+                : pagination.currentPage;
       });
     } catch (e) {
       if (!mounted) return;
@@ -134,9 +140,9 @@ class _HospitalNoticeListScreenState extends State<HospitalNoticeListScreen> {
       builder: (context, child) {
         return Theme(
           data: Theme.of(context).copyWith(
-            colorScheme: Theme.of(context).colorScheme.copyWith(
-                  primary: AppTheme.primaryBlue,
-                ),
+            colorScheme: Theme.of(
+              context,
+            ).colorScheme.copyWith(primary: AppTheme.primaryBlue),
           ),
           child: child!,
         );
@@ -176,7 +182,8 @@ class _HospitalNoticeListScreenState extends State<HospitalNoticeListScreen> {
     if (searchQuery.isNotEmpty) {
       final lowered = searchQuery.toLowerCase();
       filtered = filtered.where((notice) {
-        final nickname = (notice.authorNickname ?? notice.authorName).toLowerCase();
+        final nickname =
+            (notice.authorNickname ?? notice.authorName).toLowerCase();
         return notice.title.toLowerCase().contains(lowered) ||
             notice.authorName.toLowerCase().contains(lowered) ||
             nickname.contains(lowered);
@@ -191,12 +198,12 @@ class _HospitalNoticeListScreenState extends State<HospitalNoticeListScreen> {
       });
     }
 
-    final sorted = filtered.toList()
-      ..sort((a, b) {
-        if (a.showBadge && !b.showBadge) return -1;
-        if (!a.showBadge && b.showBadge) return 1;
-        return b.createdAt.compareTo(a.createdAt);
-      });
+    final sorted =
+        filtered.toList()..sort((a, b) {
+          if (a.showBadge && !b.showBadge) return -1;
+          if (!a.showBadge && b.showBadge) return 1;
+          return b.createdAt.compareTo(a.createdAt);
+        });
 
     return sorted;
   }
@@ -239,7 +246,9 @@ class _HospitalNoticeListScreenState extends State<HospitalNoticeListScreen> {
         if (idx != -1) {
           notices[idx] = updatedNotice;
         }
-        final allIdx = _allNotices.indexWhere((n) => n.noticeIdx == notice.noticeIdx);
+        final allIdx = _allNotices.indexWhere(
+          (n) => n.noticeIdx == notice.noticeIdx,
+        );
         if (allIdx != -1) {
           _allNotices[allIdx] = updatedNotice;
         }
@@ -256,8 +265,7 @@ class _HospitalNoticeListScreenState extends State<HospitalNoticeListScreen> {
     final int viewCount = noticeDetail?.viewCount ?? notice.viewCount ?? 0;
     final detailNickname = noticeDetail?.authorNickname;
     final String authorName =
-        (detailNickname != null &&
-                detailNickname.toLowerCase() != '닉네임 없음')
+        (detailNickname != null && detailNickname.toLowerCase() != '닉네임 없음')
             ? detailNickname
             : noticeDetail?.authorName ??
                 notice.authorNickname ??
@@ -281,10 +289,7 @@ class _HospitalNoticeListScreenState extends State<HospitalNoticeListScreen> {
           expand: false,
           builder: (context, scrollController) {
             return Padding(
-              padding: const EdgeInsets.symmetric(
-                horizontal: 20,
-                vertical: 16,
-              ),
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -330,7 +335,9 @@ class _HospitalNoticeListScreenState extends State<HospitalNoticeListScreen> {
                         ),
                         decoration: BoxDecoration(
                           color:
-                              isImportant ? AppTheme.error : AppTheme.primaryBlue,
+                              isImportant
+                                  ? AppTheme.error
+                                  : AppTheme.primaryBlue,
                           borderRadius: BorderRadius.circular(6),
                         ),
                         child: Text(
@@ -389,7 +396,9 @@ class _HospitalNoticeListScreenState extends State<HospitalNoticeListScreen> {
                               uri,
                               mode: LaunchMode.externalApplication,
                             );
-                          } else if (mounted) {
+                          } else {
+                            if (!mounted) return;
+                            // ignore: use_build_context_synchronously
                             ScaffoldMessenger.of(context).showSnackBar(
                               const SnackBar(
                                 content: Text('링크를 열 수 없습니다.'),
@@ -506,15 +515,16 @@ class _HospitalNoticeListScreenState extends State<HospitalNoticeListScreen> {
                     ),
                     filled: true,
                     fillColor: Colors.grey.shade50,
-                    suffixIcon: searchQuery.isNotEmpty
-                        ? IconButton(
-                            icon: const Icon(Icons.clear),
-                            onPressed: () {
-                              searchController.clear();
-                              _onSearchChanged('');
-                            },
-                          )
-                        : null,
+                    suffixIcon:
+                        searchQuery.isNotEmpty
+                            ? IconButton(
+                              icon: const Icon(Icons.clear),
+                              onPressed: () {
+                                searchController.clear();
+                                _onSearchChanged('');
+                              },
+                            )
+                            : null,
                   ),
                 ),
                 if (startDate != null && endDate != null) ...[
@@ -628,7 +638,8 @@ class _HospitalNoticeListScreenState extends State<HospitalNoticeListScreen> {
 
     final bool showLoadingTile = _isLoadingMore;
     final bool showEndTile = !_isLoadingMore && _isEndOfList;
-    final int itemCount = notices.length + (showLoadingTile ? 1 : 0) + (showEndTile ? 1 : 0);
+    final int itemCount =
+        notices.length + (showLoadingTile ? 1 : 0) + (showEndTile ? 1 : 0);
 
     return Container(
       decoration: const BoxDecoration(color: Colors.white),
@@ -636,11 +647,12 @@ class _HospitalNoticeListScreenState extends State<HospitalNoticeListScreen> {
         controller: _scrollController,
         padding: EdgeInsets.zero,
         itemCount: itemCount,
-        separatorBuilder: (context, index) => Container(
-          height: 1,
-          color: AppTheme.lightGray.withValues(alpha: 0.2),
-          margin: const EdgeInsets.symmetric(horizontal: 16),
-        ),
+        separatorBuilder:
+            (context, index) => Container(
+              height: 1,
+              color: AppTheme.lightGray.withValues(alpha: 0.2),
+              margin: const EdgeInsets.symmetric(horizontal: 16),
+            ),
         itemBuilder: (context, index) {
           if (index >= notices.length) {
             if (showLoadingTile && index == notices.length) {
@@ -654,10 +666,7 @@ class _HospitalNoticeListScreenState extends State<HospitalNoticeListScreen> {
           return InkWell(
             onTap: () => _showNoticeDetail(notice),
             child: Container(
-              padding: const EdgeInsets.symmetric(
-                horizontal: 16,
-                vertical: 12,
-              ),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -706,18 +715,22 @@ class _HospitalNoticeListScreenState extends State<HospitalNoticeListScreen> {
                               child: MarqueeText(
                                 text: notice.title,
                                 style: AppTheme.bodyMediumStyle.copyWith(
-                                  color: notice.showBadge
-                                      ? AppTheme.error
-                                      : AppTheme.textPrimary,
-                                  fontWeight: notice.showBadge
-                                      ? FontWeight.w600
-                                      : FontWeight.w500,
+                                  color:
+                                      notice.showBadge
+                                          ? AppTheme.error
+                                          : AppTheme.textPrimary,
+                                  fontWeight:
+                                      notice.showBadge
+                                          ? FontWeight.w600
+                                          : FontWeight.w500,
                                   fontSize: 14,
                                 ),
-                                animationDuration:
-                                    const Duration(milliseconds: 4000),
-                                pauseDuration:
-                                    const Duration(milliseconds: 1000),
+                                animationDuration: const Duration(
+                                  milliseconds: 4000,
+                                ),
+                                pauseDuration: const Duration(
+                                  milliseconds: 1000,
+                                ),
                               ),
                             ),
                           ],
@@ -726,7 +739,9 @@ class _HospitalNoticeListScreenState extends State<HospitalNoticeListScreen> {
                         Padding(
                           padding: const EdgeInsets.only(left: 28),
                           child: Text(
-                            (notice.authorNickname ?? notice.authorName).length > 15
+                            (notice.authorNickname ?? notice.authorName)
+                                        .length >
+                                    15
                                 ? '${(notice.authorNickname ?? notice.authorName).substring(0, 15)}..'
                                 : (notice.authorNickname ?? notice.authorName),
                             style: AppTheme.bodySmallStyle.copyWith(
@@ -806,10 +821,10 @@ class _HospitalNoticeListScreenState extends State<HospitalNoticeListScreen> {
                       ),
                     ],
                   ),
-                    ],
-                  ),
-                ),
-              );
+                ],
+              ),
+            ),
+          );
         },
       ),
     );

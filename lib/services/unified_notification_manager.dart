@@ -5,12 +5,7 @@ import 'fcm_handler.dart';
 import 'websocket_handler.dart';
 
 /// 알림 연결 상태
-enum NotificationConnectionStatus {
-  disconnected,
-  connecting,
-  connected,
-  error,
-}
+enum NotificationConnectionStatus { disconnected, connecting, connected, error }
 
 /// FCM과 WebSocket을 통합하여 단일 인터페이스로 제공하는 관리자
 ///
@@ -48,7 +43,8 @@ class UnifiedNotificationManager {
   bool get isWebPlatform => kIsWeb;
 
   /// 통합 알림 스트림
-  Stream<NotificationModel> get notificationStream => _notificationController.stream;
+  Stream<NotificationModel> get notificationStream =>
+      _notificationController.stream;
 
   /// 연결 상태 스트림
   Stream<NotificationConnectionStatus> get connectionStatusStream =>
@@ -73,7 +69,9 @@ class UnifiedNotificationManager {
       }
 
       _isInitialized = true;
-      debugPrint('[UnifiedNotificationManager] 초기화 완료 (플랫폼: ${kIsWeb ? "웹" : "모바일"})');
+      debugPrint(
+        '[UnifiedNotificationManager] 초기화 완료 (플랫폼: ${kIsWeb ? "웹" : "모바일"})',
+      );
     } catch (e) {
       debugPrint('[UnifiedNotificationManager] 초기화 실패: $e');
       _connectionController.add(NotificationConnectionStatus.error);
@@ -88,7 +86,9 @@ class UnifiedNotificationManager {
     // FCM 알림을 통합 스트림으로 전달
     _fcmSubscription = _fcmHandler!.notificationStream.listen(
       (notification) {
-        debugPrint('[UnifiedNotificationManager] FCM 알림 수신: ${notification.title}');
+        debugPrint(
+          '[UnifiedNotificationManager] FCM 알림 수신: ${notification.title}',
+        );
         _notificationController.add(notification);
       },
       onError: (error) {
@@ -109,7 +109,9 @@ class UnifiedNotificationManager {
     // WebSocket 알림을 통합 스트림으로 전달
     _webSocketSubscription = _webSocketHandler!.notificationStream.listen(
       (notification) {
-        debugPrint('[UnifiedNotificationManager] WebSocket 알림 수신: ${notification.title}');
+        debugPrint(
+          '[UnifiedNotificationManager] WebSocket 알림 수신: ${notification.title}',
+        );
         _notificationController.add(notification);
       },
       onError: (error) {
@@ -119,16 +121,14 @@ class UnifiedNotificationManager {
     );
 
     // WebSocket 연결 상태 전달
-    _webSocketConnectionSubscription =
-        _webSocketHandler!.connectionStatusStream.listen(
-      (isConnected) {
-        _connectionController.add(
-          isConnected
-              ? NotificationConnectionStatus.connected
-              : NotificationConnectionStatus.disconnected,
-        );
-      },
-    );
+    _webSocketConnectionSubscription = _webSocketHandler!.connectionStatusStream
+        .listen((isConnected) {
+          _connectionController.add(
+            isConnected
+                ? NotificationConnectionStatus.connected
+                : NotificationConnectionStatus.disconnected,
+          );
+        });
   }
 
   /// 외부에서 알림 추가 (FCM 포그라운드 알림 등)

@@ -29,7 +29,7 @@ class RefreshableScreen extends StatelessWidget {
       color: indicatorColor ?? AppTheme.primaryBlue,
       backgroundColor: Colors.white,
       displacement: 50.0, // 표시기가 나타나는 거리
-      strokeWidth: 3.0,   // 표시기 두께
+      strokeWidth: 3.0, // 표시기 두께
       child: _buildScrollableChild(context),
     );
   }
@@ -99,16 +99,17 @@ class RefreshableTabScreen extends StatelessWidget {
         Expanded(
           child: TabBarView(
             controller: tabController,
-            children: children.map((child) {
-              return RefreshIndicator(
-                onRefresh: onRefresh,
-                color: indicatorColor ?? AppTheme.primaryBlue,
-                backgroundColor: Colors.white,
-                displacement: 50.0,
-                strokeWidth: 3.0,
-                child: _makeScrollable(context, child),
-              );
-            }).toList(),
+            children:
+                children.map((child) {
+                  return RefreshIndicator(
+                    onRefresh: onRefresh,
+                    color: indicatorColor ?? AppTheme.primaryBlue,
+                    backgroundColor: Colors.white,
+                    displacement: 50.0,
+                    strokeWidth: 3.0,
+                    child: _makeScrollable(context, child),
+                  );
+                }).toList(),
           ),
         ),
       ],

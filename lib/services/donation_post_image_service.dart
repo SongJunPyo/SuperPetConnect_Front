@@ -1,4 +1,3 @@
-import 'dart:typed_data';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:http_parser/http_parser.dart';
@@ -6,15 +5,16 @@ import 'dart:convert';
 import 'auth_http_client.dart';
 import '../models/donation_post_image_model.dart';
 import '../utils/config.dart';
+import '../utils/api_endpoints.dart';
 
 // 웹이 아닐 때만 dart:io 사용 (File 타입)
-import 'donation_post_image_service_io.dart' if (dart.library.html) 'donation_post_image_service_web.dart';
+import 'donation_post_image_service_io.dart'
+    if (dart.library.html) 'donation_post_image_service_web.dart';
 
 /// 헌혈 게시글 이미지 서비스
 ///
 /// 이미지 업로드, 삭제, 순서 변경 등의 API 통신 담당
 class DonationPostImageService {
-  static String get baseUrl => Config.serverUrl;
 
   /// 이미지 업로드
   ///
@@ -36,7 +36,7 @@ class DonationPostImageService {
       final mimeType = _getMimeType(extension);
 
       // multipart 요청 생성
-      final uri = Uri.parse('$baseUrl/api/hospital/post/image');
+      final uri = Uri.parse('${Config.serverUrl}${ApiEndpoints.hospitalPostImage}');
       final request = http.MultipartRequest('POST', uri);
 
       // 파일 추가
@@ -61,7 +61,7 @@ class DonationPostImageService {
       final response = await http.Response.fromStream(streamedResponse);
 
       if (response.statusCode == 200 || response.statusCode == 201) {
-        final data = json.decode(utf8.decode(response.bodyBytes));
+        final data = response.parseJsonDynamic();
 
         if (data['success'] == true) {
           return DonationPostImage.fromJson(data);
@@ -69,7 +69,7 @@ class DonationPostImageService {
           throw Exception(data['message'] ?? '이미지 업로드에 실패했습니다.');
         }
       } else if (response.statusCode == 400) {
-        final data = json.decode(utf8.decode(response.bodyBytes));
+        final data = response.parseJsonDynamic();
         throw Exception(data['message'] ?? '잘못된 요청입니다.');
       } else if (response.statusCode == 413) {
         throw Exception('게시글당 최대 5개의 이미지만 업로드할 수 있습니다.');
@@ -97,7 +97,9 @@ class DonationPostImageService {
     String? caption,
     Function(double)? onProgress,
   }) async {
-    debugPrint('[ImageService] uploadImageBytes 시작: fileName=$fileName, size=${imageBytes.length}');
+    debugPrint(
+      '[ImageService] uploadImageBytes 시작: fileName=$fileName, size=${imageBytes.length}',
+    );
     try {
       // 파일 확장자 확인
       final extension = fileName.split('.').last.toLowerCase();
@@ -105,7 +107,7 @@ class DonationPostImageService {
       debugPrint('[ImageService] 확장자: $extension, MIME: $mimeType');
 
       // multipart 요청 생성
-      final uri = Uri.parse('$baseUrl/api/hospital/post/image');
+      final uri = Uri.parse('${Config.serverUrl}${ApiEndpoints.hospitalPostImage}');
       debugPrint('[ImageService] 요청 URL: $uri');
       final request = http.MultipartRequest('POST', uri);
 
@@ -136,7 +138,7 @@ class DonationPostImageService {
       debugPrint('[ImageService] 응답 본문: ${response.body}');
 
       if (response.statusCode == 200 || response.statusCode == 201) {
-        final data = json.decode(utf8.decode(response.bodyBytes));
+        final data = response.parseJsonDynamic();
 
         if (data['success'] == true) {
           debugPrint('[ImageService] 업로드 성공!');
@@ -146,7 +148,7 @@ class DonationPostImageService {
           throw Exception(data['message'] ?? '이미지 업로드에 실패했습니다.');
         }
       } else if (response.statusCode == 400) {
-        final data = json.decode(utf8.decode(response.bodyBytes));
+        final data = response.parseJsonDynamic();
         debugPrint('[ImageService] 400 에러: ${data['message']}');
         throw Exception(data['message'] ?? '잘못된 요청입니다.');
       } else if (response.statusCode == 413) {
@@ -168,11 +170,11 @@ class DonationPostImageService {
   static Future<bool> deleteImage(int imageId) async {
     try {
       final response = await AuthHttpClient.delete(
-        Uri.parse('$baseUrl/api/hospital/post/image/$imageId'),
+        Uri.parse('${Config.serverUrl}${ApiEndpoints.hospitalPostImageDetail(imageId)}'),
       );
 
       if (response.statusCode == 200) {
-        final data = json.decode(utf8.decode(response.bodyBytes));
+        final data = response.parseJsonDynamic();
         return data['success'] == true;
       } else if (response.statusCode == 403) {
         throw Exception('본인 병원의 이미지만 삭제할 수 있습니다.');
@@ -202,12 +204,12 @@ class DonationPostImageService {
       if (caption != null) body['caption'] = caption;
 
       final response = await AuthHttpClient.put(
-        Uri.parse('$baseUrl/api/hospital/post/image/$imageId'),
+        Uri.parse('${Config.serverUrl}${ApiEndpoints.hospitalPostImageDetail(imageId)}'),
         body: json.encode(body),
       );
 
       if (response.statusCode == 200) {
-        final data = json.decode(utf8.decode(response.bodyBytes));
+        final data = response.parseJsonDynamic();
         return DonationPostImage.fromJson(data);
       } else if (response.statusCode == 403) {
         throw Exception('본인 병원의 이미지만 수정할 수 있습니다.');
@@ -227,14 +229,14 @@ class DonationPostImageService {
   static Future<bool> updateImageOrders(List<ImageOrderUpdate> updates) async {
     try {
       final response = await AuthHttpClient.put(
-        Uri.parse('$baseUrl/api/hospital/post/image/order'),
+        Uri.parse('${Config.serverUrl}${ApiEndpoints.hospitalPostImageOrder}'),
         body: json.encode({
           'image_orders': updates.map((u) => u.toJson()).toList(),
         }),
       );
 
       if (response.statusCode == 200) {
-        final data = json.decode(utf8.decode(response.bodyBytes));
+        final data = response.parseJsonDynamic();
         return data['success'] == true;
       } else {
         throw Exception('이미지 순서 변경에 실패했습니다. (${response.statusCode})');
@@ -250,11 +252,11 @@ class DonationPostImageService {
   static Future<List<DonationPostImage>> getPostImages(int postIdx) async {
     try {
       final response = await AuthHttpClient.get(
-        Uri.parse('$baseUrl/api/hospital/post/images/$postIdx'),
+        Uri.parse('${Config.serverUrl}${ApiEndpoints.hospitalPostImagesByPost(postIdx)}'),
       );
 
       if (response.statusCode == 200) {
-        final data = json.decode(utf8.decode(response.bodyBytes));
+        final data = response.parseJsonDynamic();
 
         if (data is List) {
           return data.map((img) => DonationPostImage.fromJson(img)).toList();
@@ -301,6 +303,6 @@ class DonationPostImageService {
     if (imagePath.startsWith('http')) {
       return imagePath;
     }
-    return '$baseUrl$imagePath';
+    return '${Config.serverUrl}$imagePath';
   }
 }

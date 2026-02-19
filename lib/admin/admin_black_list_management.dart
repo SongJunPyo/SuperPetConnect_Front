@@ -16,18 +16,19 @@ class AdminBlackListManagementScreen extends StatefulWidget {
 }
 
 class _AdminBlackListManagementScreenState
-    extends State<AdminBlackListManagementScreen> with TickerProviderStateMixin {
+    extends State<AdminBlackListManagementScreen>
+    with TickerProviderStateMixin {
   late TabController _tabController;
-  
+
   List<BlackList> blackLists = [];
   bool isLoading = true;
   String? errorMessage;
-  
+
   // 검색 및 필터링
   TextEditingController searchController = TextEditingController();
   String searchQuery = '';
   bool? currentFilter; // null: 전체, true: 정지 중, false: 해제됨
-  
+
   // 페이징
   int currentPage = 1;
   int pageSize = 10;
@@ -57,7 +58,7 @@ class _AdminBlackListManagementScreenState
         currentPage = 1;
         searchQuery = '';
         searchController.clear();
-        
+
         // 탭에 따라 필터 설정
         switch (_tabController.index) {
           case 0: // 전체
@@ -108,7 +109,6 @@ class _AdminBlackListManagementScreenState
     }
   }
 
-
   void _onSearchChanged(String query) {
     setState(() {
       searchQuery = query;
@@ -140,7 +140,7 @@ class _AdminBlackListManagementScreenState
       context: context,
       builder: (context) => _CreateBlackListDialog(),
     );
-    
+
     if (result == true) {
       _loadData();
     }
@@ -151,7 +151,7 @@ class _AdminBlackListManagementScreenState
       context: context,
       builder: (context) => _EditBlackListDialog(blackList: blackList),
     );
-    
+
     if (result == true) {
       _loadData();
     }
@@ -167,31 +167,32 @@ class _AdminBlackListManagementScreenState
   Future<void> _releaseBlackList(BlackList blackList) async {
     final confirmed = await showDialog<bool>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('즉시 해제'),
-        content: Text(
-          '${blackList.userName}님을 즉시 해제하시겠습니까?\n\n'
-          '남은 정지 일수: ${blackList.dDay}일',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('취소'),
+      builder:
+          (context) => AlertDialog(
+            title: const Text('즉시 해제'),
+            content: Text(
+              '${blackList.userName}님을 즉시 해제하시겠습니까?\n\n'
+              '남은 정지 일수: ${blackList.dDay}일',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context, false),
+                child: const Text('취소'),
+              ),
+              TextButton(
+                onPressed: () => Navigator.pop(context, true),
+                style: TextButton.styleFrom(foregroundColor: AppTheme.success),
+                child: const Text('해제'),
+              ),
+            ],
           ),
-          TextButton(
-            onPressed: () => Navigator.pop(context, true),
-            style: TextButton.styleFrom(foregroundColor: AppTheme.success),
-            child: const Text('해제'),
-          ),
-        ],
-      ),
     );
 
     if (confirmed != true) return;
 
     try {
       await BlackListService.releaseBlackList(blackList.blackUserIdx);
-      
+
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
@@ -216,31 +217,32 @@ class _AdminBlackListManagementScreenState
   Future<void> _deleteBlackList(BlackList blackList) async {
     final confirmed = await showDialog<bool>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('블랙리스트 삭제'),
-        content: Text(
-          '${blackList.userName}님의 블랙리스트 기록을 완전히 삭제하시겠습니까?\n\n'
-          '⚠️ 이 작업은 되돌릴 수 없습니다.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('취소'),
+      builder:
+          (context) => AlertDialog(
+            title: const Text('블랙리스트 삭제'),
+            content: Text(
+              '${blackList.userName}님의 블랙리스트 기록을 완전히 삭제하시겠습니까?\n\n'
+              '⚠️ 이 작업은 되돌릴 수 없습니다.',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context, false),
+                child: const Text('취소'),
+              ),
+              TextButton(
+                onPressed: () => Navigator.pop(context, true),
+                style: TextButton.styleFrom(foregroundColor: AppTheme.error),
+                child: const Text('삭제'),
+              ),
+            ],
           ),
-          TextButton(
-            onPressed: () => Navigator.pop(context, true),
-            style: TextButton.styleFrom(foregroundColor: AppTheme.error),
-            child: const Text('삭제'),
-          ),
-        ],
-      ),
     );
 
     if (confirmed != true) return;
 
     try {
       await BlackListService.deleteBlackList(blackList.blackUserIdx);
-      
+
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
@@ -269,10 +271,7 @@ class _AdminBlackListManagementScreenState
         title: '블랙리스트 관리',
         showBackButton: true,
         actions: [
-          IconButton(
-            icon: const Icon(Icons.refresh),
-            onPressed: _loadData,
-          ),
+          IconButton(icon: const Icon(Icons.refresh), onPressed: _loadData),
           IconButton(
             icon: const Icon(Icons.add),
             onPressed: _showCreateDialog,
@@ -284,20 +283,16 @@ class _AdminBlackListManagementScreenState
         children: [
           // 검색창
           _buildSearchBar(),
-          
+
           // 탭바
           TabBar(
             controller: _tabController,
             labelColor: AppTheme.primaryBlue,
             unselectedLabelColor: AppTheme.textSecondary,
             indicatorColor: AppTheme.primaryBlue,
-            tabs: [
-              Tab(text: '전체'),
-              Tab(text: '정지 중'),
-              Tab(text: '해제됨'),
-            ],
+            tabs: [Tab(text: '전체'), Tab(text: '정지 중'), Tab(text: '해제됨')],
           ),
-          
+
           // 목록
           Expanded(
             child: TabBarView(
@@ -309,14 +304,13 @@ class _AdminBlackListManagementScreenState
               ],
             ),
           ),
-          
+
           // 페이징
           if (totalCount > pageSize) _buildPagination(),
         ],
       ),
     );
   }
-
 
   Widget _buildSearchBar() {
     return Container(
@@ -327,15 +321,16 @@ class _AdminBlackListManagementScreenState
         decoration: InputDecoration(
           hintText: '이름, 이메일, 전화번호로 검색...',
           prefixIcon: const Icon(Icons.search),
-          suffixIcon: searchQuery.isNotEmpty
-              ? IconButton(
-                  icon: const Icon(Icons.clear),
-                  onPressed: () {
-                    searchController.clear();
-                    _onSearchChanged('');
-                  },
-                )
-              : null,
+          suffixIcon:
+              searchQuery.isNotEmpty
+                  ? IconButton(
+                    icon: const Icon(Icons.clear),
+                    onPressed: () {
+                      searchController.clear();
+                      _onSearchChanged('');
+                    },
+                  )
+                  : null,
           border: OutlineInputBorder(
             borderRadius: BorderRadius.circular(12),
             borderSide: BorderSide(color: AppTheme.lightGray),
@@ -367,10 +362,7 @@ class _AdminBlackListManagementScreenState
             const SizedBox(height: 8),
             Text(errorMessage!, style: AppTheme.bodyMediumStyle),
             const SizedBox(height: 24),
-            ElevatedButton(
-              onPressed: _loadData,
-              child: const Text('다시 시도'),
-            ),
+            ElevatedButton(onPressed: _loadData, child: const Text('다시 시도')),
           ],
         ),
       );
@@ -405,14 +397,17 @@ class _AdminBlackListManagementScreenState
 
   Widget _buildBlackListCard(BlackList blackList) {
     final isActive = blackList.isActive && blackList.dDay > 0;
-    
+
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
-          color: isActive ? AppTheme.error.withValues(alpha: 0.3) : AppTheme.lightGray,
+          color:
+              isActive
+                  ? AppTheme.error.withValues(alpha: 0.3)
+                  : AppTheme.lightGray,
           width: isActive ? 2 : 1,
         ),
         boxShadow: [
@@ -440,7 +435,10 @@ class _AdminBlackListManagementScreenState
                         Text(
                           blackList.userName,
                           style: AppTheme.h4Style.copyWith(
-                            color: isActive ? AppTheme.error : AppTheme.textPrimary,
+                            color:
+                                isActive
+                                    ? AppTheme.error
+                                    : AppTheme.textPrimary,
                             fontWeight: FontWeight.w600,
                           ),
                         ),
@@ -456,11 +454,15 @@ class _AdminBlackListManagementScreenState
                   ),
                   // 상태 뱃지
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 4,
+                    ),
                     decoration: BoxDecoration(
-                      color: isActive 
-                          ? AppTheme.error.withValues(alpha: 0.1)
-                          : AppTheme.success.withValues(alpha: 0.1),
+                      color:
+                          isActive
+                              ? AppTheme.error.withValues(alpha: 0.1)
+                              : AppTheme.success.withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Text(
@@ -486,39 +488,47 @@ class _AdminBlackListManagementScreenState
                           break;
                       }
                     },
-                    itemBuilder: (context) => [
-                      const PopupMenuItem(
-                        value: 'edit',
-                        child: Row(
-                          children: [
-                            Icon(Icons.edit, size: 20),
-                            SizedBox(width: 8),
-                            Text('수정'),
-                          ],
-                        ),
-                      ),
-                      if (isActive)
-                        const PopupMenuItem(
-                          value: 'release',
-                          child: Row(
-                            children: [
-                              Icon(Icons.check_circle, size: 20, color: Colors.green),
-                              SizedBox(width: 8),
-                              Text('즉시 해제', style: TextStyle(color: Colors.green)),
-                            ],
+                    itemBuilder:
+                        (context) => [
+                          const PopupMenuItem(
+                            value: 'edit',
+                            child: Row(
+                              children: [
+                                Icon(Icons.edit, size: 20),
+                                SizedBox(width: 8),
+                                Text('수정'),
+                              ],
+                            ),
                           ),
-                        ),
-                      const PopupMenuItem(
-                        value: 'delete',
-                        child: Row(
-                          children: [
-                            Icon(Icons.delete, size: 20, color: Colors.red),
-                            SizedBox(width: 8),
-                            Text('삭제', style: TextStyle(color: Colors.red)),
-                          ],
-                        ),
-                      ),
-                    ],
+                          if (isActive)
+                            const PopupMenuItem(
+                              value: 'release',
+                              child: Row(
+                                children: [
+                                  Icon(
+                                    Icons.check_circle,
+                                    size: 20,
+                                    color: Colors.green,
+                                  ),
+                                  SizedBox(width: 8),
+                                  Text(
+                                    '즉시 해제',
+                                    style: TextStyle(color: Colors.green),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          const PopupMenuItem(
+                            value: 'delete',
+                            child: Row(
+                              children: [
+                                Icon(Icons.delete, size: 20, color: Colors.red),
+                                SizedBox(width: 8),
+                                Text('삭제', style: TextStyle(color: Colors.red)),
+                              ],
+                            ),
+                          ),
+                        ],
                   ),
                 ],
               ),
@@ -723,13 +733,14 @@ class _CreateBlackListDialogState extends State<_CreateBlackListDialog> {
         ),
         ElevatedButton(
           onPressed: _isLoading ? null : _submit,
-          child: _isLoading
-              ? const SizedBox(
-                  width: 20,
-                  height: 20,
-                  child: CircularProgressIndicator(strokeWidth: 2),
-                )
-              : const Text('등록'),
+          child:
+              _isLoading
+                  ? const SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                  : const Text('등록'),
         ),
       ],
     );
@@ -739,7 +750,7 @@ class _CreateBlackListDialogState extends State<_CreateBlackListDialog> {
 // 블랙리스트 수정 대화상자
 class _EditBlackListDialog extends StatefulWidget {
   final BlackList blackList;
-  
+
   const _EditBlackListDialog({required this.blackList});
 
   @override
@@ -756,7 +767,9 @@ class _EditBlackListDialogState extends State<_EditBlackListDialog> {
   void initState() {
     super.initState();
     _contentController = TextEditingController(text: widget.blackList.content);
-    _dDayController = TextEditingController(text: widget.blackList.dDay.toString());
+    _dDayController = TextEditingController(
+      text: widget.blackList.dDay.toString(),
+    );
   }
 
   @override
@@ -867,13 +880,14 @@ class _EditBlackListDialogState extends State<_EditBlackListDialog> {
         ),
         ElevatedButton(
           onPressed: _isLoading ? null : _submit,
-          child: _isLoading
-              ? const SizedBox(
-                  width: 20,
-                  height: 20,
-                  child: CircularProgressIndicator(strokeWidth: 2),
-                )
-              : const Text('수정'),
+          child:
+              _isLoading
+                  ? const SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                  : const Text('수정'),
         ),
       ],
     );
@@ -883,7 +897,7 @@ class _EditBlackListDialogState extends State<_EditBlackListDialog> {
 // 블랙리스트 상세 정보 대화상자
 class _DetailBlackListDialog extends StatelessWidget {
   final BlackList blackList;
-  
+
   const _DetailBlackListDialog({required this.blackList});
 
   @override
@@ -900,10 +914,7 @@ class _DetailBlackListDialog extends StatelessWidget {
             _buildInfoRow('상태', blackList.statusText),
             _buildInfoRow('남은 일수', '${blackList.dDay}일'),
             const SizedBox(height: 16),
-            const Text(
-              '정지 사유',
-              style: TextStyle(fontWeight: FontWeight.bold),
-            ),
+            const Text('정지 사유', style: TextStyle(fontWeight: FontWeight.bold)),
             const SizedBox(height: 8),
             Text(blackList.content),
             const SizedBox(height: 16),
@@ -912,7 +923,8 @@ class _DetailBlackListDialog extends StatelessWidget {
                 '작성일',
                 DateFormat('yyyy-MM-dd HH:mm:ss').format(blackList.createdAt!),
               ),
-            if (blackList.updatedAt != null && blackList.updatedAt != blackList.createdAt)
+            if (blackList.updatedAt != null &&
+                blackList.updatedAt != blackList.createdAt)
               _buildInfoRow(
                 '수정일',
                 DateFormat('yyyy-MM-dd HH:mm:ss').format(blackList.updatedAt!),

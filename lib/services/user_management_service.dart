@@ -33,7 +33,7 @@ class UserManagementService {
     final response = await AuthHttpClient.get(uri);
 
     if (response.statusCode == 200) {
-      final data = json.decode(utf8.decode(response.bodyBytes));
+      final data = response.parseJson();
       return UserListResponse.fromJson(data);
     } else {
       throw Exception('사용자 목록 조회 실패: ${response.statusCode}');
@@ -46,7 +46,7 @@ class UserManagementService {
     );
 
     if (response.statusCode == 200) {
-      final data = json.decode(utf8.decode(response.bodyBytes));
+      final data = response.parseJson();
       return UserStats.fromJson(data);
     } else {
       throw Exception('통계 조회 실패: ${response.statusCode}');

@@ -129,9 +129,7 @@ class AppPostCard extends StatelessWidget {
               children: [
                 Text(
                   title,
-                  style: AppTheme.h4Style.copyWith(
-                    height: 1.3,
-                  ),
+                  style: AppTheme.h4Style.copyWith(height: 1.3),
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                 ),
@@ -168,8 +166,11 @@ class AppPostCard extends StatelessWidget {
                             vertical: AppTheme.spacing4,
                           ),
                           decoration: BoxDecoration(
-                            color: (statusColor ?? AppTheme.primaryBlue).withValues(alpha: 0.1),
-                            borderRadius: BorderRadius.circular(AppTheme.radius8),
+                            color: (statusColor ?? AppTheme.primaryBlue)
+                                .withValues(alpha: 0.1),
+                            borderRadius: BorderRadius.circular(
+                              AppTheme.radius8,
+                            ),
                             border: Border.all(
                               color: statusColor ?? AppTheme.primaryBlue,
                               width: 0.5,

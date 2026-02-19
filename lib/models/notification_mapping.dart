@@ -4,26 +4,26 @@ import 'notification_types.dart';
 
 /// 서버에서 사용하는 알림 타입과 프론트엔드 타입 매핑
 class ServerNotificationMapping {
-  
   /// 서버 알림 타입 -> 프론트엔드 사용자별 타입 매핑
   static const Map<String, Map<UserType, dynamic>> serverToClientMapping = {
-    
     // === 관리자가 받는 알림들 ===
     'new_user_registration': {
       UserType.admin: AdminNotificationType.signupRequest,
     },
-    
+
     'new_post_approval': {
       UserType.admin: AdminNotificationType.postApprovalRequest, // 헌혈 게시글 승인 요청
     },
-    
+
     'new_donation_application': {
-      UserType.admin: AdminNotificationType.donationApplicationRequest, // 관리자는 헌혈 신청 승인 요청
+      UserType.admin:
+          AdminNotificationType.donationApplicationRequest, // 관리자는 헌혈 신청 승인 요청
     },
 
     // === 병원이 받는 알림들 ===
     'new_donation_application_hospital': {
-      UserType.hospital: HospitalNotificationType.donationApplication, // 새 신청 알림
+      UserType.hospital:
+          HospitalNotificationType.donationApplication, // 새 신청 알림
     },
 
     // 특정 시간대 모집 완료
@@ -42,7 +42,7 @@ class ServerNotificationMapping {
       UserType.hospital: HospitalNotificationType.donationCompleted,
       UserType.user: UserNotificationType.donationCompleted,
     },
-    
+
     'donation_post_approved': {
       UserType.hospital: HospitalNotificationType.postApproved,
     },
@@ -60,7 +60,8 @@ class ServerNotificationMapping {
     },
 
     'donation_application': {
-      UserType.hospital: HospitalNotificationType.donationApplication, // 새 헌혈 신청 접수
+      UserType.hospital:
+          HospitalNotificationType.donationApplication, // 새 헌혈 신청 접수
     },
 
     // === 관리자용 컬럼 승인 요청 ===
@@ -69,21 +70,13 @@ class ServerNotificationMapping {
     },
 
     // === 사용자가 받는 알림들 ===
-    'account_approved': {
-      UserType.user: UserNotificationType.systemNotice,
-    },
-    
-    'account_rejected': {
-      UserType.user: UserNotificationType.systemNotice,
-    },
-    
-    'application_approved': {
-      UserType.user: UserNotificationType.systemNotice,
-    },
+    'account_approved': {UserType.user: UserNotificationType.systemNotice},
 
-    'application_rejected': {
-      UserType.user: UserNotificationType.systemNotice,
-    },
+    'account_rejected': {UserType.user: UserNotificationType.systemNotice},
+
+    'application_approved': {UserType.user: UserNotificationType.systemNotice},
+
+    'application_rejected': {UserType.user: UserNotificationType.systemNotice},
 
     'donation_application_approved': {
       UserType.user: UserNotificationType.applicationApproved,
@@ -104,15 +97,18 @@ class ServerNotificationMapping {
   static const Map<dynamic, String> clientToServerMapping = {
     AdminNotificationType.signupRequest: 'new_user_registration',
     AdminNotificationType.postApprovalRequest: 'new_donation_application',
-    
+
     HospitalNotificationType.postApproved: 'donation_post_approved',
     HospitalNotificationType.columnApproved: 'column_approved',
-    
+
     // 사용자는 주로 수신만 하므로 역매핑은 시스템 알림으로 통합
   };
 
   /// 서버 알림 타입으로부터 적절한 프론트엔드 타입 추출
-  static dynamic getClientNotificationType(String serverType, UserType userType) {
+  static dynamic getClientNotificationType(
+    String serverType,
+    UserType userType,
+  ) {
     final mapping = serverToClientMapping[serverType];
     if (mapping == null) return null;
     return mapping[userType];
@@ -197,7 +193,10 @@ class ServerNotificationData {
     int parseTimestamp(dynamic value) {
       if (value == null) return DateTime.now().millisecondsSinceEpoch ~/ 1000;
       if (value is int) return value;
-      if (value is String) return int.tryParse(value) ?? DateTime.now().millisecondsSinceEpoch ~/ 1000;
+      if (value is String) {
+        return int.tryParse(value) ??
+            DateTime.now().millisecondsSinceEpoch ~/ 1000;
+      }
       return DateTime.now().millisecondsSinceEpoch ~/ 1000;
     }
 
@@ -215,13 +214,18 @@ class ServerNotificationData {
       body: json['body'] ?? '',
       data: Map<String, dynamic>.from(json['data'] ?? {}),
       timestamp: parseTimestamp(json['timestamp']),
-      notificationId: parseNotificationId(json['notification_id'] ?? json['id']),
+      notificationId: parseNotificationId(
+        json['notification_id'] ?? json['id'],
+      ),
     );
   }
 
   /// data에서 related_id 추출 (post_id, application_id, column_id 등)
   int? get relatedId {
-    return data['post_id'] ?? data['application_id'] ?? data['column_id'] ?? data['user_id'];
+    return data['post_id'] ??
+        data['application_id'] ??
+        data['column_id'] ??
+        data['user_id'];
   }
 
   Map<String, dynamic> toJson() {

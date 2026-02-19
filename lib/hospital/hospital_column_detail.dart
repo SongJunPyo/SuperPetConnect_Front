@@ -5,15 +5,12 @@ import '../utils/app_theme.dart';
 import '../widgets/rich_text_viewer.dart';
 import 'hospital_column_edit.dart';
 import 'package:intl/intl.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+import '../utils/preferences_manager.dart';
 
 class HospitalColumnDetail extends StatefulWidget {
   final int columnIdx;
 
-  const HospitalColumnDetail({
-    super.key,
-    required this.columnIdx,
-  });
+  const HospitalColumnDetail({super.key, required this.columnIdx});
 
   @override
   State createState() => _HospitalColumnDetailState();
@@ -35,21 +32,16 @@ class _HospitalColumnDetailState extends State<HospitalColumnDetail> {
   // 세션 스토리지를 활용한 중복 조회 방지
   Future<void> _increaseViewCountIfNeeded() async {
     try {
-      final prefs = await SharedPreferences.getInstance();
-      final viewKey = 'column_viewed_${widget.columnIdx}';
-      
       // 이미 조회한 칼럼인지 확인
-      final hasViewed = prefs.getBool(viewKey) ?? false;
-      
+      final hasViewed = await PreferencesManager.isColumnViewed(widget.columnIdx);
+
       if (!hasViewed) {
         // 조회수 증가 API 호출
         await HospitalColumnService.increaseViewCount(widget.columnIdx);
-        
+
         // 세션에 조회 기록 저장
-        await prefs.setBool(viewKey, true);
-        
-      } else {
-      }
+        await PreferencesManager.setColumnViewed(widget.columnIdx);
+      } else {}
     } catch (e) {
       // 조회수 증가 실패는 사용자 경험에 영향을 주지 않도록 무시
     }
@@ -65,7 +57,7 @@ class _HospitalColumnDetailState extends State<HospitalColumnDetail> {
       final columnDetail = await HospitalColumnService.getColumnDetail(
         widget.columnIdx,
       );
-      
+
       setState(() {
         column = columnDetail;
         isLoading = false;
@@ -79,7 +71,6 @@ class _HospitalColumnDetailState extends State<HospitalColumnDetail> {
       });
     }
   }
-
 
   Future<void> _deleteColumn() async {
     if (column == null) return;
@@ -111,7 +102,7 @@ class _HospitalColumnDetailState extends State<HospitalColumnDetail> {
     if (confirmed == true) {
       try {
         await HospitalColumnService.deleteColumn(column!.columnIdx);
-        
+
         if (mounted) {
           Navigator.of(context).pop();
           ScaffoldMessenger.of(context).showSnackBar(
@@ -125,7 +116,9 @@ class _HospitalColumnDetailState extends State<HospitalColumnDetail> {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('삭제 실패: ${e.toString().replaceAll('Exception: ', '')}'),
+              content: Text(
+                '삭제 실패: ${e.toString().replaceAll('Exception: ', '')}',
+              ),
               backgroundColor: Colors.red,
             ),
           );
@@ -153,9 +146,8 @@ class _HospitalColumnDetailState extends State<HospitalColumnDetail> {
                     Navigator.push(
                       context,
                       MaterialPageRoute(
-                        builder: (context) => HospitalColumnEdit(
-                          column: column!,
-                        ),
+                        builder:
+                            (context) => HospitalColumnEdit(column: column!),
                       ),
                     ).then((_) => _loadColumnDetail());
                     break;
@@ -164,28 +156,29 @@ class _HospitalColumnDetailState extends State<HospitalColumnDetail> {
                     break;
                 }
               },
-              itemBuilder: (context) => [
-                const PopupMenuItem(
-                  value: 'edit',
-                  child: Row(
-                    children: [
-                      Icon(Icons.edit, size: 20, color: Colors.black),
-                      SizedBox(width: 8),
-                      Text('수정'),
-                    ],
-                  ),
-                ),
-                const PopupMenuItem(
-                  value: 'delete',
-                  child: Row(
-                    children: [
-                      Icon(Icons.delete, color: Colors.red, size: 20),
-                      SizedBox(width: 8),
-                      Text('삭제', style: TextStyle(color: Colors.red)),
-                    ],
-                  ),
-                ),
-              ],
+              itemBuilder:
+                  (context) => [
+                    const PopupMenuItem(
+                      value: 'edit',
+                      child: Row(
+                        children: [
+                          Icon(Icons.edit, size: 20, color: Colors.black),
+                          SizedBox(width: 8),
+                          Text('수정'),
+                        ],
+                      ),
+                    ),
+                    const PopupMenuItem(
+                      value: 'delete',
+                      child: Row(
+                        children: [
+                          Icon(Icons.delete, color: Colors.red, size: 20),
+                          SizedBox(width: 8),
+                          Text('삭제', style: TextStyle(color: Colors.red)),
+                        ],
+                      ),
+                    ),
+                  ],
             ),
         ],
       ),
@@ -214,24 +207,20 @@ class _HospitalColumnDetailState extends State<HospitalColumnDetail> {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(
-                Icons.error_outline,
-                size: 64,
-                color: Colors.red[300],
-              ),
+              Icon(Icons.error_outline, size: 64, color: Colors.red[300]),
               const SizedBox(height: 16),
               Text(
                 '오류가 발생했습니다',
-                style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                  color: Colors.red[500],
-                ),
+                style: Theme.of(
+                  context,
+                ).textTheme.titleLarge?.copyWith(color: Colors.red[500]),
               ),
               const SizedBox(height: 8),
               Text(
                 errorMessage,
-                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: Colors.grey[600],
-                ),
+                style: Theme.of(
+                  context,
+                ).textTheme.bodyMedium?.copyWith(color: Colors.grey[600]),
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 16),
@@ -246,17 +235,12 @@ class _HospitalColumnDetailState extends State<HospitalColumnDetail> {
     }
 
     if (column == null) {
-      return const Center(
-        child: Text('칼럼을 찾을 수 없습니다.'),
-      );
+      return const Center(child: Text('칼럼을 찾을 수 없습니다.'));
     }
 
     return SingleChildScrollView(
       child: Padding(
-        padding: const EdgeInsets.symmetric(
-          horizontal: 20.0,
-          vertical: 16.0,
-        ),
+        padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 16.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -301,11 +285,7 @@ class _HospitalColumnDetailState extends State<HospitalColumnDetail> {
                     // 메타 정보
                     Row(
                       children: [
-                        Icon(
-                          Icons.business,
-                          size: 16,
-                          color: Colors.grey[600],
-                        ),
+                        Icon(Icons.business, size: 16, color: Colors.grey[600]),
                         const SizedBox(width: 4),
                         Text(
                           column!.hospitalName,
@@ -339,7 +319,9 @@ class _HospitalColumnDetailState extends State<HospitalColumnDetail> {
                         ),
                         const SizedBox(width: 4),
                         Text(
-                          DateFormat('yyyy-MM-dd HH:mm').format(column!.createdAt),
+                          DateFormat(
+                            'yyyy-MM-dd HH:mm',
+                          ).format(column!.createdAt),
                           style: AppTheme.bodySmallStyle.copyWith(
                             color: Colors.grey[600],
                           ),
@@ -350,11 +332,7 @@ class _HospitalColumnDetailState extends State<HospitalColumnDetail> {
                       const SizedBox(height: 4),
                       Row(
                         children: [
-                          Icon(
-                            Icons.update,
-                            size: 16,
-                            color: Colors.grey[600],
-                          ),
+                          Icon(Icons.update, size: 16, color: Colors.grey[600]),
                           const SizedBox(width: 4),
                           Text(
                             '수정: ${DateFormat('yyyy-MM-dd HH:mm').format(column!.updatedAt)}',
@@ -372,13 +350,19 @@ class _HospitalColumnDetailState extends State<HospitalColumnDetail> {
                         Icon(
                           column!.isPublished ? Icons.public : Icons.edit_note,
                           size: 16,
-                          color: column!.isPublished ? Colors.green : Colors.orange,
+                          color:
+                              column!.isPublished
+                                  ? Colors.green
+                                  : Colors.orange,
                         ),
                         const SizedBox(width: 4),
                         Text(
                           column!.isPublished ? '발행됨' : '임시저장',
                           style: AppTheme.bodySmallStyle.copyWith(
-                            color: column!.isPublished ? Colors.green : Colors.orange,
+                            color:
+                                column!.isPublished
+                                    ? Colors.green
+                                    : Colors.orange,
                             fontWeight: FontWeight.w600,
                           ),
                         ),
@@ -416,22 +400,24 @@ class _HospitalColumnDetailState extends State<HospitalColumnDetail> {
                         borderRadius: BorderRadius.circular(10),
                         border: Border.all(color: Colors.grey.shade300),
                       ),
-                      child: column!.contentDelta != null && column!.contentDelta!.isNotEmpty
-                          ? RichTextViewer(
-                              contentDelta: column!.contentDelta,
-                              plainText: column!.content,
-                              padding: const EdgeInsets.all(16.0),
-                            )
-                          : Padding(
-                              padding: const EdgeInsets.all(16.0),
-                              child: Text(
-                                column!.content,
-                                style: AppTheme.bodyLargeStyle.copyWith(
-                                  height: 1.6,
-                                  color: Colors.black87,
+                      child:
+                          column!.contentDelta != null &&
+                                  column!.contentDelta!.isNotEmpty
+                              ? RichTextViewer(
+                                contentDelta: column!.contentDelta,
+                                plainText: column!.content,
+                                padding: const EdgeInsets.all(16.0),
+                              )
+                              : Padding(
+                                padding: const EdgeInsets.all(16.0),
+                                child: Text(
+                                  column!.content,
+                                  style: AppTheme.bodyLargeStyle.copyWith(
+                                    height: 1.6,
+                                    color: Colors.black87,
+                                  ),
                                 ),
                               ),
-                            ),
                     ),
                   ],
                 ),

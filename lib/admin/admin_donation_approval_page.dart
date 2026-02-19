@@ -9,7 +9,8 @@ class AdminDonationApprovalPage extends StatefulWidget {
   const AdminDonationApprovalPage({super.key});
 
   @override
-  State<AdminDonationApprovalPage> createState() => _AdminDonationApprovalPageState();
+  State<AdminDonationApprovalPage> createState() =>
+      _AdminDonationApprovalPageState();
 }
 
 class _AdminDonationApprovalPageState extends State<AdminDonationApprovalPage> {
@@ -17,7 +18,7 @@ class _AdminDonationApprovalPageState extends State<AdminDonationApprovalPage> {
   bool isLoading = false;
   Map<String, dynamic>? pendingData;
   Map<String, dynamic>? statsData;
-  
+
   @override
   void initState() {
     super.initState();
@@ -31,7 +32,9 @@ class _AdminDonationApprovalPageState extends State<AdminDonationApprovalPage> {
     });
 
     try {
-      final result = await AdminDonationApprovalService.getPendingByDate(selectedDate);
+      final result = await AdminDonationApprovalService.getPendingByDate(
+        selectedDate,
+      );
       if (result['success']) {
         setState(() {
           pendingData = result;
@@ -62,29 +65,32 @@ class _AdminDonationApprovalPageState extends State<AdminDonationApprovalPage> {
   }
 
   Future<void> _processFinalApproval(int postTimesIdx, String action) async {
-    final confirmMessage = action == 'complete' 
-        ? '해당 시간대를 최종 완료 처리하시겠습니까?' 
-        : '해당 시간대를 최종 취소 처리하시겠습니까?';
-    
+    final confirmMessage =
+        action == 'complete'
+            ? '해당 시간대를 최종 완료 처리하시겠습니까?'
+            : '해당 시간대를 최종 취소 처리하시겠습니까?';
+
     final confirmed = await showDialog<bool>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('최종 승인 확인'),
-        content: Text(confirmMessage),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('취소'),
+      builder:
+          (context) => AlertDialog(
+            title: const Text('최종 승인 확인'),
+            content: Text(confirmMessage),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context, false),
+                child: const Text('취소'),
+              ),
+              ElevatedButton(
+                onPressed: () => Navigator.pop(context, true),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor:
+                      action == 'complete' ? Colors.green : Colors.red,
+                ),
+                child: const Text('확인'),
+              ),
+            ],
           ),
-          ElevatedButton(
-            onPressed: () => Navigator.pop(context, true),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: action == 'complete' ? Colors.green : Colors.red,
-            ),
-            child: const Text('확인'),
-          ),
-        ],
-      ),
     );
 
     if (confirmed != true) return;
@@ -119,10 +125,7 @@ class _AdminDonationApprovalPageState extends State<AdminDonationApprovalPage> {
 
   void _showError(String message) {
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        backgroundColor: Colors.red,
-      ),
+      SnackBar(content: Text(message), backgroundColor: Colors.red),
     );
   }
 
@@ -159,7 +162,9 @@ class _AdminDonationApprovalPageState extends State<AdminDonationApprovalPage> {
                     children: [
                       Text(
                         '승인 대기 현황',
-                        style: AppTheme.h3Style.copyWith(fontWeight: FontWeight.bold),
+                        style: AppTheme.h3Style.copyWith(
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
                       const SizedBox(height: AppTheme.spacing12),
                       Row(
@@ -177,8 +182,10 @@ class _AdminDonationApprovalPageState extends State<AdminDonationApprovalPage> {
                           ),
                           _buildStatItem(
                             '전체 대기중',
-                            ((statsData!['totalPendingCompletions'] ?? 0) + 
-                             (statsData!['totalPendingCancellations'] ?? 0)).toString(),
+                            ((statsData!['totalPendingCompletions'] ?? 0) +
+                                    (statsData!['totalPendingCancellations'] ??
+                                        0))
+                                .toString(),
                             Colors.purple,
                           ),
                         ],
@@ -188,7 +195,7 @@ class _AdminDonationApprovalPageState extends State<AdminDonationApprovalPage> {
                 ),
               ),
             ),
-          
+
           // 날짜 선택
           Container(
             padding: const EdgeInsets.all(AppTheme.spacing16),
@@ -198,7 +205,9 @@ class _AdminDonationApprovalPageState extends State<AdminDonationApprovalPage> {
                 IconButton(
                   onPressed: () {
                     setState(() {
-                      selectedDate = selectedDate.subtract(const Duration(days: 1));
+                      selectedDate = selectedDate.subtract(
+                        const Duration(days: 1),
+                      );
                     });
                     _loadData();
                   },
@@ -209,7 +218,9 @@ class _AdminDonationApprovalPageState extends State<AdminDonationApprovalPage> {
                     final picked = await showDatePicker(
                       context: context,
                       initialDate: selectedDate,
-                      firstDate: DateTime.now().subtract(const Duration(days: 30)),
+                      firstDate: DateTime.now().subtract(
+                        const Duration(days: 30),
+                      ),
                       lastDate: DateTime.now().add(const Duration(days: 30)),
                     );
                     if (picked != null) {
@@ -222,7 +233,9 @@ class _AdminDonationApprovalPageState extends State<AdminDonationApprovalPage> {
                   icon: const Icon(Icons.calendar_today),
                   label: Text(
                     DateFormat('yyyy년 MM월 dd일').format(selectedDate),
-                    style: AppTheme.bodyLargeStyle.copyWith(fontWeight: FontWeight.bold),
+                    style: AppTheme.bodyLargeStyle.copyWith(
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                 ),
                 IconButton(
@@ -237,12 +250,13 @@ class _AdminDonationApprovalPageState extends State<AdminDonationApprovalPage> {
               ],
             ),
           ),
-          
+
           // 시간대별 대기 목록
           Expanded(
-            child: isLoading
-                ? const Center(child: CircularProgressIndicator())
-                : _buildPendingList(),
+            child:
+                isLoading
+                    ? const Center(child: CircularProgressIndicator())
+                    : _buildPendingList(),
           ),
         ],
       ),
@@ -272,17 +286,13 @@ class _AdminDonationApprovalPageState extends State<AdminDonationApprovalPage> {
 
   Widget _buildPendingList() {
     if (pendingData == null || pendingData!['pendingByTimeSlot'] == null) {
-      return const Center(
-        child: Text('승인 대기중인 헌혈이 없습니다.'),
-      );
+      return const Center(child: Text('승인 대기중인 헌혈이 없습니다.'));
     }
 
     final timeSlots = pendingData!['pendingByTimeSlot'] as List;
-    
+
     if (timeSlots.isEmpty) {
-      return const Center(
-        child: Text('승인 대기중인 헌혈이 없습니다.'),
-      );
+      return const Center(child: Text('승인 대기중인 헌혈이 없습니다.'));
     }
 
     return ListView.builder(
@@ -303,9 +313,13 @@ class _AdminDonationApprovalPageState extends State<AdminDonationApprovalPage> {
           child: ExpansionTile(
             title: Text(
               '$time - $postTitle',
-              style: AppTheme.bodyLargeStyle.copyWith(fontWeight: FontWeight.bold),
+              style: AppTheme.bodyLargeStyle.copyWith(
+                fontWeight: FontWeight.bold,
+              ),
             ),
-            subtitle: Text('$hospitalName | 완료대기: $pendingCompletions, 취소대기: $pendingCancellations'),
+            subtitle: Text(
+              '$hospitalName | 완료대기: $pendingCompletions, 취소대기: $pendingCancellations',
+            ),
             children: [
               // 신청자 목록
               if (applications.isNotEmpty)
@@ -313,10 +327,11 @@ class _AdminDonationApprovalPageState extends State<AdminDonationApprovalPage> {
                   final petName = app['pet_name'] ?? '이름 없음';
                   final status = app['status'];
                   final bloodVolume = app['blood_volume'];
-                  
+
                   return ListTile(
                     leading: CircleAvatar(
-                      backgroundColor: status == 5 ? Colors.blue : Colors.orange,
+                      backgroundColor:
+                          status == 5 ? Colors.blue : Colors.orange,
                       child: Icon(
                         status == 5 ? Icons.check : Icons.cancel,
                         color: Colors.white,
@@ -324,13 +339,11 @@ class _AdminDonationApprovalPageState extends State<AdminDonationApprovalPage> {
                     ),
                     title: Text(petName),
                     subtitle: Text(
-                      status == 5 
-                          ? '완료대기 - 헌혈량: ${bloodVolume}mL'
-                          : '취소대기',
+                      status == 5 ? '완료대기 - 헌혈량: ${bloodVolume}mL' : '취소대기',
                     ),
                   );
                 }).toList(),
-              
+
               // 승인 버튼
               Padding(
                 padding: const EdgeInsets.all(AppTheme.spacing16),
@@ -339,7 +352,9 @@ class _AdminDonationApprovalPageState extends State<AdminDonationApprovalPage> {
                   children: [
                     if (pendingCompletions > 0)
                       ElevatedButton.icon(
-                        onPressed: () => _processFinalApproval(postTimesIdx, 'complete'),
+                        onPressed:
+                            () =>
+                                _processFinalApproval(postTimesIdx, 'complete'),
                         icon: const Icon(Icons.check_circle),
                         label: Text('완료 승인 ($pendingCompletions건)'),
                         style: ElevatedButton.styleFrom(
@@ -349,7 +364,8 @@ class _AdminDonationApprovalPageState extends State<AdminDonationApprovalPage> {
                       ),
                     if (pendingCancellations > 0)
                       ElevatedButton.icon(
-                        onPressed: () => _processFinalApproval(postTimesIdx, 'cancel'),
+                        onPressed:
+                            () => _processFinalApproval(postTimesIdx, 'cancel'),
                         icon: const Icon(Icons.cancel),
                         label: Text('취소 승인 ($pendingCancellations건)'),
                         style: ElevatedButton.styleFrom(

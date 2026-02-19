@@ -6,16 +6,19 @@ import '../widgets/app_app_bar.dart';
 import '../services/donation_date_service.dart';
 import '../models/donation_post_date_model.dart';
 import '../services/dashboard_service.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+import '../models/donation_post_model.dart';
+import '../utils/preferences_manager.dart';
 
 class HospitalDonationDateManagementScreen extends StatefulWidget {
   const HospitalDonationDateManagementScreen({super.key});
 
   @override
-  State<HospitalDonationDateManagementScreen> createState() => _HospitalDonationDateManagementScreenState();
+  State<HospitalDonationDateManagementScreen> createState() =>
+      _HospitalDonationDateManagementScreenState();
 }
 
-class _HospitalDonationDateManagementScreenState extends State<HospitalDonationDateManagementScreen> {
+class _HospitalDonationDateManagementScreenState
+    extends State<HospitalDonationDateManagementScreen> {
   List<DonationPost> hospitalPosts = [];
   bool isLoading = true;
   String? errorMessage;
@@ -35,14 +38,18 @@ class _HospitalDonationDateManagementScreenState extends State<HospitalDonationD
     try {
       // 병원의 게시글만 조회 (실제로는 서버에서 현재 로그인한 병원의 게시글만 반환해야 함)
       final posts = await DashboardService.getPublicPosts(limit: 50);
-      
+
       // 여기서는 임시로 모든 게시글을 가져오지만, 실제로는 현재 병원의 게시글만 필터링해야 함
-      final prefs = await SharedPreferences.getInstance();
-      final hospitalName = prefs.getString('hospital_name') ?? '';
-      
-      final filteredPosts = posts.where((post) => 
-        hospitalName.isNotEmpty && post.hospitalName.contains(hospitalName)
-      ).toList();
+      final hospitalName = await PreferencesManager.getHospitalName() ?? '';
+
+      final filteredPosts =
+          posts
+              .where(
+                (post) =>
+                    hospitalName.isNotEmpty &&
+                    post.hospitalName.contains(hospitalName),
+              )
+              .toList();
 
       setState(() {
         hospitalPosts = filteredPosts;
@@ -59,9 +66,7 @@ class _HospitalDonationDateManagementScreenState extends State<HospitalDonationD
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppSimpleAppBar(
-        title: '헌혈 날짜 관리',
-      ),
+      appBar: AppSimpleAppBar(title: '헌혈 날짜 관리'),
       body: RefreshIndicator(
         onRefresh: _loadHospitalPosts,
         child: _buildBody(),
@@ -195,17 +200,26 @@ class _HospitalDonationDateManagementScreenState extends State<HospitalDonationD
                         vertical: AppTheme.spacing4,
                       ),
                       decoration: BoxDecoration(
-                        color: post.isUrgent ? Colors.red.shade50 : Colors.blue.shade50,
+                        color:
+                            post.isUrgent
+                                ? Colors.red.shade50
+                                : Colors.blue.shade50,
                         borderRadius: BorderRadius.circular(AppTheme.radius8),
                         border: Border.all(
-                          color: post.isUrgent ? Colors.red.shade200 : Colors.blue.shade200,
+                          color:
+                              post.isUrgent
+                                  ? Colors.red.shade200
+                                  : Colors.blue.shade200,
                           width: 1,
                         ),
                       ),
                       child: Text(
                         post.typeText,
                         style: AppTheme.captionStyle.copyWith(
-                          color: post.isUrgent ? Colors.red.shade700 : Colors.blue.shade700,
+                          color:
+                              post.isUrgent
+                                  ? Colors.red.shade700
+                                  : Colors.blue.shade700,
                           fontWeight: FontWeight.w600,
                         ),
                       ),
@@ -217,7 +231,9 @@ class _HospitalDonationDateManagementScreenState extends State<HospitalDonationD
                         vertical: AppTheme.spacing4,
                       ),
                       decoration: BoxDecoration(
-                        color: _getStatusColor(post.statusText).withValues(alpha: 0.1),
+                        color: _getStatusColor(
+                          post.statusText,
+                        ).withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(AppTheme.radius8),
                       ),
                       child: Text(
@@ -240,12 +256,18 @@ class _HospitalDonationDateManagementScreenState extends State<HospitalDonationD
                 const SizedBox(height: AppTheme.spacing8),
                 Row(
                   children: [
-                    Icon(Icons.location_on_outlined, size: 16, color: AppTheme.textSecondary),
+                    Icon(
+                      Icons.location_on_outlined,
+                      size: 16,
+                      color: AppTheme.textSecondary,
+                    ),
                     const SizedBox(width: AppTheme.spacing4),
                     Expanded(
                       child: Text(
                         post.location,
-                        style: AppTheme.bodySmallStyle.copyWith(color: AppTheme.textSecondary),
+                        style: AppTheme.bodySmallStyle.copyWith(
+                          color: AppTheme.textSecondary,
+                        ),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                       ),
@@ -259,15 +281,23 @@ class _HospitalDonationDateManagementScreenState extends State<HospitalDonationD
                     const SizedBox(width: AppTheme.spacing4),
                     Text(
                       post.animalTypeText,
-                      style: AppTheme.bodySmallStyle.copyWith(color: AppTheme.textSecondary),
+                      style: AppTheme.bodySmallStyle.copyWith(
+                        color: AppTheme.textSecondary,
+                      ),
                     ),
                     if (post.isUrgent && post.emergencyBloodType != null) ...[
                       const SizedBox(width: AppTheme.spacing16),
-                      Icon(Icons.bloodtype, size: 16, color: AppTheme.textSecondary),
+                      Icon(
+                        Icons.bloodtype,
+                        size: 16,
+                        color: AppTheme.textSecondary,
+                      ),
                       const SizedBox(width: AppTheme.spacing4),
                       Text(
                         post.emergencyBloodType!,
-                        style: AppTheme.bodySmallStyle.copyWith(color: AppTheme.textSecondary),
+                        style: AppTheme.bodySmallStyle.copyWith(
+                          color: AppTheme.textSecondary,
+                        ),
                       ),
                     ],
                   ],
@@ -281,7 +311,11 @@ class _HospitalDonationDateManagementScreenState extends State<HospitalDonationD
                   ),
                   child: Row(
                     children: [
-                      Icon(Icons.date_range, size: 16, color: AppTheme.primaryBlue),
+                      Icon(
+                        Icons.date_range,
+                        size: 16,
+                        color: AppTheme.primaryBlue,
+                      ),
                       const SizedBox(width: AppTheme.spacing8),
                       Expanded(
                         child: Text(
@@ -294,7 +328,11 @@ class _HospitalDonationDateManagementScreenState extends State<HospitalDonationD
                           ),
                         ),
                       ),
-                      Icon(Icons.arrow_forward_ios, size: 16, color: AppTheme.primaryBlue),
+                      Icon(
+                        Icons.arrow_forward_ios,
+                        size: 16,
+                        color: AppTheme.primaryBlue,
+                      ),
                     ],
                   ),
                 ),
@@ -324,10 +362,11 @@ class _HospitalDonationDateManagementScreenState extends State<HospitalDonationD
   void _showDateManagementDialog(DonationPost post) {
     showDialog(
       context: context,
-      builder: (context) => DonationDateManagementDialog(
-        post: post,
-        onDatesUpdated: _loadHospitalPosts, // 날짜 수정 후 목록 새로고침
-      ),
+      builder:
+          (context) => DonationDateManagementDialog(
+            post: post,
+            onDatesUpdated: _loadHospitalPosts, // 날짜 수정 후 목록 새로고침
+          ),
     );
   }
 }
@@ -343,10 +382,12 @@ class DonationDateManagementDialog extends StatefulWidget {
   });
 
   @override
-  State<DonationDateManagementDialog> createState() => _DonationDateManagementDialogState();
+  State<DonationDateManagementDialog> createState() =>
+      _DonationDateManagementDialogState();
 }
 
-class _DonationDateManagementDialogState extends State<DonationDateManagementDialog> {
+class _DonationDateManagementDialogState
+    extends State<DonationDateManagementDialog> {
   List<DonationPostDate> donationDates = [];
   bool isLoading = true;
 
@@ -362,7 +403,9 @@ class _DonationDateManagementDialogState extends State<DonationDateManagementDia
     });
 
     try {
-      final dates = await DonationDateService.getDonationDatesByPostIdx(widget.post.postIdx);
+      final dates = await DonationDateService.getDonationDatesByPostIdx(
+        widget.post.postIdx,
+      );
       setState(() {
         donationDates = dates;
         isLoading = false;
@@ -372,9 +415,9 @@ class _DonationDateManagementDialogState extends State<DonationDateManagementDia
         isLoading = false;
       });
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('헌혈 날짜를 불러오는데 실패했습니다: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('헌혈 날짜를 불러오는데 실패했습니다: $e')));
       }
     }
   }
@@ -402,7 +445,9 @@ class _DonationDateManagementDialogState extends State<DonationDateManagementDia
                     children: [
                       Text(
                         '헌혈 날짜 관리',
-                        style: AppTheme.h3Style.copyWith(fontWeight: FontWeight.w700),
+                        style: AppTheme.h3Style.copyWith(
+                          fontWeight: FontWeight.w700,
+                        ),
                       ),
                       const SizedBox(height: 4),
                       Text(
@@ -423,7 +468,7 @@ class _DonationDateManagementDialogState extends State<DonationDateManagementDia
               ],
             ),
             const SizedBox(height: AppTheme.spacing20),
-            
+
             // 날짜 추가 버튼
             SizedBox(
               width: double.infinity,
@@ -441,34 +486,43 @@ class _DonationDateManagementDialogState extends State<DonationDateManagementDia
               ),
             ),
             const SizedBox(height: AppTheme.spacing16),
-            
+
             // 헌혈 날짜 목록
             Expanded(
-              child: isLoading
-                  ? const Center(child: CircularProgressIndicator(color: AppTheme.primaryBlue))
-                  : donationDates.isEmpty
-                      ? Center(
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Icon(Icons.date_range_outlined, size: 48, color: Colors.grey[400]),
-                              const SizedBox(height: 12),
-                              Text(
-                                '설정된 헌혈 날짜가 없습니다',
-                                style: AppTheme.bodyMediumStyle.copyWith(
-                                  color: AppTheme.textSecondary,
-                                ),
-                              ),
-                            ],
-                          ),
-                        )
-                      : ListView.builder(
-                          itemCount: donationDates.length,
-                          itemBuilder: (context, index) {
-                            final date = donationDates[index];
-                            return _buildDateItem(date, index);
-                          },
+              child:
+                  isLoading
+                      ? const Center(
+                        child: CircularProgressIndicator(
+                          color: AppTheme.primaryBlue,
                         ),
+                      )
+                      : donationDates.isEmpty
+                      ? Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(
+                              Icons.date_range_outlined,
+                              size: 48,
+                              color: Colors.grey[400],
+                            ),
+                            const SizedBox(height: 12),
+                            Text(
+                              '설정된 헌혈 날짜가 없습니다',
+                              style: AppTheme.bodyMediumStyle.copyWith(
+                                color: AppTheme.textSecondary,
+                              ),
+                            ),
+                          ],
+                        ),
+                      )
+                      : ListView.builder(
+                        itemCount: donationDates.length,
+                        itemBuilder: (context, index) {
+                          final date = donationDates[index];
+                          return _buildDateItem(date, index);
+                        },
+                      ),
             ),
           ],
         ),
@@ -516,31 +570,36 @@ class _DonationDateManagementDialogState extends State<DonationDateManagementDia
                 _deleteDate(date);
               }
             },
-            itemBuilder: (context) => [
-              const PopupMenuItem(
-                value: 'edit',
-                child: Row(
-                  children: [
-                    Icon(Icons.edit, size: 18),
-                    SizedBox(width: 8),
-                    Text('수정'),
-                  ],
-                ),
-              ),
-              const PopupMenuItem(
-                value: 'delete',
-                child: Row(
-                  children: [
-                    Icon(Icons.delete, size: 18, color: Colors.red),
-                    SizedBox(width: 8),
-                    Text('삭제', style: TextStyle(color: Colors.red)),
-                  ],
-                ),
-              ),
-            ],
+            itemBuilder:
+                (context) => [
+                  const PopupMenuItem(
+                    value: 'edit',
+                    child: Row(
+                      children: [
+                        Icon(Icons.edit, size: 18),
+                        SizedBox(width: 8),
+                        Text('수정'),
+                      ],
+                    ),
+                  ),
+                  const PopupMenuItem(
+                    value: 'delete',
+                    child: Row(
+                      children: [
+                        Icon(Icons.delete, size: 18, color: Colors.red),
+                        SizedBox(width: 8),
+                        Text('삭제', style: TextStyle(color: Colors.red)),
+                      ],
+                    ),
+                  ),
+                ],
             child: Container(
               padding: const EdgeInsets.all(4),
-              child: Icon(Icons.more_vert, size: 20, color: AppTheme.textSecondary),
+              child: Icon(
+                Icons.more_vert,
+                size: 20,
+                color: AppTheme.textSecondary,
+              ),
             ),
           ),
         ],
@@ -572,19 +631,22 @@ class _DonationDateManagementDialogState extends State<DonationDateManagementDia
         );
 
         try {
-          await DonationDateService.addDonationDate(widget.post.postIdx, fullDateTime);
+          await DonationDateService.addDonationDate(
+            widget.post.postIdx,
+            fullDateTime,
+          );
           await _loadDonationDates();
           widget.onDatesUpdated();
           if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('헌혈 날짜가 추가되었습니다.')),
-            );
+            ScaffoldMessenger.of(
+              context,
+            ).showSnackBar(const SnackBar(content: Text('헌혈 날짜가 추가되었습니다.')));
           }
         } catch (e) {
           if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text('헌혈 날짜 추가 실패: $e')),
-            );
+            ScaffoldMessenger.of(
+              context,
+            ).showSnackBar(SnackBar(content: Text('헌혈 날짜 추가 실패: $e')));
           }
         }
       }
@@ -615,19 +677,22 @@ class _DonationDateManagementDialogState extends State<DonationDateManagementDia
         );
 
         try {
-          await DonationDateService.updateDonationDate(date.postDatesId!, fullDateTime);
+          await DonationDateService.updateDonationDate(
+            date.postDatesId!,
+            fullDateTime,
+          );
           await _loadDonationDates();
           widget.onDatesUpdated();
           if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('헌혈 날짜가 수정되었습니다.')),
-            );
+            ScaffoldMessenger.of(
+              context,
+            ).showSnackBar(const SnackBar(content: Text('헌혈 날짜가 수정되었습니다.')));
           }
         } catch (e) {
           if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text('헌혈 날짜 수정 실패: $e')),
-            );
+            ScaffoldMessenger.of(
+              context,
+            ).showSnackBar(SnackBar(content: Text('헌혈 날짜 수정 실패: $e')));
           }
         }
       }
@@ -637,21 +702,22 @@ class _DonationDateManagementDialogState extends State<DonationDateManagementDia
   Future<void> _deleteDate(DonationPostDate date) async {
     final bool? confirmed = await showDialog<bool>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('헌혈 날짜 삭제'),
-        content: Text('${date.formattedDate} 헌혈 날짜를 삭제하시겠습니까?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('취소'),
+      builder:
+          (context) => AlertDialog(
+            title: const Text('헌혈 날짜 삭제'),
+            content: Text('${date.formattedDate} 헌혈 날짜를 삭제하시겠습니까?'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(false),
+                child: const Text('취소'),
+              ),
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(true),
+                style: TextButton.styleFrom(foregroundColor: Colors.red),
+                child: const Text('삭제'),
+              ),
+            ],
           ),
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(true),
-            style: TextButton.styleFrom(foregroundColor: Colors.red),
-            child: const Text('삭제'),
-          ),
-        ],
-      ),
     );
 
     if (confirmed == true && mounted) {
@@ -660,15 +726,15 @@ class _DonationDateManagementDialogState extends State<DonationDateManagementDia
         await _loadDonationDates();
         widget.onDatesUpdated();
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('헌혈 날짜가 삭제되었습니다.')),
-          );
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(const SnackBar(content: Text('헌혈 날짜가 삭제되었습니다.')));
         }
       } catch (e) {
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('헌혈 날짜 삭제 실패: $e')),
-          );
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(SnackBar(content: Text('헌혈 날짜 삭제 실패: $e')));
         }
       }
     }

@@ -1,6 +1,8 @@
 // lib/models/applicant_model.dart
 // 신청자 공통 모델
 
+import '../utils/app_constants.dart';
+
 /// 신청자 정보 모델
 class ApplicantInfo {
   final int id;
@@ -39,7 +41,7 @@ class ApplicantInfo {
 
       List<String> infoParts = [];
       if (breed.isNotEmpty) infoParts.add(breed);
-      if (age != null) infoParts.add('${age}세');
+      if (age != null) infoParts.add('$age세');
       if (bloodType.isNotEmpty) infoParts.add(bloodType);
       dogInfoStr = infoParts.join(' / ');
 
@@ -75,20 +77,7 @@ class ApplicantInfo {
   }
 
   /// 상태 텍스트
-  String get statusText {
-    switch (status) {
-      case 0:
-        return '대기';
-      case 1:
-        return '승인';
-      case 2:
-        return '거절';
-      case 3:
-        return '취소';
-      default:
-        return '알 수 없음';
-    }
-  }
+  String get statusText => AppConstants.getApplicantStatusText(status);
 
   /// 대기 상태인지 확인
   bool get isPending => status == 0;

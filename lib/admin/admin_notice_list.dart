@@ -1,5 +1,6 @@
 ﻿import 'package:flutter/material.dart';
 import '../utils/app_theme.dart';
+import '../utils/app_constants.dart';
 import '../models/notice_model.dart';
 import '../services/notice_service.dart';
 import 'admin_notice_create.dart';
@@ -83,15 +84,13 @@ class _AdminNoticeListScreenState extends State<AdminNoticeListScreen>
   void _updateFilteredNotices() {
     List<Notice> filtered = notices;
 
-    // 탭에 따른 필터링 (notice_important 활용)
+    // 탭에 따른 필터링 (notice_active 활용)
     if (_currentTabIndex == 0) {
-      // 공지 탭: notice_important가 0(긴급/공지)인 공지만
-      filtered =
-          filtered.where((notice) => notice.noticeImportant == 0).toList();
+      // 공지 탭: notice_active가 true(활성화)인 공지만
+      filtered = filtered.where((notice) => notice.noticeActive).toList();
     } else {
-      // 비공지 탭: notice_important가 1(정기/비공지)인 공지만
-      filtered =
-          filtered.where((notice) => notice.noticeImportant == 1).toList();
+      // 비공지 탭: notice_active가 false(비활성화)인 공지만
+      filtered = filtered.where((notice) => !notice.noticeActive).toList();
     }
 
     // 검색 필터링
@@ -579,6 +578,8 @@ class _AdminNoticeListScreenState extends State<AdminNoticeListScreen>
 
   Color _getTargetAudienceColor(int targetAudience) {
     switch (targetAudience) {
+      case 0:
+        return Colors.purple; // 전체: 보라색
       case 1:
         return AppTheme.primaryBlue; // 관리자
       case 2:
@@ -586,7 +587,7 @@ class _AdminNoticeListScreenState extends State<AdminNoticeListScreen>
       case 3:
         return AppTheme.success; // 사용자: 초록색
       default:
-        return Colors.red; // 전체: 빨간색
+        return Colors.purple; // 전체: 보라색
     }
   }
 
@@ -910,6 +911,28 @@ class _AdminNoticeListScreenState extends State<AdminNoticeListScreen>
                                 ),
                               ),
                             ),
+                            const SizedBox(width: 4),
+                            // 공지 뱃지 (noticeImportant == 0일 때만 표시)
+                            if (notice.noticeImportant ==
+                                AppConstants.noticeImportant)
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 6,
+                                  vertical: 2,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: Colors.red,
+                                  borderRadius: BorderRadius.circular(4),
+                                ),
+                                child: Text(
+                                  '공지',
+                                  style: AppTheme.bodySmallStyle.copyWith(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 10,
+                                  ),
+                                ),
+                              ),
                             const SizedBox(width: 8),
                             // 제목
                             Expanded(

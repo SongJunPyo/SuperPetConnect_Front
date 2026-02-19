@@ -58,7 +58,8 @@ class DonationHistory {
   bool get canDelete => !isSystemRecord;
 
   /// 헌혈량 표시 텍스트
-  String get bloodVolumeText => bloodVolumeMl != null ? '${bloodVolumeMl}ml' : '';
+  String get bloodVolumeText =>
+      bloodVolumeMl != null ? '${bloodVolumeMl}ml' : '';
 
   /// 날짜 표시 텍스트
   String get dateText {
@@ -107,13 +108,16 @@ class DonationHistoryResponse {
       systemRecordCount: json['system_record_count'] ?? 0,
       manualRecordCount: json['manual_record_count'] ?? 0,
       totalBloodVolumeMl: json['total_blood_volume_ml'],
-      firstDonationDate: json['first_donation_date'] != null
-          ? DateTime.parse(json['first_donation_date'])
-          : null,
-      lastDonationDate: json['last_donation_date'] != null
-          ? DateTime.parse(json['last_donation_date'])
-          : null,
-      histories: (json['histories'] as List<dynamic>?)
+      firstDonationDate:
+          json['first_donation_date'] != null
+              ? DateTime.parse(json['first_donation_date'])
+              : null,
+      lastDonationDate:
+          json['last_donation_date'] != null
+              ? DateTime.parse(json['last_donation_date'])
+              : null,
+      histories:
+          (json['histories'] as List<dynamic>?)
               ?.map((e) => DonationHistory.fromJson(e))
               .toList() ??
           [],
@@ -161,9 +165,7 @@ class DonationHistoryCreateRequest {
   });
 
   Map<String, dynamic> toJson() {
-    final map = <String, dynamic>{
-      'donation_date': donationDate,
-    };
+    final map = <String, dynamic>{'donation_date': donationDate};
     if (hospitalName != null && hospitalName!.isNotEmpty) {
       map['hospital_name'] = hospitalName;
     }

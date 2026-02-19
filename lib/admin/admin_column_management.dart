@@ -14,7 +14,8 @@ class AdminColumnManagement extends StatefulWidget {
   State createState() => _AdminColumnManagementState();
 }
 
-class _AdminColumnManagementState extends State<AdminColumnManagement> with TickerProviderStateMixin {
+class _AdminColumnManagementState extends State<AdminColumnManagement>
+    with TickerProviderStateMixin {
   List<HospitalColumn> columns = [];
   bool isLoading = true;
   bool hasError = false;
@@ -45,7 +46,8 @@ class _AdminColumnManagementState extends State<AdminColumnManagement> with Tick
 
   void _onTabChanged() {
     setState(() {
-      publishedFilter = _tabController.index == 0 ? false : true; // 0: 미승인, 1: 승인
+      publishedFilter =
+          _tabController.index == 0 ? false : true; // 0: 미승인, 1: 승인
     });
     _loadAllColumns();
   }
@@ -65,7 +67,7 @@ class _AdminColumnManagementState extends State<AdminColumnManagement> with Tick
         endDate: endDate,
         search: searchQuery.isNotEmpty ? searchQuery : null,
       );
-      
+
       setState(() {
         columns = response.columns;
         isLoading = false;
@@ -92,15 +94,16 @@ class _AdminColumnManagementState extends State<AdminColumnManagement> with Tick
       context: context,
       firstDate: DateTime(2020),
       lastDate: DateTime.now(),
-      initialDateRange: startDate != null && endDate != null
-          ? DateTimeRange(start: startDate!, end: endDate!)
-          : null,
+      initialDateRange:
+          startDate != null && endDate != null
+              ? DateTimeRange(start: startDate!, end: endDate!)
+              : null,
       builder: (context, child) {
         return Theme(
           data: Theme.of(context).copyWith(
-            colorScheme: Theme.of(context).colorScheme.copyWith(
-              primary: AppTheme.primaryBlue,
-            ),
+            colorScheme: Theme.of(
+              context,
+            ).colorScheme.copyWith(primary: AppTheme.primaryBlue),
           ),
           child: child!,
         );
@@ -126,7 +129,7 @@ class _AdminColumnManagementState extends State<AdminColumnManagement> with Tick
 
   Future<void> _togglePublishStatus(HospitalColumn column) async {
     try {
-      final updatedColumn = await HospitalColumnService.adminTogglePublish(
+      await HospitalColumnService.adminTogglePublish(
         column.columnIdx,
       );
 
@@ -137,8 +140,12 @@ class _AdminColumnManagementState extends State<AdminColumnManagement> with Tick
   }
 
   void _showEditColumnDialog(HospitalColumn column) {
-    final TextEditingController titleController = TextEditingController(text: column.title);
-    final TextEditingController contentController = TextEditingController(text: column.content);
+    final TextEditingController titleController = TextEditingController(
+      text: column.title,
+    );
+    final TextEditingController contentController = TextEditingController(
+      text: column.content,
+    );
 
     showDialog(
       context: context,
@@ -188,7 +195,7 @@ class _AdminColumnManagementState extends State<AdminColumnManagement> with Tick
                   );
                   return;
                 }
-                
+
                 if (contentController.text.trim().isEmpty) {
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(
@@ -202,7 +209,7 @@ class _AdminColumnManagementState extends State<AdminColumnManagement> with Tick
                 try {
                   final navigator = Navigator.of(context);
                   final messenger = ScaffoldMessenger.of(context);
-                  
+
                   await HospitalColumnService.updateColumn(
                     column.columnIdx,
                     HospitalColumnUpdateRequest(
@@ -226,7 +233,9 @@ class _AdminColumnManagementState extends State<AdminColumnManagement> with Tick
                   if (mounted) {
                     messenger.showSnackBar(
                       SnackBar(
-                        content: Text('수정 실패: ${e.toString().replaceAll('Exception: ', '')}'),
+                        content: Text(
+                          '수정 실패: ${e.toString().replaceAll('Exception: ', '')}',
+                        ),
                         backgroundColor: Colors.red,
                       ),
                     );
@@ -296,9 +305,13 @@ class _AdminColumnManagementState extends State<AdminColumnManagement> with Tick
                   Row(
                     children: [
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 4,
+                        ),
                         decoration: BoxDecoration(
-                          color: column.isPublished ? Colors.green : Colors.orange,
+                          color:
+                              column.isPublished ? Colors.green : Colors.orange,
                           borderRadius: BorderRadius.circular(4),
                         ),
                         child: Text(
@@ -337,24 +350,27 @@ class _AdminColumnManagementState extends State<AdminColumnManagement> with Tick
                   Expanded(
                     child: SingleChildScrollView(
                       controller: scrollController,
-                      child: column.contentDelta != null && column.contentDelta!.isNotEmpty
-                          ? RichTextViewer(
-                              contentDelta: column.contentDelta,
-                              plainText: column.content,
-                              padding: EdgeInsets.zero,
-                            )
-                          : Text(
-                              column.content,
-                              style: AppTheme.bodyMediumStyle.copyWith(
-                                height: 1.6,
-                                color: AppTheme.textPrimary,
+                      child:
+                          column.contentDelta != null &&
+                                  column.contentDelta!.isNotEmpty
+                              ? RichTextViewer(
+                                contentDelta: column.contentDelta,
+                                plainText: column.content,
+                                padding: EdgeInsets.zero,
+                              )
+                              : Text(
+                                column.content,
+                                style: AppTheme.bodyMediumStyle.copyWith(
+                                  height: 1.6,
+                                  color: AppTheme.textPrimary,
+                                ),
                               ),
-                            ),
                     ),
                   ),
                   const SizedBox(height: 16),
                   // URL 링크 버튼
-                  if (column.columnUrl != null && column.columnUrl!.isNotEmpty) ...[
+                  if (column.columnUrl != null &&
+                      column.columnUrl!.isNotEmpty) ...[
                     SizedBox(
                       width: double.infinity,
                       child: ElevatedButton.icon(
@@ -403,17 +419,25 @@ class _AdminColumnManagementState extends State<AdminColumnManagement> with Tick
                       children: [
                         Row(
                           children: [
-                            Icon(Icons.visibility_outlined, size: 16, color: Colors.grey[600]),
+                            Icon(
+                              Icons.visibility_outlined,
+                              size: 16,
+                              color: Colors.grey[600],
+                            ),
                             const SizedBox(width: 4),
                             Text(
                               '조회수 ${column.viewCount}회',
-                              style: AppTheme.bodySmallStyle.copyWith(color: Colors.grey[600]),
+                              style: AppTheme.bodySmallStyle.copyWith(
+                                color: Colors.grey[600],
+                              ),
                             ),
                             const Spacer(),
                             if (column.updatedAt != column.createdAt) ...[
                               Text(
                                 '수정: ${DateFormat('yyyy-MM-dd HH:mm').format(column.updatedAt)}',
-                                style: AppTheme.bodySmallStyle.copyWith(color: Colors.grey[600]),
+                                style: AppTheme.bodySmallStyle.copyWith(
+                                  color: Colors.grey[600],
+                                ),
                               ),
                             ],
                           ],
@@ -432,7 +456,9 @@ class _AdminColumnManagementState extends State<AdminColumnManagement> with Tick
                             _togglePublishStatus(column);
                           },
                           icon: Icon(
-                            column.isPublished ? Icons.unpublished : Icons.publish,
+                            column.isPublished
+                                ? Icons.unpublished
+                                : Icons.publish,
                             size: 16,
                             color: Colors.black,
                           ),
@@ -440,7 +466,10 @@ class _AdminColumnManagementState extends State<AdminColumnManagement> with Tick
                           style: OutlinedButton.styleFrom(
                             foregroundColor: Colors.black,
                             side: BorderSide(
-                              color: column.isPublished ? Colors.red : Colors.green,
+                              color:
+                                  column.isPublished
+                                      ? Colors.red
+                                      : Colors.green,
                               width: 2,
                             ),
                             shape: RoundedRectangleBorder(
@@ -491,10 +520,7 @@ class _AdminColumnManagementState extends State<AdminColumnManagement> with Tick
       appBar: AppBar(
         title: const Text(
           '칼럼 게시글 신청 관리',
-          style: TextStyle(
-            fontWeight: FontWeight.bold,
-            color: Colors.black87,
-          ),
+          style: TextStyle(fontWeight: FontWeight.bold, color: Colors.black87),
         ),
         centerTitle: false,
         actions: [
@@ -561,37 +587,50 @@ class _AdminColumnManagementState extends State<AdminColumnManagement> with Tick
                 ),
                 focusedBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
-                  borderSide: const BorderSide(color: AppTheme.primaryBlue, width: 2),
+                  borderSide: const BorderSide(
+                    color: AppTheme.primaryBlue,
+                    width: 2,
+                  ),
                 ),
                 filled: true,
                 fillColor: Colors.grey.shade50,
-                suffixIcon: searchQuery.isNotEmpty
-                    ? IconButton(
-                        icon: const Icon(Icons.clear),
-                        onPressed: () {
-                          searchController.clear();
-                          _onSearchChanged('');
-                        },
-                      )
-                    : null,
+                suffixIcon:
+                    searchQuery.isNotEmpty
+                        ? IconButton(
+                          icon: const Icon(Icons.clear),
+                          onPressed: () {
+                            searchController.clear();
+                            _onSearchChanged('');
+                          },
+                        )
+                        : null,
               ),
             ),
           ),
-          
+
           // 날짜 범위 표시
           if (startDate != null || endDate != null)
             Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+              padding: const EdgeInsets.symmetric(
+                horizontal: 16.0,
+                vertical: 8.0,
+              ),
               child: Container(
                 padding: const EdgeInsets.all(12.0),
                 decoration: BoxDecoration(
                   color: AppTheme.lightBlue,
                   borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: AppTheme.primaryBlue.withValues(alpha: 0.3)),
+                  border: Border.all(
+                    color: AppTheme.primaryBlue.withValues(alpha: 0.3),
+                  ),
                 ),
                 child: Row(
                   children: [
-                    const Icon(Icons.date_range, color: AppTheme.primaryBlue, size: 18),
+                    const Icon(
+                      Icons.date_range,
+                      color: AppTheme.primaryBlue,
+                      size: 18,
+                    ),
                     const SizedBox(width: 8),
                     Expanded(
                       child: Text(
@@ -604,7 +643,11 @@ class _AdminColumnManagementState extends State<AdminColumnManagement> with Tick
                       ),
                     ),
                     IconButton(
-                      icon: const Icon(Icons.close, color: AppTheme.primaryBlue, size: 18),
+                      icon: const Icon(
+                        Icons.close,
+                        color: AppTheme.primaryBlue,
+                        size: 18,
+                      ),
                       onPressed: _clearDateRange,
                       padding: EdgeInsets.zero,
                       constraints: const BoxConstraints(),
@@ -613,11 +656,9 @@ class _AdminColumnManagementState extends State<AdminColumnManagement> with Tick
                 ),
               ),
             ),
-          
+
           // 콘텐츠
-          Expanded(
-            child: _buildContent(),
-          ),
+          Expanded(child: _buildContent()),
         ],
       ),
     );
@@ -644,24 +685,20 @@ class _AdminColumnManagementState extends State<AdminColumnManagement> with Tick
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(
-                Icons.error_outline,
-                size: 64,
-                color: Colors.red[300],
-              ),
+              Icon(Icons.error_outline, size: 64, color: Colors.red[300]),
               const SizedBox(height: 16),
               Text(
                 '오류가 발생했습니다',
-                style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                  color: Colors.red[500],
-                ),
+                style: Theme.of(
+                  context,
+                ).textTheme.titleLarge?.copyWith(color: Colors.red[500]),
               ),
               const SizedBox(height: 8),
               Text(
                 errorMessage,
-                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: Colors.grey[600],
-                ),
+                style: Theme.of(
+                  context,
+                ).textTheme.bodyMedium?.copyWith(color: Colors.grey[600]),
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 16),
@@ -676,29 +713,26 @@ class _AdminColumnManagementState extends State<AdminColumnManagement> with Tick
     }
 
     if (columns.isEmpty) {
-      String emptyMessage = publishedFilter == null 
-          ? '작성된 칼럼이 없습니다.'
-          : publishedFilter == true
+      String emptyMessage =
+          publishedFilter == null
+              ? '작성된 칼럼이 없습니다.'
+              : publishedFilter == true
               ? '공개된 칼럼이 없습니다.'
               : '공개 대기 중인 칼럼이 없습니다.';
-              
+
       return Center(
         child: Padding(
           padding: const EdgeInsets.all(20.0),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(
-                Icons.article_outlined,
-                size: 64,
-                color: Colors.grey[300],
-              ),
+              Icon(Icons.article_outlined, size: 64, color: Colors.grey[300]),
               const SizedBox(height: 16),
               Text(
                 emptyMessage,
-                style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                  color: Colors.grey[500],
-                ),
+                style: Theme.of(
+                  context,
+                ).textTheme.titleMedium?.copyWith(color: Colors.grey[500]),
               ),
             ],
           ),
@@ -707,17 +741,16 @@ class _AdminColumnManagementState extends State<AdminColumnManagement> with Tick
     }
 
     return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-      ),
+      decoration: BoxDecoration(color: Colors.white),
       child: ListView.separated(
         padding: EdgeInsets.zero,
         itemCount: columns.length,
-        separatorBuilder: (context, index) => Container(
-          height: 1,
-          color: AppTheme.lightGray.withValues(alpha: 0.2),
-          margin: const EdgeInsets.symmetric(horizontal: 16),
-        ),
+        separatorBuilder:
+            (context, index) => Container(
+              height: 1,
+              color: AppTheme.lightGray.withValues(alpha: 0.2),
+              margin: const EdgeInsets.symmetric(horizontal: 16),
+            ),
         itemBuilder: (context, index) {
           final column = columns[index];
           return _buildColumnItem(column, index);
@@ -735,24 +768,26 @@ class _AdminColumnManagementState extends State<AdminColumnManagement> with Tick
         // 길게 누르면 옵션 메뉴 표시
         showModalBottomSheet(
           context: context,
-          builder: (context) => SafeArea(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                ListTile(
-                  leading: Icon(
-                    column.isPublished ? Icons.unpublished : Icons.publish,
-                    color: column.isPublished ? Colors.orange : Colors.green,
-                  ),
-                  title: Text(column.isPublished ? '공개 해제' : '공개 승인'),
-                  onTap: () {
-                    Navigator.pop(context);
-                    _togglePublishStatus(column);
-                  },
+          builder:
+              (context) => SafeArea(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    ListTile(
+                      leading: Icon(
+                        column.isPublished ? Icons.unpublished : Icons.publish,
+                        color:
+                            column.isPublished ? Colors.orange : Colors.green,
+                      ),
+                      title: Text(column.isPublished ? '공개 해제' : '공개 승인'),
+                      onTap: () {
+                        Navigator.pop(context);
+                        _togglePublishStatus(column);
+                      },
+                    ),
+                  ],
                 ),
-              ],
-            ),
-          ),
+              ),
         );
       },
       child: Container(

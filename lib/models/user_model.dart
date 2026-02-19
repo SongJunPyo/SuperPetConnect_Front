@@ -1,3 +1,5 @@
+import '../utils/app_constants.dart';
+
 class User {
   final int accountIdx;
   final String email;
@@ -69,20 +71,7 @@ class User {
     }
   }
 
-  String get statusText {
-    switch (status) {
-      case 0:
-        return '대기 중';
-      case 1:
-        return '활성화';
-      case 2:
-        return '비활성화';
-      case 3:
-        return '차단됨';
-      default:
-        return '알 수 없음';
-    }
-  }
+  String get statusText => AppConstants.getAccountStatusText(status);
 
   bool get isActive => status == 1;
   bool get isSuspended => status == 2 || status == 3;

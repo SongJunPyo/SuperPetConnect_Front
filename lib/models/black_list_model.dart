@@ -35,8 +35,14 @@ class BlackList {
       content: json['content'] ?? '',
       dDay: json['d_day'] ?? 0,
       isActive: json['is_active'] ?? false,
-      createdAt: json['created_at'] != null ? DateTime.parse(json['created_at']) : null,
-      updatedAt: json['updated_at'] != null ? DateTime.parse(json['updated_at']) : null,
+      createdAt:
+          json['created_at'] != null
+              ? DateTime.parse(json['created_at'])
+              : null,
+      updatedAt:
+          json['updated_at'] != null
+              ? DateTime.parse(json['updated_at'])
+              : null,
     );
   }
 
@@ -86,11 +92,7 @@ class BlackListCreateRequest {
   });
 
   Map<String, dynamic> toJson() {
-    return {
-      'account_idx': accountIdx,
-      'content': content,
-      'd_day': dDay,
-    };
+    return {'account_idx': accountIdx, 'content': content, 'd_day': dDay};
   }
 }
 
@@ -99,21 +101,17 @@ class BlackListUpdateRequest {
   final String? content;
   final int? dDay;
 
-  BlackListUpdateRequest({
-    this.content,
-    this.dDay,
-  });
+  BlackListUpdateRequest({this.content, this.dDay});
 
   Map<String, dynamic> toJson() {
     final Map<String, dynamic> data = {};
-    
+
     if (content != null) data['content'] = content;
     if (dDay != null) data['d_day'] = dDay;
-    
+
     return data;
   }
 }
-
 
 // 사용자 블랙리스트 상태 확인 모델
 class UserBlackListStatus {
@@ -183,9 +181,10 @@ class BlackListResponse {
 
   factory BlackListResponse.fromJson(Map<String, dynamic> json) {
     return BlackListResponse(
-      blackLists: (json['black_lists'] as List? ?? [])
-          .map((item) => BlackList.fromJson(item))
-          .toList(),
+      blackLists:
+          (json['black_lists'] as List? ?? [])
+              .map((item) => BlackList.fromJson(item))
+              .toList(),
       totalCount: json['total_count'] ?? 0,
       page: json['page'] ?? 1,
       pageSize: json['page_size'] ?? 10,

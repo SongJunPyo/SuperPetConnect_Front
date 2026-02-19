@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'auth_http_client.dart';
 import '../utils/config.dart';
+import '../utils/api_endpoints.dart';
 
 class HospitalInfo {
   final int accountIdx;
@@ -165,7 +166,6 @@ class HospitalSearchRequest {
 }
 
 class AdminHospitalService {
-  static String get baseUrl => '${Config.serverUrl}/api/admin/hospitals';
 
   // 병원 목록 조회
   static Future<HospitalListResponse> getHospitalList({
@@ -192,21 +192,18 @@ class AdminHospitalService {
       }
 
       final uri = Uri.parse(
-        '$baseUrl/list',
+        '${Config.serverUrl}${ApiEndpoints.adminHospitalsList}',
       ).replace(queryParameters: queryParams);
 
       final response = await AuthHttpClient.get(uri);
 
       if (response.statusCode == 200) {
-        final data = jsonDecode(utf8.decode(response.bodyBytes));
+        final data = response.parseJsonDynamic();
         return HospitalListResponse.fromJson(data);
       } else if (response.statusCode == 403) {
         throw Exception('관리자 권한이 필요합니다.');
       } else {
-        final error = jsonDecode(utf8.decode(response.bodyBytes));
-        throw Exception(
-          '병원 목록 조회 실패: ${error['detail'] ?? error['message'] ?? response.body}',
-        );
+        throw response.toException('병원 목록 조회에 실패했습니다.');
       }
     } catch (e) {
       throw Exception('병원 목록 조회 중 오류 발생: $e');
@@ -219,20 +216,17 @@ class AdminHospitalService {
   ) async {
     try {
       final response = await AuthHttpClient.post(
-        Uri.parse('$baseUrl/search'),
+        Uri.parse('${Config.serverUrl}${ApiEndpoints.adminHospitalsSearch}'),
         body: jsonEncode(request.toJson()),
       );
 
       if (response.statusCode == 200) {
-        final data = jsonDecode(utf8.decode(response.bodyBytes));
+        final data = response.parseJsonDynamic();
         return HospitalListResponse.fromJson(data);
       } else if (response.statusCode == 403) {
         throw Exception('관리자 권한이 필요합니다.');
       } else {
-        final error = jsonDecode(utf8.decode(response.bodyBytes));
-        throw Exception(
-          '병원 검색 실패: ${error['detail'] ?? error['message'] ?? response.body}',
-        );
+        throw response.toException('병원 검색에 실패했습니다.');
       }
     } catch (e) {
       throw Exception('병원 검색 중 오류 발생: $e');
@@ -243,21 +237,18 @@ class AdminHospitalService {
   static Future<HospitalInfo> getHospitalDetail(int accountIdx) async {
     try {
       final response = await AuthHttpClient.get(
-        Uri.parse('$baseUrl/$accountIdx'),
+        Uri.parse('${Config.serverUrl}${ApiEndpoints.adminHospital(accountIdx)}'),
       );
 
       if (response.statusCode == 200) {
-        final data = jsonDecode(utf8.decode(response.bodyBytes));
+        final data = response.parseJsonDynamic();
         return HospitalInfo.fromJson(data);
       } else if (response.statusCode == 404) {
         throw Exception('병원을 찾을 수 없습니다.');
       } else if (response.statusCode == 403) {
         throw Exception('관리자 권한이 필요합니다.');
       } else {
-        final error = jsonDecode(utf8.decode(response.bodyBytes));
-        throw Exception(
-          '병원 조회 실패: ${error['detail'] ?? error['message'] ?? response.body}',
-        );
+        throw response.toException('병원 조회에 실패했습니다.');
       }
     } catch (e) {
       throw Exception('병원 조회 중 오류 발생: $e');
@@ -271,12 +262,12 @@ class AdminHospitalService {
   ) async {
     try {
       final response = await AuthHttpClient.put(
-        Uri.parse('$baseUrl/$accountIdx'),
+        Uri.parse('${Config.serverUrl}${ApiEndpoints.adminHospital(accountIdx)}'),
         body: jsonEncode(request.toJson()),
       );
 
       if (response.statusCode == 200) {
-        final data = jsonDecode(utf8.decode(response.bodyBytes));
+        final data = response.parseJsonDynamic();
 
         // API가 메시지만 반환하는 경우, 현재 병원 정보를 다시 조회
         if (data.containsKey('message') && !data.containsKey('account_idx')) {
@@ -289,10 +280,7 @@ class AdminHospitalService {
       } else if (response.statusCode == 403) {
         throw Exception('관리자 권한이 필요합니다.');
       } else {
-        final error = jsonDecode(utf8.decode(response.bodyBytes));
-        throw Exception(
-          '병원 정보 수정 실패: ${error['detail'] ?? error['message'] ?? response.body}',
-        );
+        throw response.toException('병원 정보 수정에 실패했습니다.');
       }
     } catch (e) {
       throw Exception('병원 정보 수정 중 오류 발생: $e');
@@ -303,7 +291,7 @@ class AdminHospitalService {
   static Future<void> deleteHospital(int accountIdx) async {
     try {
       final response = await AuthHttpClient.delete(
-        Uri.parse('$baseUrl/$accountIdx'),
+        Uri.parse('${Config.serverUrl}${ApiEndpoints.adminHospital(accountIdx)}'),
       );
 
       if (response.statusCode == 204 || response.statusCode == 200) {
@@ -313,10 +301,7 @@ class AdminHospitalService {
       } else if (response.statusCode == 403) {
         throw Exception('관리자 권한이 필요합니다.');
       } else {
-        final error = jsonDecode(utf8.decode(response.bodyBytes));
-        throw Exception(
-          '병원 삭제 실패: ${error['detail'] ?? error['message'] ?? response.body}',
-        );
+        throw response.toException('병원 삭제에 실패했습니다.');
       }
     } catch (e) {
       throw Exception('병원 삭제 중 오류 발생: $e');
@@ -327,18 +312,15 @@ class AdminHospitalService {
   static Future<Map<String, dynamic>> getHospitalStatistics() async {
     try {
       final response = await AuthHttpClient.get(
-        Uri.parse('$baseUrl/statistics/summary'),
+        Uri.parse('${Config.serverUrl}${ApiEndpoints.adminHospitalsStatistics}'),
       );
 
       if (response.statusCode == 200) {
-        return jsonDecode(utf8.decode(response.bodyBytes));
+        return response.parseJsonDynamic();
       } else if (response.statusCode == 403) {
         throw Exception('관리자 권한이 필요합니다.');
       } else {
-        final error = jsonDecode(utf8.decode(response.bodyBytes));
-        throw Exception(
-          '통계 조회 실패: ${error['detail'] ?? error['message'] ?? response.body}',
-        );
+        throw response.toException('통계 조회에 실패했습니다.');
       }
     } catch (e) {
       throw Exception('병원 통계 조회 중 오류 발생: $e');

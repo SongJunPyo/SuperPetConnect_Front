@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:interval_time_picker/interval_time_picker.dart';
 import 'dart:convert';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import '../utils/config.dart';
+import '../utils/preferences_manager.dart';
 import '../utils/app_theme.dart';
-import '../services/donation_time_service.dart';
 import '../models/donation_post_time_model.dart';
 import '../models/donation_post_image_model.dart';
 import '../widgets/rich_text_editor.dart';
@@ -24,6 +24,11 @@ class _HospitalPostState extends State<HospitalPost> {
   final TextEditingController _titleController = TextEditingController();
   final TextEditingController _locationController =
       TextEditingController(); // 지역을 위한 컨트롤러 추가
+  // 수혈환자 정보 컨트롤러 (긴급일 때만 사용)
+  final TextEditingController _patientNameController = TextEditingController();
+  final TextEditingController _breedController = TextEditingController();
+  final TextEditingController _ageController = TextEditingController();
+  final TextEditingController _diagnosisController = TextEditingController();
   // Legacy variables removed - now using selectedDonationDatesWithTimes
   List<DonationDateWithTimes> selectedDonationDatesWithTimes =
       []; // 헌혈 날짜+시간 목록
@@ -33,7 +38,8 @@ class _HospitalPostState extends State<HospitalPost> {
   String selectedBlood = "전체"; // 기본값을 전체로 변경
   String additionalDescription = ""; // nullable 제거, 빈 문자열로 초기화
   List<DonationPostImage> _postImages = []; // 게시글 이미지 목록
-  final GlobalKey<RichTextEditorState> _richEditorKey = GlobalKey<RichTextEditorState>(); // 리치 에디터 키
+  final GlobalKey<RichTextEditorState> _richEditorKey =
+      GlobalKey<RichTextEditorState>(); // 리치 에디터 키
   String hospitalName = "병원"; // 병원 이름을 저장할 변수
   String hospitalNickname = "병원"; // 병원 닉네임을 저장할 변수
   List<Map<String, dynamic>> timeEntries = []; // 시간대 목록
@@ -47,7 +53,6 @@ class _HospitalPostState extends State<HospitalPost> {
       final response = await AuthHttpClient.get(
         Uri.parse('${Config.serverUrl}/api/auth/profile'),
       );
-
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
@@ -65,8 +70,7 @@ class _HospitalPostState extends State<HospitalPost> {
         }
 
         return address;
-      } else {
-      }
+      } else {}
     } catch (e) {
       // 토큰 로드 오류 무시
     }
@@ -92,8 +96,7 @@ class _HospitalPostState extends State<HospitalPost> {
 
     try {
       // 병원 코드 가져오기
-      final prefs = await SharedPreferences.getInstance();
-      final hospitalCode = prefs.getString('hospital_code');
+      final hospitalCode = await PreferencesManager.getHospitalCode();
 
       if (hospitalCode == null || hospitalCode.isEmpty) {
         _showAlertDialog('오류', '병원 코드가 없습니다. 병원 계정이 아니거나 승인되지 않았습니다.');
@@ -136,18 +139,30 @@ class _HospitalPostState extends State<HospitalPost> {
         "animal_type": selectedAnimalType == "dog" ? 0 : 1, // 동물 종류 수정
         "hospital_code": hospitalCode, // 요양기관기호 추가
         // 이미지 ID 목록 (Delta JSON에 포함된 이미지)
-        if (embeddedImageIds.isNotEmpty)
-          "image_ids": embeddedImageIds,
+        if (embeddedImageIds.isNotEmpty) "image_ids": embeddedImageIds,
       };
 
       // '긴급' 타입일 때만 'emergency_blood_type' 필드를 추가합니다.
       if (selectedType == "긴급") {
         postData['emergency_blood_type'] =
             selectedBlood == "전체" ? null : selectedBlood;
+
+        // 수혈환자 정보 추가 (모두 선택사항)
+        if (_patientNameController.text.trim().isNotEmpty) {
+          postData['patient_name'] = _patientNameController.text.trim();
+        }
+        if (_breedController.text.trim().isNotEmpty) {
+          postData['breed'] = _breedController.text.trim();
+        }
+        if (_ageController.text.trim().isNotEmpty) {
+          postData['age'] = int.tryParse(_ageController.text.trim());
+        }
+        if (_diagnosisController.text.trim().isNotEmpty) {
+          postData['diagnosis'] = _diagnosisController.text.trim();
+        }
       } else {
         postData['emergency_blood_type'] = null;
       }
-
 
       final url = Uri.parse('${Config.serverUrl}/api/hospital/post');
 
@@ -155,7 +170,6 @@ class _HospitalPostState extends State<HospitalPost> {
         url,
         body: json.encode(postData),
       );
-
 
       if (response.statusCode == 201) {
         // 게시글이 성공적으로 생성된 경우
@@ -239,13 +253,22 @@ class _HospitalPostState extends State<HospitalPost> {
   void _updateTitleText() {
     // 동물 종류 변환
     String animalTypeKorean = selectedAnimalType == "dog" ? "강아지" : "고양이";
+    String title = '[$hospitalNickname] ';
 
-    // 기본 제목 구성 (닉네임 사용)
-    String title = '[$hospitalNickname] $animalTypeKorean $selectedType 헌혈';
-
-    // 긴급 타입이고 혈액형이 "전체"가 아닌 경우 혈액형 정보 추가
-    if (selectedType == "긴급" && selectedBlood != "전체") {
-      title += ' ($selectedBlood)';
+    // 긴급이고 환자 이름이 있는 경우: [병원] 환자이름(강아지) 혈액형 긴급헌혈
+    if (selectedType == "긴급" && _patientNameController.text.trim().isNotEmpty) {
+      title += '${_patientNameController.text.trim()}($animalTypeKorean)';
+      if (selectedBlood != "전체") {
+        title += ' $selectedBlood';
+      }
+      title += ' 긴급헌혈';
+    } else {
+      // 기본 형식: [병원] 강아지 긴급헌혈 또는 [병원] 강아지 정기헌혈
+      title += '$animalTypeKorean $selectedType 헌혈';
+      // 긴급이고 혈액형이 전체가 아닌 경우 혈액형 추가
+      if (selectedType == "긴급" && selectedBlood != "전체") {
+        title += ' ($selectedBlood)';
+      }
     }
 
     _titleController.text = title;
@@ -397,7 +420,10 @@ class _HospitalPostState extends State<HospitalPost> {
                 decoration: BoxDecoration(
                   color: Colors.white,
                   borderRadius: BorderRadius.circular(AppTheme.radius16),
-                  border: Border.all(color: AppTheme.lightGray.withValues(alpha: 0.5), width: 1),
+                  border: Border.all(
+                    color: AppTheme.lightGray.withValues(alpha: 0.5),
+                    width: 1,
+                  ),
                 ),
                 child: Padding(
                   padding: const EdgeInsets.all(AppTheme.spacing20),
@@ -413,7 +439,9 @@ class _HospitalPostState extends State<HospitalPost> {
                           label: const Text('헌혈 일정 작성'),
                           style: OutlinedButton.styleFrom(
                             foregroundColor: AppTheme.textSecondary,
-                            side: BorderSide(color: AppTheme.lightGray.withValues(alpha: 0.5)),
+                            side: BorderSide(
+                              color: AppTheme.lightGray.withValues(alpha: 0.5),
+                            ),
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(
                                 AppTheme.radius12,
@@ -607,7 +635,7 @@ class _HospitalPostState extends State<HospitalPost> {
 
                       // 동물 종류 선택
                       DropdownButtonFormField<String>(
-                        value: selectedAnimalType,
+                        initialValue: selectedAnimalType,
                         items: const [
                           DropdownMenuItem(value: "dog", child: Text("강아지")),
                           DropdownMenuItem(value: "cat", child: Text("고양이")),
@@ -631,7 +659,7 @@ class _HospitalPostState extends State<HospitalPost> {
 
                       // 타입 선택
                       DropdownButtonFormField<String>(
-                        value: selectedType,
+                        initialValue: selectedType,
                         items:
                             ["긴급", "정기"]
                                 .map(
@@ -658,7 +686,7 @@ class _HospitalPostState extends State<HospitalPost> {
                       // 혈액형 선택 (긴급 헌혈일 때만 표시)
                       if (selectedType == "긴급") ...[
                         DropdownButtonFormField<String>(
-                          value: selectedBlood,
+                          initialValue: selectedBlood,
                           items:
                               _getBloodTypeOptions()
                                   .map(
@@ -679,6 +707,58 @@ class _HospitalPostState extends State<HospitalPost> {
                             "필요 혈액형",
                             Icons.bloodtype_outlined,
                           ),
+                        ),
+                        const SizedBox(height: 20),
+
+                        // 수혈환자 정보 섹션 (긴급일 때만 표시, 모두 선택사항)
+                        Text(
+                          "수혈환자 정보 (선택사항)",
+                          style: AppTheme.bodyLargeStyle.copyWith(
+                            fontWeight: FontWeight.w600,
+                            color: AppTheme.textPrimary,
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        TextField(
+                          controller: _patientNameController,
+                          decoration: _buildInputDecoration(
+                            context,
+                            "환자 이름",
+                            Icons.pets_outlined,
+                          ),
+                          onChanged: (_) => _updateTitleText(), // 이름 변경시 제목 업데이트
+                        ),
+                        const SizedBox(height: 16),
+                        TextField(
+                          controller: _breedController,
+                          decoration: _buildInputDecoration(
+                            context,
+                            "견종/묘종",
+                            Icons.category_outlined,
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        TextField(
+                          controller: _ageController,
+                          decoration: _buildInputDecoration(
+                            context,
+                            "나이 (숫자만)",
+                            Icons.cake_outlined,
+                          ),
+                          keyboardType: TextInputType.number,
+                          inputFormatters: [
+                            FilteringTextInputFormatter.digitsOnly,
+                          ],
+                        ),
+                        const SizedBox(height: 16),
+                        TextField(
+                          controller: _diagnosisController,
+                          decoration: _buildInputDecoration(
+                            context,
+                            "병명/증상",
+                            Icons.medical_information_outlined,
+                          ),
+                          maxLines: 2,
                         ),
                         const SizedBox(height: 20),
                       ],
@@ -728,7 +808,11 @@ class _HospitalPostState extends State<HospitalPost> {
                   children: [
                     Row(
                       children: [
-                        Icon(Icons.info_outline, size: 16, color: const Color(0xFFB8860B)),
+                        Icon(
+                          Icons.info_outline,
+                          size: 16,
+                          color: const Color(0xFFB8860B),
+                        ),
                         const SizedBox(width: 6),
                         Text(
                           '이미지 안내',
@@ -955,7 +1039,7 @@ class _TimeEntryDialogState extends State<_TimeEntryDialog> {
               const SizedBox(width: 16),
               Expanded(
                 child: DropdownButtonFormField<int>(
-                  value: teamNumber,
+                  initialValue: teamNumber,
                   items:
                       List.generate(10, (index) => index + 1)
                           .map(
@@ -1267,7 +1351,9 @@ class _EditEntryDialogState extends State<_EditEntryDialog> {
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(8),
                 ),
-                side: BorderSide(color: colorScheme.primary.withValues(alpha: 0.5)),
+                side: BorderSide(
+                  color: colorScheme.primary.withValues(alpha: 0.5),
+                ),
               ),
             ),
           ),
@@ -1292,7 +1378,7 @@ class _EditEntryDialogState extends State<_EditEntryDialog> {
               const SizedBox(width: 16),
               Expanded(
                 child: DropdownButtonFormField<int>(
-                  value: teamNumber,
+                  initialValue: teamNumber,
                   items:
                       List.generate(10, (index) => index + 1)
                           .map(

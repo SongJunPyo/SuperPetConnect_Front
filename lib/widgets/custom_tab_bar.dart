@@ -18,7 +18,7 @@ class CustomTabBar extends StatelessWidget {
   final EdgeInsetsGeometry? padding;
   final Decoration? indicator;
   final BorderRadius? borderRadius;
-  
+
   const CustomTabBar({
     super.key,
     this.controller,
@@ -44,31 +44,34 @@ class CustomTabBar extends StatelessWidget {
     return Container(
       height: height,
       padding: padding,
-      decoration: BoxDecoration(
-        borderRadius: borderRadius,
-      ),
+      decoration: BoxDecoration(borderRadius: borderRadius),
       child: TabBar(
         controller: controller,
         tabs: tabs,
         indicatorColor: indicatorColor ?? AppTheme.primaryBlue,
         labelColor: labelColor ?? AppTheme.primaryBlue,
         unselectedLabelColor: unselectedLabelColor ?? AppTheme.mediumGray,
-        labelStyle: labelStyle ?? AppTheme.bodyMediumStyle.copyWith(
-          fontWeight: FontWeight.bold,
-        ),
+        labelStyle:
+            labelStyle ??
+            AppTheme.bodyMediumStyle.copyWith(fontWeight: FontWeight.bold),
         unselectedLabelStyle: unselectedLabelStyle ?? AppTheme.bodyMediumStyle,
         indicatorWeight: indicatorWeight,
-        indicatorPadding: indicatorPadding ?? const EdgeInsets.symmetric(horizontal: 16.0),
+        indicatorPadding:
+            indicatorPadding ?? const EdgeInsets.symmetric(horizontal: 16.0),
         indicatorSize: indicatorSize ?? TabBarIndicatorSize.tab,
         isScrollable: isScrollable,
         onTap: onTap,
-        indicator: indicator ?? UnderlineTabIndicator(
-          borderSide: BorderSide(
-            width: indicatorWeight,
-            color: indicatorColor ?? AppTheme.primaryBlue,
-          ),
-          insets: indicatorPadding ?? const EdgeInsets.symmetric(horizontal: 16.0),
-        ),
+        indicator:
+            indicator ??
+            UnderlineTabIndicator(
+              borderSide: BorderSide(
+                width: indicatorWeight,
+                color: indicatorColor ?? AppTheme.primaryBlue,
+              ),
+              insets:
+                  indicatorPadding ??
+                  const EdgeInsets.symmetric(horizontal: 16.0),
+            ),
       ),
     );
   }
@@ -77,94 +80,79 @@ class CustomTabBar extends StatelessWidget {
 // 프리셋 스타일을 위한 팩토리 메서드들
 class CustomTabBar2 extends CustomTabBar {
   // 기본 스타일 (가장 일반적으로 사용)
-  CustomTabBar2.standard({
+  const CustomTabBar2.standard({
     super.key,
-    TabController? controller,
-    required List<Tab> tabs,
-    Function(int)? onTap,
+    super.controller,
+    required super.tabs,
+    super.onTap,
   }) : super(
-    controller: controller,
-    tabs: tabs,
-    indicatorColor: Colors.black,
-    labelColor: Colors.black,
-    unselectedLabelColor: Colors.grey,
-    indicatorWeight: 3.0,
-    indicatorPadding: const EdgeInsets.symmetric(horizontal: 20.0),
-    onTap: onTap,
-  );
-  
+         indicatorColor: Colors.black,
+         labelColor: Colors.black,
+         unselectedLabelColor: Colors.grey,
+         indicatorWeight: 3.0,
+         indicatorPadding: const EdgeInsets.symmetric(horizontal: 20.0),
+       );
+
   // 컴팩트 스타일 (좁은 공간용)
-  CustomTabBar2.compact({
+  const CustomTabBar2.compact({
     super.key,
-    TabController? controller,
-    required List<Tab> tabs,
-    Function(int)? onTap,
+    super.controller,
+    required super.tabs,
+    super.onTap,
   }) : super(
-    controller: controller,
-    tabs: tabs,
-    indicatorColor: Colors.black,
-    labelColor: Colors.black,
-    unselectedLabelColor: Colors.grey,
-    indicatorWeight: 2.0,
-    indicatorPadding: const EdgeInsets.symmetric(horizontal: 8.0),
-    indicatorSize: TabBarIndicatorSize.label,
-    onTap: onTap,
-  );
-  
+         indicatorColor: Colors.black,
+         labelColor: Colors.black,
+         unselectedLabelColor: Colors.grey,
+         indicatorWeight: 2.0,
+         indicatorPadding: const EdgeInsets.symmetric(horizontal: 8.0),
+         indicatorSize: TabBarIndicatorSize.label,
+       );
+
   // 아이콘이 포함된 탭용
-  CustomTabBar2.withIcons({
+  const CustomTabBar2.withIcons({
     super.key,
-    TabController? controller,
-    required List<Tab> tabs,
-    Function(int)? onTap,
+    super.controller,
+    required super.tabs,
+    super.onTap,
   }) : super(
-    controller: controller,
-    tabs: tabs,
-    indicatorColor: Colors.black,
-    labelColor: Colors.black,
-    unselectedLabelColor: Colors.grey.shade600,
-    indicatorWeight: 3.0,
-    indicatorPadding: const EdgeInsets.symmetric(horizontal: 12.0),
-    labelStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
-    onTap: onTap,
-  );
-  
+         indicatorColor: Colors.black,
+         labelColor: Colors.black,
+         unselectedLabelColor: const Color(0xFF757575),
+         indicatorWeight: 3.0,
+         indicatorPadding: const EdgeInsets.symmetric(horizontal: 12.0),
+         labelStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+       );
+
   // 스크롤 가능한 탭 (많은 탭이 있을 때)
-  CustomTabBar2.scrollable({
+  const CustomTabBar2.scrollable({
     super.key,
-    TabController? controller,
-    required List<Tab> tabs,
-    Function(int)? onTap,
+    super.controller,
+    required super.tabs,
+    super.onTap,
   }) : super(
-    controller: controller,
-    tabs: tabs,
-    indicatorColor: Colors.black,
-    labelColor: Colors.black,
-    unselectedLabelColor: Colors.grey,
-    indicatorWeight: 3.0,
-    indicatorPadding: const EdgeInsets.symmetric(horizontal: 16.0),
-    isScrollable: true,
-    onTap: onTap,
-  );
-  
+         indicatorColor: Colors.black,
+         labelColor: Colors.black,
+         unselectedLabelColor: Colors.grey,
+         indicatorWeight: 3.0,
+         indicatorPadding: const EdgeInsets.symmetric(horizontal: 16.0),
+         isScrollable: true,
+       );
+
   // 둥근 모서리 스타일
-  CustomTabBar2.rounded({
+  const CustomTabBar2.rounded({
     super.key,
-    TabController? controller,
-    required List<Tab> tabs,
-    Function(int)? onTap,
+    super.controller,
+    required super.tabs,
+    super.onTap,
   }) : super(
-    controller: controller,
-    tabs: tabs,
-    indicatorColor: Colors.transparent,
-    labelColor: Colors.white,
-    unselectedLabelColor: Colors.black,
-    indicator: BoxDecoration(
-      color: Colors.black,
-      borderRadius: BorderRadius.circular(25.0),
-    ),
-    onTap: onTap,
-  );
+         indicatorColor: Colors.transparent,
+         labelColor: Colors.white,
+         unselectedLabelColor: Colors.black,
+         indicator: const BoxDecoration(
+           color: Colors.black,
+           borderRadius: BorderRadius.all(Radius.circular(25.0)),
+         ),
+       );
 }
 
 // 탭 아이템 빌더 헬퍼
@@ -177,7 +165,7 @@ class TabItemBuilder {
       ),
     );
   }
-  
+
   static Tab withIcon(IconData icon, String text) {
     return Tab(
       child: Row(
@@ -191,7 +179,7 @@ class TabItemBuilder {
       ),
     );
   }
-  
+
   static Tab withBadge(String text, int count) {
     return Tab(
       child: Row(

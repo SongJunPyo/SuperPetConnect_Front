@@ -11,15 +11,21 @@ import 'user_donation_posts_list.dart';
 import 'user_column_list.dart';
 import 'donation_history_screen.dart';
 import '../services/dashboard_service.dart';
+import '../models/donation_post_model.dart';
+import '../models/column_post_model.dart';
+import '../models/notice_post_model.dart';
 import '../models/hospital_column_model.dart';
 import '../models/notice_model.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+import '../utils/preferences_manager.dart';
 import 'dart:convert';
 import 'package:intl/intl.dart';
 import 'dart:async';
-import '../widgets/marquee_text.dart';
 import '../utils/number_format_util.dart';
 import '../utils/config.dart';
+import '../widgets/marquee_text.dart';
+import '../widgets/dashboard/dashboard_empty_state.dart';
+import '../widgets/dashboard/dashboard_more_button.dart';
+import '../widgets/dashboard/dashboard_list_item.dart';
 import '../services/auth_http_client.dart';
 import '../widgets/region_selection_sheet.dart';
 import '../models/region_model.dart';
@@ -30,6 +36,7 @@ import '../widgets/rich_text_viewer.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import '../services/applied_donation_service.dart';
 import '../models/applied_donation_model.dart';
+import '../utils/app_constants.dart';
 
 class UserDashboard extends StatefulWidget {
   const UserDashboard({super.key});
@@ -133,8 +140,6 @@ class _UserDashboardState extends State<UserDashboard>
   }
 
   Future<void> _loadUserProfile() async {
-    final prefs = await SharedPreferences.getInstance();
-
     // 서버에서 프로필 정보 가져오기
     try {
       final response = await AuthHttpClient.get(
@@ -156,8 +161,8 @@ class _UserDashboardState extends State<UserDashboard>
         });
 
         // 로컬 저장소에도 업데이트
-        await prefs.setString('user_name', userRealName);
-        await prefs.setString('user_nickname', userRealNickname);
+        await PreferencesManager.setUserName(userRealName);
+        await PreferencesManager.setUserNickname(userRealNickname);
         return;
       }
     } catch (e) {
@@ -165,8 +170,8 @@ class _UserDashboardState extends State<UserDashboard>
     }
 
     // 서버 실패 시 로컬에 저장된 이름과 닉네임 사용
-    final savedName = prefs.getString('user_name');
-    final savedNickname = prefs.getString('user_nickname');
+    final savedName = await PreferencesManager.getUserName();
+    final savedNickname = await PreferencesManager.getUserNickname();
     if (savedName != null && savedName.isNotEmpty) {
       if (!mounted) return;
       setState(() {
@@ -286,23 +291,28 @@ class _UserDashboardState extends State<UserDashboard>
   // 내 신청 목록 로드
   Future<void> _loadMyApplications() async {
     try {
-      final applications = await AppliedDonationService.getMyApplicationsFromServer();
+      final applications =
+          await AppliedDonationService.getMyApplicationsFromServer();
 
       debugPrint('[UserDashboard] 서버에서 받은 신청 목록: ${applications.length}개');
       for (final app in applications) {
-        debugPrint('[UserDashboard] - postTimesIdx: ${app.postTimesIdx}, status: ${app.status}, shouldShow: ${app.shouldShowAppliedBorder}');
+        debugPrint(
+          '[UserDashboard] - postTimesIdx: ${app.postTimesIdx}, status: ${app.status}, shouldShow: ${app.shouldShowAppliedBorder}',
+        );
       }
 
       if (mounted) {
         setState(() {
           myApplicationsMap = {
             for (final app in applications)
-              if (app.shouldShowAppliedBorder) app.postTimesIdx: app
+              if (app.shouldShowAppliedBorder) app.postTimesIdx: app,
           };
         });
       }
 
-      debugPrint('[UserDashboard] 중복 체크용 맵: ${myApplicationsMap.keys.toList()}');
+      debugPrint(
+        '[UserDashboard] 중복 체크용 맵: ${myApplicationsMap.keys.toList()}',
+      );
     } catch (e) {
       debugPrint('[UserDashboard] 내 신청 목록 로드 실패: $e');
     }
@@ -362,7 +372,8 @@ class _UserDashboardState extends State<UserDashboard>
         DashboardService.getPublicColumns(
           limit: DashboardService.dashboardColumnLimit,
         ),
-        DashboardService.getPublicNotices(
+        // 사용자는 인증된 API 사용 (targetAudience 0, 3 포함)
+        DashboardService.getAuthenticatedNotices(
           limit: DashboardService.dashboardNoticeLimit,
         ),
       ]);
@@ -409,11 +420,13 @@ class _UserDashboardState extends State<UserDashboard>
           sortedColumns.take(DashboardService.dashboardColumnLimit).toList();
 
       // 공지사항 필터링 및 정렬 (청중 타겟이 전체(0) 또는 사용자(3)만)
+      // 서버가 이미 noticeActive=True만 반환하므로 추가 필터링 불필요
       final sortedNotices =
           noticePosts
               .where(
                 (notice) =>
-                    notice.targetAudience == 0 || notice.targetAudience == 3,
+                    notice.targetAudience == AppConstants.noticeTargetAll ||
+                    notice.targetAudience == AppConstants.noticeTargetUser,
               )
               .map((notice) {
                 return Notice(
@@ -421,7 +434,7 @@ class _UserDashboardState extends State<UserDashboard>
                   accountIdx: 0, // DashboardService에서 제공하지 않는 필드
                   title: notice.title,
                   content: notice.contentPreview,
-                  noticeImportant: notice.noticeImportant, // 1=뱃지 표시, 0=뱃지 숨김
+                  noticeImportant: notice.noticeImportant, // 0=뱃지 표시, 1=뱃지 숨김
                   noticeActive: true,
                   createdAt: notice.createdAt,
                   updatedAt: notice.updatedAt,
@@ -469,38 +482,41 @@ class _UserDashboardState extends State<UserDashboard>
 
   // 선호 지역을 SharedPreferences에 저장
   Future<void> _savePreferredRegions() async {
-    final prefs = await SharedPreferences.getInstance();
-
     // 시/도 코드 목록 저장
     final largeRegionCodes = selectedLargeRegions.map((r) => r.code).toList();
-    await prefs.setStringList('preferred_large_regions', largeRegionCodes);
+    await PreferencesManager.setPreferredLargeRegions(largeRegionCodes);
 
     // 시/군/구 코드를 JSON으로 저장
     final mediumRegionsMap = <String, List<String>>{};
     for (final entry in selectedMediumRegions.entries) {
-      mediumRegionsMap[entry.key.code] = entry.value.map((r) => r.code).toList();
+      mediumRegionsMap[entry.key.code] =
+          entry.value.map((r) => r.code).toList();
     }
-    await prefs.setString('preferred_medium_regions', jsonEncode(mediumRegionsMap));
+    await PreferencesManager.setPreferredMediumRegions(
+      jsonEncode(mediumRegionsMap),
+    );
 
     // 지역 설정 초기화 플래그 (한 번이라도 설정하면 자동 설정 안 함)
-    await prefs.setBool('region_preference_initialized', true);
+    await PreferencesManager.setRegionInitialized(true);
 
     debugPrint('[UserDashboard] 선호 지역 저장 완료: ${largeRegionCodes.length}개 시/도');
   }
 
   // SharedPreferences에서 선호 지역 불러오기
   Future<void> _loadPreferredRegions() async {
-    final prefs = await SharedPreferences.getInstance();
-    final isRegionInitialized = prefs.getBool('region_preference_initialized') ?? false;
+    final isRegionInitialized = await PreferencesManager.isRegionInitialized();
 
     // 시/도 코드 목록 불러오기
-    final largeRegionCodes = prefs.getStringList('preferred_large_regions') ?? [];
+    final largeRegionCodes =
+        await PreferencesManager.getPreferredLargeRegions();
 
     // 시/군/구 코드 JSON 불러오기
-    final mediumRegionsJson = prefs.getString('preferred_medium_regions');
-    final mediumRegionsMap = mediumRegionsJson != null
-        ? Map<String, List<dynamic>>.from(jsonDecode(mediumRegionsJson))
-        : <String, List<dynamic>>{};
+    final mediumRegionsJson =
+        await PreferencesManager.getPreferredMediumRegions();
+    final mediumRegionsMap =
+        mediumRegionsJson != null
+            ? Map<String, List<dynamic>>.from(jsonDecode(mediumRegionsJson))
+            : <String, List<dynamic>>{};
 
     // 코드를 Region 객체로 변환
     final loadedLargeRegions = <Region>[];
@@ -508,16 +524,21 @@ class _UserDashboardState extends State<UserDashboard>
 
     for (final code in largeRegionCodes) {
       // RegionData에서 해당 코드의 Region 찾기
-      final largeRegion = RegionData.regions.where((r) => r.code == code).firstOrNull;
+      final largeRegion =
+          RegionData.regions.where((r) => r.code == code).firstOrNull;
       if (largeRegion != null) {
         loadedLargeRegions.add(largeRegion);
 
         // 해당 시/도의 시/군/구 목록 불러오기
-        final mediumCodes = (mediumRegionsMap[code] as List<dynamic>?)?.cast<String>() ?? [];
+        final mediumCodes =
+            mediumRegionsMap[code]?.cast<String>() ?? [];
         final mediumRegions = <Region>[];
 
         for (final mediumCode in mediumCodes) {
-          final mediumRegion = largeRegion.children?.where((r) => r.code == mediumCode).firstOrNull;
+          final mediumRegion =
+              largeRegion.children
+                  ?.where((r) => r.code == mediumCode)
+                  .firstOrNull;
           if (mediumRegion != null) {
             mediumRegions.add(mediumRegion);
           }
@@ -533,11 +554,15 @@ class _UserDashboardState extends State<UserDashboard>
         selectedMediumRegions = loadedMediumRegions;
       });
 
-      debugPrint('[UserDashboard] 선호 지역 불러오기 완료: ${loadedLargeRegions.length}개 시/도');
+      debugPrint(
+        '[UserDashboard] 선호 지역 불러오기 완료: ${loadedLargeRegions.length}개 시/도',
+      );
     }
 
     // 선호 지역을 한 번도 설정하지 않은 경우 → 주소 기반 기본 지역 자동 설정
-    if (!isRegionInitialized && loadedLargeRegions.isEmpty && userAddress != null) {
+    if (!isRegionInitialized &&
+        loadedLargeRegions.isEmpty &&
+        userAddress != null) {
       await _setDefaultRegionFromAddress(userAddress!);
     }
   }
@@ -556,12 +581,18 @@ class _UserDashboardState extends State<UserDashboard>
       '세종': 'sejong',
       '경기': 'gyeonggi',
       '강원': 'gangwon',
-      '충북': 'chungbuk', '충청북': 'chungbuk',
-      '충남': 'chungnam', '충청남': 'chungnam',
-      '전북': 'jeonbuk', '전라북': 'jeonbuk',
-      '전남': 'jeonnam', '전라남': 'jeonnam',
-      '경북': 'gyeongbuk', '경상북': 'gyeongbuk',
-      '경남': 'gyeongnam', '경상남': 'gyeongnam',
+      '충북': 'chungbuk',
+      '충청북': 'chungbuk',
+      '충남': 'chungnam',
+      '충청남': 'chungnam',
+      '전북': 'jeonbuk',
+      '전라북': 'jeonbuk',
+      '전남': 'jeonnam',
+      '전라남': 'jeonnam',
+      '경북': 'gyeongbuk',
+      '경상북': 'gyeongbuk',
+      '경남': 'gyeongnam',
+      '경상남': 'gyeongnam',
       '제주': 'jeju',
     };
 
@@ -580,7 +611,8 @@ class _UserDashboardState extends State<UserDashboard>
     }
 
     // RegionData에서 해당 Region 객체 조회
-    final region = RegionData.regions.where((r) => r.code == regionCode).firstOrNull;
+    final region =
+        RegionData.regions.where((r) => r.code == regionCode).firstOrNull;
 
     if (region != null && mounted) {
       setState(() {
@@ -1136,15 +1168,9 @@ class _UserDashboardState extends State<UserDashboard>
     }
 
     if (columns.isEmpty) {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.article_outlined, size: 64, color: AppTheme.mediumGray),
-            const SizedBox(height: 16),
-            Text('공개된 칼럼이 없습니다', style: AppTheme.h4Style),
-          ],
-        ),
+      return const DashboardEmptyState(
+        icon: Icons.article_outlined,
+        message: '공개된 칼럼이 없습니다',
       );
     }
 
@@ -1169,7 +1195,7 @@ class _UserDashboardState extends State<UserDashboard>
               itemBuilder: (context, index) {
                 // 마지막 아이템은 ... 버튼
                 if (index == columns.length) {
-                  return InkWell(
+                  return DashboardMoreButton(
                     onTap: () {
                       Navigator.push(
                         context,
@@ -1178,210 +1204,25 @@ class _UserDashboardState extends State<UserDashboard>
                         ),
                       );
                     },
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 16,
-                      ),
-                      child: Center(
-                        child: Text(
-                          '...',
-                          style: AppTheme.h3Style.copyWith(
-                            color: AppTheme.textTertiary,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ),
-                    ),
                   );
                 }
 
                 final column = columns[index];
-                final isImportant =
-                    column.title.contains('[중요]') ||
-                    column.title.contains('[공지]');
 
-                return InkWell(
+                return DashboardListItem<HospitalColumn>(
+                  item: column,
+                  index: index + 1,
                   onTap: () => _showColumnBottomSheet(column),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 12,
-                    ),
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        // 왼쪽: 순서 번호 (1.5번째 줄 위치)
-                        SizedBox(
-                          width: 20,
-                          height: 50, // 전체 높이에 맞춤
-                          child: Center(
-                            child: Text(
-                              '${index + 1}',
-                              style: AppTheme.bodySmallStyle.copyWith(
-                                color: AppTheme.textTertiary,
-                                fontWeight: FontWeight.w500,
-                                fontSize: 13,
-                              ),
-                              textAlign: TextAlign.center,
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        // 중앙: 메인 콘텐츠
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              // 첫 번째 줄: 뱃지 + 제목
-                              Row(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  if (isImportant) ...[
-                                    Container(
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: 6,
-                                        vertical: 2,
-                                      ),
-                                      decoration: BoxDecoration(
-                                        color: AppTheme.error,
-                                        borderRadius: BorderRadius.circular(4),
-                                      ),
-                                      child: Text(
-                                        '중요',
-                                        style: AppTheme.bodySmallStyle.copyWith(
-                                          color: Colors.white,
-                                          fontWeight: FontWeight.bold,
-                                          fontSize: 10,
-                                        ),
-                                      ),
-                                    ),
-                                    const SizedBox(width: 8),
-                                  ],
-                                  Expanded(
-                                    child: MarqueeText(
-                                      text:
-                                          TextPersonalizationUtil.personalizeTitle(
-                                            title: column.title,
-                                            userName: userName,
-                                            userNickname: userNickname,
-                                          ),
-                                      style: AppTheme.bodyMediumStyle.copyWith(
-                                        color:
-                                            isImportant
-                                                ? AppTheme.error
-                                                : AppTheme.textPrimary,
-                                        fontWeight:
-                                            isImportant
-                                                ? FontWeight.w600
-                                                : FontWeight.w500,
-                                        fontSize: 14,
-                                      ),
-                                      animationDuration: const Duration(
-                                        milliseconds: 4000,
-                                      ),
-                                      pauseDuration: const Duration(
-                                        milliseconds: 1000,
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                              const SizedBox(height: 6),
-                              // 두 번째 줄: 작성자 이름
-                              Text(
-                                (column.authorNickname ?? column.hospitalName)
-                                            .length >
-                                        15
-                                    ? '${(column.authorNickname ?? column.hospitalName).substring(0, 15)}..'
-                                    : (column.authorNickname ??
-                                        column.hospitalName),
-                                style: AppTheme.bodySmallStyle.copyWith(
-                                  color: AppTheme.textSecondary,
-                                  fontSize: 12,
-                                ),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        // 오른쪽: 날짜들 + 2줄 높이의 조회수 박스
-                        Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            // 날짜 컬럼 (작성/수정일 세로 배치)
-                            Column(
-                              crossAxisAlignment: CrossAxisAlignment.end,
-                              children: [
-                                Text(
-                                  '작성: ${DateFormat('yy.MM.dd').format(column.createdAt)}',
-                                  style: AppTheme.bodySmallStyle.copyWith(
-                                    color: AppTheme.textTertiary,
-                                    fontSize: 11,
-                                  ),
-                                ),
-                                const SizedBox(height: 2),
-                                Text(
-                                  '수정: ${DateFormat('yy.MM.dd').format(column.updatedAt)}',
-                                  style: AppTheme.bodySmallStyle.copyWith(
-                                    color: AppTheme.textTertiary,
-                                    fontSize: 11,
-                                  ),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(width: 8),
-                            // 2줄 높이의 조회수 박스
-                            Container(
-                              height: 36,
-                              width: 40,
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 4,
-                                vertical: 4,
-                              ),
-                              decoration: BoxDecoration(
-                                color: AppTheme.mediumGray.withValues(
-                                  alpha: 0.2,
-                                ),
-                                borderRadius: BorderRadius.circular(6),
-                                border: Border.all(
-                                  color: AppTheme.lightGray.withValues(
-                                    alpha: 0.3,
-                                  ),
-                                  width: 1,
-                                ),
-                              ),
-                              child: Column(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Icon(
-                                    Icons.visibility_outlined,
-                                    size: 10,
-                                    color: AppTheme.textTertiary,
-                                  ),
-                                  const SizedBox(height: 1),
-                                  Text(
-                                    NumberFormatUtil.formatViewCount(
-                                      column.viewCount,
-                                    ),
-                                    style: AppTheme.bodySmallStyle.copyWith(
-                                      color: AppTheme.textTertiary,
-                                      fontSize: 10,
-                                      fontWeight: FontWeight.w500,
-                                    ),
-                                    textAlign: TextAlign.center,
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
+                  getTitle: (c) => c.title,
+                  getAuthor: (c) => c.authorNickname ?? c.hospitalName,
+                  getCreatedAt: (c) => c.createdAt,
+                  getUpdatedAt: (c) => c.updatedAt,
+                  getViewCount: (c) => c.viewCount,
+                  shouldShowBadge: (c) => c.title.contains('[중요]') || c.title.contains('[공지]'),
+                  getBadgeText: (c) => '중요',
+                  enableTextPersonalization: true,
+                  userName: userName,
+                  userNickname: userNickname,
                 );
               },
             ),
@@ -1499,19 +1340,21 @@ class _UserDashboardState extends State<UserDashboard>
                   Expanded(
                     child: SingleChildScrollView(
                       controller: scrollController,
-                      child: column.contentDelta != null && column.contentDelta!.isNotEmpty
-                          ? RichTextViewer(
-                              contentDelta: column.contentDelta,
-                              plainText: column.content,
-                              padding: EdgeInsets.zero,
-                            )
-                          : Text(
-                              column.content,
-                              style: AppTheme.bodyMediumStyle.copyWith(
-                                height: 1.6,
-                                color: AppTheme.textPrimary,
+                      child:
+                          column.contentDelta != null &&
+                                  column.contentDelta!.isNotEmpty
+                              ? RichTextViewer(
+                                contentDelta: column.contentDelta,
+                                plainText: column.content,
+                                padding: EdgeInsets.zero,
+                              )
+                              : Text(
+                                column.content,
+                                style: AppTheme.bodyMediumStyle.copyWith(
+                                  height: 1.6,
+                                  color: AppTheme.textPrimary,
+                                ),
                               ),
-                            ),
                     ),
                   ),
                   const SizedBox(height: 16),
@@ -1602,19 +1445,9 @@ class _UserDashboardState extends State<UserDashboard>
     }
 
     if (notices.isEmpty) {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              Icons.announcement_outlined,
-              size: 64,
-              color: AppTheme.mediumGray,
-            ),
-            const SizedBox(height: 16),
-            Text('공지사항이 없습니다', style: AppTheme.h4Style),
-          ],
-        ),
+      return const DashboardEmptyState(
+        icon: Icons.announcement_outlined,
+        message: '공지사항이 없습니다',
       );
     }
 
@@ -1639,7 +1472,7 @@ class _UserDashboardState extends State<UserDashboard>
               itemBuilder: (context, index) {
                 // 마지막 아이템은 ... 버튼
                 if (index == notices.length) {
-                  return InkWell(
+                  return DashboardMoreButton(
                     onTap: () {
                       Navigator.push(
                         context,
@@ -1648,217 +1481,25 @@ class _UserDashboardState extends State<UserDashboard>
                         ),
                       );
                     },
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 16,
-                      ),
-                      child: Center(
-                        child: Text(
-                          '...',
-                          style: AppTheme.h3Style.copyWith(
-                            color: AppTheme.textTertiary,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ),
-                    ),
                   );
                 }
 
                 final notice = notices[index];
 
-                return InkWell(
-                  onTap: () {
-                    _showNoticeBottomSheet(context, notice);
-                  },
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 10,
-                    ),
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.center,
-                      children: [
-                        // 왼쪽: 순서 (2줄 높이 중앙 정렬)
-                        SizedBox(
-                          width: 28,
-                          height: 40,
-                          child: Center(
-                            child: Text(
-                              '${index + 1}',
-                              style: AppTheme.bodySmallStyle.copyWith(
-                                color: AppTheme.textTertiary,
-                                fontWeight: FontWeight.w500,
-                                fontSize: 13,
-                              ),
-                              textAlign: TextAlign.center,
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        // 중앙: 메인 콘텐츠
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              // 첫 번째 줄: 뱃지 + 제목
-                              Row(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  // notice_important가 1이면 뱃지 표시
-                                  if (notice.showBadge) ...[
-                                    Container(
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: 6,
-                                        vertical: 2,
-                                      ),
-                                      decoration: BoxDecoration(
-                                        color: AppTheme.error,
-                                        borderRadius: BorderRadius.circular(4),
-                                      ),
-                                      child: Text(
-                                        notice.badgeText,
-                                        style: AppTheme.bodySmallStyle.copyWith(
-                                          color: Colors.white,
-                                          fontWeight: FontWeight.bold,
-                                          fontSize: 10,
-                                        ),
-                                      ),
-                                    ),
-                                    const SizedBox(width: 8),
-                                  ],
-                                  Expanded(
-                                    child: MarqueeText(
-                                      text:
-                                          TextPersonalizationUtil.personalizeTitle(
-                                            title: notice.title,
-                                            userName: userName,
-                                            userNickname: userNickname,
-                                          ),
-                                      style: AppTheme.bodyMediumStyle.copyWith(
-                                        color:
-                                            notice.showBadge
-                                                ? AppTheme.error
-                                                : AppTheme.textPrimary,
-                                        fontWeight:
-                                            notice.showBadge
-                                                ? FontWeight.w600
-                                                : FontWeight.w500,
-                                        fontSize: 14,
-                                      ),
-                                      animationDuration: const Duration(
-                                        milliseconds: 4000,
-                                      ),
-                                      pauseDuration: const Duration(
-                                        milliseconds: 1000,
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                              const SizedBox(height: 6),
-                              // 두 번째 줄: 작성자 이름
-                              Row(
-                                children: [
-                                  Expanded(
-                                    child: Text(
-                                      (notice.authorNickname ??
-                                                      notice.authorName)
-                                                  .length >
-                                              15
-                                          ? '${(notice.authorNickname ?? notice.authorName).substring(0, 15)}..'
-                                          : (notice.authorNickname ??
-                                              notice.authorName),
-                                      style: AppTheme.bodySmallStyle.copyWith(
-                                        color: AppTheme.textSecondary,
-                                        fontSize: 12,
-                                      ),
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        // 오른쪽: 날짜들 + 2줄 높이의 조회수 박스
-                        Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            // 날짜 컬럼 (작성/수정일 세로 배치)
-                            Column(
-                              crossAxisAlignment: CrossAxisAlignment.end,
-                              children: [
-                                Text(
-                                  '작성: ${DateFormat('yy.MM.dd').format(notice.createdAt)}',
-                                  style: AppTheme.bodySmallStyle.copyWith(
-                                    color: AppTheme.textTertiary,
-                                    fontSize: 11,
-                                  ),
-                                ),
-                                const SizedBox(height: 2),
-                                Text(
-                                  '수정: ${DateFormat('yy.MM.dd').format(notice.updatedAt)}',
-                                  style: AppTheme.bodySmallStyle.copyWith(
-                                    color: AppTheme.textTertiary,
-                                    fontSize: 11,
-                                  ),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(width: 8),
-                            // 2줄 높이의 조회수 박스
-                            Container(
-                              height: 36,
-                              width: 40,
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 4,
-                                vertical: 4,
-                              ),
-                              decoration: BoxDecoration(
-                                color: AppTheme.mediumGray.withValues(
-                                  alpha: 0.2,
-                                ),
-                                borderRadius: BorderRadius.circular(6),
-                                border: Border.all(
-                                  color: AppTheme.lightGray.withValues(
-                                    alpha: 0.3,
-                                  ),
-                                  width: 1,
-                                ),
-                              ),
-                              child: Column(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Icon(
-                                    Icons.visibility_outlined,
-                                    size: 10,
-                                    color: AppTheme.textTertiary,
-                                  ),
-                                  const SizedBox(height: 1),
-                                  Text(
-                                    NumberFormatUtil.formatViewCount(
-                                      notice.viewCount ?? 0,
-                                    ),
-                                    style: AppTheme.bodySmallStyle.copyWith(
-                                      color: AppTheme.textTertiary,
-                                      fontSize: 10,
-                                      fontWeight: FontWeight.w500,
-                                    ),
-                                    textAlign: TextAlign.center,
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
+                return DashboardListItem<Notice>(
+                  item: notice,
+                  index: index + 1,
+                  onTap: () => _showNoticeBottomSheet(context, notice),
+                  getTitle: (n) => n.title,
+                  getAuthor: (n) => n.authorNickname ?? n.authorName,
+                  getCreatedAt: (n) => n.createdAt,
+                  getUpdatedAt: (n) => n.updatedAt,
+                  getViewCount: (n) => n.viewCount ?? 0,
+                  shouldShowBadge: (n) => n.showBadge,
+                  getBadgeText: (n) => n.badgeText,
+                  enableTextPersonalization: true,
+                  userName: userName,
+                  userNickname: userNickname,
                 );
               },
             ),
@@ -2031,7 +1672,9 @@ class _UserDashboardState extends State<UserDashboard>
                         ),
                         decoration: BoxDecoration(
                           color:
-                              isImportant ? AppTheme.error : AppTheme.primaryBlue,
+                              isImportant
+                                  ? AppTheme.error
+                                  : AppTheme.primaryBlue,
                           borderRadius: BorderRadius.circular(6),
                         ),
                         child: Text(
@@ -2287,7 +1930,8 @@ class _UserDashboardState extends State<UserDashboard>
                               ),
                               Expanded(
                                 child: Text(
-                                  (displayPost.hospitalNickname?.isNotEmpty ?? false)
+                                  (displayPost.hospitalNickname?.isNotEmpty ??
+                                          false)
                                       ? displayPost.hospitalNickname!
                                       : displayPost.hospitalName.isNotEmpty
                                       ? displayPost.hospitalName
@@ -2355,8 +1999,8 @@ class _UserDashboardState extends State<UserDashboard>
                             children: [
                               Icon(
                                 displayPost.animalType == 0
-                                  ? FontAwesomeIcons.dog
-                                  : FontAwesomeIcons.cat,
+                                    ? FontAwesomeIcons.dog
+                                    : FontAwesomeIcons.cat,
                                 size: 16,
                                 color: AppTheme.textSecondary,
                               ),
@@ -2487,11 +2131,16 @@ class _UserDashboardState extends State<UserDashboard>
                                   onTap: () {
                                     _showDonationApplicationModal(
                                       displayPost,
-                                      DateFormat('yyyy-MM-dd').format(displayPost.donationDate!),
+                                      DateFormat(
+                                        'yyyy-MM-dd',
+                                      ).format(displayPost.donationDate!),
                                       {
-                                        'time': displayPost.donationTime != null
-                                            ? DateFormat('HH:mm').format(displayPost.donationTime!)
-                                            : '',
+                                        'time':
+                                            displayPost.donationTime != null
+                                                ? DateFormat('HH:mm').format(
+                                                  displayPost.donationTime!,
+                                                )
+                                                : '',
                                         'post_times_idx': 0,
                                       },
                                     );
@@ -2516,23 +2165,34 @@ class _UserDashboardState extends State<UserDashboard>
                                         const SizedBox(width: 12),
                                         Expanded(
                                           child: Column(
-                                            crossAxisAlignment: CrossAxisAlignment.start,
+                                            crossAxisAlignment:
+                                                CrossAxisAlignment.start,
                                             children: [
                                               Text(
-                                                DateFormat('yyyy년 MM월 dd일 EEEE', 'ko').format(
+                                                DateFormat(
+                                                  'yyyy년 MM월 dd일 EEEE',
+                                                  'ko',
+                                                ).format(
                                                   displayPost.donationDate!,
                                                 ),
-                                                style: AppTheme.bodyLargeStyle.copyWith(
-                                                  fontWeight: FontWeight.w600,
-                                                ),
+                                                style: AppTheme.bodyLargeStyle
+                                                    .copyWith(
+                                                      fontWeight:
+                                                          FontWeight.w600,
+                                                    ),
                                               ),
-                                              if (displayPost.donationTime != null) ...[
+                                              if (displayPost.donationTime !=
+                                                  null) ...[
                                                 const SizedBox(height: 4),
                                                 Text(
                                                   '예정 시간: ${DateFormat('HH:mm').format(displayPost.donationTime!)}',
-                                                  style: AppTheme.bodyMediumStyle.copyWith(
-                                                    color: AppTheme.textSecondary,
-                                                  ),
+                                                  style: AppTheme
+                                                      .bodyMediumStyle
+                                                      .copyWith(
+                                                        color:
+                                                            AppTheme
+                                                                .textSecondary,
+                                                      ),
                                                 ),
                                               ],
                                             ],
@@ -2544,16 +2204,21 @@ class _UserDashboardState extends State<UserDashboard>
                                             vertical: 4,
                                           ),
                                           decoration: BoxDecoration(
-                                            color: AppTheme.success.withValues(alpha: 0.1),
-                                            borderRadius: BorderRadius.circular(12),
+                                            color: AppTheme.success.withValues(
+                                              alpha: 0.1,
+                                            ),
+                                            borderRadius: BorderRadius.circular(
+                                              12,
+                                            ),
                                           ),
                                           child: Text(
                                             '신청 가능',
-                                            style: AppTheme.bodySmallStyle.copyWith(
-                                              color: AppTheme.success,
-                                              fontSize: 11,
-                                              fontWeight: FontWeight.w600,
-                                            ),
+                                            style: AppTheme.bodySmallStyle
+                                                .copyWith(
+                                                  color: AppTheme.success,
+                                                  fontSize: 11,
+                                                  fontWeight: FontWeight.w600,
+                                                ),
                                           ),
                                         ),
                                         const SizedBox(width: 8),
@@ -2669,131 +2334,159 @@ class _UserDashboardState extends State<UserDashboard>
     }
 
     return Column(
-      children: uniqueDates.entries.map((entry) {
-        final dateStr = entry.key;
-        final timeSlots = entry.value;
+      children:
+          uniqueDates.entries.map((entry) {
+            final dateStr = entry.key;
+            final timeSlots = entry.value;
 
-        return Container(
-          margin: const EdgeInsets.only(bottom: 12),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: Colors.grey.shade200, width: 1.5),
-          ),
-          child: Theme(
-            data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
-            child: ExpansionTile(
-              tilePadding: const EdgeInsets.symmetric(
-                horizontal: 20,
-                vertical: 8,
+            return Container(
+              margin: const EdgeInsets.only(bottom: 12),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: Colors.grey.shade200, width: 1.5),
               ),
-              childrenPadding: const EdgeInsets.only(bottom: 12),
-              leading: Icon(
-                Icons.calendar_month,
-                color: Colors.black,
-                size: 24,
-              ),
-              title: Text(
-                _formatDateWithWeekday(dateStr),
-                style: AppTheme.h4Style.copyWith(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                  color: AppTheme.textPrimary,
-                ),
-              ),
-              trailing: Icon(
-                Icons.keyboard_arrow_down,
-                color: Colors.black,
-                size: 24,
-              ),
-              children: timeSlots.map<Widget>((timeSlot) {
-                // 내가 이미 신청한 시간대인지 확인
-                final postTimesIdx = timeSlot['post_times_idx'] ?? 0;
-                final myApplication = myApplicationsMap[postTimesIdx];
-                final isAlreadyApplied = myApplication != null;
-
-                debugPrint('[UserDashboard] 시간대 체크 - postTimesIdx: $postTimesIdx, 신청여부: $isAlreadyApplied, 맵 키: ${myApplicationsMap.keys.toList()}');
-
-                return Container(
-                  margin: const EdgeInsets.symmetric(
+              child: Theme(
+                data: Theme.of(
+                  context,
+                ).copyWith(dividerColor: Colors.transparent),
+                child: ExpansionTile(
+                  tilePadding: const EdgeInsets.symmetric(
                     horizontal: 20,
-                    vertical: 4,
+                    vertical: 8,
                   ),
-                  child: Material(
-                    color: Colors.transparent,
-                    child: InkWell(
-                      onTap: () {
-                        if (isAlreadyApplied) {
-                          // 이미 신청한 시간대 클릭 시 취소 바텀시트 표시
-                          _showCancelApplicationBottomSheet(myApplication);
-                        } else {
-                          // 신청하지 않은 시간대 클릭 시 신청 페이지 표시
-                          _showDonationApplicationModal(post, dateStr, timeSlot);
-                        }
-                      },
-                      borderRadius: BorderRadius.circular(8),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 16,
-                          vertical: 14,
-                        ),
-                        decoration: BoxDecoration(
-                          color: isAlreadyApplied
-                              ? Colors.red.shade50
-                              : Colors.grey.shade50,
-                          borderRadius: BorderRadius.circular(8),
-                          border: Border.all(
-                            color: isAlreadyApplied ? Colors.red : Colors.black,
-                            width: isAlreadyApplied ? 2.0 : 1.0,
-                          ),
-                        ),
-                        child: Row(
-                          children: [
-                            Icon(
-                              Icons.access_time,
-                              color: isAlreadyApplied ? Colors.red : Colors.black,
-                              size: 20,
-                            ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    _formatTime(timeSlot['time'] ?? ''),
-                                    style: AppTheme.bodyLargeStyle.copyWith(
-                                      fontWeight: FontWeight.w600,
-                                      color: isAlreadyApplied ? Colors.red : Colors.black,
-                                    ),
-                                  ),
-                                  if (isAlreadyApplied)
-                                    Text(
-                                      '신청완료 (${myApplication.status})',
-                                      style: AppTheme.captionStyle.copyWith(
-                                        color: Colors.red,
-                                        fontSize: 11,
-                                      ),
-                                    ),
-                                ],
-                              ),
-                            ),
-                            Icon(
-                              isAlreadyApplied
-                                  ? Icons.edit_outlined
-                                  : Icons.keyboard_arrow_right,
-                              color: isAlreadyApplied ? Colors.red : Colors.black,
-                              size: 20,
-                            ),
-                          ],
-                        ),
-                      ),
+                  childrenPadding: const EdgeInsets.only(bottom: 12),
+                  leading: Icon(
+                    Icons.calendar_month,
+                    color: Colors.black,
+                    size: 24,
+                  ),
+                  title: Text(
+                    _formatDateWithWeekday(dateStr),
+                    style: AppTheme.h4Style.copyWith(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      color: AppTheme.textPrimary,
                     ),
                   ),
-                );
-              }).toList(),
-            ),
-          ),
-        );
-      }).toList(),
+                  trailing: Icon(
+                    Icons.keyboard_arrow_down,
+                    color: Colors.black,
+                    size: 24,
+                  ),
+                  children:
+                      timeSlots.map<Widget>((timeSlot) {
+                        // 내가 이미 신청한 시간대인지 확인
+                        final postTimesIdx = timeSlot['post_times_idx'] ?? 0;
+                        final myApplication = myApplicationsMap[postTimesIdx];
+                        final isAlreadyApplied = myApplication != null;
+
+                        debugPrint(
+                          '[UserDashboard] 시간대 체크 - postTimesIdx: $postTimesIdx, 신청여부: $isAlreadyApplied, 맵 키: ${myApplicationsMap.keys.toList()}',
+                        );
+
+                        return Container(
+                          margin: const EdgeInsets.symmetric(
+                            horizontal: 20,
+                            vertical: 4,
+                          ),
+                          child: Material(
+                            color: Colors.transparent,
+                            child: InkWell(
+                              onTap: () {
+                                if (isAlreadyApplied) {
+                                  // 이미 신청한 시간대 클릭 시 취소 바텀시트 표시
+                                  _showCancelApplicationBottomSheet(
+                                    myApplication,
+                                  );
+                                } else {
+                                  // 신청하지 않은 시간대 클릭 시 신청 페이지 표시
+                                  _showDonationApplicationModal(
+                                    post,
+                                    dateStr,
+                                    timeSlot,
+                                  );
+                                }
+                              },
+                              borderRadius: BorderRadius.circular(8),
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 16,
+                                  vertical: 14,
+                                ),
+                                decoration: BoxDecoration(
+                                  color:
+                                      isAlreadyApplied
+                                          ? Colors.red.shade50
+                                          : Colors.grey.shade50,
+                                  borderRadius: BorderRadius.circular(8),
+                                  border: Border.all(
+                                    color:
+                                        isAlreadyApplied
+                                            ? Colors.red
+                                            : Colors.black,
+                                    width: isAlreadyApplied ? 2.0 : 1.0,
+                                  ),
+                                ),
+                                child: Row(
+                                  children: [
+                                    Icon(
+                                      Icons.access_time,
+                                      color:
+                                          isAlreadyApplied
+                                              ? Colors.red
+                                              : Colors.black,
+                                      size: 20,
+                                    ),
+                                    const SizedBox(width: 12),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            _formatTime(timeSlot['time'] ?? ''),
+                                            style: AppTheme.bodyLargeStyle
+                                                .copyWith(
+                                                  fontWeight: FontWeight.w600,
+                                                  color:
+                                                      isAlreadyApplied
+                                                          ? Colors.red
+                                                          : Colors.black,
+                                                ),
+                                          ),
+                                          if (isAlreadyApplied)
+                                            Text(
+                                              '신청완료 (${myApplication.status})',
+                                              style: AppTheme.captionStyle
+                                                  .copyWith(
+                                                    color: Colors.red,
+                                                    fontSize: 11,
+                                                  ),
+                                            ),
+                                        ],
+                                      ),
+                                    ),
+                                    Icon(
+                                      isAlreadyApplied
+                                          ? Icons.edit_outlined
+                                          : Icons.keyboard_arrow_right,
+                                      color:
+                                          isAlreadyApplied
+                                              ? Colors.red
+                                              : Colors.black,
+                                      size: 20,
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ),
+                        );
+                      }).toList(),
+                ),
+              ),
+            );
+          }).toList(),
     );
   }
 
@@ -2803,7 +2496,8 @@ class _UserDashboardState extends State<UserDashboard>
     String dateStr,
     Map<String, dynamic> timeSlot,
   ) {
-    final displayText = '${_formatDateWithWeekday(dateStr)} ${_formatTime(timeSlot['time'] ?? '')}';
+    final displayText =
+        '${_formatDateWithWeekday(dateStr)} ${_formatTime(timeSlot['time'] ?? '')}';
 
     Navigator.pop(context); // 현재 바텀시트 닫기
 
@@ -2814,12 +2508,13 @@ class _UserDashboardState extends State<UserDashboard>
         context: context,
         isScrollControlled: true,
         backgroundColor: Colors.transparent,
-        builder: (context) => DonationApplicationPage(
-          post: post,
-          selectedDate: dateStr,
-          selectedTimeSlot: timeSlot,
-          displayText: displayText,
-        ),
+        builder:
+            (context) => DonationApplicationPage(
+              post: post,
+              selectedDate: dateStr,
+              selectedTimeSlot: timeSlot,
+              displayText: displayText,
+            ),
       );
     });
   }
@@ -2865,14 +2560,18 @@ class _UserDashboardState extends State<UserDashboard>
                     Row(
                       children: [
                         Icon(
-                          canCancel ? Icons.cancel_outlined : Icons.info_outline,
+                          canCancel
+                              ? Icons.cancel_outlined
+                              : Icons.info_outline,
                           color: canCancel ? Colors.red : Colors.orange,
                           size: 28,
                         ),
                         const SizedBox(width: 12),
                         Text(
                           canCancel ? '신청 취소' : '신청 정보',
-                          style: AppTheme.h3Style.copyWith(fontWeight: FontWeight.w700),
+                          style: AppTheme.h3Style.copyWith(
+                            fontWeight: FontWeight.w700,
+                          ),
                         ),
                       ],
                     ),
@@ -2896,12 +2595,17 @@ class _UserDashboardState extends State<UserDashboard>
                             '${application.petName} (${application.speciesText})',
                           ),
                           const SizedBox(height: 8),
-                          _buildCancelInfoRow('헌혈 시간', application.donationTime),
+                          _buildCancelInfoRow(
+                            '헌혈 시간',
+                            application.donationTime,
+                          ),
                           const SizedBox(height: 8),
                           _buildCancelInfoRow(
                             '상태',
                             application.status,
-                            statusColor: _getStatusColor(application.statusCode),
+                            statusColor: _getStatusColor(
+                              application.statusCode,
+                            ),
                           ),
                         ],
                       ),
@@ -2959,61 +2663,68 @@ class _UserDashboardState extends State<UserDashboard>
                           const SizedBox(width: 12),
                           Expanded(
                             child: ElevatedButton(
-                              onPressed: isCancelling
-                                  ? null
-                                  : () async {
-                                      setModalState(() {
-                                        isCancelling = true;
-                                      });
-                                      try {
-                                        await AppliedDonationService
-                                            .cancelApplicationToServer(
-                                                application.applicationId);
-                                        if (mounted) {
-                                          Navigator.pop(context);
-                                          ScaffoldMessenger.of(this.context)
-                                              .showSnackBar(
-                                            const SnackBar(
-                                              content: Text('신청이 취소되었습니다.'),
-                                              backgroundColor: Colors.green,
-                                            ),
-                                          );
-                                          _loadMyApplications();
-                                        }
-                                      } catch (e) {
+                              onPressed:
+                                  isCancelling
+                                      ? null
+                                      : () async {
                                         setModalState(() {
-                                          isCancelling = false;
+                                          isCancelling = true;
                                         });
-                                        if (mounted) {
-                                          ScaffoldMessenger.of(this.context)
-                                              .showSnackBar(
-                                            SnackBar(
-                                              content:
-                                                  Text('취소 실패: ${e.toString()}'),
-                                              backgroundColor: Colors.red,
-                                            ),
+                                        try {
+                                          await AppliedDonationService.cancelApplicationToServer(
+                                            application.applicationId,
                                           );
+                                          if (mounted) {
+                                            Navigator.pop(context);
+                                            ScaffoldMessenger.of(
+                                              this.context,
+                                            ).showSnackBar(
+                                              const SnackBar(
+                                                content: Text('신청이 취소되었습니다.'),
+                                                backgroundColor: Colors.green,
+                                              ),
+                                            );
+                                            _loadMyApplications();
+                                          }
+                                        } catch (e) {
+                                          setModalState(() {
+                                            isCancelling = false;
+                                          });
+                                          if (mounted) {
+                                            ScaffoldMessenger.of(
+                                              this.context,
+                                            ).showSnackBar(
+                                              SnackBar(
+                                                content: Text(
+                                                  '취소 실패: ${e.toString()}',
+                                                ),
+                                                backgroundColor: Colors.red,
+                                              ),
+                                            );
+                                          }
                                         }
-                                      }
-                                    },
+                                      },
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: Colors.red,
                                 foregroundColor: Colors.white,
-                                padding: const EdgeInsets.symmetric(vertical: 14),
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 14,
+                                ),
                                 shape: RoundedRectangleBorder(
                                   borderRadius: BorderRadius.circular(8),
                                 ),
                               ),
-                              child: isCancelling
-                                  ? const SizedBox(
-                                      width: 20,
-                                      height: 20,
-                                      child: CircularProgressIndicator(
-                                        color: Colors.white,
-                                        strokeWidth: 2,
-                                      ),
-                                    )
-                                  : const Text('신청 취소'),
+                              child:
+                                  isCancelling
+                                      ? const SizedBox(
+                                        width: 20,
+                                        height: 20,
+                                        child: CircularProgressIndicator(
+                                          color: Colors.white,
+                                          strokeWidth: 2,
+                                        ),
+                                      )
+                                      : const Text('신청 취소'),
                             ),
                           ),
                         ],
@@ -3059,24 +2770,6 @@ class _UserDashboardState extends State<UserDashboard>
 
   // 상태 코드별 색상
   Color _getStatusColor(int statusCode) {
-    switch (statusCode) {
-      case AppliedDonationStatus.pending:
-        return Colors.orange;
-      case AppliedDonationStatus.approved:
-        return Colors.blue;
-      case AppliedDonationStatus.rejected:
-        return Colors.grey;
-      case AppliedDonationStatus.completed:
-      case AppliedDonationStatus.finalCompleted:
-        return Colors.green;
-      case AppliedDonationStatus.cancelled:
-        return Colors.grey;
-      case AppliedDonationStatus.pendingCompletion:
-        return Colors.purple;
-      case AppliedDonationStatus.pendingCancellation:
-        return Colors.orange;
-      default:
-        return AppTheme.textPrimary;
-    }
+    return AppliedDonationStatus.getStatusColorValue(statusCode);
   }
 }

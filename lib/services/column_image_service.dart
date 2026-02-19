@@ -1,17 +1,15 @@
-import 'dart:typed_data';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:http_parser/http_parser.dart';
-import 'dart:convert';
 import 'auth_http_client.dart';
 import '../models/hospital_column_model.dart';
 import '../utils/config.dart';
+import '../utils/api_endpoints.dart';
 
 /// 칼럼 이미지 서비스
 ///
 /// 칼럼 이미지 업로드, 삭제 등의 API 통신 담당
 class ColumnImageService {
-  static String get baseUrl => Config.serverUrl;
 
   /// 이미지 업로드 (바이트 기반 - 웹/앱 공통)
   ///
@@ -27,7 +25,9 @@ class ColumnImageService {
     int imageOrder = 0,
     Function(double)? onProgress,
   }) async {
-    debugPrint('[ColumnImageService] uploadImageBytes 시작: fileName=$fileName, size=${imageBytes.length}');
+    debugPrint(
+      '[ColumnImageService] uploadImageBytes 시작: fileName=$fileName, size=${imageBytes.length}',
+    );
     try {
       // 파일 확장자 확인
       final extension = fileName.split('.').last.toLowerCase();
@@ -35,7 +35,7 @@ class ColumnImageService {
       debugPrint('[ColumnImageService] 확장자: $extension, MIME: $mimeType');
 
       // multipart 요청 생성
-      final uri = Uri.parse('$baseUrl/api/hospital/columns/images/upload');
+      final uri = Uri.parse('${Config.serverUrl}${ApiEndpoints.hospitalColumnImageUpload}');
       debugPrint('[ColumnImageService] 요청 URL: $uri');
       final request = http.MultipartRequest('POST', uri);
 
@@ -58,15 +58,19 @@ class ColumnImageService {
       // 요청 전송
       debugPrint('[ColumnImageService] 요청 전송 중...');
       final streamedResponse = await AuthHttpClient.sendMultipart(request);
-      debugPrint('[ColumnImageService] 응답 상태 코드: ${streamedResponse.statusCode}');
+      debugPrint(
+        '[ColumnImageService] 응답 상태 코드: ${streamedResponse.statusCode}',
+      );
       final response = await http.Response.fromStream(streamedResponse);
       debugPrint('[ColumnImageService] 응답 본문: ${response.body}');
 
       if (response.statusCode == 200 || response.statusCode == 201) {
-        final data = json.decode(utf8.decode(response.bodyBytes));
+        final data = response.parseJsonDynamic();
 
         // 다양한 응답 형식 처리
-        if (data['success'] == true || data['image_id'] != null || data['image_path'] != null) {
+        if (data['success'] == true ||
+            data['image_id'] != null ||
+            data['image_path'] != null) {
           debugPrint('[ColumnImageService] 업로드 성공!');
           return ColumnImage.fromJson(data);
         } else {
@@ -74,9 +78,8 @@ class ColumnImageService {
           throw Exception(data['message'] ?? '이미지 업로드에 실패했습니다.');
         }
       } else if (response.statusCode == 400) {
-        final data = json.decode(utf8.decode(response.bodyBytes));
-        debugPrint('[ColumnImageService] 400 에러: ${data['message'] ?? data['detail']}');
-        throw Exception(data['message'] ?? data['detail'] ?? '잘못된 요청입니다.');
+        debugPrint('[ColumnImageService] 400 에러: ${response.extractErrorMessage()}');
+        throw response.toException('잘못된 요청입니다.');
       } else if (response.statusCode == 413) {
         debugPrint('[ColumnImageService] 413 이미지 개수 초과');
         throw Exception('칼럼당 최대 5개의 이미지만 업로드할 수 있습니다.');
@@ -96,11 +99,11 @@ class ColumnImageService {
   static Future<bool> deleteImage(int imageId) async {
     try {
       final response = await AuthHttpClient.delete(
-        Uri.parse('$baseUrl/api/hospital/columns/images/$imageId'),
+        Uri.parse('${Config.serverUrl}${ApiEndpoints.hospitalColumnImage(imageId)}'),
       );
 
       if (response.statusCode == 200) {
-        final data = json.decode(utf8.decode(response.bodyBytes));
+        final data = response.parseJsonDynamic();
         return data['success'] == true;
       } else if (response.statusCode == 403) {
         throw Exception('본인 병원의 이미지만 삭제할 수 있습니다.');
@@ -120,11 +123,11 @@ class ColumnImageService {
   static Future<List<ColumnImage>> getColumnImages(int columnIdx) async {
     try {
       final response = await AuthHttpClient.get(
-        Uri.parse('$baseUrl/api/hospital/columns/$columnIdx/images'),
+        Uri.parse('${Config.serverUrl}${ApiEndpoints.hospitalColumnImagesByColumn(columnIdx)}'),
       );
 
       if (response.statusCode == 200) {
-        final data = json.decode(utf8.decode(response.bodyBytes));
+        final data = response.parseJsonDynamic();
 
         if (data is List) {
           return data.map((img) => ColumnImage.fromJson(img)).toList();
@@ -171,6 +174,6 @@ class ColumnImageService {
     if (imagePath.startsWith('http')) {
       return imagePath;
     }
-    return '$baseUrl$imagePath';
+    return '${Config.serverUrl}$imagePath';
   }
 }

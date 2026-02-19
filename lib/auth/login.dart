@@ -5,7 +5,6 @@ import 'package:connect/user/user_dashboard.dart';
 import 'package:connect/admin/admin_dashboard.dart';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter_naver_login/flutter_naver_login.dart';
 import 'package:flutter_naver_login/interface/types/naver_login_status.dart';
@@ -13,10 +12,11 @@ import 'package:flutter_naver_login/interface/types/naver_login_result.dart';
 import 'package:flutter_naver_login/interface/types/naver_token.dart';
 import '../utils/config.dart';
 import '../utils/app_theme.dart';
+import '../utils/app_constants.dart';
+import '../utils/preferences_manager.dart';
 import '../widgets/app_button.dart';
 import '../widgets/app_input_field.dart';
 import '../widgets/app_app_bar.dart';
-import 'package:connect/auth/fcm_token_screen.dart';
 import 'package:flutter/foundation.dart';
 import 'package:provider/provider.dart';
 import '../services/notification_service.dart';
@@ -38,22 +38,22 @@ class _LoginScreenState extends State<LoginScreen> {
 
   // 로그인 성공 후 공통 처리 로직
   Future<void> _handleLoginSuccess(Map<String, dynamic> data) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString('auth_token', data['access_token']);
+    await PreferencesManager.setAuthToken(data['access_token']);
     // Refresh Token 저장 (보안 업데이트: Access Token 15분 + Refresh Token 7일)
     if (data['refresh_token'] != null) {
-      await prefs.setString('refresh_token', data['refresh_token']);
+      await PreferencesManager.setRefreshToken(data['refresh_token']);
     }
 
     // 사용자 정보 저장
-    await prefs.setString('user_email', data['email'] ?? '');
-    await prefs.setString('user_name', data['name'] ?? '');
-    await prefs.setInt('account_type', data['account_type'] ?? 0);
-    await prefs.setInt('account_idx', data['account_idx'] ?? 0);
+    await PreferencesManager.setUserEmail(data['email'] ?? '');
+    await PreferencesManager.setUserName(data['name'] ?? '');
+    await PreferencesManager.setAccountType(data['account_type'] ?? 0);
+    await PreferencesManager.setAccountIdx(data['account_idx'] ?? 0);
 
     // 병원 사용자인 경우 hospital_code 저장
-    if (data['account_type'] == 2 && data['hospital_code'] != null) {
-      await prefs.setString('hospital_code', data['hospital_code']);
+    if (data['account_type'] == AppConstants.accountTypeHospital &&
+        data['hospital_code'] != null) {
+      await PreferencesManager.setHospitalCode(data['hospital_code']);
     }
 
     // 로그인 성공 후 FCM 토큰 서버 업데이트
@@ -64,8 +64,11 @@ class _LoginScreenState extends State<LoginScreen> {
     }
 
     // 알림 Provider 초기화 (대시보드에서 뱃지 표시용)
+    // 이전 사용자의 알림 상태가 남아있을 수 있으므로 reset 후 재초기화
     if (mounted) {
-      context.read<NotificationProvider>().initialize();
+      final provider = context.read<NotificationProvider>();
+      provider.reset();
+      await provider.initialize();
     }
 
     // 승인 여부 확인
@@ -83,23 +86,21 @@ class _LoginScreenState extends State<LoginScreen> {
     // 사용자 유형에 따라 적절한 화면으로 이동
     if (mounted) {
       switch (data['account_type']) {
-        case 1: // 관리자
+        case AppConstants.accountTypeAdmin: // 관리자
           Navigator.pushAndRemoveUntil(
             context,
             MaterialPageRoute(builder: (context) => const AdminDashboard()),
             (route) => false,
           );
           break;
-        case 2: // 병원
+        case AppConstants.accountTypeHospital: // 병원
           Navigator.pushAndRemoveUntil(
             context,
-            MaterialPageRoute(
-              builder: (context) => const HospitalDashboard(),
-            ),
+            MaterialPageRoute(builder: (context) => const HospitalDashboard()),
             (route) => false,
           );
           break;
-        case 3: // 일반 사용자
+        case AppConstants.accountTypeUser: // 일반 사용자
           Navigator.pushAndRemoveUntil(
             context,
             MaterialPageRoute(builder: (context) => const UserDashboard()),
@@ -233,8 +234,7 @@ class _LoginScreenState extends State<LoginScreen> {
       showDialog(
         context: context,
         barrierDismissible: false,
-        builder:
-            (context) => const Center(child: CircularProgressIndicator()),
+        builder: (context) => const Center(child: CircularProgressIndicator()),
       );
 
       final response = await http
@@ -284,11 +284,12 @@ class _LoginScreenState extends State<LoginScreen> {
         // 기존 세션 없음 (정상)
       }
 
+      if (!mounted) return;
+
       showDialog(
         context: context,
         barrierDismissible: false,
-        builder:
-            (context) => const Center(child: CircularProgressIndicator()),
+        builder: (context) => const Center(child: CircularProgressIndicator()),
       );
 
       // 네이버 SDK 로그인 호출
@@ -314,9 +315,7 @@ class _LoginScreenState extends State<LoginScreen> {
               'Content-Type': 'application/json',
               'Accept': 'application/json',
             },
-            body: jsonEncode({
-              'access_token': naverToken.accessToken,
-            }),
+            body: jsonEncode({'access_token': naverToken.accessToken}),
           )
           .timeout(const Duration(seconds: 15));
 
@@ -335,11 +334,7 @@ class _LoginScreenState extends State<LoginScreen> {
         }
       } else if (response.statusCode == 401) {
         if (mounted) {
-          _showAlertDialog(
-            context,
-            '인증 실패',
-            '네이버 인증에 실패했습니다. 다시 시도해주세요.',
-          );
+          _showAlertDialog(context, '인증 실패', '네이버 인증에 실패했습니다. 다시 시도해주세요.');
         }
       } else {
         if (mounted) {

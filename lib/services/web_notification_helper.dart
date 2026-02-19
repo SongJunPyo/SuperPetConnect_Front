@@ -36,7 +36,9 @@ class WebNotificationHelper {
     if (!kIsWeb) return;
 
     try {
-      debugPrint('[WebNotification] 권한 상태 확인 - requested: $_permissionRequested, permission: $_permission');
+      debugPrint(
+        '[WebNotification] 권한 상태 확인 - requested: $_permissionRequested, permission: $_permission',
+      );
 
       // 권한이 없으면 먼저 요청
       if (!_permissionRequested) {

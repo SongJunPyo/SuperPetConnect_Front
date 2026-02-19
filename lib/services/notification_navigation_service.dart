@@ -6,7 +6,8 @@ import '../models/notification_types.dart';
 ///
 /// 알림 클릭 시 적절한 페이지로 이동하는 로직을 중앙에서 관리합니다.
 class NotificationNavigationService {
-  static final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
+  static final GlobalKey<NavigatorState> navigatorKey =
+      GlobalKey<NavigatorState>();
 
   /// 알림 클릭 시 적절한 페이지로 이동
   static void navigateToNotification(
@@ -56,9 +57,7 @@ class NotificationNavigationService {
           Navigator.pushNamed(
             context,
             '/admin/donation-approval',
-            arguments: {
-              'highlightApplication': notification.relatedId,
-            },
+            arguments: {'highlightApplication': notification.relatedId},
           );
           break;
         case AdminNotificationType.columnApprovalRequest:
@@ -113,6 +112,13 @@ class NotificationNavigationService {
               'highlightPostId': notification.relatedId,
               'showApplicants': true,
             },
+          );
+          break;
+        case HospitalNotificationType.donationCompleted:
+          Navigator.pushReplacementNamed(
+            context,
+            '/hospital/post-check',
+            arguments: {'highlightPostId': notification.relatedId},
           );
           break;
         case HospitalNotificationType.columnApproved:
@@ -237,9 +243,7 @@ class NotificationNavigationService {
         Navigator.pushNamed(
           context,
           '/hospital/post-check',
-          arguments: {
-            'highlightPostId': _extractId(data, 'post_id'),
-          },
+          arguments: {'highlightPostId': _extractId(data, 'post_id')},
         );
         break;
       case 'donation_post_approved':

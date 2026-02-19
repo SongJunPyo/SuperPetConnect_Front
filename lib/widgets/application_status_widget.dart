@@ -1,42 +1,19 @@
 import 'package:flutter/material.dart';
+import '../models/applied_donation_model.dart';
 
 /// 헌혈 신청 상태를 표시하는 위젯
 class ApplicationStatusWidget extends StatelessWidget {
   final int status;
-  
-  const ApplicationStatusWidget({
-    super.key,
-    required this.status,
-  });
+
+  const ApplicationStatusWidget({super.key, required this.status});
 
   @override
   Widget build(BuildContext context) {
-    String statusText;
-    Color statusColor;
-    IconData statusIcon;
-    
-    switch (status) {
-      case 0: // PENDING
-        statusText = "대기중";
-        statusColor = Colors.orange;
-        statusIcon = Icons.schedule;
-        break;
-      case 1: // APPROVED
-        statusText = "승인됨";
-        statusColor = Colors.green;
-        statusIcon = Icons.check_circle;
-        break;
-      case 2: // REJECTED
-        statusText = "거절됨";
-        statusColor = Colors.red;
-        statusIcon = Icons.cancel;
-        break;
-      default:
-        statusText = "알수없음";
-        statusColor = Colors.grey;
-        statusIcon = Icons.help;
-    }
-    
+    // AppliedDonationStatus 사용
+    final statusText = AppliedDonationStatus.getStatusText(status);
+    final statusColor = AppliedDonationStatus.getStatusColorValue(status);
+    final statusIcon = _getStatusIcon(status);
+
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
       decoration: BoxDecoration(
@@ -47,11 +24,7 @@ class ApplicationStatusWidget extends StatelessWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(
-            statusIcon,
-            color: statusColor,
-            size: 14,
-          ),
+          Icon(statusIcon, color: statusColor, size: 14),
           const SizedBox(width: 4),
           Text(
             statusText,
@@ -66,31 +39,39 @@ class ApplicationStatusWidget extends StatelessWidget {
     );
   }
 
-  /// 상태 코드를 문자열로 변환하는 정적 메서드
-  static String getStatusText(int status) {
+  /// 상태에 따른 아이콘 반환
+  static IconData _getStatusIcon(int status) {
     switch (status) {
-      case 0:
-        return "대기중";
-      case 1:
-        return "승인됨";
-      case 2:
-        return "거절됨";
+      case AppliedDonationStatus.pending:
+        return Icons.schedule;
+      case AppliedDonationStatus.approved:
+        return Icons.check_circle;
+      case AppliedDonationStatus.rejected:
+        return Icons.cancel;
+      case AppliedDonationStatus.completed:
+        return Icons.done_all;
+      case AppliedDonationStatus.cancelled:
+        return Icons.close;
+      case AppliedDonationStatus.pendingCompletion:
+        return Icons.hourglass_empty;
+      case AppliedDonationStatus.pendingCancellation:
+        return Icons.pending;
+      case AppliedDonationStatus.finalCompleted:
+        return Icons.verified;
       default:
-        return "알수없음";
+        return Icons.help;
     }
   }
 
-  /// 상태 코드에 따른 색상을 반환하는 정적 메서드
+  /// 상태 코드를 문자열로 변환 (하위 호환성)
+  @Deprecated('Use AppliedDonationStatus.getStatusText() instead')
+  static String getStatusText(int status) {
+    return AppliedDonationStatus.getStatusText(status);
+  }
+
+  /// 상태 코드에 따른 색상을 반환 (하위 호환성)
+  @Deprecated('Use AppliedDonationStatus.getStatusColorValue() instead')
   static Color getStatusColor(int status) {
-    switch (status) {
-      case 0:
-        return Colors.orange;
-      case 1:
-        return Colors.green;
-      case 2:
-        return Colors.red;
-      default:
-        return Colors.grey;
-    }
+    return AppliedDonationStatus.getStatusColorValue(status);
   }
 }

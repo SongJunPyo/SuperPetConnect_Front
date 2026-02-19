@@ -69,11 +69,7 @@ class NotFoundPage extends StatelessWidget {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Icon(
-              Icons.error_outline,
-              size: 64,
-              color: Colors.grey,
-            ),
+            const Icon(Icons.error_outline, size: 64, color: Colors.grey),
             const SizedBox(height: 16),
             const Text(
               '404 - 페이지를 찾을 수 없습니다',

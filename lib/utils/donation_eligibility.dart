@@ -7,17 +7,17 @@ import '../models/pet_model.dart';
 
 /// 헌혈 자격 상태
 enum EligibilityStatus {
-  eligible,          // 헌혈 가능
+  eligible, // 헌혈 가능
   needsConsultation, // 협의 필요 (체중 등)
-  ineligible,        // 헌혈 불가
+  ineligible, // 헌혈 불가
 }
 
 /// 개별 조건 검증 결과
 class ConditionResult {
-  final String conditionName;  // 조건 이름
-  final String description;    // 조건 설명
+  final String conditionName; // 조건 이름
+  final String description; // 조건 설명
   final EligibilityStatus status;
-  final String? message;       // 상세 메시지
+  final String? message; // 상세 메시지
 
   const ConditionResult({
     required this.conditionName,
@@ -59,7 +59,8 @@ class EligibilityResult {
   bool get isEligible => overallStatus == EligibilityStatus.eligible;
 
   /// 협의 필요 여부
-  bool get needsConsultation => overallStatus == EligibilityStatus.needsConsultation;
+  bool get needsConsultation =>
+      overallStatus == EligibilityStatus.needsConsultation;
 
   /// 헌혈 불가 여부
   bool get isIneligible => overallStatus == EligibilityStatus.ineligible;
@@ -107,7 +108,7 @@ class DogEligibilityConditions {
   /// 조건 요약 텍스트 (UI 표시용)
   String get summaryText => '''
 • 나이: $minAgeYears세 ~ $maxAgeYears세 ($minAgeMonths개월 이상)
-• 체중: ${minWeightKg}kg 이상 (${consultWeightMinKg}~${consultWeightMaxKg}kg 협의)
+• 체중: ${minWeightKg}kg 이상 ($consultWeightMinKg~${consultWeightMaxKg}kg 협의)
 • 예방접종 완료
 • 예방약 복용 완료
 • 질병 이력 없음
@@ -157,14 +158,14 @@ class DonationEligibility {
 
   /// 강아지 헌혈 조건
   static const dogConditions = DogEligibilityConditions(
-    minAgeMonths: 18,           // 최소 18개월
-    minAgeYears: 2,             // 최소 2살
-    maxAgeYears: 8,             // 최대 8살
-    minWeightKg: 25.0,          // 최소 25kg
-    consultWeightMinKg: 20.0,   // 협의 필요: 20kg 이상
-    consultWeightMaxKg: 24.9,   // 협의 필요: 24.9kg 이하
-    neuteredMonthsRequired: 6,  // 중성화 후 6개월
-    donationIntervalDays: 56,   // 헌혈 간격 56일(8주)
+    minAgeMonths: 18, // 최소 18개월
+    minAgeYears: 2, // 최소 2살
+    maxAgeYears: 8, // 최대 8살
+    minWeightKg: 25.0, // 최소 25kg
+    consultWeightMinKg: 20.0, // 협의 필요: 20kg 이상
+    consultWeightMaxKg: 24.9, // 협의 필요: 24.9kg 이하
+    neuteredMonthsRequired: 6, // 중성화 후 6개월
+    donationIntervalDays: 56, // 헌혈 간격 56일(8주)
   );
 
   /// 고양이 헌혈 조건
@@ -199,14 +200,18 @@ class DonationEligibility {
 
     // 디버그 로그: Pet 데이터 확인
     debugPrint('[DonationEligibility] 강아지 헌혈 자격 검증 시작: ${pet.name}');
-    debugPrint('[DonationEligibility] - 나이: ${pet.ageNumber}세 (${pet.ageMonths}개월)');
+    debugPrint(
+      '[DonationEligibility] - 나이: ${pet.ageNumber}세 (${pet.ageMonths}개월)',
+    );
     debugPrint('[DonationEligibility] - 체중: ${pet.weightKg}kg');
     debugPrint('[DonationEligibility] - 백신접종: ${pet.vaccinated}');
     debugPrint('[DonationEligibility] - 예방약: ${pet.hasPreventiveMedication}');
     debugPrint('[DonationEligibility] - 질병이력: ${pet.hasDisease}');
     debugPrint('[DonationEligibility] - 출산경험: ${pet.hasBirthExperience}');
     debugPrint('[DonationEligibility] - 임신여부: ${pet.pregnant}');
-    debugPrint('[DonationEligibility] - 중성화: ${pet.isNeutered} (${pet.neuteredDate})');
+    debugPrint(
+      '[DonationEligibility] - 중성화: ${pet.isNeutered} (${pet.neuteredDate})',
+    );
 
     // 1. 나이 검증 (월 단위 우선, 없으면 년 단위 사용)
     final ageResult = _checkDogAge(pet.ageNumber, pet.ageMonths, conditions);
@@ -221,7 +226,9 @@ class DonationEligibility {
     results.add(vaccinatedResult);
 
     // 4. 예방약 복용 여부
-    final preventiveResult = _checkPreventiveMedication(pet.hasPreventiveMedication);
+    final preventiveResult = _checkPreventiveMedication(
+      pet.hasPreventiveMedication,
+    );
     results.add(preventiveResult);
 
     // 5. 질병 이력
@@ -255,9 +262,13 @@ class DonationEligibility {
     final result = _calculateOverallResult(results, '강아지');
 
     // 디버그 로그: 검증 결과
-    debugPrint('[DonationEligibility] 검증 결과: ${result.overallStatus} - ${result.summaryMessage}');
+    debugPrint(
+      '[DonationEligibility] 검증 결과: ${result.overallStatus} - ${result.summaryMessage}',
+    );
     for (final condition in result.failedConditions) {
-      debugPrint('[DonationEligibility] ❌ 실패: ${condition.conditionName} - ${condition.message}');
+      debugPrint(
+        '[DonationEligibility] ❌ 실패: ${condition.conditionName} - ${condition.message}',
+      );
     }
 
     return result;
@@ -314,22 +325,27 @@ class DonationEligibility {
       if (ageMonths >= conditions.minAgeMonths && ageMonths <= maxAgeMonths) {
         return ConditionResult(
           conditionName: '나이',
-          description: '${conditions.minAgeMonths}개월 ~ ${conditions.maxAgeYears}세',
+          description:
+              '${conditions.minAgeMonths}개월 ~ ${conditions.maxAgeYears}세',
           status: EligibilityStatus.eligible,
-          message: '현재 $ageMonths개월 (약 ${ageMonths ~/ 12}세 ${ageMonths % 12}개월)',
+          message:
+              '현재 $ageMonths개월 (약 ${ageMonths ~/ 12}세 ${ageMonths % 12}개월)',
         );
       }
 
       return ConditionResult(
         conditionName: '나이',
-        description: '${conditions.minAgeMonths}개월 ~ ${conditions.maxAgeYears}세',
+        description:
+            '${conditions.minAgeMonths}개월 ~ ${conditions.maxAgeYears}세',
         status: EligibilityStatus.ineligible,
-        message: '현재 $ageMonths개월 (${ageMonths < conditions.minAgeMonths ? "최소 ${conditions.minAgeMonths}개월 이상 필요" : "최대 ${conditions.maxAgeYears}세 이하"})',
+        message:
+            '현재 $ageMonths개월 (${ageMonths < conditions.minAgeMonths ? "최소 ${conditions.minAgeMonths}개월 이상 필요" : "최대 ${conditions.maxAgeYears}세 이하"})',
       );
     }
 
     // 월 단위 없으면 년 단위로 검증
-    if (ageYears >= conditions.minAgeYears && ageYears <= conditions.maxAgeYears) {
+    if (ageYears >= conditions.minAgeYears &&
+        ageYears <= conditions.maxAgeYears) {
       return ConditionResult(
         conditionName: '나이',
         description: '${conditions.minAgeYears}세 ~ ${conditions.maxAgeYears}세',
@@ -342,12 +358,16 @@ class DonationEligibility {
       conditionName: '나이',
       description: '${conditions.minAgeYears}세 ~ ${conditions.maxAgeYears}세',
       status: EligibilityStatus.ineligible,
-      message: '현재 $ageYears세 (${ageYears < conditions.minAgeYears ? "너무 어림" : "너무 많음"})',
+      message:
+          '현재 $ageYears세 (${ageYears < conditions.minAgeYears ? "너무 어림" : "너무 많음"})',
     );
   }
 
   /// 강아지 체중 검증
-  static ConditionResult _checkDogWeight(double weightKg, DogEligibilityConditions conditions) {
+  static ConditionResult _checkDogWeight(
+    double weightKg,
+    DogEligibilityConditions conditions,
+  ) {
     if (weightKg >= conditions.minWeightKg) {
       return ConditionResult(
         conditionName: '체중',
@@ -357,12 +377,14 @@ class DonationEligibility {
       );
     }
 
-    if (weightKg >= conditions.consultWeightMinKg && weightKg <= conditions.consultWeightMaxKg) {
+    if (weightKg >= conditions.consultWeightMinKg &&
+        weightKg <= conditions.consultWeightMaxKg) {
       return ConditionResult(
         conditionName: '체중',
         description: '${conditions.minWeightKg}kg 이상',
         status: EligibilityStatus.needsConsultation,
-        message: '현재 ${weightKg}kg (${conditions.consultWeightMinKg}~${conditions.consultWeightMaxKg}kg은 병원 협의 필요)',
+        message:
+            '현재 ${weightKg}kg (${conditions.consultWeightMinKg}~${conditions.consultWeightMaxKg}kg은 병원 협의 필요)',
       );
     }
 
@@ -375,8 +397,12 @@ class DonationEligibility {
   }
 
   /// 고양이 나이 검증
-  static ConditionResult _checkCatAge(int ageYears, CatEligibilityConditions conditions) {
-    if (ageYears >= conditions.minAgeYears && ageYears <= conditions.maxAgeYears) {
+  static ConditionResult _checkCatAge(
+    int ageYears,
+    CatEligibilityConditions conditions,
+  ) {
+    if (ageYears >= conditions.minAgeYears &&
+        ageYears <= conditions.maxAgeYears) {
       return ConditionResult(
         conditionName: '나이',
         description: '${conditions.minAgeYears}세 ~ ${conditions.maxAgeYears}세',
@@ -389,12 +415,16 @@ class DonationEligibility {
       conditionName: '나이',
       description: '${conditions.minAgeYears}세 ~ ${conditions.maxAgeYears}세',
       status: EligibilityStatus.ineligible,
-      message: '현재 $ageYears세 (${ageYears < conditions.minAgeYears ? "너무 어림" : "너무 많음"})',
+      message:
+          '현재 $ageYears세 (${ageYears < conditions.minAgeYears ? "너무 어림" : "너무 많음"})',
     );
   }
 
   /// 고양이 체중 검증
-  static ConditionResult _checkCatWeight(double weightKg, CatEligibilityConditions conditions) {
+  static ConditionResult _checkCatWeight(
+    double weightKg,
+    CatEligibilityConditions conditions,
+  ) {
     if (weightKg >= conditions.minWeightKg) {
       return ConditionResult(
         conditionName: '체중',
@@ -587,7 +617,8 @@ class DonationEligibility {
       );
     }
 
-    final monthsSinceNeutered = DateTime.now().difference(neuteredDate).inDays ~/ 30;
+    final monthsSinceNeutered =
+        DateTime.now().difference(neuteredDate).inDays ~/ 30;
     if (monthsSinceNeutered >= requiredMonths) {
       return ConditionResult(
         conditionName: '중성화 수술',
@@ -601,7 +632,8 @@ class DonationEligibility {
       conditionName: '중성화 수술',
       description: '중성화 수술 $requiredMonths개월 이후',
       status: EligibilityStatus.ineligible,
-      message: '수술 후 $monthsSinceNeutered개월 경과 (${requiredMonths - monthsSinceNeutered}개월 후 가능)',
+      message:
+          '수술 후 $monthsSinceNeutered개월 경과 (${requiredMonths - monthsSinceNeutered}개월 후 가능)',
     );
   }
 

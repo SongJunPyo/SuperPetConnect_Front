@@ -75,11 +75,13 @@ class _UnifiedNotificationPageState extends State<UnifiedNotificationPage> {
   /// 전체 선택/해제
   void _toggleSelectAll(NotificationProvider provider) {
     setState(() {
-      if (_selectedIds.length == provider.notifications.length) {
+      // 리스트 변경 중에도 안전하게 처리하기 위해 스냅샷 사용
+      final notificationSnapshot = provider.notifications.toList();
+      if (_selectedIds.length == notificationSnapshot.length) {
         _selectedIds.clear();
       } else {
         _selectedIds.clear();
-        for (final notification in provider.notifications) {
+        for (final notification in notificationSnapshot) {
           _selectedIds.add(notification.notificationId);
         }
       }
@@ -101,9 +103,9 @@ class _UnifiedNotificationPageState extends State<UnifiedNotificationPage> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(success
-                ? '${_selectedIds.length}개의 알림이 삭제되었습니다'
-                : '삭제에 실패했습니다'),
+            content: Text(
+              success ? '${_selectedIds.length}개의 알림이 삭제되었습니다' : '삭제에 실패했습니다',
+            ),
             behavior: SnackBarBehavior.floating,
           ),
         );
@@ -126,29 +128,27 @@ class _UnifiedNotificationPageState extends State<UnifiedNotificationPage> {
   Future<bool> _showDeleteConfirmDialog(int count) async {
     return await showDialog<bool>(
           context: context,
-          builder: (context) => AlertDialog(
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(16),
-            ),
-            title: const Text('알림 삭제'),
-            content: Text('선택한 $count개의 알림을 삭제하시겠습니까?'),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context, false),
-                child: Text(
-                  '취소',
-                  style: TextStyle(color: AppTheme.textSecondary),
+          builder:
+              (context) => AlertDialog(
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
                 ),
+                title: const Text('알림 삭제'),
+                content: Text('선택한 $count개의 알림을 삭제하시겠습니까?'),
+                actions: [
+                  TextButton(
+                    onPressed: () => Navigator.pop(context, false),
+                    child: Text(
+                      '취소',
+                      style: TextStyle(color: AppTheme.textSecondary),
+                    ),
+                  ),
+                  TextButton(
+                    onPressed: () => Navigator.pop(context, true),
+                    child: Text('삭제', style: TextStyle(color: AppTheme.error)),
+                  ),
+                ],
               ),
-              TextButton(
-                onPressed: () => Navigator.pop(context, true),
-                child: Text(
-                  '삭제',
-                  style: TextStyle(color: AppTheme.error),
-                ),
-              ),
-            ],
-          ),
         ) ??
         false;
   }
@@ -185,18 +185,18 @@ class _UnifiedNotificationPageState extends State<UnifiedNotificationPage> {
 
         return Scaffold(
           backgroundColor: Colors.white,
-          appBar: _isSelectionMode
-              ? _buildSelectionAppBar(provider)
-              : _buildAppBar(provider),
+          appBar:
+              _isSelectionMode
+                  ? _buildSelectionAppBar(provider)
+                  : _buildAppBar(provider),
           body: RefreshIndicator(
             onRefresh: () => provider.refresh(),
             color: AppTheme.primaryBlue,
             child: _buildBody(provider),
           ),
           // 선택 모드일 때 하단 액션 바
-          bottomNavigationBar: _isSelectionMode
-              ? _buildSelectionBottomBar(provider)
-              : null,
+          bottomNavigationBar:
+              _isSelectionMode ? _buildSelectionBottomBar(provider) : null,
         );
       },
     );
@@ -204,7 +204,8 @@ class _UnifiedNotificationPageState extends State<UnifiedNotificationPage> {
 
   /// 선택 모드 AppBar
   PreferredSizeWidget _buildSelectionAppBar(NotificationProvider provider) {
-    final allSelected = provider.notifications.isNotEmpty &&
+    final allSelected =
+        provider.notifications.isNotEmpty &&
         _selectedIds.length == provider.notifications.length;
 
     return AppBar(
@@ -270,24 +271,27 @@ class _UnifiedNotificationPageState extends State<UnifiedNotificationPage> {
               ),
               // 삭제 버튼
               ElevatedButton.icon(
-                onPressed: _selectedIds.isEmpty || _isDeleting
-                    ? null
-                    : () => _deleteSelected(provider),
-                icon: _isDeleting
-                    ? const SizedBox(
-                        width: 18,
-                        height: 18,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          color: Colors.white,
-                        ),
-                      )
-                    : const Icon(Icons.delete_outline, size: 20),
+                onPressed:
+                    _selectedIds.isEmpty || _isDeleting
+                        ? null
+                        : () => _deleteSelected(provider),
+                icon:
+                    _isDeleting
+                        ? const SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Colors.white,
+                          ),
+                        )
+                        : const Icon(Icons.delete_outline, size: 20),
                 label: Text(_isDeleting ? '삭제 중...' : '삭제'),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: _selectedIds.isEmpty
-                      ? AppTheme.lightGray
-                      : AppTheme.error,
+                  backgroundColor:
+                      _selectedIds.isEmpty
+                          ? AppTheme.lightGray
+                          : AppTheme.error,
                   foregroundColor: Colors.white,
                   padding: const EdgeInsets.symmetric(
                     horizontal: 20,
@@ -375,7 +379,9 @@ class _UnifiedNotificationPageState extends State<UnifiedNotificationPage> {
             const SizedBox(height: 16),
             Text(
               '알림을 불러오는 중...',
-              style: AppTheme.bodyMediumStyle.copyWith(color: AppTheme.textSecondary),
+              style: AppTheme.bodyMediumStyle.copyWith(
+                color: AppTheme.textSecondary,
+              ),
             ),
           ],
         ),
@@ -398,15 +404,17 @@ class _UnifiedNotificationPageState extends State<UnifiedNotificationPage> {
       physics: const AlwaysScrollableScrollPhysics(),
       padding: const EdgeInsets.symmetric(vertical: 8),
       itemCount: provider.notifications.length + (provider.hasMore ? 1 : 0),
-      separatorBuilder: (context, index) => Divider(
-        height: 1,
-        thickness: 1,
-        color: AppTheme.lightGray.withValues(alpha: 0.3),
-        indent: 16,
-        endIndent: 16,
-      ),
+      separatorBuilder:
+          (context, index) => Divider(
+            height: 1,
+            thickness: 1,
+            color: AppTheme.lightGray.withValues(alpha: 0.3),
+            indent: 16,
+            endIndent: 16,
+          ),
       itemBuilder: (context, index) {
-        if (index == provider.notifications.length) {
+        // 범위 에러 방지: 인덱스가 리스트 크기를 초과하면 로딩 표시
+        if (index >= provider.notifications.length) {
           return _buildLoadingMore();
         }
         return _buildNotificationItem(provider.notifications[index], provider);
@@ -432,7 +440,9 @@ class _UnifiedNotificationPageState extends State<UnifiedNotificationPage> {
           const SizedBox(height: 8),
           Text(
             '새로운 알림이 오면 여기에 표시됩니다',
-            style: AppTheme.bodySmallStyle.copyWith(color: AppTheme.textTertiary),
+            style: AppTheme.bodySmallStyle.copyWith(
+              color: AppTheme.textTertiary,
+            ),
           ),
         ],
       ),
@@ -450,7 +460,9 @@ class _UnifiedNotificationPageState extends State<UnifiedNotificationPage> {
             const SizedBox(height: 16),
             Text(
               message,
-              style: AppTheme.bodyMediumStyle.copyWith(color: AppTheme.textSecondary),
+              style: AppTheme.bodyMediumStyle.copyWith(
+                color: AppTheme.textSecondary,
+              ),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 24),
@@ -459,7 +471,10 @@ class _UnifiedNotificationPageState extends State<UnifiedNotificationPage> {
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppTheme.primaryBlue,
                 foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 24,
+                  vertical: 12,
+                ),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(8),
                 ),
@@ -488,7 +503,10 @@ class _UnifiedNotificationPageState extends State<UnifiedNotificationPage> {
     );
   }
 
-  Widget _buildNotificationItem(NotificationModel notification, NotificationProvider provider) {
+  Widget _buildNotificationItem(
+    NotificationModel notification,
+    NotificationProvider provider,
+  ) {
     final isRead = notification.isRead;
     final timeAgo = _getTimeAgo(notification.createdAt);
     final isSelected = _selectedIds.contains(notification.notificationId);
@@ -510,15 +528,16 @@ class _UnifiedNotificationPageState extends State<UnifiedNotificationPage> {
       },
       child: Container(
         decoration: BoxDecoration(
-          color: isSelected
-              ? AppTheme.primaryBlue.withValues(alpha: 0.15)
-              : (isRead ? Colors.white : const Color(0xFFE8F3FF)),
-          border: isRead ? null : const Border(
-            left: BorderSide(
-              color: Color(0xFF3182F6),
-              width: 4,
-            ),
-          ),
+          color:
+              isSelected
+                  ? AppTheme.primaryBlue.withValues(alpha: 0.15)
+                  : (isRead ? Colors.white : const Color(0xFFE8F3FF)),
+          border:
+              isRead
+                  ? null
+                  : const Border(
+                    left: BorderSide(color: Color(0xFF3182F6), width: 4),
+                  ),
         ),
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         child: Row(
@@ -533,20 +552,25 @@ class _UnifiedNotificationPageState extends State<UnifiedNotificationPage> {
                   height: 24,
                   margin: const EdgeInsets.only(right: 12),
                   decoration: BoxDecoration(
-                    color: isSelected ? AppTheme.primaryBlue : Colors.transparent,
+                    color:
+                        isSelected ? AppTheme.primaryBlue : Colors.transparent,
                     borderRadius: BorderRadius.circular(4),
                     border: Border.all(
-                      color: isSelected ? AppTheme.primaryBlue : AppTheme.mediumGray,
+                      color:
+                          isSelected
+                              ? AppTheme.primaryBlue
+                              : AppTheme.mediumGray,
                       width: 2,
                     ),
                   ),
-                  child: isSelected
-                      ? const Icon(
-                          Icons.check,
-                          color: Colors.white,
-                          size: 16,
-                        )
-                      : null,
+                  child:
+                      isSelected
+                          ? const Icon(
+                            Icons.check,
+                            color: Colors.white,
+                            size: 16,
+                          )
+                          : null,
                 ),
               ),
             // 아이콘 (동그란 원 배경)
@@ -555,7 +579,9 @@ class _UnifiedNotificationPageState extends State<UnifiedNotificationPage> {
               height: 44,
               margin: const EdgeInsets.only(right: 12),
               decoration: BoxDecoration(
-                color: _getIconBackgroundColor(notification).withValues(alpha: 0.15),
+                color: _getIconBackgroundColor(
+                  notification,
+                ).withValues(alpha: 0.15),
                 shape: BoxShape.circle,
               ),
               child: Center(
@@ -576,7 +602,10 @@ class _UnifiedNotificationPageState extends State<UnifiedNotificationPage> {
                     notification.title,
                     style: AppTheme.bodyMediumStyle.copyWith(
                       fontWeight: isRead ? FontWeight.w400 : FontWeight.bold,
-                      color: isRead ? AppTheme.textSecondary : AppTheme.textPrimary,
+                      color:
+                          isRead
+                              ? AppTheme.textSecondary
+                              : AppTheme.textPrimary,
                     ),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
@@ -586,7 +615,10 @@ class _UnifiedNotificationPageState extends State<UnifiedNotificationPage> {
                   Text(
                     notification.content,
                     style: AppTheme.bodySmallStyle.copyWith(
-                      color: isRead ? AppTheme.textTertiary : AppTheme.textSecondary,
+                      color:
+                          isRead
+                              ? AppTheme.textTertiary
+                              : AppTheme.textSecondary,
                     ),
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
@@ -626,12 +658,9 @@ class _UnifiedNotificationPageState extends State<UnifiedNotificationPage> {
             ),
             // 선택 모드가 아니고, 사용자가 아닌 경우에만 화살표 표시
             if (!_isSelectionMode &&
-                context.read<NotificationProvider>().currentUserType != UserType.user)
-              Icon(
-                Icons.chevron_right,
-                color: AppTheme.lightGray,
-                size: 20,
-              ),
+                context.read<NotificationProvider>().currentUserType !=
+                    UserType.user)
+              Icon(Icons.chevron_right, color: AppTheme.lightGray, size: 20),
           ],
         ),
       ),
@@ -724,7 +753,10 @@ class _UnifiedNotificationPageState extends State<UnifiedNotificationPage> {
     }
   }
 
-  void _onNotificationTap(NotificationModel notification, NotificationProvider provider) {
+  void _onNotificationTap(
+    NotificationModel notification,
+    NotificationProvider provider,
+  ) {
     // 사용자는 알림 확인만 (읽음 처리), 관리자/병원은 해당 페이지로 이동
     if (provider.currentUserType != UserType.user) {
       _navigateToRelevantPage(notification, provider.currentUserType!);
@@ -736,7 +768,10 @@ class _UnifiedNotificationPageState extends State<UnifiedNotificationPage> {
     }
   }
 
-  void _navigateToRelevantPage(NotificationModel notification, UserType userType) {
+  void _navigateToRelevantPage(
+    NotificationModel notification,
+    UserType userType,
+  ) {
     switch (userType) {
       case UserType.admin:
         _handleAdminNotificationTap(notification);
@@ -756,7 +791,9 @@ class _UnifiedNotificationPageState extends State<UnifiedNotificationPage> {
         case AdminNotificationType.signupRequest:
           Navigator.push(
             context,
-            MaterialPageRoute(builder: (context) => const AdminSignupManagement()),
+            MaterialPageRoute(
+              builder: (context) => const AdminSignupManagement(),
+            ),
           );
           break;
         case AdminNotificationType.postApprovalRequest:
@@ -771,7 +808,9 @@ class _UnifiedNotificationPageState extends State<UnifiedNotificationPage> {
         case AdminNotificationType.columnApprovalRequest:
           Navigator.push(
             context,
-            MaterialPageRoute(builder: (context) => const AdminColumnManagement()),
+            MaterialPageRoute(
+              builder: (context) => const AdminColumnManagement(),
+            ),
           );
           break;
         case AdminNotificationType.systemNotice:
@@ -801,7 +840,9 @@ class _UnifiedNotificationPageState extends State<UnifiedNotificationPage> {
         case HospitalNotificationType.columnRejected:
           Navigator.push(
             context,
-            MaterialPageRoute(builder: (context) => const HospitalColumnManagementScreen()),
+            MaterialPageRoute(
+              builder: (context) => const HospitalColumnManagementScreen(),
+            ),
           );
           break;
         case HospitalNotificationType.systemNotice:
@@ -843,10 +884,11 @@ class _UnifiedNotificationPageState extends State<UnifiedNotificationPage> {
           Navigator.push(
             context,
             MaterialPageRoute(
-              builder: (context) => UserDonationPostsListScreen(
-                initialPost: post,
-                autoShowBottomSheet: true,
-              ),
+              builder:
+                  (context) => UserDonationPostsListScreen(
+                    initialPost: post,
+                    autoShowBottomSheet: true,
+                  ),
             ),
           );
           return;
@@ -870,9 +912,10 @@ class _UnifiedNotificationPageState extends State<UnifiedNotificationPage> {
     if (relatedData == null) return null;
 
     // 다양한 키 이름으로 post_id 추출 시도
-    final postIdValue = relatedData['post_id'] ??
-                        relatedData['postId'] ??
-                        relatedData['post_idx'];
+    final postIdValue =
+        relatedData['post_id'] ??
+        relatedData['postId'] ??
+        relatedData['post_idx'];
 
     if (postIdValue == null) return null;
 
@@ -882,7 +925,10 @@ class _UnifiedNotificationPageState extends State<UnifiedNotificationPage> {
     return null;
   }
 
-  IconData _getNotificationIconData(NotificationModel notification, NotificationProvider provider) {
+  IconData _getNotificationIconData(
+    NotificationModel notification,
+    NotificationProvider provider,
+  ) {
     switch (provider.currentUserType!) {
       case UserType.admin:
         if (notification is AdminNotificationModel) {
@@ -960,7 +1006,10 @@ class _UnifiedNotificationPageState extends State<UnifiedNotificationPage> {
     }
   }
 
-  String _getNotificationTypeName(NotificationModel notification, NotificationProvider provider) {
+  String _getNotificationTypeName(
+    NotificationModel notification,
+    NotificationProvider provider,
+  ) {
     switch (provider.currentUserType!) {
       case UserType.admin:
         if (notification is AdminNotificationModel) {

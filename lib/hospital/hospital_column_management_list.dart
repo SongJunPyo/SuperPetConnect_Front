@@ -1,10 +1,10 @@
 // ignore_for_file: use_build_context_synchronously
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../services/hospital_column_service.dart';
+import '../utils/preferences_manager.dart';
 import '../models/hospital_column_model.dart';
 import '../utils/app_theme.dart';
 import '../widgets/app_app_bar.dart';
@@ -182,13 +182,11 @@ class _HospitalColumnManagementScreenState
 
   Future<void> _increaseViewCountIfNeeded(int columnIdx) async {
     try {
-      final prefs = await SharedPreferences.getInstance();
-      final viewKey = 'hospital_column_viewed_$columnIdx';
-      final hasViewed = prefs.getBool(viewKey) ?? false;
+      final hasViewed = await PreferencesManager.isHospitalColumnViewed(columnIdx);
 
       if (!hasViewed) {
         await HospitalColumnService.increaseViewCount(columnIdx);
-        await prefs.setBool(viewKey, true);
+        await PreferencesManager.setHospitalColumnViewed(columnIdx);
       }
     } catch (_) {
       // 조회수 증가 실패는 무시
@@ -384,19 +382,21 @@ class _HospitalColumnManagementScreenState
                       Expanded(
                         child: SingleChildScrollView(
                           controller: scrollController,
-                          child: detailColumn.contentDelta != null && detailColumn.contentDelta!.isNotEmpty
-                              ? RichTextViewer(
-                                  contentDelta: detailColumn.contentDelta,
-                                  plainText: detailColumn.content,
-                                  padding: EdgeInsets.zero,
-                                )
-                              : Text(
-                                  detailColumn.content,
-                                  style: AppTheme.bodyMediumStyle.copyWith(
-                                    height: 1.6,
-                                    color: AppTheme.textPrimary,
+                          child:
+                              detailColumn.contentDelta != null &&
+                                      detailColumn.contentDelta!.isNotEmpty
+                                  ? RichTextViewer(
+                                    contentDelta: detailColumn.contentDelta,
+                                    plainText: detailColumn.content,
+                                    padding: EdgeInsets.zero,
+                                  )
+                                  : Text(
+                                    detailColumn.content,
+                                    style: AppTheme.bodyMediumStyle.copyWith(
+                                      height: 1.6,
+                                      color: AppTheme.textPrimary,
+                                    ),
                                   ),
-                                ),
                         ),
                       ),
                       const SizedBox(height: 16),

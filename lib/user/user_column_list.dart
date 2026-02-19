@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../utils/app_theme.dart';
 import '../services/dashboard_service.dart';
+import '../models/column_post_model.dart';
 import 'package:intl/intl.dart';
 import '../widgets/marquee_text.dart';
 import '../widgets/rich_text_viewer.dart';
@@ -138,19 +139,21 @@ class _UserColumnListScreenState extends State<UserColumnListScreen> {
                   Expanded(
                     child: SingleChildScrollView(
                       controller: scrollController,
-                      child: column.contentDelta != null && column.contentDelta!.isNotEmpty
-                          ? RichTextViewer(
-                              contentDelta: column.contentDelta,
-                              plainText: column.contentPreview,
-                              padding: EdgeInsets.zero,
-                            )
-                          : Text(
-                              column.contentPreview,
-                              style: AppTheme.bodyMediumStyle.copyWith(
-                                height: 1.6,
-                                color: AppTheme.textPrimary,
+                      child:
+                          column.contentDelta != null &&
+                                  column.contentDelta!.isNotEmpty
+                              ? RichTextViewer(
+                                contentDelta: column.contentDelta,
+                                plainText: column.contentPreview,
+                                padding: EdgeInsets.zero,
+                              )
+                              : Text(
+                                column.contentPreview,
+                                style: AppTheme.bodyMediumStyle.copyWith(
+                                  height: 1.6,
+                                  color: AppTheme.textPrimary,
+                                ),
                               ),
-                            ),
                     ),
                   ),
                   const SizedBox(height: 16),
@@ -166,7 +169,9 @@ class _UserColumnListScreenState extends State<UserColumnListScreen> {
                               uri,
                               mode: LaunchMode.externalApplication,
                             );
-                          } else if (mounted) {
+                          } else {
+                            if (!mounted) return;
+                            // ignore: use_build_context_synchronously
                             ScaffoldMessenger.of(context).showSnackBar(
                               const SnackBar(
                                 content: Text('링크를 열 수 없습니다.'),
@@ -291,9 +296,10 @@ class _UserColumnListScreenState extends State<UserColumnListScreen> {
         _isLoadingMore = false;
         _isEndOfList = pagination.isEnd;
         _hasNextPage = pagination.hasNext;
-        _currentPage = pagination.hasNext
-            ? pagination.currentPage + 1
-            : pagination.currentPage;
+        _currentPage =
+            pagination.hasNext
+                ? pagination.currentPage + 1
+                : pagination.currentPage;
       });
     } catch (e) {
       if (!mounted) return;
@@ -563,7 +569,8 @@ class _UserColumnListScreenState extends State<UserColumnListScreen> {
 
     final bool showLoadingTile = _isLoadingMore;
     final bool showEndTile = !_isLoadingMore && _isEndOfList;
-    final int itemCount = columns.length + (showLoadingTile ? 1 : 0) + (showEndTile ? 1 : 0);
+    final int itemCount =
+        columns.length + (showLoadingTile ? 1 : 0) + (showEndTile ? 1 : 0);
 
     return Container(
       decoration: BoxDecoration(
@@ -845,16 +852,20 @@ class _UserColumnListScreenState extends State<UserColumnListScreen> {
       });
     }
 
-    final sorted = filtered.toList()
-      ..sort((a, b) {
-        final aImportant =
-            a.title.contains('[중요]') || a.title.contains('[공지]') || a.isImportant;
-        final bImportant =
-            b.title.contains('[중요]') || b.title.contains('[공지]') || b.isImportant;
-        if (aImportant && !bImportant) return -1;
-        if (!aImportant && bImportant) return 1;
-        return b.createdAt.compareTo(a.createdAt);
-      });
+    final sorted =
+        filtered.toList()..sort((a, b) {
+          final aImportant =
+              a.title.contains('[중요]') ||
+              a.title.contains('[공지]') ||
+              a.isImportant;
+          final bImportant =
+              b.title.contains('[중요]') ||
+              b.title.contains('[공지]') ||
+              b.isImportant;
+          if (aImportant && !bImportant) return -1;
+          if (!aImportant && bImportant) return 1;
+          return b.createdAt.compareTo(a.createdAt);
+        });
 
     return sorted;
   }

@@ -2,10 +2,10 @@ import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:http/http.dart' as http;
 import '../models/notification_model.dart';
 import '../utils/config.dart';
+import '../utils/preferences_manager.dart';
 import 'notification_converter.dart';
 
 /// FCM 전용 핸들러 (모바일 환경)
@@ -26,7 +26,8 @@ class FCMHandler {
   RemoteMessage? _initialMessage;
 
   /// 새 알림 스트림
-  Stream<NotificationModel> get notificationStream => _notificationController.stream;
+  Stream<NotificationModel> get notificationStream =>
+      _notificationController.stream;
 
   /// 초기 메시지 (앱이 종료된 상태에서 알림으로 열린 경우)
   RemoteMessage? get initialMessage => _initialMessage;
@@ -76,8 +77,7 @@ class FCMHandler {
   /// FCM 토큰 서버 전송
   Future<void> _sendTokenToServer(String token) async {
     try {
-      final prefs = await SharedPreferences.getInstance();
-      final authToken = prefs.getString('auth_token') ?? '';
+      final authToken = (await PreferencesManager.getAuthToken()) ?? '';
 
       if (authToken.isEmpty) {
         debugPrint('[FCMHandler] 인증 토큰 없음, 토큰 전송 스킵');
@@ -135,7 +135,9 @@ class FCMHandler {
     // navigation 데이터 파싱
     if (message.data.containsKey('navigation')) {
       try {
-        parsedData['navigation'] = jsonDecode(message.data['navigation'] ?? '{}');
+        parsedData['navigation'] = jsonDecode(
+          message.data['navigation'] ?? '{}',
+        );
       } catch (e) {
         debugPrint('[FCMHandler] navigation 파싱 실패: $e');
       }

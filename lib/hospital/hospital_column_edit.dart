@@ -18,7 +18,8 @@ class _HospitalColumnEditState extends State<HospitalColumnEdit> {
   final _formKey = GlobalKey<FormState>();
   late TextEditingController _titleController;
   late TextEditingController _urlController;
-  final GlobalKey<RichTextEditorState> _editorKey = GlobalKey<RichTextEditorState>();
+  final GlobalKey<RichTextEditorState> _editorKey =
+      GlobalKey<RichTextEditorState>();
   bool _isLoading = false;
 
   @override
@@ -45,15 +46,15 @@ class _HospitalColumnEditState extends State<HospitalColumnEdit> {
 
     // 내용 검증
     if (plainText.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('내용을 입력해주세요.')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('내용을 입력해주세요.')));
       return;
     }
     if (plainText.length < 10) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('내용은 10글자 이상 입력해주세요.')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('내용은 10글자 이상 입력해주세요.')));
       return;
     }
 
@@ -157,7 +158,10 @@ class _HospitalColumnEditState extends State<HospitalColumnEdit> {
                     editorType: EditorType.column,
                     columnIdx: widget.column.columnIdx,
                     initialContentDelta: widget.column.contentDelta,
-                    initialText: widget.column.contentDelta == null ? widget.column.content : null,
+                    initialText:
+                        widget.column.contentDelta == null
+                            ? widget.column.content
+                            : null,
                     placeholder: '칼럼 내용을 입력하세요.',
                   ),
                 ),

@@ -1,8 +1,8 @@
 // 알림 타입 및 관련 상수 정의
 enum UserType {
-  admin,    // 관리자 (account_type = 1)
+  admin, // 관리자 (account_type = 1)
   hospital, // 병원 (account_type = 2)
-  user,     // 일반 사용자 (account_type = 3)
+  user, // 일반 사용자 (account_type = 3)
 }
 
 // DB의 account_type과 UserType 매핑
@@ -12,17 +12,17 @@ class UserTypeMapper {
     2: UserType.hospital,
     3: UserType.user,
   };
-  
+
   static const Map<UserType, int> toAccountType = {
     UserType.admin: 1,
     UserType.hospital: 2,
     UserType.user: 3,
   };
-  
+
   static UserType? fromDbType(int accountType) {
     return fromAccountType[accountType];
   }
-  
+
   static int toDbType(UserType userType) {
     return toAccountType[userType] ?? 3;
   }
@@ -30,35 +30,35 @@ class UserTypeMapper {
 
 // 관리자 알림 타입
 enum AdminNotificationType {
-  signupRequest,      // 회원가입 승인 요청
+  signupRequest, // 회원가입 승인 요청
   postApprovalRequest, // 헌혈 게시글 승인 요청
   donationApplicationRequest, // 헌혈 신청 승인 요청
   columnApprovalRequest, // 칼럼 게시글 승인 요청
-  donationCompleted,  // 헌혈 완료 보고
-  systemNotice,       // 시스템 공지 알림
+  donationCompleted, // 헌혈 완료 보고
+  systemNotice, // 시스템 공지 알림
 }
 
 // 병원 알림 타입
 enum HospitalNotificationType {
-  postApproved,       // 헌혈 게시글 승인
-  postRejected,       // 헌혈 게시글 거절
+  postApproved, // 헌혈 게시글 승인
+  postRejected, // 헌혈 게시글 거절
   recruitmentDeadline, // 모집 마감
-  timeslotFilled,     // 특정 시간대 모집 완료
+  timeslotFilled, // 특정 시간대 모집 완료
   allTimeslotsFilled, // 모든 시간대 모집 완료
   donationApplication, // 새 헌혈 신청 접수
-  donationCompleted,  // 헌혈 완료 알림
-  columnApproved,     // 칼럼 게시글 승인
-  columnRejected,     // 칼럼 게시글 거절
-  systemNotice,       // 시스템 공지
+  donationCompleted, // 헌혈 완료 알림
+  columnApproved, // 칼럼 게시글 승인
+  columnRejected, // 칼럼 게시글 거절
+  systemNotice, // 시스템 공지
 }
 
 // 사용자 알림 타입
 enum UserNotificationType {
-  systemNotice,         // 시스템 공지 (기본)
-  recruitmentClosed,    // 모집 마감 알림
-  donationCompleted,    // 헌혈 완료 알림
-  applicationApproved,  // 헌혈 신청 승인
-  applicationRejected,  // 헌혈 신청 거절
+  systemNotice, // 시스템 공지 (기본)
+  recruitmentClosed, // 모집 마감 알림
+  donationCompleted, // 헌혈 완료 알림
+  applicationApproved, // 헌혈 신청 승인
+  applicationRejected, // 헌혈 신청 거절
 }
 
 // 알림 타입 한국어 이름 매핑
@@ -139,7 +139,7 @@ class NotificationPriority {
   static const int normal = 2;
   static const int high = 3;
   static const int urgent = 4;
-  
+
   // 관리자 알림 우선순위
   static const Map<AdminNotificationType, int> adminPriorities = {
     AdminNotificationType.signupRequest: normal,
@@ -208,7 +208,7 @@ class NotificationTypeIds {
     UserNotificationType.applicationApproved: 304,
     UserNotificationType.applicationRejected: 305,
   };
-  
+
   // ID에서 타입으로 역매핑
   static AdminNotificationType? getAdminTypeById(int id) {
     return adminIds.entries
@@ -216,14 +216,14 @@ class NotificationTypeIds {
         .map((entry) => entry.key)
         .firstOrNull;
   }
-  
+
   static HospitalNotificationType? getHospitalTypeById(int id) {
     return hospitalIds.entries
         .where((entry) => entry.value == id)
         .map((entry) => entry.key)
         .firstOrNull;
   }
-  
+
   static UserNotificationType? getUserTypeById(int id) {
     return userIds.entries
         .where((entry) => entry.value == id)

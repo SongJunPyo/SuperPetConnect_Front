@@ -35,26 +35,21 @@ class AppButton extends StatelessWidget {
     Widget button = ElevatedButton(
       onPressed: isEnabled ? onPressed : null,
       style: _getButtonStyle(isEnabled),
-      child: isLoading
-          ? SizedBox(
-              width: 20,
-              height: 20,
-              child: CircularProgressIndicator(
-                strokeWidth: 2,
-                valueColor: AlwaysStoppedAnimation<Color>(
-                  _getLoadingColor(),
+      child:
+          isLoading
+              ? SizedBox(
+                width: 20,
+                height: 20,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  valueColor: AlwaysStoppedAnimation<Color>(_getLoadingColor()),
                 ),
-              ),
-            )
-          : _buildButtonContent(),
+              )
+              : _buildButtonContent(),
     );
 
     if (width != null) {
-      return SizedBox(
-        width: width,
-        height: _getHeight(),
-        child: button,
-      );
+      return SizedBox(width: width, height: _getHeight(), child: button);
     }
 
     return SizedBox(

@@ -3,6 +3,7 @@ import 'package:intl/intl.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../services/dashboard_service.dart';
+import '../models/column_post_model.dart';
 import '../utils/app_theme.dart';
 import '../utils/number_format_util.dart';
 import '../widgets/app_app_bar.dart';
@@ -133,9 +134,10 @@ class _HospitalColumnListState extends State<HospitalColumnList> {
                           column.title,
                           style: AppTheme.h3Style.copyWith(
                             fontWeight: FontWeight.bold,
-                            color: column.isImportant
-                                ? AppTheme.error
-                                : AppTheme.textPrimary,
+                            color:
+                                column.isImportant
+                                    ? AppTheme.error
+                                    : AppTheme.textPrimary,
                           ),
                         ),
                       ),
@@ -154,9 +156,10 @@ class _HospitalColumnListState extends State<HospitalColumnList> {
                           vertical: 4,
                         ),
                         decoration: BoxDecoration(
-                          color: column.isImportant
-                              ? AppTheme.error
-                              : AppTheme.warning,
+                          color:
+                              column.isImportant
+                                  ? AppTheme.error
+                                  : AppTheme.warning,
                           borderRadius: BorderRadius.circular(6),
                         ),
                         child: Text(
@@ -194,23 +197,26 @@ class _HospitalColumnListState extends State<HospitalColumnList> {
                   Expanded(
                     child: SingleChildScrollView(
                       controller: scrollController,
-                      child: column.contentDelta != null && column.contentDelta!.isNotEmpty
-                          ? RichTextViewer(
-                              contentDelta: column.contentDelta,
-                              plainText: column.contentPreview,
-                              padding: EdgeInsets.zero,
-                            )
-                          : Text(
-                              column.contentPreview,
-                              style: AppTheme.bodyMediumStyle.copyWith(
-                                height: 1.6,
-                                color: AppTheme.textPrimary,
+                      child:
+                          column.contentDelta != null &&
+                                  column.contentDelta!.isNotEmpty
+                              ? RichTextViewer(
+                                contentDelta: column.contentDelta,
+                                plainText: column.contentPreview,
+                                padding: EdgeInsets.zero,
+                              )
+                              : Text(
+                                column.contentPreview,
+                                style: AppTheme.bodyMediumStyle.copyWith(
+                                  height: 1.6,
+                                  color: AppTheme.textPrimary,
+                                ),
                               ),
-                            ),
                     ),
                   ),
                   const SizedBox(height: 16),
-                  if (column.columnUrl != null && column.columnUrl!.isNotEmpty) ...[
+                  if (column.columnUrl != null &&
+                      column.columnUrl!.isNotEmpty) ...[
                     SizedBox(
                       width: double.infinity,
                       child: ElevatedButton.icon(
@@ -221,7 +227,9 @@ class _HospitalColumnListState extends State<HospitalColumnList> {
                               uri,
                               mode: LaunchMode.externalApplication,
                             );
-                          } else if (mounted) {
+                          } else {
+                            if (!mounted) return;
+                            // ignore: use_build_context_synchronously
                             ScaffoldMessenger.of(context).showSnackBar(
                               const SnackBar(
                                 content: Text('링크를 열 수 없습니다.'),
@@ -269,7 +277,9 @@ class _HospitalColumnListState extends State<HospitalColumnList> {
                           ),
                         ),
                         const Spacer(),
-                        if (!column.updatedAt.isAtSameMomentAs(column.createdAt))
+                        if (!column.updatedAt.isAtSameMomentAs(
+                          column.createdAt,
+                        ))
                           Text(
                             '수정: ${DateFormat('yyyy-MM-dd HH:mm').format(column.updatedAt)}',
                             style: AppTheme.bodySmallStyle.copyWith(
@@ -357,9 +367,7 @@ class _HospitalColumnListState extends State<HospitalColumnList> {
                   ),
                   const SizedBox(height: 16),
                   Text(
-                    searchQuery.isNotEmpty
-                        ? '검색 결과가 없습니다'
-                        : '공개된 칼럼이 없습니다',
+                    searchQuery.isNotEmpty ? '검색 결과가 없습니다' : '공개된 칼럼이 없습니다',
                     style: AppTheme.h4Style,
                   ),
                   if (searchQuery.isNotEmpty) ...[
@@ -376,7 +384,8 @@ class _HospitalColumnListState extends State<HospitalColumnList> {
 
     final bool showLoadingTile = _isLoadingMore;
     final bool showEndTile = !_isLoadingMore && _isEndOfList;
-    final int itemCount = columns.length + (showLoadingTile ? 1 : 0) + (showEndTile ? 1 : 0);
+    final int itemCount =
+        columns.length + (showLoadingTile ? 1 : 0) + (showEndTile ? 1 : 0);
 
     return Container(
       decoration: BoxDecoration(
@@ -390,11 +399,12 @@ class _HospitalColumnListState extends State<HospitalColumnList> {
               controller: _scrollController,
               padding: EdgeInsets.zero,
               itemCount: itemCount,
-              separatorBuilder: (context, index) => Container(
-                height: 1,
-                color: AppTheme.lightGray.withValues(alpha: 0.2),
-                margin: const EdgeInsets.symmetric(horizontal: 16),
-              ),
+              separatorBuilder:
+                  (context, index) => Container(
+                    height: 1,
+                    color: AppTheme.lightGray.withValues(alpha: 0.2),
+                    margin: const EdgeInsets.symmetric(horizontal: 16),
+                  ),
               itemBuilder: (context, index) {
                 if (index >= columns.length) {
                   if (showLoadingTile && index == columns.length) {
@@ -471,18 +481,22 @@ class _HospitalColumnListState extends State<HospitalColumnList> {
                                     child: MarqueeText(
                                       text: column.title,
                                       style: AppTheme.bodyMediumStyle.copyWith(
-                                        color: isImportant
-                                            ? AppTheme.error
-                                            : AppTheme.textPrimary,
-                                        fontWeight: isImportant
-                                            ? FontWeight.w600
-                                            : FontWeight.w500,
+                                        color:
+                                            isImportant
+                                                ? AppTheme.error
+                                                : AppTheme.textPrimary,
+                                        fontWeight:
+                                            isImportant
+                                                ? FontWeight.w600
+                                                : FontWeight.w500,
                                         fontSize: 14,
                                       ),
-                                      animationDuration:
-                                          const Duration(milliseconds: 4000),
-                                      pauseDuration:
-                                          const Duration(milliseconds: 1000),
+                                      animationDuration: const Duration(
+                                        milliseconds: 4000,
+                                      ),
+                                      pauseDuration: const Duration(
+                                        milliseconds: 1000,
+                                      ),
                                     ),
                                   ),
                                 ],
@@ -535,11 +549,14 @@ class _HospitalColumnListState extends State<HospitalColumnList> {
                                 vertical: 4,
                               ),
                               decoration: BoxDecoration(
-                                color: AppTheme.mediumGray.withValues(alpha: 0.2),
+                                color: AppTheme.mediumGray.withValues(
+                                  alpha: 0.2,
+                                ),
                                 borderRadius: BorderRadius.circular(6),
                                 border: Border.all(
-                                  color:
-                                      AppTheme.lightGray.withValues(alpha: 0.3),
+                                  color: AppTheme.lightGray.withValues(
+                                    alpha: 0.3,
+                                  ),
                                   width: 1,
                                 ),
                               ),
@@ -631,15 +648,16 @@ class _HospitalColumnListState extends State<HospitalColumnList> {
                     ),
                     filled: true,
                     fillColor: Colors.grey.shade50,
-                    suffixIcon: searchQuery.isNotEmpty
-                        ? IconButton(
-                            icon: const Icon(Icons.clear),
-                            onPressed: () {
-                              searchController.clear();
-                              _onSearchChanged('');
-                            },
-                          )
-                        : null,
+                    suffixIcon:
+                        searchQuery.isNotEmpty
+                            ? IconButton(
+                              icon: const Icon(Icons.clear),
+                              onPressed: () {
+                                searchController.clear();
+                                _onSearchChanged('');
+                              },
+                            )
+                            : null,
                   ),
                 ),
                 if (startDate != null && endDate != null) ...[
@@ -779,9 +797,10 @@ class _HospitalColumnListState extends State<HospitalColumnList> {
         _isLoadingMore = false;
         _isEndOfList = pagination.isEnd;
         _hasNextPage = pagination.hasNext;
-        _currentPage = pagination.hasNext
-            ? pagination.currentPage + 1
-            : pagination.currentPage;
+        _currentPage =
+            pagination.hasNext
+                ? pagination.currentPage + 1
+                : pagination.currentPage;
       });
     } catch (e) {
       if (!mounted) return;
@@ -830,16 +849,20 @@ class _HospitalColumnListState extends State<HospitalColumnList> {
       });
     }
 
-    final sorted = filtered.toList()
-      ..sort((a, b) {
-        final aImportant =
-            a.title.contains('[중요]') || a.title.contains('[공지]') || a.isImportant;
-        final bImportant =
-            b.title.contains('[중요]') || b.title.contains('[공지]') || b.isImportant;
-        if (aImportant && !bImportant) return -1;
-        if (!aImportant && bImportant) return 1;
-        return b.createdAt.compareTo(a.createdAt);
-      });
+    final sorted =
+        filtered.toList()..sort((a, b) {
+          final aImportant =
+              a.title.contains('[중요]') ||
+              a.title.contains('[공지]') ||
+              a.isImportant;
+          final bImportant =
+              b.title.contains('[중요]') ||
+              b.title.contains('[공지]') ||
+              b.isImportant;
+          if (aImportant && !bImportant) return -1;
+          if (!aImportant && bImportant) return 1;
+          return b.createdAt.compareTo(a.createdAt);
+        });
 
     return sorted;
   }

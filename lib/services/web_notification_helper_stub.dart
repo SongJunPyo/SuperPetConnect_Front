@@ -17,7 +17,9 @@ class WebNotificationHelper {
     required String body,
     String? icon,
   }) {
-    debugPrint('[WebNotification-STUB] showNotification 호출됨 - 이 로그가 보이면 스텁 파일 사용 중!');
+    debugPrint(
+      '[WebNotification-STUB] showNotification 호출됨 - 이 로그가 보이면 스텁 파일 사용 중!',
+    );
     // 모바일에서는 FCM 푸시를 사용하므로 아무것도 하지 않음
   }
 

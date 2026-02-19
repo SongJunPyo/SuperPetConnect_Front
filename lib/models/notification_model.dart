@@ -12,7 +12,7 @@ class NotificationModel {
   final bool isRead;
   final int priority;
   final Map<String, dynamic>? relatedData; // 관련 추가 데이터
-  
+
   NotificationModel({
     required this.notificationId,
     required this.userId,
@@ -35,9 +35,10 @@ class NotificationModel {
       title: json['title'] ?? '',
       content: json['content'] ?? '',
       createdAt: DateTime.tryParse(json['created_at'] ?? '') ?? DateTime.now(),
-      updatedAt: json['updated_at'] != null 
-          ? DateTime.tryParse(json['updated_at']) 
-          : null,
+      updatedAt:
+          json['updated_at'] != null
+              ? DateTime.tryParse(json['updated_at'])
+              : null,
       isRead: json['is_read'] ?? false,
       priority: json['priority'] ?? NotificationPriority.normal,
       relatedData: json['related_data'],
@@ -63,7 +64,10 @@ class NotificationModel {
   // 관련 데이터에서 ID 추출 (게시글 ID, 사용자 ID 등)
   int? get relatedId {
     if (relatedData == null) return null;
-    final value = relatedData!['post_id'] ?? relatedData!['user_id'] ?? relatedData!['column_id'];
+    final value =
+        relatedData!['post_id'] ??
+        relatedData!['user_id'] ??
+        relatedData!['column_id'];
     if (value == null) return null;
     if (value is int) return value;
     if (value is String) return int.tryParse(value);
@@ -95,7 +99,7 @@ class NotificationModel {
 // 관리자 전용 알림 모델
 class AdminNotificationModel extends NotificationModel {
   final AdminNotificationType adminType;
-  
+
   AdminNotificationModel({
     required super.notificationId,
     required super.userId,
@@ -107,24 +111,26 @@ class AdminNotificationModel extends NotificationModel {
     super.isRead = false,
     super.relatedData,
   }) : super(
-    typeId: NotificationTypeIds.adminIds[adminType]!,
-    priority: NotificationPriority.adminPriorities[adminType]!,
-  );
+         typeId: NotificationTypeIds.adminIds[adminType]!,
+         priority: NotificationPriority.adminPriorities[adminType]!,
+       );
 
   factory AdminNotificationModel.fromJson(Map<String, dynamic> json) {
     final typeId = json['type_id'] ?? 0;
-    final adminType = NotificationTypeIds.getAdminTypeById(typeId) ?? 
+    final adminType =
+        NotificationTypeIds.getAdminTypeById(typeId) ??
         AdminNotificationType.systemNotice;
-    
+
     return AdminNotificationModel(
       notificationId: json['notification_id'] ?? 0,
       userId: json['user_id'] ?? 0,
       title: json['title'] ?? '',
       content: json['content'] ?? '',
       createdAt: DateTime.tryParse(json['created_at'] ?? '') ?? DateTime.now(),
-      updatedAt: json['updated_at'] != null 
-          ? DateTime.tryParse(json['updated_at']) 
-          : null,
+      updatedAt:
+          json['updated_at'] != null
+              ? DateTime.tryParse(json['updated_at'])
+              : null,
       isRead: json['is_read'] ?? false,
       adminType: adminType,
       relatedData: json['related_data'],
@@ -157,7 +163,7 @@ class AdminNotificationModel extends NotificationModel {
 // 병원 전용 알림 모델
 class HospitalNotificationModel extends NotificationModel {
   final HospitalNotificationType hospitalType;
-  
+
   HospitalNotificationModel({
     required super.notificationId,
     required super.userId,
@@ -169,24 +175,26 @@ class HospitalNotificationModel extends NotificationModel {
     super.isRead = false,
     super.relatedData,
   }) : super(
-    typeId: NotificationTypeIds.hospitalIds[hospitalType]!,
-    priority: NotificationPriority.hospitalPriorities[hospitalType]!,
-  );
+         typeId: NotificationTypeIds.hospitalIds[hospitalType]!,
+         priority: NotificationPriority.hospitalPriorities[hospitalType]!,
+       );
 
   factory HospitalNotificationModel.fromJson(Map<String, dynamic> json) {
     final typeId = json['type_id'] ?? 0;
-    final hospitalType = NotificationTypeIds.getHospitalTypeById(typeId) ?? 
+    final hospitalType =
+        NotificationTypeIds.getHospitalTypeById(typeId) ??
         HospitalNotificationType.systemNotice;
-    
+
     return HospitalNotificationModel(
       notificationId: json['notification_id'] ?? 0,
       userId: json['user_id'] ?? 0,
       title: json['title'] ?? '',
       content: json['content'] ?? '',
       createdAt: DateTime.tryParse(json['created_at'] ?? '') ?? DateTime.now(),
-      updatedAt: json['updated_at'] != null 
-          ? DateTime.tryParse(json['updated_at']) 
-          : null,
+      updatedAt:
+          json['updated_at'] != null
+              ? DateTime.tryParse(json['updated_at'])
+              : null,
       isRead: json['is_read'] ?? false,
       hospitalType: hospitalType,
       relatedData: json['related_data'],
@@ -194,10 +202,12 @@ class HospitalNotificationModel extends NotificationModel {
   }
 
   // 알림 타입 이름 가져오기
-  String get typeName => NotificationTypeNames.hospitalNames[hospitalType] ?? '';
+  String get typeName =>
+      NotificationTypeNames.hospitalNames[hospitalType] ?? '';
 
   // 알림 아이콘 가져오기
-  String get typeIcon => NotificationTypeIcons.hospitalIcons[hospitalType] ?? '🔔';
+  String get typeIcon =>
+      NotificationTypeIcons.hospitalIcons[hospitalType] ?? '🔔';
 
   // 읽음 상태로 변경한 새 객체 생성 (타입 유지)
   @override
@@ -219,7 +229,7 @@ class HospitalNotificationModel extends NotificationModel {
 // 사용자 전용 알림 모델
 class UserNotificationModel extends NotificationModel {
   final UserNotificationType userType;
-  
+
   UserNotificationModel({
     required super.notificationId,
     required super.userId,
@@ -231,24 +241,26 @@ class UserNotificationModel extends NotificationModel {
     super.isRead = false,
     super.relatedData,
   }) : super(
-    typeId: NotificationTypeIds.userIds[userType]!,
-    priority: NotificationPriority.userPriorities[userType]!,
-  );
+         typeId: NotificationTypeIds.userIds[userType]!,
+         priority: NotificationPriority.userPriorities[userType]!,
+       );
 
   factory UserNotificationModel.fromJson(Map<String, dynamic> json) {
     final typeId = json['type_id'] ?? 0;
-    final userType = NotificationTypeIds.getUserTypeById(typeId) ?? 
+    final userType =
+        NotificationTypeIds.getUserTypeById(typeId) ??
         UserNotificationType.systemNotice;
-    
+
     return UserNotificationModel(
       notificationId: json['notification_id'] ?? 0,
       userId: json['user_id'] ?? 0,
       title: json['title'] ?? '',
       content: json['content'] ?? '',
       createdAt: DateTime.tryParse(json['created_at'] ?? '') ?? DateTime.now(),
-      updatedAt: json['updated_at'] != null 
-          ? DateTime.tryParse(json['updated_at']) 
-          : null,
+      updatedAt:
+          json['updated_at'] != null
+              ? DateTime.tryParse(json['updated_at'])
+              : null,
       isRead: json['is_read'] ?? false,
       userType: userType,
       relatedData: json['related_data'],
@@ -284,20 +296,21 @@ class NotificationListResponse {
   final int totalCount;
   final int unreadCount;
   final bool hasMore;
-  
+
   NotificationListResponse({
     required this.notifications,
     required this.totalCount,
     required this.unreadCount,
     this.hasMore = false,
   });
-  
+
   factory NotificationListResponse.fromJson(Map<String, dynamic> json) {
     final notificationsData = json['notifications'] as List? ?? [];
-    final notifications = notificationsData
-        .map((item) => NotificationModel.fromJson(item))
-        .toList();
-    
+    final notifications =
+        notificationsData
+            .map((item) => NotificationModel.fromJson(item))
+            .toList();
+
     return NotificationListResponse(
       notifications: notifications,
       totalCount: json['total_count'] ?? 0,

@@ -10,7 +10,8 @@ class UserDonationHistoryScreen extends StatefulWidget {
   const UserDonationHistoryScreen({super.key});
 
   @override
-  State<UserDonationHistoryScreen> createState() => _UserDonationHistoryScreenState();
+  State<UserDonationHistoryScreen> createState() =>
+      _UserDonationHistoryScreenState();
 }
 
 class _UserDonationHistoryScreenState extends State<UserDonationHistoryScreen> {
@@ -33,8 +34,9 @@ class _UserDonationHistoryScreenState extends State<UserDonationHistoryScreen> {
 
     try {
       // 반려동물별 헌혈 이력 조회
-      final histories = await CompletedDonationService.getMyPetsDonationHistory();
-      
+      final histories =
+          await CompletedDonationService.getMyPetsDonationHistory();
+
       // 전체 통계 조회
       final stats = await CompletedDonationService.getMyTotalDonationStats();
 
@@ -54,9 +56,7 @@ class _UserDonationHistoryScreenState extends State<UserDonationHistoryScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppSimpleAppBar(
-        title: '헌혈 이력',
-      ),
+      appBar: AppSimpleAppBar(title: '헌혈 이력'),
       body: RefreshIndicator(
         onRefresh: _loadDonationHistory,
         child: _buildBody(),
@@ -82,19 +82,14 @@ class _UserDonationHistoryScreenState extends State<UserDonationHistoryScreen> {
     return CustomScrollView(
       slivers: [
         // 통계 헤더
-        SliverToBoxAdapter(
-          child: _buildStatsHeader(),
-        ),
-        
+        SliverToBoxAdapter(child: _buildStatsHeader()),
+
         // 반려동물별 헌혈 이력
         SliverList(
-          delegate: SliverChildBuilderDelegate(
-            (context, index) {
-              final petHistory = petHistories[index];
-              return _buildPetHistoryCard(petHistory);
-            },
-            childCount: petHistories.length,
-          ),
+          delegate: SliverChildBuilderDelegate((context, index) {
+            final petHistory = petHistories[index];
+            return _buildPetHistoryCard(petHistory);
+          }, childCount: petHistories.length),
         ),
       ],
     );
@@ -108,18 +103,12 @@ class _UserDonationHistoryScreenState extends State<UserDonationHistoryScreen> {
       padding: const EdgeInsets.all(AppTheme.spacing20),
       decoration: BoxDecoration(
         gradient: LinearGradient(
-          colors: [
-            Colors.red.shade50,
-            Colors.pink.shade50,
-          ],
+          colors: [Colors.red.shade50, Colors.pink.shade50],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
         borderRadius: BorderRadius.circular(AppTheme.radius16),
-        border: Border.all(
-          color: Colors.red.shade200,
-          width: 1,
-        ),
+        border: Border.all(color: Colors.red.shade200, width: 1),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -149,7 +138,7 @@ class _UserDonationHistoryScreenState extends State<UserDonationHistoryScreen> {
             ],
           ),
           const SizedBox(height: AppTheme.spacing16),
-          
+
           Row(
             children: [
               Expanded(
@@ -171,7 +160,7 @@ class _UserDonationHistoryScreenState extends State<UserDonationHistoryScreen> {
             ],
           ),
           const SizedBox(height: AppTheme.spacing12),
-          
+
           Row(
             children: [
               Expanded(
@@ -192,7 +181,7 @@ class _UserDonationHistoryScreenState extends State<UserDonationHistoryScreen> {
               ),
             ],
           ),
-          
+
           if (totalStats!['firstDonationDate'] != null) ...[
             const SizedBox(height: AppTheme.spacing12),
             Container(
@@ -218,11 +207,7 @@ class _UserDonationHistoryScreenState extends State<UserDonationHistoryScreen> {
                   ),
                   if (totalStats!['lastDonationDate'] != null) ...[
                     const SizedBox(width: AppTheme.spacing16),
-                    Icon(
-                      Icons.event,
-                      color: Colors.red.shade600,
-                      size: 16,
-                    ),
+                    Icon(Icons.event, color: Colors.red.shade600, size: 16),
                     const SizedBox(width: AppTheme.spacing4),
                     Text(
                       '최근: ${_formatDate(totalStats!['lastDonationDate'])}',
@@ -241,24 +226,22 @@ class _UserDonationHistoryScreenState extends State<UserDonationHistoryScreen> {
     );
   }
 
-  Widget _buildStatItem(String label, String value, IconData icon, Color color) {
+  Widget _buildStatItem(
+    String label,
+    String value,
+    IconData icon,
+    Color color,
+  ) {
     return Container(
       padding: const EdgeInsets.all(AppTheme.spacing12),
       decoration: BoxDecoration(
         color: Colors.white.withValues(alpha: 0.7),
         borderRadius: BorderRadius.circular(AppTheme.radius8),
-        border: Border.all(
-          color: color.withValues(alpha: 0.3),
-          width: 1,
-        ),
+        border: Border.all(color: color.withValues(alpha: 0.3), width: 1),
       ),
       child: Column(
         children: [
-          Icon(
-            icon,
-            color: color,
-            size: 20,
-          ),
+          Icon(icon, color: color, size: 20),
           const SizedBox(height: AppTheme.spacing4),
           Text(
             value,
@@ -315,16 +298,18 @@ class _UserDonationHistoryScreenState extends State<UserDonationHistoryScreen> {
           width: 48,
           height: 48,
           decoration: BoxDecoration(
-            color: petHistory.totalDonations > 0 
-                ? Colors.red.shade50 
-                : AppTheme.lightGray,
+            color:
+                petHistory.totalDonations > 0
+                    ? Colors.red.shade50
+                    : AppTheme.lightGray,
             borderRadius: BorderRadius.circular(AppTheme.radius8),
           ),
           child: Icon(
             Icons.pets,
-            color: petHistory.totalDonations > 0 
-                ? Colors.red.shade600 
-                : AppTheme.textSecondary,
+            color:
+                petHistory.totalDonations > 0
+                    ? Colors.red.shade600
+                    : AppTheme.textSecondary,
             size: 24,
           ),
         ),
@@ -339,9 +324,10 @@ class _UserDonationHistoryScreenState extends State<UserDonationHistoryScreen> {
             Text(
               petHistory.donationStats,
               style: AppTheme.bodyMediumStyle.copyWith(
-                color: petHistory.totalDonations > 0 
-                    ? Colors.red.shade600 
-                    : AppTheme.textSecondary,
+                color:
+                    petHistory.totalDonations > 0
+                        ? Colors.red.shade600
+                        : AppTheme.textSecondary,
                 fontWeight: FontWeight.w500,
               ),
             ),
@@ -355,28 +341,31 @@ class _UserDonationHistoryScreenState extends State<UserDonationHistoryScreen> {
                       vertical: AppTheme.spacing2,
                     ),
                     decoration: BoxDecoration(
-                      color: petHistory.canDonateAgain 
-                          ? Colors.green.shade50 
-                          : Colors.orange.shade50,
+                      color:
+                          petHistory.canDonateAgain
+                              ? Colors.green.shade50
+                              : Colors.orange.shade50,
                       borderRadius: BorderRadius.circular(AppTheme.radius8),
                       border: Border.all(
-                        color: petHistory.canDonateAgain 
-                            ? Colors.green.shade200 
-                            : Colors.orange.shade200,
+                        color:
+                            petHistory.canDonateAgain
+                                ? Colors.green.shade200
+                                : Colors.orange.shade200,
                         width: 1,
                       ),
                     ),
                     child: Text(
                       petHistory.canDonateAgain ? '헌혈 가능' : '대기 중',
                       style: AppTheme.captionStyle.copyWith(
-                        color: petHistory.canDonateAgain 
-                            ? Colors.green.shade700 
-                            : Colors.orange.shade700,
+                        color:
+                            petHistory.canDonateAgain
+                                ? Colors.green.shade700
+                                : Colors.orange.shade700,
                         fontWeight: FontWeight.w600,
                       ),
                     ),
                   ),
-                  if (!petHistory.canDonateAgain && 
+                  if (!petHistory.canDonateAgain &&
                       petHistory.nextAvailableDonationDate != null) ...[
                     const SizedBox(width: AppTheme.spacing8),
                     Text(
@@ -391,11 +380,12 @@ class _UserDonationHistoryScreenState extends State<UserDonationHistoryScreen> {
             ],
           ],
         ),
-        children: petHistory.donations.isEmpty 
-            ? [_buildNoDonationsMessage()]
-            : petHistory.donations.map((donation) {
-                return _buildDonationItem(donation);
-              }).toList(),
+        children:
+            petHistory.donations.isEmpty
+                ? [_buildNoDonationsMessage()]
+                : petHistory.donations.map((donation) {
+                  return _buildDonationItem(donation);
+                }).toList(),
       ),
     );
   }
@@ -405,11 +395,7 @@ class _UserDonationHistoryScreenState extends State<UserDonationHistoryScreen> {
       padding: const EdgeInsets.all(AppTheme.spacing20),
       child: Column(
         children: [
-          Icon(
-            Icons.info_outline,
-            color: AppTheme.textSecondary,
-            size: 48,
-          ),
+          Icon(Icons.info_outline, color: AppTheme.textSecondary, size: 48),
           const SizedBox(height: AppTheme.spacing8),
           Text(
             '아직 헌혈 기록이 없습니다',
@@ -429,10 +415,7 @@ class _UserDonationHistoryScreenState extends State<UserDonationHistoryScreen> {
       decoration: BoxDecoration(
         color: Colors.red.shade50,
         borderRadius: BorderRadius.circular(AppTheme.radius8),
-        border: Border.all(
-          color: Colors.red.shade100,
-          width: 1,
-        ),
+        border: Border.all(color: Colors.red.shade100, width: 1),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -479,11 +462,7 @@ class _UserDonationHistoryScreenState extends State<UserDonationHistoryScreen> {
           const SizedBox(height: AppTheme.spacing8),
           Row(
             children: [
-              Icon(
-                Icons.schedule,
-                size: 14,
-                color: AppTheme.textSecondary,
-              ),
+              Icon(Icons.schedule, size: 14, color: AppTheme.textSecondary),
               const SizedBox(width: AppTheme.spacing4),
               Text(
                 '완료: ${donation.formattedCompletedDateTime}',
@@ -493,11 +472,7 @@ class _UserDonationHistoryScreenState extends State<UserDonationHistoryScreen> {
               ),
               if (donation.donationTime != null) ...[
                 const SizedBox(width: AppTheme.spacing12),
-                Icon(
-                  Icons.event,
-                  size: 14,
-                  color: AppTheme.textSecondary,
-                ),
+                Icon(Icons.event, size: 14, color: AppTheme.textSecondary),
                 const SizedBox(width: AppTheme.spacing4),
                 Text(
                   '예정: ${donation.formattedDonationTime}',
@@ -563,11 +538,7 @@ class _UserDonationHistoryScreenState extends State<UserDonationHistoryScreen> {
               color: AppTheme.lightBlue,
               shape: BoxShape.circle,
             ),
-            child: Icon(
-              Icons.bloodtype,
-              size: 64,
-              color: AppTheme.primaryBlue,
-            ),
+            child: Icon(Icons.bloodtype, size: 64, color: AppTheme.primaryBlue),
           ),
           const SizedBox(height: 24),
           Text(

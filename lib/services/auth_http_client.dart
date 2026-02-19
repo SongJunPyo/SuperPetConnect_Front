@@ -7,8 +7,8 @@ import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
-import 'package:shared_preferences/shared_preferences.dart';
 import '../utils/config.dart';
+import '../utils/preferences_manager.dart';
 import 'notification_service.dart';
 
 class AuthHttpClient {
@@ -18,12 +18,13 @@ class AuthHttpClient {
 
   // SharedPreferences에서 Access Token 조회
   static Future<String?> _getToken() async {
-    final prefs = await SharedPreferences.getInstance();
-    return prefs.getString('auth_token');
+    return await PreferencesManager.getAuthToken();
   }
 
   // 토큰을 포함한 인증 헤더 생성
-  static Future<Map<String, String>> _buildHeaders(Map<String, String>? extraHeaders) async {
+  static Future<Map<String, String>> _buildHeaders(
+    Map<String, String>? extraHeaders,
+  ) async {
     final token = await _getToken();
     if (token == null) {
       throw Exception('로그인이 필요합니다.');
@@ -47,8 +48,7 @@ class AuthHttpClient {
     _refreshCompleter = Completer<bool>();
 
     try {
-      final prefs = await SharedPreferences.getInstance();
-      final refreshToken = prefs.getString('refresh_token');
+      final refreshToken = await PreferencesManager.getRefreshToken();
 
       if (refreshToken == null || refreshToken.isEmpty) {
         _refreshCompleter!.complete(false);
@@ -63,9 +63,9 @@ class AuthHttpClient {
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
-        await prefs.setString('auth_token', data['access_token']);
+        await PreferencesManager.setAuthToken(data['access_token']);
         if (data['refresh_token'] != null) {
-          await prefs.setString('refresh_token', data['refresh_token']);
+          await PreferencesManager.setRefreshToken(data['refresh_token']);
         }
         _refreshCompleter!.complete(true);
         return true;
@@ -85,8 +85,7 @@ class AuthHttpClient {
 
   // 강제 로그아웃 (토큰 삭제 + 로그인 화면 이동)
   static Future<void> _forceLogout() async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.clear();
+    await PreferencesManager.clearAll();
 
     final navigator = NotificationService.navigatorKey.currentState;
     if (navigator != null) {
@@ -130,12 +129,22 @@ class AuthHttpClient {
     Encoding? encoding,
   }) async {
     final authHeaders = await _buildHeaders(headers);
-    var response = await http.post(url, headers: authHeaders, body: body, encoding: encoding);
+    var response = await http.post(
+      url,
+      headers: authHeaders,
+      body: body,
+      encoding: encoding,
+    );
 
     if (response.statusCode == 401) {
       if (await _handle401()) {
         final retryHeaders = await _buildHeaders(headers);
-        response = await http.post(url, headers: retryHeaders, body: body, encoding: encoding);
+        response = await http.post(
+          url,
+          headers: retryHeaders,
+          body: body,
+          encoding: encoding,
+        );
       }
     }
     return response;
@@ -149,12 +158,22 @@ class AuthHttpClient {
     Encoding? encoding,
   }) async {
     final authHeaders = await _buildHeaders(headers);
-    var response = await http.put(url, headers: authHeaders, body: body, encoding: encoding);
+    var response = await http.put(
+      url,
+      headers: authHeaders,
+      body: body,
+      encoding: encoding,
+    );
 
     if (response.statusCode == 401) {
       if (await _handle401()) {
         final retryHeaders = await _buildHeaders(headers);
-        response = await http.put(url, headers: retryHeaders, body: body, encoding: encoding);
+        response = await http.put(
+          url,
+          headers: retryHeaders,
+          body: body,
+          encoding: encoding,
+        );
       }
     }
     return response;
@@ -168,12 +187,22 @@ class AuthHttpClient {
     Encoding? encoding,
   }) async {
     final authHeaders = await _buildHeaders(headers);
-    var response = await http.delete(url, headers: authHeaders, body: body, encoding: encoding);
+    var response = await http.delete(
+      url,
+      headers: authHeaders,
+      body: body,
+      encoding: encoding,
+    );
 
     if (response.statusCode == 401) {
       if (await _handle401()) {
         final retryHeaders = await _buildHeaders(headers);
-        response = await http.delete(url, headers: retryHeaders, body: body, encoding: encoding);
+        response = await http.delete(
+          url,
+          headers: retryHeaders,
+          body: body,
+          encoding: encoding,
+        );
       }
     }
     return response;
@@ -187,12 +216,22 @@ class AuthHttpClient {
     Encoding? encoding,
   }) async {
     final authHeaders = await _buildHeaders(headers);
-    var response = await http.patch(url, headers: authHeaders, body: body, encoding: encoding);
+    var response = await http.patch(
+      url,
+      headers: authHeaders,
+      body: body,
+      encoding: encoding,
+    );
 
     if (response.statusCode == 401) {
       if (await _handle401()) {
         final retryHeaders = await _buildHeaders(headers);
-        response = await http.patch(url, headers: retryHeaders, body: body, encoding: encoding);
+        response = await http.patch(
+          url,
+          headers: retryHeaders,
+          body: body,
+          encoding: encoding,
+        );
       }
     }
     return response;
@@ -222,5 +261,67 @@ class AuthHttpClient {
       }
     }
     return response;
+  }
+}
+
+/// HTTP 응답 파싱을 위한 확장 메서드
+extension HttpResponseParsing on http.Response {
+  /// 응답을 dynamic으로 파싱 (List 또는 Map 모두 가능)
+  dynamic parseJsonDynamic() {
+    return json.decode(utf8.decode(bodyBytes));
+  }
+
+  /// 응답을 `Map<String, dynamic>`으로 파싱
+  Map<String, dynamic> parseJson() {
+    return json.decode(utf8.decode(bodyBytes)) as Map<String, dynamic>;
+  }
+
+  /// 응답을 `List<dynamic>`으로 파싱
+  List<dynamic> parseJsonList() {
+    return json.decode(utf8.decode(bodyBytes)) as List<dynamic>;
+  }
+
+  /// 응답을 단일 객체로 파싱
+  T parseJsonAs<T>(T Function(Map<String, dynamic>) fromJson) {
+    return fromJson(parseJson());
+  }
+
+  /// 응답을 객체 리스트로 파싱
+  List<T> parseJsonListAs<T>(T Function(Map<String, dynamic>) fromJson) {
+    final data = parseJson();
+    final list = (data['items'] ?? data['data'] ?? data['list'] ?? data) as List;
+    return list
+        .map((item) => fromJson(item as Map<String, dynamic>))
+        .toList();
+  }
+
+  /// 성공 응답 여부 확인 (200-299)
+  bool get isSuccess => statusCode >= 200 && statusCode < 300;
+
+  /// 생성 성공 확인 (200 또는 201)
+  bool get isCreated => statusCode == 200 || statusCode == 201;
+
+  /// No Content 확인 (200 또는 204)
+  bool get isNoContent => statusCode == 200 || statusCode == 204;
+
+  /// 에러 응답에서 메시지 추출
+  /// 서버 응답에서 detail → message → body 순으로 에러 메시지를 탐색
+  String extractErrorMessage([String fallback = '요청 처리 중 오류가 발생했습니다.']) {
+    try {
+      final data = parseJson();
+      final message = data['detail'] ?? data['message'] ?? data['error'];
+      if (message != null && message.toString().isNotEmpty) {
+        return message.toString();
+      }
+    } catch (_) {
+      // JSON 파싱 실패 시 body 원문 사용
+    }
+    return body.isNotEmpty ? body : fallback;
+  }
+
+  /// 에러 응답을 Exception으로 변환
+  /// throw response.toException('기본 에러 메시지'); 형태로 사용
+  Exception toException([String fallback = '요청 처리 중 오류가 발생했습니다.']) {
+    return Exception(extractErrorMessage(fallback));
   }
 }

@@ -4,21 +4,20 @@ import 'package:intl/intl.dart';
 import 'package:flutter/foundation.dart';
 import '../models/hospital_column_model.dart';
 import '../utils/config.dart';
+import '../utils/api_endpoints.dart';
 import 'auth_http_client.dart';
 
 class HospitalColumnService {
-  static String get baseUrl => '${Config.serverUrl}/api/hospital';
-  static String get publicBaseUrl => '${Config.serverUrl}/api/hospital/public';
 
   // 병원의 칼럼 작성 권한 확인
   static Future<bool> checkColumnPermission() async {
     try {
       final response = await AuthHttpClient.get(
-        Uri.parse('${Config.serverUrl}/api/auth/profile'),
+        Uri.parse('${Config.serverUrl}${ApiEndpoints.authProfile}'),
       );
 
       if (response.statusCode == 200) {
-        final data = json.decode(utf8.decode(response.bodyBytes));
+        final data = response.parseJsonDynamic();
         return data['column_active'] == true;
       }
 
@@ -34,39 +33,19 @@ class HospitalColumnService {
   ) async {
     try {
       final response = await AuthHttpClient.post(
-        Uri.parse('$baseUrl/columns'),
+        Uri.parse('${Config.serverUrl}${ApiEndpoints.hospitalColumns}'),
         body: jsonEncode(request.toJson()),
       );
 
-
       if (response.statusCode == 200 || response.statusCode == 201) {
-        final data = jsonDecode(utf8.decode(response.bodyBytes));
+        final data = response.parseJsonDynamic();
         return HospitalColumn.fromJson(data);
       } else if (response.statusCode == 403) {
-        try {
-          final error = jsonDecode(utf8.decode(response.bodyBytes));
-          final message = error['detail'] ?? error['message'] ?? '권한이 없습니다.';
-          throw Exception(message);
-        } catch (e) {
-          throw Exception('병원 계정만 접근할 수 있습니다. 또는 칼럼 작성 권한이 비활성화되었습니다.');
-        }
+        throw response.toException('병원 계정만 접근할 수 있습니다. 또는 칼럼 작성 권한이 비활성화되었습니다.');
       } else if (response.statusCode == 500) {
-        try {
-          final error = jsonDecode(utf8.decode(response.bodyBytes));
-          final message = error['detail'] ?? error['message'] ?? '서버 오류가 발생했습니다.';
-          throw Exception('서버 오류: $message');
-        } catch (e) {
-          throw Exception('서버에서 오류가 발생했습니다. 관리자에게 문의하세요.');
-        }
+        throw response.toException('서버에서 오류가 발생했습니다. 관리자에게 문의하세요.');
       } else {
-        try {
-          final error = jsonDecode(utf8.decode(response.bodyBytes));
-          throw Exception(
-            '칼럼 작성 실패: ${error['detail'] ?? error['message'] ?? response.body}',
-          );
-        } catch (e) {
-          throw Exception('알 수 없는 오류가 발생했습니다. (상태코드: ${response.statusCode})');
-        }
+        throw response.toException('칼럼 작성에 실패했습니다.');
       }
     } catch (e) {
       throw Exception('칼럼 작성 중 오류 발생: $e');
@@ -89,22 +68,17 @@ class HospitalColumnService {
         queryParams['search'] = search;
       }
 
-      final uri = Uri.parse('$publicBaseUrl/columns').replace(
-        queryParameters: queryParams,
-      );
-
+      final uri = Uri.parse(
+        '${Config.serverUrl}${ApiEndpoints.hospitalPublicColumns}',
+      ).replace(queryParameters: queryParams);
 
       final response = await http.get(uri);
 
-
       if (response.statusCode == 200) {
-        final data = jsonDecode(utf8.decode(response.bodyBytes));
+        final data = response.parseJsonDynamic();
         return HospitalColumnListResponse.fromJson(data);
       } else {
-        final error = jsonDecode(utf8.decode(response.bodyBytes));
-        throw Exception(
-          '칼럼 목록 조회 실패: ${error['detail'] ?? error['message'] ?? response.body}',
-        );
+        throw response.toException('칼럼 목록 조회에 실패했습니다.');
       }
     } catch (e) {
       throw Exception('칼럼 목록 조회 중 오류 발생: $e');
@@ -114,12 +88,8 @@ class HospitalColumnService {
   // 서버 API 테스트용 함수 (인증 불필요)
   static Future<void> testServerConnection() async {
     try {
-
       // 공개 칼럼 목록 조회 테스트 (인증 불필요)
-      await http.get(
-        Uri.parse('$publicBaseUrl/columns?page=1&page_size=10'),
-      );
-
+      await http.get(Uri.parse('${Config.serverUrl}${ApiEndpoints.hospitalPublicColumns}?page=1&page_size=10'));
     } catch (e) {
       // 테스트 연결 실패 시 로그 출력
       debugPrint('Server connection test failed: $e');
@@ -129,15 +99,15 @@ class HospitalColumnService {
   // 공개 칼럼 상세 조회 (인증 불필요 - 웰컴 페이지 등 로그인 전 화면에서 사용)
   static Future<HospitalColumn> getPublicColumnDetail(int columnIdx) async {
     final endpoints = [
-      '${Config.serverUrl}/api/public/columns/$columnIdx',
-      '$publicBaseUrl/columns/$columnIdx',
+      '${Config.serverUrl}${ApiEndpoints.columnDetail(columnIdx)}',
+      '${Config.serverUrl}${ApiEndpoints.hospitalPublicColumn(columnIdx)}',
     ];
 
     for (final endpoint in endpoints) {
       try {
         final response = await http.get(Uri.parse(endpoint));
         if (response.statusCode == 200) {
-          final data = jsonDecode(utf8.decode(response.bodyBytes));
+          final data = response.parseJsonDynamic();
           return HospitalColumn.fromJson(data);
         }
       } catch (_) {
@@ -152,12 +122,11 @@ class HospitalColumnService {
   static Future<HospitalColumn> getColumnDetail(int columnIdx) async {
     try {
       final response = await AuthHttpClient.get(
-        Uri.parse('$baseUrl/columns/$columnIdx'),
+        Uri.parse('${Config.serverUrl}${ApiEndpoints.hospitalColumn(columnIdx)}'),
       );
 
-
       if (response.statusCode == 200) {
-        final data = jsonDecode(utf8.decode(response.bodyBytes));
+        final data = response.parseJsonDynamic();
         return HospitalColumn.fromJson(data);
       } else if (response.statusCode == 404 || response.statusCode == 403) {
         // 404 또는 403인 경우 "내 칼럼" 목록에서 찾아보기
@@ -174,10 +143,7 @@ class HospitalColumnService {
           throw Exception('칼럼을 찾을 수 없습니다.');
         }
       } else {
-        final error = jsonDecode(utf8.decode(response.bodyBytes));
-        throw Exception(
-          '칼럼 조회 실패: ${error['detail'] ?? error['message'] ?? response.body}',
-        );
+        throw response.toException('칼럼 조회에 실패했습니다.');
       }
     } catch (e) {
       if (e.toString().contains('칼럼을 찾을 수 없습니다')) {
@@ -203,26 +169,19 @@ class HospitalColumnService {
         queryParams['is_published'] = isPublished.toString();
       }
 
-      final uri = Uri.parse('$baseUrl/columns/my').replace(
-        queryParameters: queryParams,
-      );
-
+      final uri = Uri.parse(
+        '${Config.serverUrl}${ApiEndpoints.hospitalColumnsMy}',
+      ).replace(queryParameters: queryParams);
 
       final response = await AuthHttpClient.get(uri);
 
-
       if (response.statusCode == 200) {
-        final data = jsonDecode(utf8.decode(response.bodyBytes));
+        final data = response.parseJsonDynamic();
         return HospitalColumnListResponse.fromJson(data);
       } else if (response.statusCode == 403) {
-        final error = jsonDecode(utf8.decode(response.bodyBytes));
-        final message = error['detail'] ?? error['message'] ?? '권한이 없습니다.';
-        throw Exception(message);
+        throw response.toException('권한이 없습니다.');
       } else {
-        final error = jsonDecode(utf8.decode(response.bodyBytes));
-        throw Exception(
-          '내 칼럼 목록 조회 실패: ${error['detail'] ?? error['message'] ?? response.body}',
-        );
+        throw response.toException('내 칼럼 목록 조회에 실패했습니다.');
       }
     } catch (e) {
       throw Exception('내 칼럼 목록 조회 중 오류 발생: $e');
@@ -236,23 +195,19 @@ class HospitalColumnService {
   ) async {
     try {
       final response = await AuthHttpClient.put(
-        Uri.parse('$baseUrl/columns/$columnIdx'),
+        Uri.parse('${Config.serverUrl}${ApiEndpoints.hospitalColumn(columnIdx)}'),
         body: jsonEncode(request.toJson()),
       );
 
-
       if (response.statusCode == 200) {
-        final data = jsonDecode(utf8.decode(response.bodyBytes));
+        final data = response.parseJsonDynamic();
         return HospitalColumn.fromJson(data);
       } else if (response.statusCode == 403) {
         throw Exception('수정 권한이 없습니다.');
       } else if (response.statusCode == 404) {
         throw Exception('칼럼을 찾을 수 없습니다.');
       } else {
-        final error = jsonDecode(utf8.decode(response.bodyBytes));
-        throw Exception(
-          '칼럼 수정 실패: ${error['detail'] ?? error['message'] ?? response.body}',
-        );
+        throw response.toException('칼럼 수정에 실패했습니다.');
       }
     } catch (e) {
       throw Exception('칼럼 수정 중 오류 발생: $e');
@@ -263,9 +218,8 @@ class HospitalColumnService {
   static Future<void> deleteColumn(int columnIdx) async {
     try {
       final response = await AuthHttpClient.delete(
-        Uri.parse('$baseUrl/columns/$columnIdx'),
+        Uri.parse('${Config.serverUrl}${ApiEndpoints.hospitalColumn(columnIdx)}'),
       );
-
 
       if (response.statusCode == 204 || response.statusCode == 200) {
         return; // 성공적으로 삭제됨
@@ -274,10 +228,7 @@ class HospitalColumnService {
       } else if (response.statusCode == 404) {
         throw Exception('칼럼을 찾을 수 없습니다.');
       } else {
-        final error = jsonDecode(utf8.decode(response.bodyBytes));
-        throw Exception(
-          '칼럼 삭제 실패: ${error['detail'] ?? error['message'] ?? response.body}',
-        );
+        throw response.toException('칼럼 삭제에 실패했습니다.');
       }
     } catch (e) {
       throw Exception('칼럼 삭제 중 오류 발생: $e');
@@ -315,31 +266,28 @@ class HospitalColumnService {
         queryParams['search'] = search;
       }
 
-      final uri = Uri.parse('${Config.serverUrl}/api/admin/columns').replace(
-        queryParameters: queryParams,
-      );
-
+      final uri = Uri.parse(
+        '${Config.serverUrl}${ApiEndpoints.adminColumns}',
+      ).replace(queryParameters: queryParams);
 
       final response = await AuthHttpClient.get(uri);
 
-
       if (response.statusCode == 200) {
-        final data = jsonDecode(utf8.decode(response.bodyBytes));
+        final data = response.parseJsonDynamic();
         debugPrint('[AdminColumns] 응답 데이터: $data');
         // content_delta 필드 확인
         if (data['columns'] != null && data['columns'] is List) {
           for (var col in data['columns']) {
-            debugPrint('[AdminColumns] 칼럼 ${col['column_idx']}: content_delta=${col['content_delta']}');
+            debugPrint(
+              '[AdminColumns] 칼럼 ${col['column_idx']}: content_delta=${col['content_delta']}',
+            );
           }
         }
         return HospitalColumnListResponse.fromJson(data);
       } else if (response.statusCode == 403) {
         throw Exception('관리자 권한이 없습니다.');
       } else {
-        final error = jsonDecode(utf8.decode(response.bodyBytes));
-        throw Exception(
-          '관리자 칼럼 목록 조회 실패: ${error['detail'] ?? error['message'] ?? response.body}',
-        );
+        throw response.toException('관리자 칼럼 목록 조회에 실패했습니다.');
       }
     } catch (e) {
       rethrow;
@@ -350,22 +298,18 @@ class HospitalColumnService {
   static Future<HospitalColumn> adminTogglePublish(int columnIdx) async {
     try {
       final response = await AuthHttpClient.patch(
-        Uri.parse('${Config.serverUrl}/api/admin/columns/$columnIdx/publish'),
+        Uri.parse('${Config.serverUrl}${ApiEndpoints.adminColumnPublish(columnIdx)}'),
       );
 
-
       if (response.statusCode == 200) {
-        final data = jsonDecode(utf8.decode(response.bodyBytes));
+        final data = response.parseJsonDynamic();
         return HospitalColumn.fromJson(data);
       } else if (response.statusCode == 403) {
         throw Exception('관리자 권한이 없습니다.');
       } else if (response.statusCode == 404) {
         throw Exception('칼럼을 찾을 수 없습니다.');
       } else {
-        final error = jsonDecode(utf8.decode(response.bodyBytes));
-        throw Exception(
-          '공개 상태 변경 실패: ${error['detail'] ?? error['message'] ?? response.body}',
-        );
+        throw response.toException('공개 상태 변경에 실패했습니다.');
       }
     } catch (e) {
       throw Exception('공개 상태 변경 중 오류 발생: $e');
@@ -379,7 +323,7 @@ class HospitalColumnService {
       // AuthHttpClient 사용 시도 (토큰이 있으면 인증 헤더 포함)
       try {
         final response = await AuthHttpClient.post(
-          Uri.parse('$baseUrl/columns/$columnIdx/view'),
+          Uri.parse('${Config.serverUrl}${ApiEndpoints.hospitalColumnView(columnIdx)}'),
         );
 
         if (response.statusCode == 200 || response.statusCode == 201) {
@@ -388,10 +332,8 @@ class HospitalColumnService {
       } catch (_) {
         // 인증 실패 시 비인증 요청으로 fallback
         final response = await http.post(
-          Uri.parse('$baseUrl/columns/$columnIdx/view'),
-          headers: {
-            'Content-Type': 'application/json',
-          },
+          Uri.parse('${Config.serverUrl}${ApiEndpoints.hospitalColumnView(columnIdx)}'),
+          headers: {'Content-Type': 'application/json'},
         );
 
         if (response.statusCode == 200 || response.statusCode == 201) {
@@ -407,22 +349,18 @@ class HospitalColumnService {
   static Future<HospitalColumn> getAdminColumnDetail(int columnIdx) async {
     try {
       final response = await AuthHttpClient.get(
-        Uri.parse('${Config.serverUrl}/api/admin/columns/$columnIdx'),
+        Uri.parse('${Config.serverUrl}${ApiEndpoints.adminColumn(columnIdx)}'),
       );
 
-
       if (response.statusCode == 200) {
-        final data = jsonDecode(utf8.decode(response.bodyBytes));
+        final data = response.parseJsonDynamic();
         return HospitalColumn.fromJson(data);
       } else if (response.statusCode == 403) {
         throw Exception('관리자 권한이 없습니다.');
       } else if (response.statusCode == 404) {
         throw Exception('칼럼을 찾을 수 없습니다.');
       } else {
-        final error = jsonDecode(utf8.decode(response.bodyBytes));
-        throw Exception(
-          '관리자 칼럼 조회 실패: ${error['detail'] ?? error['message'] ?? response.body}',
-        );
+        throw response.toException('관리자 칼럼 조회에 실패했습니다.');
       }
     } catch (e) {
       throw Exception('관리자 칼럼 조회 중 오류 발생: $e');

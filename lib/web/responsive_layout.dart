@@ -160,21 +160,12 @@ class WebCard extends StatelessWidget {
   final EdgeInsetsGeometry? padding;
   final EdgeInsetsGeometry? margin;
 
-  const WebCard({
-    super.key,
-    required this.child,
-    this.padding,
-    this.margin,
-  });
+  const WebCard({super.key, required this.child, this.padding, this.margin});
 
   @override
   Widget build(BuildContext context) {
     if (!kIsWeb) {
-      return Container(
-        padding: padding,
-        margin: margin,
-        child: child,
-      );
+      return Container(padding: padding, margin: margin, child: child);
     }
 
     return Container(

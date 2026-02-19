@@ -1,3 +1,5 @@
+import '../utils/app_constants.dart';
+
 class Post {
   final int postIdx;
   final String createdDate;
@@ -47,25 +49,17 @@ class Post {
       viewCount: json['viewCount'] ?? json['view_count'],
     );
   }
-  
-  bool get isUrgent => types == 0;
-  
-  String get typeText => types == 0 ? '긴급' : '정기';
-  
-  String get statusText {
-    switch (status) {
-      case 0: return '대기';
-      case 1: return '승인';
-      case 2: return '거절';
-      case 3: return '마감';
-      default: return '알 수 없음';
-    }
-  }
-  
-  String get animalTypeText => animalType == 0 ? '강아지' : '고양이';
-  
+
+  bool get isUrgent => types == AppConstants.postTypeUrgent;
+
+  String get typeText => AppConstants.getPostTypeText(types);
+
+  String get statusText => AppConstants.getPostStatusText(status);
+
+  String get animalTypeText => AppConstants.getAnimalTypeText(animalType);
+
   String get displayBloodType {
-    if (types == 0 && emergencyBloodType != null) {
+    if (types == AppConstants.postTypeUrgent && emergencyBloodType != null) {
       return emergencyBloodType!;
     }
     return '혈액형 무관';

@@ -1,6 +1,8 @@
 // models/applied_donation_model.dart
 
+import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import '../utils/app_theme.dart';
 
 class AppliedDonation {
   final int? appliedDonationIdx;
@@ -37,16 +39,19 @@ class AppliedDonation {
       petIdx: json['pet_idx'],
       postTimesIdx: json['post_times_idx'],
       status: json['status'],
-      createdAt: json['created_at'] != null 
-          ? DateTime.parse(json['created_at']) 
-          : null,
+      createdAt:
+          json['created_at'] != null
+              ? DateTime.parse(json['created_at'])
+              : null,
       pet: json['pet'] != null ? Pet.fromJson(json['pet']) : null,
-      donationTime: json['donation_time'] != null
-          ? DateTime.parse(json['donation_time'])
-          : null,
-      donationDate: json['donation_date'] != null
-          ? DateTime.parse(json['donation_date'])
-          : null,
+      donationTime:
+          json['donation_time'] != null
+              ? DateTime.parse(json['donation_time'])
+              : null,
+      donationDate:
+          json['donation_date'] != null
+              ? DateTime.parse(json['donation_date'])
+              : null,
       postTitle: json['post_title'],
       hospitalName: json['hospital_name'],
       userNickname: json['user_nickname'] ?? json['nickname'],
@@ -65,17 +70,12 @@ class AppliedDonation {
 
   // 헌혈 신청을 위한 요청 JSON (생성 시)
   Map<String, dynamic> toCreateJson() {
-    return {
-      'pet_idx': petIdx,
-      'post_times_idx': postTimesIdx,
-    };
+    return {'pet_idx': petIdx, 'post_times_idx': postTimesIdx};
   }
 
   // 상태 변경을 위한 요청 JSON (병원용)
   Map<String, dynamic> toStatusUpdateJson() {
-    return {
-      'status': status,
-    };
+    return {'status': status};
   }
 
   // 상태 텍스트 반환
@@ -172,14 +172,14 @@ class AppliedDonation {
 
 // 헌혈 신청 상태 관리 클래스
 class AppliedDonationStatus {
-  static const int pending = 0;             // 대기중
-  static const int approved = 1;            // 승인됨
-  static const int rejected = 2;            // 거절됨
-  static const int completed = 3;           // 완료됨 (기존 호환용)
-  static const int cancelled = 4;           // 취소됨
-  static const int pendingCompletion = 5;   // 완료대기 (병원이 헌혈 완료 처리)
+  static const int pending = 0; // 대기중
+  static const int approved = 1; // 승인됨
+  static const int rejected = 2; // 거절됨
+  static const int completed = 3; // 완료됨 (기존 호환용)
+  static const int cancelled = 4; // 취소됨
+  static const int pendingCompletion = 5; // 완료대기 (병원이 헌혈 완료 처리)
   static const int pendingCancellation = 6; // 중단대기 (병원이 헌혈 중단 처리)
-  static const int finalCompleted = 7;      // 헌혈완료 (관리자 최종 승인)
+  static const int finalCompleted = 7; // 헌혈완료 (관리자 최종 승인)
 
   static String getStatusText(int status) {
     switch (status) {
@@ -227,6 +227,30 @@ class AppliedDonationStatus {
     }
   }
 
+  /// 상태에 따른 Color 객체 반환 (UI에서 직접 사용)
+  static Color getStatusColorValue(int status) {
+    switch (status) {
+      case pending:
+        return Colors.orange;
+      case approved:
+        return AppTheme.primaryBlue;
+      case rejected:
+        return Colors.grey;
+      case completed:
+        return AppTheme.success;
+      case cancelled:
+        return Colors.grey;
+      case pendingCompletion:
+        return Colors.amber;
+      case pendingCancellation:
+        return Colors.deepOrange;
+      case finalCompleted:
+        return Colors.blue;
+      default:
+        return Colors.grey;
+    }
+  }
+
   /// 취소 가능 여부 확인 (대기중일 때만 가능)
   static bool canCancelStatus(int status) {
     return status == pending;
@@ -265,19 +289,60 @@ class AppliedDonationStatus {
   }
 
   static List<int> getAllStatuses() {
-    return [pending, approved, rejected, completed, cancelled, pendingCompletion, pendingCancellation, finalCompleted];
+    return [
+      pending,
+      approved,
+      rejected,
+      completed,
+      cancelled,
+      pendingCompletion,
+      pendingCancellation,
+      finalCompleted,
+    ];
   }
 
   static List<Map<String, dynamic>> getStatusOptions() {
     return [
-      {'value': pending, 'text': getStatusText(pending), 'color': getStatusColor(pending)},
-      {'value': approved, 'text': getStatusText(approved), 'color': getStatusColor(approved)},
-      {'value': rejected, 'text': getStatusText(rejected), 'color': getStatusColor(rejected)},
-      {'value': completed, 'text': getStatusText(completed), 'color': getStatusColor(completed)},
-      {'value': cancelled, 'text': getStatusText(cancelled), 'color': getStatusColor(cancelled)},
-      {'value': pendingCompletion, 'text': getStatusText(pendingCompletion), 'color': getStatusColor(pendingCompletion)},
-      {'value': pendingCancellation, 'text': getStatusText(pendingCancellation), 'color': getStatusColor(pendingCancellation)},
-      {'value': finalCompleted, 'text': getStatusText(finalCompleted), 'color': getStatusColor(finalCompleted)},
+      {
+        'value': pending,
+        'text': getStatusText(pending),
+        'color': getStatusColor(pending),
+      },
+      {
+        'value': approved,
+        'text': getStatusText(approved),
+        'color': getStatusColor(approved),
+      },
+      {
+        'value': rejected,
+        'text': getStatusText(rejected),
+        'color': getStatusColor(rejected),
+      },
+      {
+        'value': completed,
+        'text': getStatusText(completed),
+        'color': getStatusColor(completed),
+      },
+      {
+        'value': cancelled,
+        'text': getStatusText(cancelled),
+        'color': getStatusColor(cancelled),
+      },
+      {
+        'value': pendingCompletion,
+        'text': getStatusText(pendingCompletion),
+        'color': getStatusColor(pendingCompletion),
+      },
+      {
+        'value': pendingCancellation,
+        'text': getStatusText(pendingCancellation),
+        'color': getStatusColor(pendingCancellation),
+      },
+      {
+        'value': finalCompleted,
+        'text': getStatusText(finalCompleted),
+        'color': getStatusColor(finalCompleted),
+      },
     ];
   }
 }
@@ -311,9 +376,9 @@ class Pet {
       bloodType: json['blood_type'],
       weightKg: json['weight_kg']?.toDouble(),
       animalType: json['animal_type'],
-      age: json['age'] ?? json['age_number'],  // age 또는 age_number 필드 사용
-      species: json['species'],  // 이제 서버에서 "dog"/"cat"으로 제공
-      breed: json['breed'],  // 실제 품종 정보 (예: "골든 리트리버")
+      age: json['age'] ?? json['age_number'], // age 또는 age_number 필드 사용
+      species: json['species'], // 이제 서버에서 "dog"/"cat"으로 제공
+      breed: json['breed'], // 실제 품종 정보 (예: "골든 리트리버")
     );
   }
 
@@ -346,7 +411,9 @@ class Pet {
   String get animalTypeKr {
     // species를 우선 사용 (서버에서 "dog"/"cat"으로 제공)
     String typeSource = species ?? animalType ?? '';
-    if (typeSource == 'dog' || typeSource == '강아지' || typeSource == '개') return '강아지';
+    if (typeSource == 'dog' || typeSource == '강아지' || typeSource == '개') {
+      return '강아지';
+    }
     if (typeSource == 'cat' || typeSource == '고양이') return '고양이';
     return typeSource.isEmpty ? '정보 없음' : typeSource;
   }
@@ -354,7 +421,9 @@ class Pet {
   // species getter - species 필드 우선 사용
   String get speciesKr {
     String sourceType = species ?? animalType ?? '';
-    if (sourceType == 'dog' || sourceType == '강아지' || sourceType == '개') return '강아지';
+    if (sourceType == 'dog' || sourceType == '강아지' || sourceType == '개') {
+      return '강아지';
+    }
     if (sourceType == 'cat' || sourceType == '고양이') return '고양이';
     return sourceType.isEmpty ? '정보 없음' : sourceType;
   }
@@ -379,9 +448,10 @@ class MyPetApplications {
       petIdx: json['pet_idx'],
       petName: json['pet_name'],
       animalType: json['animal_type'],
-      applications: (json['applications'] as List)
-          .map((item) => AppliedDonation.fromJson(item))
-          .toList(),
+      applications:
+          (json['applications'] as List)
+              .map((item) => AppliedDonation.fromJson(item))
+              .toList(),
     );
   }
 
@@ -393,17 +463,21 @@ class MyPetApplications {
 
   // 진행 중인 신청 수
   int get activeApplicationsCount {
-    return applications.where((app) => 
-        app.status == AppliedDonationStatus.pending || 
-        app.status == AppliedDonationStatus.approved
-    ).length;
+    return applications
+        .where(
+          (app) =>
+              app.status == AppliedDonationStatus.pending ||
+              app.status == AppliedDonationStatus.approved,
+        )
+        .length;
   }
 
   // 최근 신청
   AppliedDonation? get latestApplication {
     if (applications.isEmpty) return null;
-    return applications.reduce((a, b) => 
-        a.createdAt?.isAfter(b.createdAt ?? DateTime(1900)) == true ? a : b
+    return applications.reduce(
+      (a, b) =>
+          a.createdAt?.isAfter(b.createdAt ?? DateTime(1900)) == true ? a : b,
     );
   }
 }
@@ -427,9 +501,10 @@ class PostApplications {
       postIdx: json['post_idx'],
       postTitle: json['post_title'],
       totalApplications: json['total_applications'] ?? 0,
-      applications: (json['applications'] as List)
-          .map((item) => AppliedDonation.fromJson(item))
-          .toList(),
+      applications:
+          (json['applications'] as List)
+              .map((item) => AppliedDonation.fromJson(item))
+              .toList(),
     );
   }
 
@@ -482,7 +557,8 @@ class MyApplicationInfo {
     }
 
     return MyApplicationInfo(
-      applicationId: json['application_id'] ?? json['applied_donation_idx'] ?? 0,
+      applicationId:
+          json['application_id'] ?? json['applied_donation_idx'] ?? 0,
       postId: json['post_id'] ?? json['post_idx'] ?? 0,
       postTitle: json['post_title'] ?? '',
       petName: json['pet_name'] ?? '',
@@ -499,10 +575,12 @@ class MyApplicationInfo {
   bool get canCancel => AppliedDonationStatus.canCancelStatus(statusCode);
 
   /// 취소 불가 시 메시지
-  String get cancelBlockMessage => AppliedDonationStatus.getCancelBlockMessage(statusCode);
+  String get cancelBlockMessage =>
+      AppliedDonationStatus.getCancelBlockMessage(statusCode);
 
   /// 빨간 테두리 표시 여부
-  bool get shouldShowAppliedBorder => AppliedDonationStatus.shouldShowAppliedBorder(statusCode);
+  bool get shouldShowAppliedBorder =>
+      AppliedDonationStatus.shouldShowAppliedBorder(statusCode);
 
   /// 종류 텍스트
   String get speciesText => petSpecies;
@@ -533,9 +611,10 @@ class TimeSlotApplications {
       totalApplications: json['total_applications'] ?? 0,
       pendingCount: json['pending_count'] ?? 0,
       approvedCount: json['approved_count'] ?? 0,
-      applications: (json['applications'] as List)
-          .map((item) => AppliedDonation.fromJson(item))
-          .toList(),
+      applications:
+          (json['applications'] as List)
+              .map((item) => AppliedDonation.fromJson(item))
+              .toList(),
     );
   }
 

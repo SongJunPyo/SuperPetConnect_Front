@@ -2,10 +2,12 @@ import 'package:flutter/material.dart';
 import '../utils/app_theme.dart';
 import '../models/notice_model.dart';
 import '../services/dashboard_service.dart';
+import '../models/notice_post_model.dart';
 import 'package:intl/intl.dart';
 import '../widgets/marquee_text.dart';
 import '../utils/number_format_util.dart';
 import 'package:url_launcher/url_launcher.dart';
+import '../utils/app_constants.dart';
 
 class UserNoticeListScreen extends StatefulWidget {
   const UserNoticeListScreen({super.key});
@@ -66,20 +68,23 @@ class _UserNoticeListScreenState extends State<UserNoticeListScreen> {
     }
 
     try {
-      final response = await DashboardService.fetchNoticesPage(
+      // 사용자는 인증된 API 사용 (targetAudience 0, 3 포함)
+      final response = await DashboardService.fetchAuthenticatedNoticesPage(
         page: _currentPage,
         pageSize: DashboardService.detailListPageSize,
       );
 
       final visibleNoticePosts = response.notices.where(
         (noticePost) =>
-            noticePost.targetAudience == 0 || noticePost.targetAudience == 3,
+            noticePost.targetAudience == AppConstants.noticeTargetAll || noticePost.targetAudience == AppConstants.noticeTargetUser,
       );
 
       final mappedNotices = visibleNoticePosts.map(_mapToNotice).toList();
 
       for (final notice in mappedNotices) {
-        final exists = _allNotices.any((stored) => stored.noticeIdx == notice.noticeIdx);
+        final exists = _allNotices.any(
+          (stored) => stored.noticeIdx == notice.noticeIdx,
+        );
         if (!exists) {
           _allNotices.add(notice);
         }
@@ -95,9 +100,10 @@ class _UserNoticeListScreenState extends State<UserNoticeListScreen> {
         _isLoadingMore = false;
         _isEndOfList = pagination.isEnd;
         _hasNextPage = pagination.hasNext;
-        _currentPage = pagination.hasNext
-            ? pagination.currentPage + 1
-            : pagination.currentPage;
+        _currentPage =
+            pagination.hasNext
+                ? pagination.currentPage + 1
+                : pagination.currentPage;
       });
     } catch (e) {
       if (!mounted) return;
@@ -171,7 +177,8 @@ class _UserNoticeListScreenState extends State<UserNoticeListScreen> {
     if (searchQuery.isNotEmpty) {
       final lowered = searchQuery.toLowerCase();
       filtered = filtered.where((notice) {
-        final nickname = (notice.authorNickname ?? notice.authorName).toLowerCase();
+        final nickname =
+            (notice.authorNickname ?? notice.authorName).toLowerCase();
         return notice.title.toLowerCase().contains(lowered) ||
             notice.authorName.toLowerCase().contains(lowered) ||
             nickname.contains(lowered);
@@ -186,12 +193,12 @@ class _UserNoticeListScreenState extends State<UserNoticeListScreen> {
       });
     }
 
-    final sorted = filtered.toList()
-      ..sort((a, b) {
-        if (a.showBadge && !b.showBadge) return -1;
-        if (!a.showBadge && b.showBadge) return 1;
-        return b.createdAt.compareTo(a.createdAt);
-      });
+    final sorted =
+        filtered.toList()..sort((a, b) {
+          if (a.showBadge && !b.showBadge) return -1;
+          if (!a.showBadge && b.showBadge) return 1;
+          return b.createdAt.compareTo(a.createdAt);
+        });
 
     return sorted;
   }
@@ -235,8 +242,7 @@ class _UserNoticeListScreenState extends State<UserNoticeListScreen> {
         );
         if (index != -1) {
           final displayNickname =
-              (noticeDetail.authorNickname != null &&
-                      noticeDetail.authorNickname!.toLowerCase() != '닉네임 없음')
+              (noticeDetail.authorNickname.toLowerCase() != '닉네임 없음')
                   ? noticeDetail.authorNickname
                   : noticeDetail.authorName;
 
@@ -397,7 +403,9 @@ class _UserNoticeListScreenState extends State<UserNoticeListScreen> {
                               uri,
                               mode: LaunchMode.externalApplication,
                             );
-                          } else if (mounted) {
+                          } else {
+                            if (!mounted) return;
+                            // ignore: use_build_context_synchronously
                             ScaffoldMessenger.of(context).showSnackBar(
                               const SnackBar(
                                 content: Text('링크를 열 수 없습니다.'),
@@ -462,19 +470,6 @@ class _UserNoticeListScreenState extends State<UserNoticeListScreen> {
         );
       },
     );
-  }
-
-  String _getTargetAudienceText(int targetAudience) {
-    switch (targetAudience) {
-      case 0:
-        return '전체';
-      case 2:
-        return '병원';
-      case 3:
-        return '사용자';
-      default:
-        return '전체';
-    }
   }
 
   // 날짜/시간 표시 로직
@@ -661,7 +656,8 @@ class _UserNoticeListScreenState extends State<UserNoticeListScreen> {
 
     final bool showLoadingTile = _isLoadingMore;
     final bool showEndTile = !_isLoadingMore && _isEndOfList;
-    final int itemCount = notices.length + (showLoadingTile ? 1 : 0) + (showEndTile ? 1 : 0);
+    final int itemCount =
+        notices.length + (showLoadingTile ? 1 : 0) + (showEndTile ? 1 : 0);
 
     return Container(
       decoration: BoxDecoration(color: Colors.white),
@@ -747,8 +743,12 @@ class _UserNoticeListScreenState extends State<UserNoticeListScreen> {
                                           : FontWeight.w500,
                                   fontSize: 14,
                                 ),
-                                animationDuration: const Duration(milliseconds: 4000),
-                                pauseDuration: const Duration(milliseconds: 1000),
+                                animationDuration: const Duration(
+                                  milliseconds: 4000,
+                                ),
+                                pauseDuration: const Duration(
+                                  milliseconds: 1000,
+                                ),
                               ),
                             ),
                           ],
@@ -757,7 +757,9 @@ class _UserNoticeListScreenState extends State<UserNoticeListScreen> {
                         Padding(
                           padding: const EdgeInsets.only(left: 28),
                           child: Text(
-                            (notice.authorNickname ?? notice.authorName).length > 15
+                            (notice.authorNickname ?? notice.authorName)
+                                        .length >
+                                    15
                                 ? '${(notice.authorNickname ?? notice.authorName).substring(0, 15)}..'
                                 : (notice.authorNickname ?? notice.authorName),
                             style: AppTheme.bodySmallStyle.copyWith(
@@ -799,7 +801,10 @@ class _UserNoticeListScreenState extends State<UserNoticeListScreen> {
                       Container(
                         height: 36,
                         width: 40,
-                        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 4,
+                          vertical: 4,
+                        ),
                         decoration: BoxDecoration(
                           color: AppTheme.mediumGray.withValues(alpha: 0.2),
                           borderRadius: BorderRadius.circular(6),
@@ -819,7 +824,9 @@ class _UserNoticeListScreenState extends State<UserNoticeListScreen> {
                             ),
                             const SizedBox(height: 1),
                             Text(
-                              NumberFormatUtil.formatViewCount(notice.viewCount ?? 0),
+                              NumberFormatUtil.formatViewCount(
+                                notice.viewCount ?? 0,
+                              ),
                               style: AppTheme.bodySmallStyle.copyWith(
                                 color: AppTheme.textTertiary,
                                 fontSize: 10,

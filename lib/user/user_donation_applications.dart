@@ -10,10 +10,12 @@ class UserDonationApplicationsScreen extends StatefulWidget {
   const UserDonationApplicationsScreen({super.key});
 
   @override
-  State<UserDonationApplicationsScreen> createState() => _UserDonationApplicationsScreenState();
+  State<UserDonationApplicationsScreen> createState() =>
+      _UserDonationApplicationsScreenState();
 }
 
-class _UserDonationApplicationsScreenState extends State<UserDonationApplicationsScreen> {
+class _UserDonationApplicationsScreenState
+    extends State<UserDonationApplicationsScreen> {
   List<MyPetApplications> petApplications = [];
   Map<String, dynamic>? userStats;
   bool isLoading = true;
@@ -34,7 +36,7 @@ class _UserDonationApplicationsScreenState extends State<UserDonationApplication
     try {
       final applications = await AppliedDonationService.getMyApplications();
       final stats = await AppliedDonationService.getUserDonationStats();
-      
+
       setState(() {
         petApplications = applications;
         userStats = stats;
@@ -51,13 +53,8 @@ class _UserDonationApplicationsScreenState extends State<UserDonationApplication
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppSimpleAppBar(
-        title: '내 헌혈 신청',
-      ),
-      body: RefreshIndicator(
-        onRefresh: _loadApplications,
-        child: _buildBody(),
-      ),
+      appBar: AppSimpleAppBar(title: '내 헌혈 신청'),
+      body: RefreshIndicator(onRefresh: _loadApplications, child: _buildBody()),
     );
   }
 
@@ -76,9 +73,10 @@ class _UserDonationApplicationsScreenState extends State<UserDonationApplication
       children: [
         if (userStats != null) _buildStatsHeader(),
         Expanded(
-          child: petApplications.isEmpty 
-              ? _buildEmptyState() 
-              : _buildApplicationsList(),
+          child:
+              petApplications.isEmpty
+                  ? _buildEmptyState()
+                  : _buildApplicationsList(),
         ),
       ],
     );
@@ -202,11 +200,7 @@ class _UserDonationApplicationsScreenState extends State<UserDonationApplication
               color: AppTheme.lightBlue,
               shape: BoxShape.circle,
             ),
-            child: Icon(
-              Icons.pets,
-              size: 64,
-              color: AppTheme.primaryBlue,
-            ),
+            child: Icon(Icons.pets, size: 64, color: AppTheme.primaryBlue),
           ),
           const SizedBox(height: 24),
           Text(
@@ -284,17 +278,11 @@ class _UserDonationApplicationsScreenState extends State<UserDonationApplication
             color: AppTheme.lightBlue.withValues(alpha: 0.2),
             borderRadius: BorderRadius.circular(AppTheme.radius8),
           ),
-          child: Icon(
-            Icons.pets,
-            color: AppTheme.primaryBlue,
-            size: 28,
-          ),
+          child: Icon(Icons.pets, color: AppTheme.primaryBlue, size: 28),
         ),
         title: Text(
           petApps.petName,
-          style: AppTheme.h4Style.copyWith(
-            fontWeight: FontWeight.w600,
-          ),
+          style: AppTheme.h4Style.copyWith(fontWeight: FontWeight.w600),
         ),
         subtitle: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -323,9 +311,10 @@ class _UserDonationApplicationsScreenState extends State<UserDonationApplication
             ),
           ],
         ),
-        children: petApps.applications.map((application) {
-          return _buildApplicationItem(application);
-        }).toList(),
+        children:
+            petApps.applications.map((application) {
+              return _buildApplicationItem(application);
+            }).toList(),
       ),
     );
   }
@@ -384,7 +373,9 @@ class _UserDonationApplicationsScreenState extends State<UserDonationApplication
                   vertical: AppTheme.spacing4,
                 ),
                 decoration: BoxDecoration(
-                  color: _getStatusColor(application.status).withValues(alpha: 0.1),
+                  color: _getStatusColor(
+                    application.status,
+                  ).withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(AppTheme.radius8),
                 ),
                 child: Text(
@@ -400,7 +391,11 @@ class _UserDonationApplicationsScreenState extends State<UserDonationApplication
           const SizedBox(height: AppTheme.spacing8),
           Row(
             children: [
-              Icon(Icons.local_hospital, size: 16, color: AppTheme.textSecondary),
+              Icon(
+                Icons.local_hospital,
+                size: 16,
+                color: AppTheme.textSecondary,
+              ),
               const SizedBox(width: AppTheme.spacing4),
               Expanded(
                 child: Text(
@@ -431,7 +426,11 @@ class _UserDonationApplicationsScreenState extends State<UserDonationApplication
             const SizedBox(height: AppTheme.spacing4),
             Row(
               children: [
-                Icon(Icons.access_time, size: 16, color: AppTheme.textSecondary),
+                Icon(
+                  Icons.access_time,
+                  size: 16,
+                  color: AppTheme.textSecondary,
+                ),
                 const SizedBox(width: AppTheme.spacing4),
                 Text(
                   '신청일: ${application.formattedCreatedAt}',
@@ -449,9 +448,7 @@ class _UserDonationApplicationsScreenState extends State<UserDonationApplication
               children: [
                 TextButton(
                   onPressed: () => _showCancelConfirmation(application),
-                  style: TextButton.styleFrom(
-                    foregroundColor: Colors.red,
-                  ),
+                  style: TextButton.styleFrom(foregroundColor: Colors.red),
                   child: const Text('취소하기'),
                 ),
               ],
@@ -463,77 +460,67 @@ class _UserDonationApplicationsScreenState extends State<UserDonationApplication
   }
 
   Color _getStatusColor(int status) {
-    switch (status) {
-      case AppliedDonationStatus.pending:
-        return Colors.orange;
-      case AppliedDonationStatus.approved:
-        return Colors.green;
-      case AppliedDonationStatus.rejected:
-        return Colors.red;
-      case AppliedDonationStatus.completed:
-        return Colors.blue;
-      case AppliedDonationStatus.cancelled:
-        return Colors.grey;
-      default:
-        return Colors.grey;
-    }
+    return AppliedDonationStatus.getStatusColorValue(status);
   }
 
   void _showCancelConfirmation(AppliedDonation application) {
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('신청 취소'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('다음 헌혈 신청을 취소하시겠습니까?'),
-            const SizedBox(height: 12),
-            Text(
-              application.postTitle ?? '헌혈 요청',
-              style: const TextStyle(fontWeight: FontWeight.w600),
+      builder:
+          (context) => AlertDialog(
+            title: const Text('신청 취소'),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('다음 헌혈 신청을 취소하시겠습니까?'),
+                const SizedBox(height: 12),
+                Text(
+                  application.postTitle ?? '헌혈 요청',
+                  style: const TextStyle(fontWeight: FontWeight.w600),
+                ),
+                Text(
+                  '${application.hospitalName ?? '병원'} · ${application.formattedDateTime}',
+                  style: TextStyle(color: Colors.grey.shade600, fontSize: 13),
+                ),
+              ],
             ),
-            Text(
-              '${application.hospitalName ?? '병원'} · ${application.formattedDateTime}',
-              style: TextStyle(color: Colors.grey.shade600, fontSize: 13),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('취소'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(),
+                child: const Text('취소'),
+              ),
+              TextButton(
+                onPressed: () async {
+                  Navigator.of(context).pop();
+                  await _cancelApplication(application);
+                },
+                style: TextButton.styleFrom(foregroundColor: Colors.red),
+                child: const Text('신청 취소'),
+              ),
+            ],
           ),
-          TextButton(
-            onPressed: () async {
-              Navigator.of(context).pop();
-              await _cancelApplication(application);
-            },
-            style: TextButton.styleFrom(foregroundColor: Colors.red),
-            child: const Text('신청 취소'),
-          ),
-        ],
-      ),
     );
   }
 
   Future<void> _cancelApplication(AppliedDonation application) async {
     try {
-      await AppliedDonationService.cancelApplication(application.appliedDonationIdx!);
-      
+      await AppliedDonationService.cancelApplication(
+        application.appliedDonationIdx!,
+      );
+
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('헌혈 신청이 취소되었습니다.')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('헌혈 신청이 취소되었습니다.')));
       }
-      
+
       await _loadApplications(); // 목록 새로고침
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('신청 취소 실패: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('신청 취소 실패: $e')));
       }
     }
   }

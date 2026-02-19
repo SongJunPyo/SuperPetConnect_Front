@@ -1,5 +1,7 @@
 // models/donation_post_time_model.dart
 
+import '../utils/app_constants.dart';
+
 class DonationPostTime {
   final int? postTimesId; // PK
   final int postDatesIdx; // FK to donation_post_dates table
@@ -23,10 +25,10 @@ class DonationPostTime {
   }
 
   // 시간대가 마감되었는지 확인
-  bool get isClosed => status == 1;
+  bool get isClosed => status == AppConstants.timeSlotClosed;
 
   // 시간대가 모집중인지 확인
-  bool get isOpen => status == 0;
+  bool get isOpen => status == AppConstants.timeSlotOpen;
 
   Map<String, dynamic> toJson() {
     return {
@@ -88,9 +90,10 @@ class DonationDateWithTimes {
       postDatesId: json['post_dates_id'],
       postIdx: json['post_idx'],
       donationDate: DateTime.parse(json['donation_date']),
-      times: (json['times'] as List<dynamic>? ?? [])
-          .map((timeJson) => DonationPostTime.fromJson(timeJson))
-          .toList(),
+      times:
+          (json['times'] as List<dynamic>? ?? [])
+              .map((timeJson) => DonationPostTime.fromJson(timeJson))
+              .toList(),
     );
   }
 
@@ -153,7 +156,8 @@ class BulkDonationTimeRequest {
   Map<String, dynamic> toJson() {
     return {
       'post_dates_idx': postDatesIdx,
-      'donation_times': donationTimes.map((time) => time.toIso8601String()).toList(),
+      'donation_times':
+          donationTimes.map((time) => time.toIso8601String()).toList(),
     };
   }
 }
@@ -174,7 +178,8 @@ class DateTimeCreateRequest {
     return {
       'post_idx': postIdx,
       'donation_date': donationDate.toIso8601String(),
-      'donation_times': donationTimes.map((time) => time.toIso8601String()).toList(),
+      'donation_times':
+          donationTimes.map((time) => time.toIso8601String()).toList(),
     };
   }
 }

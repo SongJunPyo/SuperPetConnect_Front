@@ -100,7 +100,6 @@ class _AdminUserManagementScreenState extends State<AdminUserManagementScreen>
     }
   }
 
-
   void _onSearchChanged(String query) {
     setState(() {
       searchQuery = query;
@@ -154,10 +153,7 @@ class _AdminUserManagementScreenState extends State<AdminUserManagementScreen>
         title: '사용자 관리',
         showBackButton: true,
         actions: [
-          IconButton(
-            icon: const Icon(Icons.refresh),
-            onPressed: _loadData,
-          ),
+          IconButton(icon: const Icon(Icons.refresh), onPressed: _loadData),
         ],
       ),
       body: Column(
@@ -168,18 +164,12 @@ class _AdminUserManagementScreenState extends State<AdminUserManagementScreen>
             labelColor: AppTheme.primaryBlue,
             unselectedLabelColor: AppTheme.textSecondary,
             indicatorColor: AppTheme.primaryBlue,
-            tabs: [
-              Tab(text: '활동'),
-              Tab(text: '정지'),
-            ],
+            tabs: [Tab(text: '활동'), Tab(text: '정지')],
           ),
           Expanded(
             child: TabBarView(
               controller: _tabController,
-              children: [
-                _buildUserListView(),
-                _buildUserListView(),
-              ],
+              children: [_buildUserListView(), _buildUserListView()],
             ),
           ),
           if (totalCount > pageSize) _buildPagination(),
@@ -187,7 +177,6 @@ class _AdminUserManagementScreenState extends State<AdminUserManagementScreen>
       ),
     );
   }
-
 
   Widget _buildSearchBar() {
     return Container(
@@ -198,15 +187,16 @@ class _AdminUserManagementScreenState extends State<AdminUserManagementScreen>
         decoration: InputDecoration(
           hintText: '이름, 이메일, 전화번호로 검색...',
           prefixIcon: const Icon(Icons.search),
-          suffixIcon: searchQuery.isNotEmpty
-              ? IconButton(
-                  icon: const Icon(Icons.clear),
-                  onPressed: () {
-                    searchController.clear();
-                    _onSearchChanged('');
-                  },
-                )
-              : null,
+          suffixIcon:
+              searchQuery.isNotEmpty
+                  ? IconButton(
+                    icon: const Icon(Icons.clear),
+                    onPressed: () {
+                      searchController.clear();
+                      _onSearchChanged('');
+                    },
+                  )
+                  : null,
           border: OutlineInputBorder(
             borderRadius: BorderRadius.circular(12),
             borderSide: BorderSide(color: AppTheme.lightGray),
@@ -238,10 +228,7 @@ class _AdminUserManagementScreenState extends State<AdminUserManagementScreen>
             const SizedBox(height: 8),
             Text(errorMessage!, style: AppTheme.bodyMediumStyle),
             const SizedBox(height: 24),
-            ElevatedButton(
-              onPressed: _loadData,
-              child: const Text('다시 시도'),
-            ),
+            ElevatedButton(onPressed: _loadData, child: const Text('다시 시도')),
           ],
         ),
       );
@@ -283,9 +270,10 @@ class _AdminUserManagementScreenState extends State<AdminUserManagementScreen>
         color: Colors.white,
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
-          color: isActive
-              ? AppTheme.success.withValues(alpha: 0.3)
-              : AppTheme.error.withValues(alpha: 0.3),
+          color:
+              isActive
+                  ? AppTheme.success.withValues(alpha: 0.3)
+                  : AppTheme.error.withValues(alpha: 0.3),
           width: isActive ? 1 : 2,
         ),
         boxShadow: [
@@ -314,7 +302,9 @@ class _AdminUserManagementScreenState extends State<AdminUserManagementScreen>
                           user.name,
                           style: AppTheme.h4Style.copyWith(
                             color:
-                                isActive ? AppTheme.textPrimary : AppTheme.error,
+                                isActive
+                                    ? AppTheme.textPrimary
+                                    : AppTheme.error,
                             fontWeight: FontWeight.w600,
                           ),
                         ),
@@ -329,12 +319,15 @@ class _AdminUserManagementScreenState extends State<AdminUserManagementScreen>
                     ),
                   ),
                   Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 4,
+                    ),
                     decoration: BoxDecoration(
-                      color: isActive
-                          ? AppTheme.success.withValues(alpha: 0.1)
-                          : AppTheme.error.withValues(alpha: 0.1),
+                      color:
+                          isActive
+                              ? AppTheme.success.withValues(alpha: 0.1)
+                              : AppTheme.error.withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Text(
@@ -347,8 +340,10 @@ class _AdminUserManagementScreenState extends State<AdminUserManagementScreen>
                   ),
                   const SizedBox(width: 8),
                   Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 4,
+                    ),
                     decoration: BoxDecoration(
                       color: AppTheme.primaryBlue.withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(12),
@@ -545,10 +540,7 @@ class _BlacklistBottomSheetState extends State<_BlacklistBottomSheet> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
-                  '정지 사유',
-                  style: AppTheme.bodyMediumStyle,
-                ),
+                const Text('정지 사유', style: AppTheme.bodyMediumStyle),
                 const SizedBox(height: 8),
                 TextFormField(
                   controller: _reasonController,
@@ -567,10 +559,7 @@ class _BlacklistBottomSheetState extends State<_BlacklistBottomSheet> {
                   },
                 ),
                 const SizedBox(height: 16),
-                const Text(
-                  '정지 일수',
-                  style: AppTheme.bodyMediumStyle,
-                ),
+                const Text('정지 일수', style: AppTheme.bodyMediumStyle),
                 const SizedBox(height: 8),
                 TextFormField(
                   controller: _daysController,
@@ -609,16 +598,17 @@ class _BlacklistBottomSheetState extends State<_BlacklistBottomSheet> {
                         borderRadius: BorderRadius.circular(12),
                       ),
                     ),
-                    child: _isLoading
-                        ? const SizedBox(
-                            width: 20,
-                            height: 20,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              color: Colors.white,
-                            ),
-                          )
-                        : const Text('등록'),
+                    child:
+                        _isLoading
+                            ? const SizedBox(
+                              width: 20,
+                              height: 20,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: Colors.white,
+                              ),
+                            )
+                            : const Text('등록'),
                   ),
                 ),
               ],

@@ -3,6 +3,7 @@
 
 import 'package:flutter/material.dart';
 import '../models/applicant_model.dart';
+import '../models/applied_donation_model.dart';
 import '../models/donation_history_model.dart';
 import '../services/donation_history_service.dart';
 import '../utils/app_theme.dart';
@@ -24,18 +25,7 @@ class ApplicantCard extends StatelessWidget {
 
   /// 상태별 색상
   Color _getStatusColor(int status) {
-    switch (status) {
-      case 0:
-        return Colors.orange;
-      case 1:
-        return Colors.green;
-      case 2:
-        return Colors.red;
-      case 3:
-        return Colors.grey;
-      default:
-        return Colors.grey;
-    }
+    return AppliedDonationStatus.getStatusColorValue(status);
   }
 
   @override
@@ -75,7 +65,10 @@ class ApplicantCard extends StatelessWidget {
                   ),
                   const SizedBox(width: 10),
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 4,
+                    ),
                     decoration: BoxDecoration(
                       color: statusColor.withAlpha(38),
                       borderRadius: BorderRadius.circular(8),
@@ -117,7 +110,10 @@ class ApplicantCard extends StatelessWidget {
                               borderRadius: BorderRadius.circular(10),
                             ),
                           ),
-                          child: const Text('거절', style: TextStyle(color: Colors.red)),
+                          child: const Text(
+                            '거절',
+                            style: TextStyle(color: Colors.red),
+                          ),
                         ),
                       ),
                     ),
@@ -166,9 +162,7 @@ class ApplicantCard extends StatelessWidget {
           Expanded(
             child: Text(
               value,
-              style: AppTheme.bodyMediumStyle.copyWith(
-                color: Colors.black87,
-              ),
+              style: AppTheme.bodyMediumStyle.copyWith(color: Colors.black87),
             ),
           ),
         ],
@@ -248,76 +242,79 @@ class _ApplicantDetailSheetState extends State<_ApplicantDetailSheet> {
       initialChildSize: 0.7,
       minChildSize: 0.4,
       maxChildSize: 0.95,
-      builder: (context, scrollController) => Container(
-        decoration: const BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-        ),
-        child: Column(
-          children: [
-            // 핸들 바
-            Container(
-              width: 40,
-              height: 4,
-              margin: const EdgeInsets.symmetric(vertical: 12),
-              decoration: BoxDecoration(
-                color: Colors.grey[300],
-                borderRadius: BorderRadius.circular(2),
-              ),
+      builder:
+          (context, scrollController) => Container(
+            decoration: const BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
             ),
-
-            // 헤더
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          widget.applicant.name,
-                          style: AppTheme.h3Style.copyWith(fontWeight: FontWeight.w700),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          widget.applicant.dogInfo,
-                          style: AppTheme.bodyMediumStyle.copyWith(
-                            color: AppTheme.textSecondary,
-                          ),
-                        ),
-                      ],
-                    ),
+            child: Column(
+              children: [
+                // 핸들 바
+                Container(
+                  width: 40,
+                  height: 4,
+                  margin: const EdgeInsets.symmetric(vertical: 12),
+                  decoration: BoxDecoration(
+                    color: Colors.grey[300],
+                    borderRadius: BorderRadius.circular(2),
                   ),
-                  IconButton(
-                    onPressed: () => Navigator.pop(context),
-                    icon: const Icon(Icons.close),
+                ),
+
+                // 헤더
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              widget.applicant.name,
+                              style: AppTheme.h3Style.copyWith(
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              widget.applicant.dogInfo,
+                              style: AppTheme.bodyMediumStyle.copyWith(
+                                color: AppTheme.textSecondary,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      IconButton(
+                        onPressed: () => Navigator.pop(context),
+                        icon: const Icon(Icons.close),
+                      ),
+                    ],
                   ),
-                ],
-              ),
+                ),
+
+                const Divider(height: 24),
+
+                // 내용
+                Expanded(
+                  child: ListView(
+                    controller: scrollController,
+                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                    children: [
+                      // 기본 정보
+                      _buildInfoSection(),
+
+                      const SizedBox(height: 24),
+
+                      // 헌혈 이력 섹션
+                      _buildDonationHistorySection(),
+                    ],
+                  ),
+                ),
+              ],
             ),
-
-            const Divider(height: 24),
-
-            // 내용
-            Expanded(
-              child: ListView(
-                controller: scrollController,
-                padding: const EdgeInsets.symmetric(horizontal: 20),
-                children: [
-                  // 기본 정보
-                  _buildInfoSection(),
-
-                  const SizedBox(height: 24),
-
-                  // 헌혈 이력 섹션
-                  _buildDonationHistorySection(),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
+          ),
     );
   }
 
@@ -353,12 +350,7 @@ class _ApplicantDetailSheetState extends State<_ApplicantDetailSheet> {
               ),
             ),
           ),
-          Expanded(
-            child: Text(
-              value,
-              style: AppTheme.bodyMediumStyle,
-            ),
-          ),
+          Expanded(child: Text(value, style: AppTheme.bodyMediumStyle)),
         ],
       ),
     );
@@ -441,7 +433,9 @@ class _ApplicantDetailSheetState extends State<_ApplicantDetailSheet> {
               ),
             )
           else
-            ...(_historyResponse!.histories.map((history) => _buildHistoryItem(history))),
+            ...(_historyResponse!.histories.map(
+              (history) => _buildHistoryItem(history),
+            )),
         ],
       ],
     );
@@ -492,13 +486,19 @@ class _ApplicantDetailSheetState extends State<_ApplicantDetailSheet> {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                 decoration: BoxDecoration(
-                  color: history.isSystemRecord ? Colors.blue.shade50 : Colors.green.shade50,
+                  color:
+                      history.isSystemRecord
+                          ? Colors.blue.shade50
+                          : Colors.green.shade50,
                   borderRadius: BorderRadius.circular(4),
                 ),
                 child: Text(
                   history.isSystemRecord ? '자동' : '수동',
                   style: AppTheme.bodySmallStyle.copyWith(
-                    color: history.isSystemRecord ? Colors.blue.shade600 : Colors.green.shade600,
+                    color:
+                        history.isSystemRecord
+                            ? Colors.blue.shade600
+                            : Colors.green.shade600,
                     fontSize: 11,
                   ),
                 ),
@@ -508,18 +508,28 @@ class _ApplicantDetailSheetState extends State<_ApplicantDetailSheet> {
           const SizedBox(height: 8),
           Row(
             children: [
-              Icon(Icons.local_hospital, size: 14, color: AppTheme.textSecondary),
+              Icon(
+                Icons.local_hospital,
+                size: 14,
+                color: AppTheme.textSecondary,
+              ),
               const SizedBox(width: 4),
               Text(
                 history.hospitalName ?? '정보 없음',
-                style: AppTheme.bodySmallStyle.copyWith(color: AppTheme.textSecondary),
+                style: AppTheme.bodySmallStyle.copyWith(
+                  color: AppTheme.textSecondary,
+                ),
               ),
               Text(' • ', style: TextStyle(color: AppTheme.textSecondary)),
               Icon(Icons.water_drop, size: 14, color: AppTheme.textSecondary),
               const SizedBox(width: 4),
               Text(
-                history.bloodVolumeMl != null ? '${history.bloodVolumeMl}ml' : '정보 없음',
-                style: AppTheme.bodySmallStyle.copyWith(color: AppTheme.textSecondary),
+                history.bloodVolumeMl != null
+                    ? '${history.bloodVolumeMl}ml'
+                    : '정보 없음',
+                style: AppTheme.bodySmallStyle.copyWith(
+                  color: AppTheme.textSecondary,
+                ),
               ),
             ],
           ),
@@ -527,7 +537,9 @@ class _ApplicantDetailSheetState extends State<_ApplicantDetailSheet> {
             const SizedBox(height: 4),
             Text(
               history.notes!,
-              style: AppTheme.bodySmallStyle.copyWith(color: AppTheme.textTertiary),
+              style: AppTheme.bodySmallStyle.copyWith(
+                color: AppTheme.textTertiary,
+              ),
             ),
           ],
         ],

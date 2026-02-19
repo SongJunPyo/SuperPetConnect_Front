@@ -11,6 +11,7 @@ class HospitalColumn {
   final String hospitalName;
   final String? authorNickname; // 작성자 닉네임
   final int viewCount;
+  final int targetAudience; // 0: 전체, 1: 관리자, 2: 병원, 3: 사용자
   final List<ColumnImage> images; // 칼럼 이미지 목록
 
   HospitalColumn({
@@ -26,6 +27,7 @@ class HospitalColumn {
     this.authorNickname,
     this.columnUrl,
     this.viewCount = 0,
+    this.targetAudience = 0,
     this.images = const [],
   });
 
@@ -33,9 +35,10 @@ class HospitalColumn {
     // 이미지 목록 파싱
     List<ColumnImage> imagesList = [];
     if (json['images'] != null && json['images'] is List) {
-      imagesList = (json['images'] as List)
-          .map((img) => ColumnImage.fromJson(img as Map<String, dynamic>))
-          .toList();
+      imagesList =
+          (json['images'] as List)
+              .map((img) => ColumnImage.fromJson(img as Map<String, dynamic>))
+              .toList();
     }
 
     return HospitalColumn(
@@ -45,20 +48,30 @@ class HospitalColumn {
       contentDelta: json['content_delta'],
       isPublished: json['columns_active'] ?? false,
       createdAt: DateTime.parse(
-        json['created_at'] ?? json['created_time'] ?? DateTime.now().toIso8601String(),
+        json['created_at'] ??
+            json['created_time'] ??
+            DateTime.now().toIso8601String(),
       ),
       updatedAt: DateTime.parse(
-        json['updated_at'] ?? json['updated_time'] ?? DateTime.now().toIso8601String(),
+        json['updated_at'] ??
+            json['updated_time'] ??
+            DateTime.now().toIso8601String(),
       ),
       hospitalIdx: json['hospital_idx'] ?? 0,
       hospitalName: json['hospital_name'] ?? '',
-      authorNickname: (json['hospital_nickname'] != null && json['hospital_nickname'].toString() != 'null' && json['hospital_nickname'].toString().isNotEmpty)
-          ? json['hospital_nickname']
-          : '닉네임 없음',
-      columnUrl: (json['column_url'] != null && json['column_url'].toString().isNotEmpty)
-          ? json['column_url']
-          : null,
+      authorNickname:
+          (json['hospital_nickname'] != null &&
+                  json['hospital_nickname'].toString() != 'null' &&
+                  json['hospital_nickname'].toString().isNotEmpty)
+              ? json['hospital_nickname']
+              : '닉네임 없음',
+      columnUrl:
+          (json['column_url'] != null &&
+                  json['column_url'].toString().isNotEmpty)
+              ? json['column_url']
+              : null,
       viewCount: json['view_count'] ?? 0,
+      targetAudience: json['target_audience'] ?? json['targetAudience'] ?? 0,
       images: imagesList,
     );
   }
@@ -77,6 +90,7 @@ class HospitalColumn {
       'author_nickname': authorNickname ?? '',
       'column_url': columnUrl,
       'view_count': viewCount,
+      'target_audience': targetAudience,
       'images': images.map((img) => img.toJson()).toList(),
     };
   }
@@ -153,9 +167,13 @@ class HospitalColumnListResponse {
   });
 
   factory HospitalColumnListResponse.fromJson(Map<String, dynamic> json) {
-    final columnsList = (json['columns'] as List? ?? [])
-        .map((column) => HospitalColumn.fromJson(column as Map<String, dynamic>))
-        .toList();
+    final columnsList =
+        (json['columns'] as List? ?? [])
+            .map(
+              (column) =>
+                  HospitalColumn.fromJson(column as Map<String, dynamic>),
+            )
+            .toList();
 
     return HospitalColumnListResponse(
       columns: columnsList,
@@ -197,9 +215,10 @@ class ColumnImage {
       imageOrder: json['image_order'] ?? 0,
       originalName: json['original_name'],
       fileSize: json['file_size'],
-      uploadedAt: json['uploaded_at'] != null
-          ? DateTime.parse(json['uploaded_at'])
-          : null,
+      uploadedAt:
+          json['uploaded_at'] != null
+              ? DateTime.parse(json['uploaded_at'])
+              : null,
     );
   }
 

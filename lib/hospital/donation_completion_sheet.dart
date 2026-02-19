@@ -19,7 +19,8 @@ class DonationCompletionSheet extends StatefulWidget {
   });
 
   @override
-  State<DonationCompletionSheet> createState() => _DonationCompletionSheetState();
+  State<DonationCompletionSheet> createState() =>
+      _DonationCompletionSheetState();
 }
 
 class _DonationCompletionSheetState extends State<DonationCompletionSheet> {
@@ -39,10 +40,10 @@ class _DonationCompletionSheetState extends State<DonationCompletionSheet> {
 
   void _initializeRecommendedVolume() {
     // 반려동물 체중이 있으면 권장 헌혈량으로 초기화
-    if (widget.appliedDonation.pet?.weightKg != null && 
+    if (widget.appliedDonation.pet?.weightKg != null &&
         widget.appliedDonation.pet!.weightKg! > 0) {
       final recommended = CompletedDonation.getRecommendedBloodVolume(
-        widget.appliedDonation.pet!.weightKg!
+        widget.appliedDonation.pet!.weightKg!,
       );
       _bloodVolumeController.text = recommended.toStringAsFixed(1);
     } else {
@@ -71,8 +72,8 @@ class _DonationCompletionSheetState extends State<DonationCompletionSheet> {
     }
 
     final validation = CompletedDonationService.validateBloodVolume(
-      volume, 
-      widget.appliedDonation.pet?.weightKg
+      volume,
+      widget.appliedDonation.pet?.weightKg,
     );
 
     setState(() {
@@ -120,7 +121,9 @@ class _DonationCompletionSheetState extends State<DonationCompletionSheet> {
                     children: [
                       Text(
                         '헌혈 완료 처리',
-                        style: AppTheme.h3Style.copyWith(fontWeight: FontWeight.w700),
+                        style: AppTheme.h3Style.copyWith(
+                          fontWeight: FontWeight.w700,
+                        ),
                       ),
                       const SizedBox(height: 8),
                       Text(
@@ -140,7 +143,7 @@ class _DonationCompletionSheetState extends State<DonationCompletionSheet> {
               ],
             ),
             const SizedBox(height: AppTheme.spacing20),
-            
+
             // 구분선
             Container(
               height: 1,
@@ -165,7 +168,7 @@ class _DonationCompletionSheetState extends State<DonationCompletionSheet> {
                     ),
                   ),
                   const SizedBox(height: 12),
-                  
+
                   // 신청자
                   Row(
                     mainAxisAlignment: MainAxisAlignment.start,
@@ -194,7 +197,7 @@ class _DonationCompletionSheetState extends State<DonationCompletionSheet> {
                     ],
                   ),
                   const SizedBox(height: 12),
-                  
+
                   // 반려동물
                   Row(
                     mainAxisAlignment: MainAxisAlignment.start,
@@ -205,9 +208,9 @@ class _DonationCompletionSheetState extends State<DonationCompletionSheet> {
                         height: 20,
                         child: Center(
                           child: FaIcon(
-                            (widget.appliedDonation.pet?.animalTypeKr == '강아지') 
-                              ? FontAwesomeIcons.dog 
-                              : FontAwesomeIcons.cat,
+                            (widget.appliedDonation.pet?.animalTypeKr == '강아지')
+                                ? FontAwesomeIcons.dog
+                                : FontAwesomeIcons.cat,
                             size: 16,
                             color: Colors.black,
                           ),
@@ -225,7 +228,7 @@ class _DonationCompletionSheetState extends State<DonationCompletionSheet> {
                     ],
                   ),
                   const SizedBox(height: 12),
-                  
+
                   // 혈액형
                   Row(
                     mainAxisAlignment: MainAxisAlignment.start,
@@ -254,7 +257,7 @@ class _DonationCompletionSheetState extends State<DonationCompletionSheet> {
                     ],
                   ),
                   const SizedBox(height: 12),
-                  
+
                   // 몸무게
                   Row(
                     mainAxisAlignment: MainAxisAlignment.start,
@@ -283,7 +286,7 @@ class _DonationCompletionSheetState extends State<DonationCompletionSheet> {
                     ],
                   ),
                   const SizedBox(height: 12),
-                  
+
                   // 나이
                   Row(
                     mainAxisAlignment: MainAxisAlignment.start,
@@ -333,10 +336,14 @@ class _DonationCompletionSheetState extends State<DonationCompletionSheet> {
                 Expanded(
                   child: TextField(
                     controller: _bloodVolumeController,
-                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                    keyboardType: const TextInputType.numberWithOptions(
+                      decimal: true,
+                    ),
                     textAlign: TextAlign.right,
                     inputFormatters: [
-                      FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d{0,2}')),
+                      FilteringTextInputFormatter.allow(
+                        RegExp(r'^\d*\.?\d{0,2}'),
+                      ),
                     ],
                     decoration: InputDecoration(
                       hintText: '헌혈량을 입력하세요 (mL)',
@@ -365,7 +372,6 @@ class _DonationCompletionSheetState extends State<DonationCompletionSheet> {
               ],
             ),
 
-
             const SizedBox(height: AppTheme.spacing20),
 
             // 완료 시간 설정
@@ -376,7 +382,7 @@ class _DonationCompletionSheetState extends State<DonationCompletionSheet> {
               ),
             ),
             const SizedBox(height: AppTheme.spacing8),
-            
+
             Row(
               children: [
                 // 날짜 선택
@@ -386,7 +392,9 @@ class _DonationCompletionSheetState extends State<DonationCompletionSheet> {
                       final pickedDate = await showDatePicker(
                         context: context,
                         initialDate: selectedCompletedDate,
-                        firstDate: DateTime.now().subtract(const Duration(days: 7)),
+                        firstDate: DateTime.now().subtract(
+                          const Duration(days: 7),
+                        ),
                         lastDate: DateTime.now(),
                       );
                       if (pickedDate != null) {
@@ -403,7 +411,7 @@ class _DonationCompletionSheetState extends State<DonationCompletionSheet> {
                   ),
                 ),
                 const SizedBox(width: AppTheme.spacing8),
-                
+
                 // 시간 선택
                 Expanded(
                   child: OutlinedButton.icon(
@@ -439,21 +447,27 @@ class _DonationCompletionSheetState extends State<DonationCompletionSheet> {
                   foregroundColor: Colors.green.shade700,
                   side: BorderSide(color: Colors.green.shade400),
                   backgroundColor: Colors.green.shade50,
-                  padding: const EdgeInsets.symmetric(vertical: AppTheme.spacing16),
+                  padding: const EdgeInsets.symmetric(
+                    vertical: AppTheme.spacing16,
+                  ),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(AppTheme.radius8),
                   ),
                 ),
-                child: isSubmitting 
-                    ? SizedBox(
-                        width: 20,
-                        height: 20,
-                        child: CircularProgressIndicator(
-                          color: Colors.green.shade700,
-                          strokeWidth: 2,
+                child:
+                    isSubmitting
+                        ? SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(
+                            color: Colors.green.shade700,
+                            strokeWidth: 2,
+                          ),
+                        )
+                        : const Text(
+                          '헌혈 완료 처리',
+                          style: TextStyle(fontSize: 16),
                         ),
-                      )
-                    : const Text('헌혈 완료 처리', style: TextStyle(fontSize: 16)),
               ),
             ),
             const SizedBox(height: AppTheme.spacing16),
@@ -463,14 +477,13 @@ class _DonationCompletionSheetState extends State<DonationCompletionSheet> {
     );
   }
 
-
   bool _canSubmit() {
     if (isSubmitting) return false;
     if (validationLevel == 'error') return false;
-    
+
     final volumeText = _bloodVolumeController.text.trim();
     if (volumeText.isEmpty) return false;
-    
+
     final volume = double.tryParse(volumeText);
     return volume != null && volume > 0;
   }
@@ -499,9 +512,8 @@ class _DonationCompletionSheetState extends State<DonationCompletionSheet> {
       );
 
       // 병원용 1차 헌혈 완료 처리 API 호출
-      final result = await CompletedDonationService.hospitalCompleteBloodDonation(
-        request,
-      );
+      final result =
+          await CompletedDonationService.hospitalCompleteBloodDonation(request);
 
       if (mounted) {
         // 서버 응답에서 반환된 데이터로 CompletedDonation 객체 생성
@@ -512,14 +524,15 @@ class _DonationCompletionSheetState extends State<DonationCompletionSheet> {
           petName: widget.appliedDonation.pet?.name,
           postTitle: widget.appliedDonation.postTitle,
         );
-        
+
         widget.onCompleted(tempCompletedDonation);
         Navigator.of(context).pop();
-        
+
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
-              result['message'] ?? '1차 완료 처리되었습니다! 관리자 승인 후 최종 완료됩니다.\n헌혈량: ${volume.toStringAsFixed(1)}mL'
+              result['message'] ??
+                  '1차 완료 처리되었습니다! 관리자 승인 후 최종 완료됩니다.\n헌혈량: ${volume.toStringAsFixed(1)}mL',
             ),
             backgroundColor: Colors.green,
             duration: const Duration(seconds: 4),
@@ -531,7 +544,7 @@ class _DonationCompletionSheetState extends State<DonationCompletionSheet> {
         setState(() {
           isSubmitting = false;
         });
-        
+
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('헌혈 완료 처리 실패: $e'),

@@ -9,6 +9,8 @@ class File {
   File(this.path);
 
   Future<int> length() async {
-    throw UnsupportedError('File.length()는 웹에서 지원되지 않습니다. uploadImageBytes를 사용하세요.');
+    throw UnsupportedError(
+      'File.length()는 웹에서 지원되지 않습니다. uploadImageBytes를 사용하세요.',
+    );
   }
 }

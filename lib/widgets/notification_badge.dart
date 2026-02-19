@@ -54,11 +54,7 @@ class NotificationBadge extends StatelessWidget {
               onPressed: onPressed,
             ),
             if (hasUnread)
-              Positioned(
-                right: 6,
-                top: 6,
-                child: _buildBadge(unreadCount),
-              ),
+              Positioned(right: 6, top: 6, child: _buildBadge(unreadCount)),
           ],
         );
       },
@@ -70,14 +66,8 @@ class NotificationBadge extends StatelessWidget {
     final isSmall = count < 10;
 
     return Container(
-      padding: EdgeInsets.symmetric(
-        horizontal: isSmall ? 4 : 6,
-        vertical: 2,
-      ),
-      constraints: const BoxConstraints(
-        minWidth: 16,
-        minHeight: 16,
-      ),
+      padding: EdgeInsets.symmetric(horizontal: isSmall ? 4 : 6, vertical: 2),
+      constraints: const BoxConstraints(minWidth: 16, minHeight: 16),
       decoration: BoxDecoration(
         color: badgeColor ?? AppTheme.error,
         borderRadius: BorderRadius.circular(10),
@@ -208,11 +198,7 @@ class StaticNotificationBadge extends StatelessWidget {
       clipBehavior: Clip.none,
       children: [
         IconButton(
-          icon: Icon(
-            icon,
-            color: iconColor ?? Colors.black87,
-            size: iconSize,
-          ),
+          icon: Icon(icon, color: iconColor ?? Colors.black87, size: iconSize),
           onPressed: onPressed,
         ),
         if (hasUnread)
@@ -221,10 +207,7 @@ class StaticNotificationBadge extends StatelessWidget {
             top: 6,
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
-              constraints: const BoxConstraints(
-                minWidth: 16,
-                minHeight: 16,
-              ),
+              constraints: const BoxConstraints(minWidth: 16, minHeight: 16),
               decoration: BoxDecoration(
                 color: AppTheme.error,
                 borderRadius: BorderRadius.circular(10),

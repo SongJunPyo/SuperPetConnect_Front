@@ -105,7 +105,6 @@ class _ApplicantListScreenState extends State<ApplicantListScreen> {
     }
   }
 
-
   @override
   Widget build(BuildContext context) {
     final TextTheme textTheme = Theme.of(context).textTheme;

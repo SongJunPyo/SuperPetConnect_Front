@@ -3,9 +3,9 @@
 import 'dart:convert';
 import 'auth_http_client.dart';
 import '../utils/config.dart';
+import '../utils/api_endpoints.dart';
 
 class AdminDonationApprovalService {
-  static String get baseUrl => '${Config.serverUrl}/api';
 
   // 관리자용 - 헌혈 최종 승인 처리
   static Future<Map<String, dynamic>> finalApproval({
@@ -14,15 +14,12 @@ class AdminDonationApprovalService {
   }) async {
     try {
       final response = await AuthHttpClient.post(
-        Uri.parse('$baseUrl/admin/donation_final_approval'),
-        body: jsonEncode({
-          'post_times_idx': postTimesIdx,
-          'action': action,
-        }),
+        Uri.parse('${Config.serverUrl}${ApiEndpoints.adminDonationFinalApproval}'),
+        body: jsonEncode({'post_times_idx': postTimesIdx, 'action': action}),
       );
 
       if (response.statusCode == 200 || response.statusCode == 201) {
-        final data = json.decode(utf8.decode(response.bodyBytes));
+        final data = response.parseJson();
         return {
           'success': true,
           'message': data['message'] ?? '해당 시간대가 최종 $action 처리되었습니다.',
@@ -34,10 +31,9 @@ class AdminDonationApprovalService {
           'processed_at': data['processed_at'],
         };
       } else {
-        final errorData = json.decode(utf8.decode(response.bodyBytes));
         return {
           'success': false,
-          'message': errorData['message'] ?? '최종 승인 처리 실패',
+          'message': response.extractErrorMessage('최종 승인 처리 실패'),
           'error': response.body,
         };
       }
@@ -51,14 +47,16 @@ class AdminDonationApprovalService {
   }
 
   // 해당 시간대의 대기중인 헌혈 신청 조회
-  static Future<Map<String, dynamic>> getPendingApplications(int postTimesIdx) async {
+  static Future<Map<String, dynamic>> getPendingApplications(
+    int postTimesIdx,
+  ) async {
     try {
       final response = await AuthHttpClient.get(
-        Uri.parse('$baseUrl/admin/pending_applications/$postTimesIdx'),
+        Uri.parse('${Config.serverUrl}${ApiEndpoints.adminPendingApplications(postTimesIdx)}'),
       );
 
       if (response.statusCode == 200) {
-        final data = json.decode(utf8.decode(response.bodyBytes));
+        final data = response.parseJson();
         return {
           'success': true,
           'pendingCompletions': data['pending_completions'] ?? [],
@@ -88,7 +86,7 @@ class AdminDonationApprovalService {
   }) async {
     try {
       final response = await AuthHttpClient.post(
-        Uri.parse('$baseUrl/admin/donation_batch_approval'),
+        Uri.parse('${Config.serverUrl}${ApiEndpoints.adminDonationBatchApproval}'),
         body: jsonEncode({
           'post_times_idx_list': postTimesIdxList,
           'action': action,
@@ -96,7 +94,7 @@ class AdminDonationApprovalService {
       );
 
       if (response.statusCode == 200 || response.statusCode == 201) {
-        final data = json.decode(utf8.decode(response.bodyBytes));
+        final data = response.parseJson();
         return {
           'success': true,
           'message': data['message'] ?? '일괄 처리 완료',
@@ -123,14 +121,15 @@ class AdminDonationApprovalService {
   // 헌혈 완료 대기 목록 조회 (날짜별)
   static Future<Map<String, dynamic>> getPendingByDate(DateTime date) async {
     try {
-      final dateStr = '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
+      final dateStr =
+          '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
 
       final response = await AuthHttpClient.get(
-        Uri.parse('$baseUrl/admin/pending_donations?date=$dateStr'),
+        Uri.parse('${Config.serverUrl}${ApiEndpoints.adminPendingDonations}?date=$dateStr'),
       );
 
       if (response.statusCode == 200) {
-        final data = json.decode(utf8.decode(response.bodyBytes));
+        final data = response.parseJson();
         return {
           'success': true,
           'date': dateStr,
@@ -158,11 +157,11 @@ class AdminDonationApprovalService {
   static Future<Map<String, dynamic>> getApprovalStats() async {
     try {
       final response = await AuthHttpClient.get(
-        Uri.parse('$baseUrl/admin/donation_approval_stats'),
+        Uri.parse('${Config.serverUrl}${ApiEndpoints.adminDonationApprovalStats}'),
       );
 
       if (response.statusCode == 200) {
-        final data = json.decode(utf8.decode(response.bodyBytes));
+        final data = response.parseJson();
         return {
           'success': true,
           'totalPendingCompletions': data['total_pending_completions'] ?? 0,

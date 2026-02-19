@@ -43,20 +43,23 @@ class DonationPostImage {
   factory DonationPostImage.fromJson(Map<String, dynamic> json) {
     return DonationPostImage(
       imageId: _parseInt(json['image_id'] ?? json['imageId']),
-      postIdx: json['post_idx'] != null || json['postIdx'] != null
-          ? _parseInt(json['post_idx'] ?? json['postIdx'])
-          : null,
+      postIdx:
+          json['post_idx'] != null || json['postIdx'] != null
+              ? _parseInt(json['post_idx'] ?? json['postIdx'])
+              : null,
       imagePath: json['image_path'] ?? json['imagePath'] ?? '',
       thumbnailPath: json['thumbnail_path'] ?? json['thumbnailPath'],
       imageOrder: _parseInt(json['image_order'] ?? json['imageOrder'] ?? 0),
       caption: json['caption'],
       originalName: json['original_name'] ?? json['originalName'],
-      fileSize: json['file_size'] != null || json['fileSize'] != null
-          ? _parseInt(json['file_size'] ?? json['fileSize'])
-          : null,
-      uploadedAt: json['uploaded_at'] != null
-          ? DateTime.tryParse(json['uploaded_at'])
-          : json['uploadedAt'] != null
+      fileSize:
+          json['file_size'] != null || json['fileSize'] != null
+              ? _parseInt(json['file_size'] ?? json['fileSize'])
+              : null,
+      uploadedAt:
+          json['uploaded_at'] != null
+              ? DateTime.tryParse(json['uploaded_at'])
+              : json['uploadedAt'] != null
               ? DateTime.tryParse(json['uploadedAt'])
               : null,
       isDeleted: json['is_deleted'] == 1 || json['isDeleted'] == true,
@@ -125,10 +128,12 @@ class DonationPostImage {
       thumbnailPath: response['thumbnail_path'] ?? response['thumbnailPath'],
       imageOrder: imageOrder,
       caption: caption,
-      originalName: response['original_name'] ?? response['originalName'] ?? originalName,
-      fileSize: response['file_size'] != null
-          ? _parseInt(response['file_size'])
-          : fileSize,
+      originalName:
+          response['original_name'] ?? response['originalName'] ?? originalName,
+      fileSize:
+          response['file_size'] != null
+              ? _parseInt(response['file_size'])
+              : fileSize,
       uploadedAt: DateTime.now(),
       isDeleted: false,
       isUploading: false,
@@ -187,7 +192,9 @@ class DonationPostImage {
   String get fileSizeFormatted {
     if (fileSize == null) return '';
     if (fileSize! < 1024) return '${fileSize}B';
-    if (fileSize! < 1024 * 1024) return '${(fileSize! / 1024).toStringAsFixed(1)}KB';
+    if (fileSize! < 1024 * 1024) {
+      return '${(fileSize! / 1024).toStringAsFixed(1)}KB';
+    }
     return '${(fileSize! / (1024 * 1024)).toStringAsFixed(1)}MB';
   }
 
@@ -204,15 +211,9 @@ class ImageOrderUpdate {
   final int imageId;
   final int imageOrder;
 
-  ImageOrderUpdate({
-    required this.imageId,
-    required this.imageOrder,
-  });
+  ImageOrderUpdate({required this.imageId, required this.imageOrder});
 
   Map<String, dynamic> toJson() {
-    return {
-      'image_id': imageId,
-      'image_order': imageOrder,
-    };
+    return {'image_id': imageId, 'image_order': imageOrder};
   }
 }

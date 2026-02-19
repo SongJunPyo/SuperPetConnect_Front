@@ -5,7 +5,6 @@ import '../utils/config.dart';
 import '../services/auth_http_client.dart';
 import '../utils/app_theme.dart';
 import '../widgets/marquee_text.dart';
-import '../widgets/custom_tab_bar.dart';
 import '../widgets/rich_text_viewer.dart';
 import 'package:intl/intl.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
@@ -76,49 +75,8 @@ class _AdminPostCheckState extends State<AdminPostCheck>
     super.dispose();
   }
 
-  // 상태값에 따른 텍스트 반환
-  String getStatusText(int status) {
-    switch (status) {
-      case 0:
-        return '대기중';
-      case 1:
-        return '승인됨';
-      case 2:
-        return '거절됨';
-      case 3:
-        return '완료';
-      case 4:
-        return '취소됨';
-      case 5:
-        return '완료 승인대기';
-      case 6:
-        return '취소 승인대기';
-      default:
-        return '알 수 없음';
-    }
-  }
-
-  // 상태값에 따른 색상 반환
-  Color getStatusColor(int status) {
-    switch (status) {
-      case 0:
-        return Colors.orange;
-      case 1:
-        return Colors.green;
-      case 2:
-        return Colors.red;
-      case 3:
-        return Colors.blue;
-      case 4:
-        return Colors.grey;
-      case 5:
-        return Colors.amber;
-      case 6:
-        return Colors.deepOrange;
-      default:
-        return Colors.grey;
-    }
-  }
+  // 상태 관리는 AppliedDonationStatus 클래스 사용
+  // (미사용 함수 제거됨 - lib/models/applied_donation_model.dart 참조)
 
   // 헌혈 완료 최종 승인
   Future<void> _finalApproveCompletion(int applicationId) async {
@@ -204,6 +162,7 @@ class _AdminPostCheckState extends State<AdminPostCheck>
         // 헌혈완료 탭은 나중에 탭 이동 시 자동으로 로드됨
       }
     } catch (e) {
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('승인 중 오류가 발생했습니다: $e'),
@@ -308,6 +267,7 @@ class _AdminPostCheckState extends State<AdminPostCheck>
         // 헌혈취소 탭은 나중에 탭 이동 시 자동으로 로드됨
       }
     } catch (e) {
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('반려 중 오류가 발생했습니다: $e'),
@@ -427,11 +387,17 @@ class _AdminPostCheckState extends State<AdminPostCheck>
 
                   // 1순위: pet 정보에서 추출
                   if (app['pet'] != null) {
-                    final petAnimalType = app['pet']['animal_type']?.toString() ??
-                                         app['pet']['species']?.toString() ?? '';
-                    if (petAnimalType == '0' || petAnimalType.toLowerCase() == 'dog' || petAnimalType == '강아지') {
+                    final petAnimalType =
+                        app['pet']['animal_type']?.toString() ??
+                        app['pet']['species']?.toString() ??
+                        '';
+                    if (petAnimalType == '0' ||
+                        petAnimalType.toLowerCase() == 'dog' ||
+                        petAnimalType == '강아지') {
                       animalType = 'dog';
-                    } else if (petAnimalType == '1' || petAnimalType.toLowerCase() == 'cat' || petAnimalType == '고양이') {
+                    } else if (petAnimalType == '1' ||
+                        petAnimalType.toLowerCase() == 'cat' ||
+                        petAnimalType == '고양이') {
                       animalType = 'cat';
                     }
                   }
@@ -439,9 +405,11 @@ class _AdminPostCheckState extends State<AdminPostCheck>
                   // 2순위: animal_type 필드에서 추출
                   if (animalType == 'unknown' && app['animal_type'] != null) {
                     final apiAnimalType = app['animal_type'].toString();
-                    if (apiAnimalType == '0' || apiAnimalType.toLowerCase() == 'dog') {
+                    if (apiAnimalType == '0' ||
+                        apiAnimalType.toLowerCase() == 'dog') {
                       animalType = 'dog';
-                    } else if (apiAnimalType == '1' || apiAnimalType.toLowerCase() == 'cat') {
+                    } else if (apiAnimalType == '1' ||
+                        apiAnimalType.toLowerCase() == 'cat') {
                       animalType = 'cat';
                     }
                   }
@@ -539,7 +507,7 @@ class _AdminPostCheckState extends State<AdminPostCheck>
                 }).toList();
 
             isLoading = false;
-            print('헌혈완료 탭 - Status 7 데이터: ${posts.length}개');
+            debugPrint('헌혈완료 탭 - Status 7 데이터: ${posts.length}개');
           });
         }
       } else if (response.statusCode == 401) {
@@ -710,7 +678,7 @@ class _AdminPostCheckState extends State<AdminPostCheck>
         setState(() {
           posts = allCancelled;
           isLoading = false;
-          print(
+          debugPrint(
             '헌혈취소 탭 - Status 2: ${allCancelled.where((p) => p['status'] == 2).length}개, Status 4: ${allCancelled.where((p) => p['status'] == 4).length}개',
           );
         });
@@ -785,11 +753,17 @@ class _AdminPostCheckState extends State<AdminPostCheck>
 
                   // 1순위: pet 정보에서 추출
                   if (app['pet'] != null) {
-                    final petAnimalType = app['pet']['animal_type']?.toString() ??
-                                         app['pet']['species']?.toString() ?? '';
-                    if (petAnimalType == '0' || petAnimalType.toLowerCase() == 'dog' || petAnimalType == '강아지') {
+                    final petAnimalType =
+                        app['pet']['animal_type']?.toString() ??
+                        app['pet']['species']?.toString() ??
+                        '';
+                    if (petAnimalType == '0' ||
+                        petAnimalType.toLowerCase() == 'dog' ||
+                        petAnimalType == '강아지') {
                       animalType = 'dog';
-                    } else if (petAnimalType == '1' || petAnimalType.toLowerCase() == 'cat' || petAnimalType == '고양이') {
+                    } else if (petAnimalType == '1' ||
+                        petAnimalType.toLowerCase() == 'cat' ||
+                        petAnimalType == '고양이') {
                       animalType = 'cat';
                     }
                   }
@@ -797,9 +771,11 @@ class _AdminPostCheckState extends State<AdminPostCheck>
                   // 2순위: animal_type 필드에서 추출
                   if (animalType == 'unknown' && app['animal_type'] != null) {
                     final apiAnimalType = app['animal_type'].toString();
-                    if (apiAnimalType == '0' || apiAnimalType.toLowerCase() == 'dog') {
+                    if (apiAnimalType == '0' ||
+                        apiAnimalType.toLowerCase() == 'dog') {
                       animalType = 'dog';
-                    } else if (apiAnimalType == '1' || apiAnimalType.toLowerCase() == 'cat') {
+                    } else if (apiAnimalType == '1' ||
+                        apiAnimalType.toLowerCase() == 'cat') {
                       animalType = 'cat';
                     }
                   }
@@ -847,7 +823,9 @@ class _AdminPostCheckState extends State<AdminPostCheck>
                     'pet_name': app['pet']?['name'] ?? '',
                     'pet_idx': () {
                       final idx = app['pet']?['pet_idx'] ?? app['pet_idx'];
-                      debugPrint('[헌혈마감 데이터변환] pet.pet_idx: ${app['pet']?['pet_idx']}, app.pet_idx: ${app['pet_idx']}, 최종: $idx');
+                      debugPrint(
+                        '[헌혈마감 데이터변환] pet.pet_idx: ${app['pet']?['pet_idx']}, app.pet_idx: ${app['pet_idx']}, 최종: $idx',
+                      );
                       return idx;
                     }(),
                     'user_nickname': app['user_nickname'] ?? '',
@@ -1145,9 +1123,7 @@ class _AdminPostCheckState extends State<AdminPostCheck>
               // 제목
               Text(
                 approve ? '게시글 승인' : '게시글 거절',
-                style: AppTheme.h3Style.copyWith(
-                  fontWeight: FontWeight.bold,
-                ),
+                style: AppTheme.h3Style.copyWith(fontWeight: FontWeight.bold),
                 textAlign: TextAlign.left,
               ),
               const SizedBox(height: 16),
@@ -1191,7 +1167,8 @@ class _AdminPostCheckState extends State<AdminPostCheck>
                     child: ElevatedButton(
                       onPressed: () => Navigator.of(context).pop(true),
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: approve ? AppTheme.success : AppTheme.error,
+                        backgroundColor:
+                            approve ? AppTheme.success : AppTheme.error,
                         foregroundColor: Colors.white,
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(12),
@@ -1990,9 +1967,13 @@ class _AdminPostCheckState extends State<AdminPostCheck>
                               ),
                               // 설명글 (있는 경우만)
                               if ((post['content_delta'] != null &&
-                                      post['content_delta'].toString().isNotEmpty) ||
+                                      post['content_delta']
+                                          .toString()
+                                          .isNotEmpty) ||
                                   (post['description'] != null &&
-                                      post['description'].toString().isNotEmpty)) ...[
+                                      post['description']
+                                          .toString()
+                                          .isNotEmpty)) ...[
                                 const SizedBox(height: 12),
                                 Container(
                                   width: double.infinity,
@@ -2006,7 +1987,8 @@ class _AdminPostCheckState extends State<AdminPostCheck>
                                     ),
                                   ),
                                   child: RichTextViewer(
-                                    contentDelta: post['content_delta']?.toString(),
+                                    contentDelta:
+                                        post['content_delta']?.toString(),
                                     plainText: post['description']?.toString(),
                                     padding: const EdgeInsets.all(12),
                                   ),
@@ -2014,7 +1996,8 @@ class _AdminPostCheckState extends State<AdminPostCheck>
                               ],
 
                               // 중단 사유 (상태 6 또는 4인 경우에 표시)
-                              if ((post['status'] == 6 || post['status'] == 4) &&
+                              if ((post['status'] == 6 ||
+                                      post['status'] == 4) &&
                                   post['cancelled_reason'] != null &&
                                   post['cancelled_reason']
                                       .toString()
@@ -2033,10 +2016,11 @@ class _AdminPostCheckState extends State<AdminPostCheck>
                                         const SizedBox(width: 8),
                                         Text(
                                           '중단 사유',
-                                          style: AppTheme.bodyLargeStyle.copyWith(
-                                            fontWeight: FontWeight.w600,
-                                            color: Colors.orange.shade700,
-                                          ),
+                                          style: AppTheme.bodyLargeStyle
+                                              .copyWith(
+                                                fontWeight: FontWeight.w600,
+                                                color: Colors.orange.shade700,
+                                              ),
                                         ),
                                       ],
                                     ),
@@ -2069,7 +2053,8 @@ class _AdminPostCheckState extends State<AdminPostCheck>
                                               '중단 처리 시간: ${_formatCancellationTime(post['cancelled_at'])}',
                                               style: AppTheme.bodySmallStyle
                                                   .copyWith(
-                                                    color: AppTheme.textSecondary,
+                                                    color:
+                                                        AppTheme.textSecondary,
                                                   ),
                                             ),
                                           ],
@@ -2830,7 +2815,12 @@ class _AdminPostCheckState extends State<AdminPostCheck>
                                     itemBuilder: (context, index) {
                                       final applicant = applicants[index];
                                       return ListTile(
-                                        onTap: () => _showApplicantDetailBottomSheet(context, applicant),
+                                        onTap:
+                                            () =>
+                                                _showApplicantDetailBottomSheet(
+                                                  context,
+                                                  applicant,
+                                                ),
                                         title: Text(
                                           '${applicant['nickname'] ?? '닉네임 없음'} (${applicant['name'] ?? '이름 없음'}) ${_formatPhoneNumber(applicant['contact'])}',
                                           style: AppTheme.bodyLargeStyle
@@ -2868,9 +2858,11 @@ class _AdminPostCheckState extends State<AdminPostCheck>
                                                 lastDonationText =
                                                     '첫 헌혈을 기다리는 중';
                                               } else {
-                                                lastDonationText = _formatLastDonationDate(
-                                                  lastDonationDate.toString(),
-                                                );
+                                                lastDonationText =
+                                                    _formatLastDonationDate(
+                                                      lastDonationDate
+                                                          .toString(),
+                                                    );
                                               }
                                               return Text(
                                                 '직전 헌혈일: $lastDonationText',
@@ -3183,11 +3175,11 @@ class _AdminPostCheckState extends State<AdminPostCheck>
             final mainPostIndex = posts.indexWhere((p) => p['id'] == postIdx);
             if (mainPostIndex != -1) {
               // 게시글의 status를 API 응답값으로 업데이트
-              print('=== 시간대 마감 후 상태 업데이트 ===');
-              print('이전 status: ${posts[mainPostIndex]['status']}');
-              print('새로운 status: $postStatus');
+              debugPrint('=== 시간대 마감 후 상태 업데이트 ===');
+              debugPrint('이전 status: ${posts[mainPostIndex]['status']}');
+              debugPrint('새로운 status: $postStatus');
               posts[mainPostIndex]['status'] = postStatus;
-              print('업데이트 완료! 뱃지: ${_getPostType(posts[mainPostIndex])}');
+              debugPrint('업데이트 완료! 뱃지: ${_getPostType(posts[mainPostIndex])}');
             }
           });
 
@@ -3519,9 +3511,7 @@ class _AdminPostCheckState extends State<AdminPostCheck>
           // 메인 화면 상태 업데이트
           if (mounted) {
             setState(() {
-              final mainPostIndex = posts.indexWhere(
-                (p) => p['id'] == postIdx,
-              );
+              final mainPostIndex = posts.indexWhere((p) => p['id'] == postIdx);
               if (mainPostIndex != -1) {
                 final mainTimeRanges =
                     posts[mainPostIndex]['timeRanges'] as List<dynamic>? ?? [];
@@ -3610,7 +3600,10 @@ class _AdminPostCheckState extends State<AdminPostCheck>
   void _showCompletionApplicantInfo(Map<String, dynamic> post) {
     // applications 배열에서 첫 번째 신청자 정보 가져오기 (헌혈완료/취소는 1건)
     final applications = post['applications'] as List<dynamic>? ?? [];
-    final applicant = applications.isNotEmpty ? applications.first as Map<String, dynamic>? ?? {} : <String, dynamic>{};
+    final applicant =
+        applications.isNotEmpty
+            ? applications.first as Map<String, dynamic>? ?? {}
+            : <String, dynamic>{};
 
     // pet_idx 가져오기 (post 또는 applicant에서) - 타입 변환 처리
     int? petIdx;
@@ -3618,12 +3611,18 @@ class _AdminPostCheckState extends State<AdminPostCheck>
     final applicantPetIdx = applicant['pet_idx'];
 
     if (postPetIdx != null) {
-      petIdx = postPetIdx is int ? postPetIdx : int.tryParse(postPetIdx.toString());
+      petIdx =
+          postPetIdx is int ? postPetIdx : int.tryParse(postPetIdx.toString());
     } else if (applicantPetIdx != null) {
-      petIdx = applicantPetIdx is int ? applicantPetIdx : int.tryParse(applicantPetIdx.toString());
+      petIdx =
+          applicantPetIdx is int
+              ? applicantPetIdx
+              : int.tryParse(applicantPetIdx.toString());
     }
 
-    debugPrint('[헌혈마감] post pet_idx: $postPetIdx, applicant pet_idx: $applicantPetIdx, 최종 petIdx: $petIdx');
+    debugPrint(
+      '[헌혈마감] post pet_idx: $postPetIdx, applicant pet_idx: $applicantPetIdx, 최종 petIdx: $petIdx',
+    );
 
     showModalBottomSheet(
       context: context,
@@ -4018,6 +4017,7 @@ class _AdminPostCheckState extends State<AdminPostCheck>
         await Future.delayed(const Duration(milliseconds: 500));
         if (mounted) {
           await _fetchDataForCurrentTab();
+          if (!mounted) return;
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
               content: Text('게시글이 성공적으로 마감되었습니다.'),
@@ -4179,9 +4179,7 @@ class _AdminPostCheckState extends State<AdminPostCheck>
                                   },
                           style: ElevatedButton.styleFrom(
                             backgroundColor:
-                                canClose
-                                    ? Colors.red
-                                    : Colors.grey,
+                                canClose ? Colors.red : Colors.grey,
                             foregroundColor: Colors.white,
                             padding: const EdgeInsets.symmetric(vertical: 12),
                             shape: RoundedRectangleBorder(
@@ -4222,7 +4220,10 @@ class _AdminPostCheckState extends State<AdminPostCheck>
   }
 
   // 신청자 상세 정보 바텀시트 표시
-  void _showApplicantDetailBottomSheet(BuildContext context, Map<String, dynamic> applicant) {
+  void _showApplicantDetailBottomSheet(
+    BuildContext context,
+    Map<String, dynamic> applicant,
+  ) {
     final petInfo = applicant['pet_info'] as Map<String, dynamic>? ?? {};
     final petIdx = applicant['pet_idx'] as int?;
 
@@ -4230,81 +4231,90 @@ class _AdminPostCheckState extends State<AdminPostCheck>
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (context) => DraggableScrollableSheet(
-        initialChildSize: 0.7,
-        minChildSize: 0.4,
-        maxChildSize: 0.95,
-        builder: (context, scrollController) => Container(
-          decoration: const BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-          ),
-          child: Column(
-            children: [
-              // 핸들 바
-              Container(
-                width: 40,
-                height: 4,
-                margin: const EdgeInsets.symmetric(vertical: 12),
-                decoration: BoxDecoration(
-                  color: Colors.grey[300],
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              ),
-              // 헤더
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 20),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            '${applicant['nickname'] ?? ''} (${applicant['name'] ?? ''})',
-                            style: AppTheme.h3Style.copyWith(fontWeight: FontWeight.w700),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            petInfo['name'] ?? '반려동물 정보 없음',
-                            style: AppTheme.bodyMediumStyle.copyWith(
-                              color: AppTheme.textSecondary,
-                            ),
-                          ),
-                        ],
+      builder:
+          (context) => DraggableScrollableSheet(
+            initialChildSize: 0.7,
+            minChildSize: 0.4,
+            maxChildSize: 0.95,
+            builder:
+                (context, scrollController) => Container(
+                  decoration: const BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.vertical(
+                      top: Radius.circular(20),
+                    ),
+                  ),
+                  child: Column(
+                    children: [
+                      // 핸들 바
+                      Container(
+                        width: 40,
+                        height: 4,
+                        margin: const EdgeInsets.symmetric(vertical: 12),
+                        decoration: BoxDecoration(
+                          color: Colors.grey[300],
+                          borderRadius: BorderRadius.circular(2),
+                        ),
                       ),
-                    ),
-                    IconButton(
-                      onPressed: () => Navigator.pop(context),
-                      icon: const Icon(Icons.close),
-                    ),
-                  ],
+                      // 헤더
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 20),
+                        child: Row(
+                          children: [
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    '${applicant['nickname'] ?? ''} (${applicant['name'] ?? ''})',
+                                    style: AppTheme.h3Style.copyWith(
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    petInfo['name'] ?? '반려동물 정보 없음',
+                                    style: AppTheme.bodyMediumStyle.copyWith(
+                                      color: AppTheme.textSecondary,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            IconButton(
+                              onPressed: () => Navigator.pop(context),
+                              icon: const Icon(Icons.close),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const Divider(height: 24),
+                      // 내용
+                      Expanded(
+                        child: ListView(
+                          controller: scrollController,
+                          padding: const EdgeInsets.symmetric(horizontal: 20),
+                          children: [
+                            // 기본 정보
+                            _buildApplicantInfoSection(applicant, petInfo),
+                            const SizedBox(height: 24),
+                            // 헌혈 이력 섹션
+                            _buildDonationHistorySection(petIdx),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-              const Divider(height: 24),
-              // 내용
-              Expanded(
-                child: ListView(
-                  controller: scrollController,
-                  padding: const EdgeInsets.symmetric(horizontal: 20),
-                  children: [
-                    // 기본 정보
-                    _buildApplicantInfoSection(applicant, petInfo),
-                    const SizedBox(height: 24),
-                    // 헌혈 이력 섹션
-                    _buildDonationHistorySection(petIdx),
-                  ],
-                ),
-              ),
-            ],
           ),
-        ),
-      ),
     );
   }
 
   // 신청자 정보 섹션
-  Widget _buildApplicantInfoSection(Map<String, dynamic> applicant, Map<String, dynamic> petInfo) {
+  Widget _buildApplicantInfoSection(
+    Map<String, dynamic> applicant,
+    Map<String, dynamic> petInfo,
+  ) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -4314,8 +4324,14 @@ class _AdminPostCheckState extends State<AdminPostCheck>
         ),
         const SizedBox(height: 12),
         _buildApplicantInfoRow('연락처', _formatPhoneNumber(applicant['contact'])),
-        _buildApplicantInfoRow('반려동물', '${petInfo['name'] ?? '-'} (${petInfo['breed'] ?? '-'})'),
-        _buildApplicantInfoRow('나이 / 혈액형', '${petInfo['age'] ?? '-'}세 / ${petInfo['blood_type'] ?? '-'}'),
+        _buildApplicantInfoRow(
+          '반려동물',
+          '${petInfo['name'] ?? '-'} (${petInfo['breed'] ?? '-'})',
+        ),
+        _buildApplicantInfoRow(
+          '나이 / 혈액형',
+          '${petInfo['age'] ?? '-'}세 / ${petInfo['blood_type'] ?? '-'}',
+        ),
         _buildApplicantInfoRow('직전 헌혈일', () {
           final lastDonation = petInfo['last_donation_date'];
           if (lastDonation == null || lastDonation.toString().isEmpty) {
@@ -4343,12 +4359,7 @@ class _AdminPostCheckState extends State<AdminPostCheck>
               ),
             ),
           ),
-          Expanded(
-            child: Text(
-              value,
-              style: AppTheme.bodyMediumStyle,
-            ),
-          ),
+          Expanded(child: Text(value, style: AppTheme.bodyMediumStyle)),
         ],
       ),
     );
@@ -4362,7 +4373,9 @@ class _AdminPostCheckState extends State<AdminPostCheck>
         children: [
           Text(
             '헌혈 이력',
-            style: AppTheme.bodyLargeStyle.copyWith(fontWeight: FontWeight.w600),
+            style: AppTheme.bodyLargeStyle.copyWith(
+              fontWeight: FontWeight.w600,
+            ),
           ),
           const SizedBox(height: 12),
           Container(
@@ -4450,9 +4463,19 @@ class _AdminPostCheckState extends State<AdminPostCheck>
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceAround,
                     children: [
-                      _buildHistoryStatItem('총 헌혈 횟수', '${historyResponse.totalCount}회'),
-                      Container(width: 1, height: 30, color: Colors.grey.shade300),
-                      _buildHistoryStatItem('총 헌혈량', historyResponse.totalBloodVolumeText),
+                      _buildHistoryStatItem(
+                        '총 헌혈 횟수',
+                        '${historyResponse.totalCount}회',
+                      ),
+                      Container(
+                        width: 1,
+                        height: 30,
+                        color: Colors.grey.shade300,
+                      ),
+                      _buildHistoryStatItem(
+                        '총 헌혈량',
+                        historyResponse.totalBloodVolumeText,
+                      ),
                     ],
                   ),
                 ),
@@ -4471,7 +4494,9 @@ class _AdminPostCheckState extends State<AdminPostCheck>
                     ),
                   )
                 else
-                  ...historyResponse.histories.map((history) => _buildHistoryItem(history)),
+                  ...historyResponse.histories.map(
+                    (history) => _buildHistoryItem(history),
+                  ),
               ],
             );
           },
@@ -4527,13 +4552,19 @@ class _AdminPostCheckState extends State<AdminPostCheck>
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                 decoration: BoxDecoration(
-                  color: history.isSystemRecord ? Colors.blue.shade50 : Colors.green.shade50,
+                  color:
+                      history.isSystemRecord
+                          ? Colors.blue.shade50
+                          : Colors.green.shade50,
                   borderRadius: BorderRadius.circular(4),
                 ),
                 child: Text(
                   history.isSystemRecord ? '자동' : '수동',
                   style: AppTheme.bodySmallStyle.copyWith(
-                    color: history.isSystemRecord ? Colors.blue.shade600 : Colors.green.shade600,
+                    color:
+                        history.isSystemRecord
+                            ? Colors.blue.shade600
+                            : Colors.green.shade600,
                     fontSize: 11,
                   ),
                 ),
@@ -4543,18 +4574,28 @@ class _AdminPostCheckState extends State<AdminPostCheck>
           const SizedBox(height: 8),
           Row(
             children: [
-              Icon(Icons.local_hospital, size: 14, color: AppTheme.textSecondary),
+              Icon(
+                Icons.local_hospital,
+                size: 14,
+                color: AppTheme.textSecondary,
+              ),
               const SizedBox(width: 4),
               Text(
                 history.hospitalName ?? '정보 없음',
-                style: AppTheme.bodySmallStyle.copyWith(color: AppTheme.textSecondary),
+                style: AppTheme.bodySmallStyle.copyWith(
+                  color: AppTheme.textSecondary,
+                ),
               ),
               Text(' • ', style: TextStyle(color: AppTheme.textSecondary)),
               Icon(Icons.water_drop, size: 14, color: AppTheme.textSecondary),
               const SizedBox(width: 4),
               Text(
-                history.bloodVolumeMl != null ? '${history.bloodVolumeMl}ml' : '정보 없음',
-                style: AppTheme.bodySmallStyle.copyWith(color: AppTheme.textSecondary),
+                history.bloodVolumeMl != null
+                    ? '${history.bloodVolumeMl}ml'
+                    : '정보 없음',
+                style: AppTheme.bodySmallStyle.copyWith(
+                  color: AppTheme.textSecondary,
+                ),
               ),
             ],
           ),
@@ -4562,7 +4603,9 @@ class _AdminPostCheckState extends State<AdminPostCheck>
             const SizedBox(height: 4),
             Text(
               history.notes!,
-              style: AppTheme.bodySmallStyle.copyWith(color: AppTheme.textTertiary),
+              style: AppTheme.bodySmallStyle.copyWith(
+                color: AppTheme.textTertiary,
+              ),
             ),
           ],
         ],

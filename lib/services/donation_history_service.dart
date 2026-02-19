@@ -2,13 +2,12 @@
 // 반려동물 헌혈 이력 API 서비스
 
 import 'dart:convert';
-import 'package:flutter/foundation.dart';
 import '../utils/config.dart';
+import '../utils/api_endpoints.dart';
 import '../models/donation_history_model.dart';
 import 'auth_http_client.dart';
 
 class DonationHistoryService {
-  static const String _baseUrl = '/api/pet-donation-history';
 
   /// 헌혈 이력 조회 (페이지네이션)
   /// [petIdx] 반려동물 ID
@@ -20,18 +19,16 @@ class DonationHistoryService {
     int limit = 10,
   }) async {
     try {
-      final url = '${Config.serverUrl}$_baseUrl/$petIdx?page=$page&limit=$limit';
+      final url =
+          '${Config.serverUrl}${ApiEndpoints.petDonationHistoryByPet(petIdx)}?page=$page&limit=$limit';
 
-      final response = await AuthHttpClient.get(
-        Uri.parse(url),
-      );
+      final response = await AuthHttpClient.get(Uri.parse(url));
 
       if (response.statusCode == 200) {
-        final data = jsonDecode(utf8.decode(response.bodyBytes));
+        final data = response.parseJsonDynamic();
         return DonationHistoryResponse.fromJson(data);
       } else {
-        final error = jsonDecode(utf8.decode(response.bodyBytes));
-        throw Exception(error['detail'] ?? '헌혈 이력을 불러오는데 실패했습니다.');
+        throw response.toException('헌혈 이력을 불러오는데 실패했습니다.');
       }
     } catch (e) {
       throw Exception('헌혈 이력 조회 오류: $e');
@@ -46,35 +43,20 @@ class DonationHistoryService {
     required DonationHistoryCreateRequest request,
   }) async {
     try {
-      final url = '${Config.serverUrl}$_baseUrl/$petIdx';
-
-      if (kDebugMode) {
-        print('[DonationHistoryService] addHistory 요청');
-        print('[DonationHistoryService] URL: $url');
-        print('[DonationHistoryService] Body: ${jsonEncode(request.toJson())}');
-      }
+      final url = '${Config.serverUrl}${ApiEndpoints.petDonationHistoryByPet(petIdx)}';
 
       final response = await AuthHttpClient.post(
         Uri.parse(url),
         body: jsonEncode(request.toJson()),
       );
 
-      if (kDebugMode) {
-        print('[DonationHistoryService] 응답 상태: ${response.statusCode}');
-        print('[DonationHistoryService] 응답 본문: ${utf8.decode(response.bodyBytes)}');
-      }
-
       if (response.statusCode == 201) {
-        final data = jsonDecode(utf8.decode(response.bodyBytes));
+        final data = response.parseJsonDynamic();
         return data['data']?['history_idx'];
       } else {
-        final error = jsonDecode(utf8.decode(response.bodyBytes));
-        throw Exception(error['detail'] ?? '헌혈 이력 추가에 실패했습니다.');
+        throw response.toException('헌혈 이력 추가에 실패했습니다.');
       }
     } catch (e) {
-      if (kDebugMode) {
-        print('[DonationHistoryService] 오류: $e');
-      }
       throw Exception('헌혈 이력 추가 오류: $e');
     }
   }
@@ -87,7 +69,7 @@ class DonationHistoryService {
     required List<DonationHistoryCreateRequest> requests,
   }) async {
     try {
-      final url = '${Config.serverUrl}$_baseUrl/$petIdx/bulk';
+      final url = '${Config.serverUrl}${ApiEndpoints.petDonationHistoryBulk(petIdx)}';
 
       final body = requests.map((r) => r.toJson()).toList();
 
@@ -97,11 +79,10 @@ class DonationHistoryService {
       );
 
       if (response.statusCode == 201) {
-        final data = jsonDecode(utf8.decode(response.bodyBytes));
+        final data = response.parseJsonDynamic();
         return data['data']?['count'] ?? 0;
       } else {
-        final error = jsonDecode(utf8.decode(response.bodyBytes));
-        throw Exception(error['detail'] ?? '헌혈 이력 일괄 추가에 실패했습니다.');
+        throw response.toException('헌혈 이력 일괄 추가에 실패했습니다.');
       }
     } catch (e) {
       throw Exception('헌혈 이력 일괄 추가 오류: $e');
@@ -116,7 +97,7 @@ class DonationHistoryService {
     required DonationHistoryUpdateRequest request,
   }) async {
     try {
-      final url = '${Config.serverUrl}$_baseUrl/$historyIdx';
+      final url = '${Config.serverUrl}${ApiEndpoints.petDonationHistoryItem(historyIdx)}';
 
       final response = await AuthHttpClient.put(
         Uri.parse(url),
@@ -124,11 +105,10 @@ class DonationHistoryService {
       );
 
       if (response.statusCode == 200) {
-        final data = jsonDecode(utf8.decode(response.bodyBytes));
+        final data = response.parseJsonDynamic();
         return DonationHistory.fromJson(data);
       } else {
-        final error = jsonDecode(utf8.decode(response.bodyBytes));
-        throw Exception(error['detail'] ?? '헌혈 이력 수정에 실패했습니다.');
+        throw response.toException('헌혈 이력 수정에 실패했습니다.');
       }
     } catch (e) {
       throw Exception('헌혈 이력 수정 오류: $e');
@@ -137,21 +117,16 @@ class DonationHistoryService {
 
   /// 헌혈 이력 삭제 (수동 입력만 가능)
   /// [historyIdx] 이력 ID
-  static Future<bool> deleteHistory({
-    required int historyIdx,
-  }) async {
+  static Future<bool> deleteHistory({required int historyIdx}) async {
     try {
-      final url = '${Config.serverUrl}$_baseUrl/$historyIdx';
+      final url = '${Config.serverUrl}${ApiEndpoints.petDonationHistoryItem(historyIdx)}';
 
-      final response = await AuthHttpClient.delete(
-        Uri.parse(url),
-      );
+      final response = await AuthHttpClient.delete(Uri.parse(url));
 
       if (response.statusCode == 204) {
         return true;
       } else {
-        final error = jsonDecode(utf8.decode(response.bodyBytes));
-        throw Exception(error['detail'] ?? '헌혈 이력 삭제에 실패했습니다.');
+        throw response.toException('헌혈 이력 삭제에 실패했습니다.');
       }
     } catch (e) {
       throw Exception('헌혈 이력 삭제 오류: $e');

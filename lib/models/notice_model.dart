@@ -1,9 +1,11 @@
+import '../utils/app_constants.dart';
+
 class Notice {
   final int noticeIdx;
   final int accountIdx; // 작성자 계정 ID (FK)
   final String title;
   final String content;
-  final int noticeImportant; // 0=긴급, 1=정기 (int로 변경)
+  final int noticeImportant; // 0=일반(뱃지 OFF), 1=긴급(뱃지 ON)
   final bool noticeActive; // 필드명 변경
   final DateTime createdAt;
   final DateTime updatedAt;
@@ -37,36 +39,44 @@ class Notice {
       accountIdx: json['account_idx'],
       title: json['title'],
       content: json['content'],
-      noticeImportant: _parseNoticeImportant(json['notice_important']), // 0=긴급, 1=정기
-      noticeActive: json['notice_active'] ?? json['is_active'] ?? true, // 호환성을 위해 둘 다 지원
+      noticeImportant: _parseNoticeImportant(
+        json['notice_important'],
+      ), // 0=일반, 1=긴급
+      noticeActive:
+          json['notice_active'] ?? json['is_active'] ?? true, // 호환성을 위해 둘 다 지원
       createdAt: DateTime.parse(json['created_at']),
       updatedAt: DateTime.parse(json['updated_at']),
       authorEmail: json['author_email'] ?? '',
       authorName: json['author_name'] ?? '작성자',
-      authorNickname: (json['author_nickname'] != null && json['author_nickname'].toString() != 'null' && json['author_nickname'].toString().isNotEmpty)
-          ? json['author_nickname']
-          : '닉네임 없음',
+      authorNickname:
+          (json['author_nickname'] != null &&
+                  json['author_nickname'].toString() != 'null' &&
+                  json['author_nickname'].toString().isNotEmpty)
+              ? json['author_nickname']
+              : '닉네임 없음',
       viewCount: json['view_count'] ?? json['viewCount'],
       targetAudience: json['target_audience'] ?? 0,
       noticeUrl: json['notice_url'],
     );
   }
-  
+
   // notice_important 필드 파싱 헬퍼 메서드 (bool/int 호환)
   static int _parseNoticeImportant(dynamic value) {
-    if (value == null) return 1; // 기본값: 뱃지 숨김(1)
+    if (value == null) return 0; // 기본값: 뱃지 숨김(0)
     if (value is int) return value;
-    if (value is bool) return value ? 1 : 0; // true=뱃지 숨김(1), false=뱃지 표시(0) - 서버 로직에 맞춤
+    if (value is bool) {
+      return value ? 1 : 0; // true=뱃지 표시(1), false=뱃지 숨김(0)
+    }
     if (value is String) {
       if (value.toLowerCase() == 'true') return 1;
       if (value.toLowerCase() == 'false') return 0;
-      return int.tryParse(value) ?? 1;
+      return int.tryParse(value) ?? 0;
     }
-    return 1; // fallback: 뱃지 숨김(1)
+    return 0; // fallback: 뱃지 숨김(0)
   }
-  
-  // notice_important 필드를 이용한 헬퍼 메서드 (0=뱃지 표시, 1=뱃지 숨김)
-  bool get showBadge => noticeImportant == 0;
+
+  // notice_important 필드를 이용한 헬퍼 메서드 (1=뱃지 표시, 0=뱃지 숨김)
+  bool get showBadge => noticeImportant == AppConstants.noticeImportant;
   String get badgeText => '공지';
 
   Map<String, dynamic> toJson() {
@@ -99,7 +109,7 @@ class NoticeCreateRequest {
   NoticeCreateRequest({
     required this.title,
     required this.content,
-    this.noticeImportant = 1, // 기본값은 뱃지 숨김(1)
+    this.noticeImportant = 0, // 기본값은 뱃지 숨김(0)
     this.targetAudience = 0,
     this.noticeUrl,
   });

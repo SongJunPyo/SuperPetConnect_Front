@@ -3,13 +3,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'dart:convert';
-import 'package:shared_preferences/shared_preferences.dart';
+import '../utils/preferences_manager.dart';
 import 'package:connect/utils/config.dart';
 import 'package:connect/models/pet_model.dart';
 import '../utils/app_theme.dart';
 import '../widgets/app_button.dart';
 import '../widgets/app_input_field.dart';
 import '../widgets/app_app_bar.dart';
+import 'package:http/http.dart' as http;
 import '../services/auth_http_client.dart';
 
 class PetRegisterScreen extends StatefulWidget {
@@ -57,10 +58,10 @@ class _PetRegisterScreenState extends State<PetRegisterScreen> {
       _breedController.text = pet.breed ?? ''; // null일 경우 빈 문자열
       _weightController.text = pet.weightKg.toString();
       _ageController.text = pet.ageNumber.toString();
-      
+
       // 혈액형 유효성 검사
       _selectedBloodType = _validateBloodType(pet.species, pet.bloodType);
-      
+
       _isPregnant = pet.pregnant;
       _isVaccinated = pet.vaccinated ?? false;
       _hasDisease = pet.hasDisease ?? false;
@@ -76,19 +77,27 @@ class _PetRegisterScreenState extends State<PetRegisterScreen> {
   // 혈액형 유효성 검사 함수
   String? _validateBloodType(String species, String? bloodType) {
     if (bloodType == null) return null;
-    
+
     List<String> validBloodTypes;
     if (species == '강아지') {
       validBloodTypes = [
-        'DEA 1.1+', 'DEA 1.1-', 'DEA 1.2+', 'DEA 1.2-', 
-        'DEA 3', 'DEA 4', 'DEA 5', 'DEA 6', 'DEA 7', '기타'
+        'DEA 1.1+',
+        'DEA 1.1-',
+        'DEA 1.2+',
+        'DEA 1.2-',
+        'DEA 3',
+        'DEA 4',
+        'DEA 5',
+        'DEA 6',
+        'DEA 7',
+        '기타',
       ];
     } else if (species == '고양이') {
       validBloodTypes = ['A형', 'B형', 'AB형', '기타'];
     } else {
       validBloodTypes = ['기타'];
     }
-    
+
     // 혈액형이 유효한지 확인
     if (validBloodTypes.contains(bloodType)) {
       return bloodType;
@@ -112,15 +121,17 @@ class _PetRegisterScreenState extends State<PetRegisterScreen> {
     if (!_formKey.currentState!.validate()) {
       return;
     }
-    if (_selectedSpecies == null || _selectedAnimalType == null || _selectedBloodType == null) {
+    if (_selectedSpecies == null ||
+        _selectedAnimalType == null ||
+        _selectedBloodType == null) {
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(const SnackBar(content: Text('종과 혈액형을 모두 선택해주세요.')));
       return;
     }
 
-    final prefs = await SharedPreferences.getInstance();
-    final int? accountIdx = prefs.getInt('account_idx'); // account_idx로 사용
+    final int? accountIdx =
+        await PreferencesManager.getAccountIdx(); // account_idx로 사용
 
     if (accountIdx == null || accountIdx == 0) {
       if (mounted) {
@@ -155,7 +166,7 @@ class _PetRegisterScreenState extends State<PetRegisterScreen> {
       'has_preventive_medication': _hasPreventiveMedication ? 1 : 0,
       'age_months': ageMonths,
     };
-    
+
     // 등록 모드일 때만 account_idx 추가
     // ignore: unnecessary_null_comparison
     if (!_isEditMode && accountIdx != null) {
@@ -164,7 +175,7 @@ class _PetRegisterScreenState extends State<PetRegisterScreen> {
 
     try {
       final String apiUrl;
-      final response;
+      final http.Response response;
 
       if (_isEditMode) {
         // 수정 모드: PUT 요청
@@ -216,7 +227,6 @@ class _PetRegisterScreenState extends State<PetRegisterScreen> {
     }
   }
 
-
   @override
   Widget build(BuildContext context) {
     // ... (기존 build 메서드 내용은 동일) ...
@@ -252,9 +262,7 @@ class _PetRegisterScreenState extends State<PetRegisterScreen> {
                 label: '나이',
                 hint: '숫자만 입력해주세요 (예: 5)',
                 keyboardType: TextInputType.number,
-                inputFormatters: [
-                  FilteringTextInputFormatter.digitsOnly,
-                ],
+                inputFormatters: [FilteringTextInputFormatter.digitsOnly],
                 validator:
                     (value) => value!.isEmpty ? '나이는 필수 입력 항목입니다.' : null,
               ),
@@ -273,40 +281,45 @@ class _PetRegisterScreenState extends State<PetRegisterScreen> {
               ),
               _buildBloodTypeDropdown(context), // context 전달
               const SizedBox(height: AppTheme.spacing20),
-              Text(
-                '헌혈 관련 정보',
-                style: AppTheme.h4Style,
-              ),
+              Text('헌혈 관련 정보', style: AppTheme.h4Style),
               const SizedBox(height: AppTheme.spacing12),
               _buildCheckboxTile(
                 title: '백신 접종 여부',
                 subtitle: '정기적으로 종합백신을 접종했나요?',
                 value: _isVaccinated,
-                onChanged: (value) => setState(() => _isVaccinated = value ?? false),
+                onChanged:
+                    (value) => setState(() => _isVaccinated = value ?? false),
               ),
               _buildCheckboxTile(
                 title: '질병 이력',
                 subtitle: '심장사상충, 바베시아, 혈액관련질병 등의 질병 이력이 있나요?',
                 value: _hasDisease,
-                onChanged: (value) => setState(() => _hasDisease = value ?? false),
+                onChanged:
+                    (value) => setState(() => _hasDisease = value ?? false),
               ),
               _buildCheckboxTile(
                 title: '출산 경험',
                 subtitle: '출산 경험이 있나요? (출산 경험 존재 --> 헌혈 불가)',
                 value: _hasBirthExperience,
-                onChanged: (value) => setState(() => _hasBirthExperience = value ?? false),
+                onChanged:
+                    (value) =>
+                        setState(() => _hasBirthExperience = value ?? false),
               ),
               _buildCheckboxTile(
                 title: '현재 임신 여부',
                 subtitle: '현재 임신 중인가요?',
                 value: _isPregnant,
-                onChanged: (value) => setState(() => _isPregnant = value ?? false),
+                onChanged:
+                    (value) => setState(() => _isPregnant = value ?? false),
               ),
               _buildCheckboxTile(
                 title: '예방약 복용',
                 subtitle: '심장사상충 예방약을 정기적으로 복용하고 있나요?',
                 value: _hasPreventiveMedication,
-                onChanged: (value) => setState(() => _hasPreventiveMedication = value ?? false),
+                onChanged:
+                    (value) => setState(
+                      () => _hasPreventiveMedication = value ?? false,
+                    ),
               ),
               _buildCheckboxTile(
                 title: '중성화 수술',
@@ -381,7 +394,9 @@ class _PetRegisterScreenState extends State<PetRegisterScreen> {
           RichText(
             text: TextSpan(
               text: '종',
-              style: AppTheme.bodyMediumStyle.copyWith(fontWeight: FontWeight.w600),
+              style: AppTheme.bodyMediumStyle.copyWith(
+                fontWeight: FontWeight.w600,
+              ),
               children: const [
                 TextSpan(text: ' *', style: TextStyle(color: AppTheme.error)),
               ],
@@ -399,34 +414,43 @@ class _PetRegisterScreenState extends State<PetRegisterScreen> {
                       _selectedAnimalType = 0;
                       // 종류 변경시 혈액형 유효성 재검사
                       if (_selectedBloodType != null) {
-                        _selectedBloodType = _validateBloodType('강아지', _selectedBloodType);
+                        _selectedBloodType = _validateBloodType(
+                          '강아지',
+                          _selectedBloodType,
+                        );
                       } else {
                         _selectedBloodType = null;
                       }
                     });
                   },
                   child: Container(
-                    padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 12),
+                    padding: const EdgeInsets.symmetric(
+                      vertical: 16,
+                      horizontal: 12,
+                    ),
                     decoration: BoxDecoration(
                       borderRadius: BorderRadius.circular(12),
                       border: Border.all(
-                        color: _selectedSpecies == '강아지' 
-                            ? AppTheme.primaryBlue 
-                            : Colors.grey.shade300,
+                        color:
+                            _selectedSpecies == '강아지'
+                                ? AppTheme.primaryBlue
+                                : Colors.grey.shade300,
                         width: _selectedSpecies == '강아지' ? 2 : 1,
                       ),
-                      color: _selectedSpecies == '강아지' 
-                          ? AppTheme.primaryBlue.withValues(alpha: 0.1)
-                          : Colors.grey[100],
+                      color:
+                          _selectedSpecies == '강아지'
+                              ? AppTheme.primaryBlue.withValues(alpha: 0.1)
+                              : Colors.grey[100],
                     ),
                     child: Column(
                       children: [
                         Icon(
                           Icons.pets,
                           size: 32,
-                          color: _selectedSpecies == '강아지' 
-                              ? AppTheme.primaryBlue
-                              : Colors.grey[600],
+                          color:
+                              _selectedSpecies == '강아지'
+                                  ? AppTheme.primaryBlue
+                                  : Colors.grey[600],
                         ),
                         const SizedBox(height: 8),
                         Text(
@@ -434,9 +458,10 @@ class _PetRegisterScreenState extends State<PetRegisterScreen> {
                           style: TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.w600,
-                            color: _selectedSpecies == '강아지' 
-                                ? AppTheme.primaryBlue
-                                : Colors.grey[700],
+                            color:
+                                _selectedSpecies == '강아지'
+                                    ? AppTheme.primaryBlue
+                                    : Colors.grey[700],
                           ),
                         ),
                       ],
@@ -454,34 +479,43 @@ class _PetRegisterScreenState extends State<PetRegisterScreen> {
                       _selectedAnimalType = 1;
                       // 종류 변경시 혈액형 유효성 재검사
                       if (_selectedBloodType != null) {
-                        _selectedBloodType = _validateBloodType('고양이', _selectedBloodType);
+                        _selectedBloodType = _validateBloodType(
+                          '고양이',
+                          _selectedBloodType,
+                        );
                       } else {
                         _selectedBloodType = null;
                       }
                     });
                   },
                   child: Container(
-                    padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 12),
+                    padding: const EdgeInsets.symmetric(
+                      vertical: 16,
+                      horizontal: 12,
+                    ),
                     decoration: BoxDecoration(
                       borderRadius: BorderRadius.circular(12),
                       border: Border.all(
-                        color: _selectedSpecies == '고양이' 
-                            ? AppTheme.primaryBlue 
-                            : Colors.grey.shade300,
+                        color:
+                            _selectedSpecies == '고양이'
+                                ? AppTheme.primaryBlue
+                                : Colors.grey.shade300,
                         width: _selectedSpecies == '고양이' ? 2 : 1,
                       ),
-                      color: _selectedSpecies == '고양이' 
-                          ? AppTheme.primaryBlue.withValues(alpha: 0.1)
-                          : Colors.grey[100],
+                      color:
+                          _selectedSpecies == '고양이'
+                              ? AppTheme.primaryBlue.withValues(alpha: 0.1)
+                              : Colors.grey[100],
                     ),
                     child: Column(
                       children: [
                         Icon(
                           Icons.cruelty_free, // 고양이 아이콘
                           size: 32,
-                          color: _selectedSpecies == '고양이' 
-                              ? AppTheme.primaryBlue
-                              : Colors.grey[600],
+                          color:
+                              _selectedSpecies == '고양이'
+                                  ? AppTheme.primaryBlue
+                                  : Colors.grey[600],
                         ),
                         const SizedBox(height: 8),
                         Text(
@@ -489,9 +523,10 @@ class _PetRegisterScreenState extends State<PetRegisterScreen> {
                           style: TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.w600,
-                            color: _selectedSpecies == '고양이' 
-                                ? AppTheme.primaryBlue
-                                : Colors.grey[700],
+                            color:
+                                _selectedSpecies == '고양이'
+                                    ? AppTheme.primaryBlue
+                                    : Colors.grey[700],
                           ),
                         ),
                       ],
@@ -514,7 +549,9 @@ class _PetRegisterScreenState extends State<PetRegisterScreen> {
         onTap: () async {
           final DateTime? picked = await showDatePicker(
             context: context,
-            initialDate: _neuteredDate ?? DateTime.now().subtract(const Duration(days: 180)),
+            initialDate:
+                _neuteredDate ??
+                DateTime.now().subtract(const Duration(days: 180)),
             firstDate: DateTime(2010),
             lastDate: DateTime.now(),
             helpText: '중성화 수술 일자 선택',
@@ -555,7 +592,10 @@ class _PetRegisterScreenState extends State<PetRegisterScreen> {
                           ? '${_neuteredDate!.year}년 ${_neuteredDate!.month}월 ${_neuteredDate!.day}일'
                           : '날짜를 선택하세요',
                       style: AppTheme.bodyMediumStyle.copyWith(
-                        color: _neuteredDate != null ? AppTheme.textPrimary : AppTheme.textSecondary,
+                        color:
+                            _neuteredDate != null
+                                ? AppTheme.textPrimary
+                                : AppTheme.textSecondary,
                       ),
                     ),
                   ],
@@ -577,7 +617,9 @@ class _PetRegisterScreenState extends State<PetRegisterScreen> {
         RichText(
           text: TextSpan(
             text: '직전 헌혈 일자',
-            style: AppTheme.bodyMediumStyle.copyWith(fontWeight: FontWeight.w600),
+            style: AppTheme.bodyMediumStyle.copyWith(
+              fontWeight: FontWeight.w600,
+            ),
             children: const [
               TextSpan(
                 text: ' (선택)',
@@ -618,7 +660,10 @@ class _PetRegisterScreenState extends State<PetRegisterScreen> {
                 Icon(
                   Icons.bloodtype_outlined,
                   size: 20,
-                  color: _prevDonationDate != null ? AppTheme.primaryBlue : AppTheme.textTertiary,
+                  color:
+                      _prevDonationDate != null
+                          ? AppTheme.primaryBlue
+                          : AppTheme.textTertiary,
                 ),
                 const SizedBox(width: 12),
                 Expanded(
@@ -627,13 +672,20 @@ class _PetRegisterScreenState extends State<PetRegisterScreen> {
                         ? '${_prevDonationDate!.year}년 ${_prevDonationDate!.month}월 ${_prevDonationDate!.day}일'
                         : '헌혈 경험이 있다면 날짜를 선택하세요',
                     style: AppTheme.bodyLargeStyle.copyWith(
-                      color: _prevDonationDate != null ? AppTheme.textPrimary : AppTheme.textTertiary,
+                      color:
+                          _prevDonationDate != null
+                              ? AppTheme.textPrimary
+                              : AppTheme.textTertiary,
                     ),
                   ),
                 ),
                 if (_prevDonationDate != null)
                   IconButton(
-                    icon: Icon(Icons.close, color: AppTheme.textTertiary, size: 20),
+                    icon: Icon(
+                      Icons.close,
+                      color: AppTheme.textTertiary,
+                      size: 20,
+                    ),
                     onPressed: () {
                       setState(() {
                         _prevDonationDate = null;
@@ -643,7 +695,11 @@ class _PetRegisterScreenState extends State<PetRegisterScreen> {
                     constraints: const BoxConstraints(),
                   )
                 else
-                  Icon(Icons.calendar_today, color: AppTheme.textTertiary, size: 20),
+                  Icon(
+                    Icons.calendar_today,
+                    color: AppTheme.textTertiary,
+                    size: 20,
+                  ),
               ],
             ),
           ),
@@ -653,7 +709,10 @@ class _PetRegisterScreenState extends State<PetRegisterScreen> {
           Text(
             _getDonationIntervalMessage(),
             style: AppTheme.bodySmallStyle.copyWith(
-              color: _canDonateAgain() ? Colors.green.shade600 : Colors.orange.shade600,
+              color:
+                  _canDonateAgain()
+                      ? Colors.green.shade600
+                      : Colors.orange.shade600,
             ),
           ),
         ],
@@ -727,8 +786,16 @@ class _PetRegisterScreenState extends State<PetRegisterScreen> {
     final List<String> bloodTypes;
     if (_selectedSpecies == '강아지') {
       bloodTypes = [
-        'DEA 1.1+', 'DEA 1.1-', 'DEA 1.2+', 'DEA 1.2-',
-        'DEA 3', 'DEA 4', 'DEA 5', 'DEA 6', 'DEA 7', '기타'
+        'DEA 1.1+',
+        'DEA 1.1-',
+        'DEA 1.2+',
+        'DEA 1.2-',
+        'DEA 3',
+        'DEA 4',
+        'DEA 5',
+        'DEA 6',
+        'DEA 7',
+        '기타',
       ];
     } else if (_selectedSpecies == '고양이') {
       bloodTypes = ['A형', 'B형', 'AB형', '기타'];
@@ -743,7 +810,9 @@ class _PetRegisterScreenState extends State<PetRegisterScreen> {
           RichText(
             text: TextSpan(
               text: '혈액형',
-              style: AppTheme.bodyMediumStyle.copyWith(fontWeight: FontWeight.w600),
+              style: AppTheme.bodyMediumStyle.copyWith(
+                fontWeight: FontWeight.w600,
+              ),
               children: const [
                 TextSpan(text: ' *', style: TextStyle(color: AppTheme.error)),
               ],
@@ -790,7 +859,6 @@ class _PetRegisterScreenState extends State<PetRegisterScreen> {
       ),
     );
   }
-
 
   // 저장 버튼 위젯
   Widget _buildSaveButton(BuildContext context) {

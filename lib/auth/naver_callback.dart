@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:provider/provider.dart';
 import 'package:connect/admin/admin_dashboard.dart';
 import 'package:connect/hospital/hospital_dashboard.dart';
@@ -7,6 +6,8 @@ import 'package:connect/user/user_dashboard.dart';
 import '../services/notification_service.dart';
 import '../providers/notification_provider.dart';
 import '../utils/app_theme.dart';
+import '../utils/app_constants.dart';
+import '../utils/preferences_manager.dart';
 
 /// 네이버 로그인 웹 콜백 처리 페이지
 /// 서버가 네이버 인증 처리 후 /#/naver-callback?... 으로 리다이렉트하면
@@ -54,23 +55,24 @@ class _NaverCallbackScreenState extends State<NaverCallbackScreen> {
 
     try {
       // 기존 로그인 성공 처리 로직과 동일
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setString('auth_token', accessToken);
+      await PreferencesManager.setAuthToken(accessToken);
       // Refresh Token 저장 (보안 업데이트: Access Token 15분 + Refresh Token 7일)
-      if (params['refresh_token'] != null && params['refresh_token']!.isNotEmpty) {
-        await prefs.setString('refresh_token', params['refresh_token']!);
+      if (params['refresh_token'] != null &&
+          params['refresh_token']!.isNotEmpty) {
+        await PreferencesManager.setRefreshToken(params['refresh_token']!);
       }
-      await prefs.setString('user_email', params['email'] ?? '');
-      await prefs.setString('user_name', params['name'] ?? '');
+      await PreferencesManager.setUserEmail(params['email'] ?? '');
+      await PreferencesManager.setUserName(params['name'] ?? '');
 
       final accountType = int.tryParse(params['account_type'] ?? '') ?? 0;
       final accountIdx = int.tryParse(params['account_idx'] ?? '') ?? 0;
-      await prefs.setInt('account_type', accountType);
-      await prefs.setInt('account_idx', accountIdx);
+      await PreferencesManager.setAccountType(accountType);
+      await PreferencesManager.setAccountIdx(accountIdx);
 
       // 병원 사용자인 경우 hospital_code 저장
-      if (accountType == 2 && params['hospital_code'] != null) {
-        await prefs.setString('hospital_code', params['hospital_code']!);
+      if (accountType == AppConstants.accountTypeHospital &&
+          params['hospital_code'] != null) {
+        await PreferencesManager.setHospitalCode(params['hospital_code']!);
       }
 
       // FCM 토큰 서버 업데이트
@@ -99,13 +101,13 @@ class _NaverCallbackScreenState extends State<NaverCallbackScreen> {
       if (mounted) {
         Widget dashboard;
         switch (accountType) {
-          case 1:
+          case AppConstants.accountTypeAdmin:
             dashboard = const AdminDashboard();
             break;
-          case 2:
+          case AppConstants.accountTypeHospital:
             dashboard = const HospitalDashboard();
             break;
-          case 3:
+          case AppConstants.accountTypeUser:
             dashboard = const UserDashboard();
             break;
           default:
@@ -133,9 +135,7 @@ class _NaverCallbackScreenState extends State<NaverCallbackScreen> {
   @override
   Widget build(BuildContext context) {
     if (_isProcessing) {
-      return const Scaffold(
-        body: Center(child: CircularProgressIndicator()),
-      );
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
 
     // 에러 또는 승인 대기 화면
@@ -151,9 +151,10 @@ class _NaverCallbackScreenState extends State<NaverCallbackScreen> {
                     ? Icons.hourglass_empty
                     : Icons.error_outline,
                 size: 64,
-                color: _errorMessage != null && _errorMessage!.contains('승인')
-                    ? AppTheme.warning
-                    : AppTheme.error,
+                color:
+                    _errorMessage != null && _errorMessage!.contains('승인')
+                        ? AppTheme.warning
+                        : AppTheme.error,
               ),
               const SizedBox(height: 24),
               Text(
