@@ -9,8 +9,9 @@ import '../utils/app_constants.dart';
 ///
 /// 주요 변경사항 (기존 DonationPost, HospitalPost, Post 대비):
 /// - id: int 타입으로 통일 (기존: int 또는 String)
-/// - status: int + statusLabel(한글) 추가
-/// - animalType: "dog"/"cat" 문자열 (기존: int 0/1)
+/// - status: int (0~4) - Label 삭제, 프론트에서 자체 매핑
+/// - types: int (0: 긴급, 1: 정기)
+/// - animalType: int (0: 강아지, 1: 고양이) - 기존 String에서 int로 변경
 /// - 수혈환자 정보: camelCase 통일 (patientName, breed, age, diagnosis)
 /// - contentDelta: camelCase 통일 (기존: content_delta)
 /// - 병원 정보: flat + camelCase (hospitalName, hospitalNickname, location)
@@ -26,7 +27,7 @@ class UnifiedPostModel {
   final String? typesLabel; // types의 한글 표현 (예: "긴급")
 
   // ===== 동물/혈액 정보 =====
-  final String animalType; // "dog" 또는 "cat" (camelCase 통일)
+  final int animalType; // 0: 강아지, 1: 고양이 (int 통일)
   final String? bloodType; // 긴급 헌혈 혈액형 (null 가능)
 
   // ===== 수혈환자 정보 (긴급일 때만, camelCase 통일) =====
@@ -118,8 +119,8 @@ class UnifiedPostModel {
       // ===== types 파싱 (int) =====
       int typesValue = json['types'] ?? 1; // 기본값: 정기(1)
 
-      // ===== animalType 파싱 (String 통일) =====
-      String animalTypeValue = _parseAnimalType(json['animalType']);
+      // ===== animalType 파싱 (int 통일) =====
+      int animalTypeValue = _parseAnimalType(json['animalType']);
 
       // ===== 날짜 파싱 =====
       DateTime createdAt = _parseCreatedDate(json);
@@ -287,21 +288,25 @@ class UnifiedPostModel {
     return 0;
   }
 
-  /// animalType 파싱 (String 통일)
-  static String _parseAnimalType(dynamic value) {
-    if (value == null) return 'dog'; // 기본값
+  /// animalType 파싱 (int 통일)
+  static int _parseAnimalType(dynamic value) {
+    if (value == null) return AppConstants.animalTypeDogNum; // 기본값: 0 (강아지)
 
-    // String인 경우 그대로 반환
-    if (value is String) {
-      return value.toLowerCase() == 'cat' ? 'cat' : 'dog';
-    }
-
-    // int인 경우 변환 (기존 API 호환)
+    // int인 경우 그대로 반환
     if (value is int) {
-      return value == AppConstants.animalTypeCatNum ? 'cat' : 'dog';
+      return value == AppConstants.animalTypeCatNum
+          ? AppConstants.animalTypeCatNum
+          : AppConstants.animalTypeDogNum;
     }
 
-    return 'dog';
+    // String인 경우 int로 변환 (하위 호환성)
+    if (value is String) {
+      return value.toLowerCase() == 'cat'
+          ? AppConstants.animalTypeCatNum
+          : AppConstants.animalTypeDogNum;
+    }
+
+    return AppConstants.animalTypeDogNum;
   }
 
   /// 안전한 int 파싱
@@ -404,15 +409,9 @@ class UnifiedPostModel {
 
   /// 동물 타입 한글 텍스트
   String get animalTypeKorean =>
-      animalType == 'cat'
+      animalType == AppConstants.animalTypeCatNum
           ? AppConstants.animalTypeCatKr
           : AppConstants.animalTypeDogKr;
-
-  /// 동물 타입 int 값 (기존 API 호환용)
-  int get animalTypeInt =>
-      animalType == 'cat'
-          ? AppConstants.animalTypeCatNum
-          : AppConstants.animalTypeDogNum;
 
   /// 혈액형 표시 (긴급일 때만 표시, 아니면 "혈액형 무관")
   String get displayBloodType {

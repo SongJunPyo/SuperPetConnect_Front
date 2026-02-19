@@ -1970,7 +1970,7 @@ class _UserDashboardState extends State<UserDashboard>
                           Row(
                             children: [
                               Icon(
-                                displayPost.animalType == 'dog'
+                                displayPost.animalType == 0
                                     ? FontAwesomeIcons.dog
                                     : FontAwesomeIcons.cat,
                                 size: 16,
@@ -1986,7 +1986,7 @@ class _UserDashboardState extends State<UserDashboard>
                               ),
                               Expanded(
                                 child: Text(
-                                  displayPost.animalType == 'dog' ? '강아지' : '고양이',
+                                  displayPost.animalType == 0 ? '강아지' : '고양이',
                                   style: AppTheme.bodyMediumStyle.copyWith(
                                     fontWeight: FontWeight.w600,
                                   ),

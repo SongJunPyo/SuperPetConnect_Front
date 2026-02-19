@@ -625,10 +625,10 @@ class _UserDonationPostsListScreenState
 
             // animal_type이 null인 경우 기존 species로 매칭 (하위 호환성)
             if (pet['animal_type'] == null) {
-              if (post.animalType == 'dog') {
+              if (post.animalType == 0) {
                 // 강아지
                 animalTypeMatch = pet['species'] == '강아지';
-              } else if (post.animalType == 'cat') {
+              } else if (post.animalType == 1) {
                 // 고양이
                 animalTypeMatch = pet['species'] == '고양이';
               }
@@ -638,7 +638,7 @@ class _UserDonationPostsListScreenState
           }).toList();
 
       if (availablePets.isEmpty) {
-        final animalTypeStr = post.animalType == 'dog' ? '강아지' : '고양이';
+        final animalTypeStr = post.animalType == 0 ? '강아지' : '고양이';
         _showIncompatiblePetBottomSheet(animalTypeStr);
         return;
       }
@@ -705,10 +705,10 @@ class _UserDonationPostsListScreenState
 
             // animal_type이 null인 경우 기존 species로 매칭 (하위 호환성)
             if (pet['animal_type'] == null) {
-              if (post.animalType == 'dog') {
+              if (post.animalType == 0) {
                 // 강아지
                 animalTypeMatch = pet['species'] == '강아지';
-              } else if (post.animalType == 'cat') {
+              } else if (post.animalType == 1) {
                 // 고양이
                 animalTypeMatch = pet['species'] == '고양이';
               }
@@ -718,7 +718,7 @@ class _UserDonationPostsListScreenState
           }).toList();
 
       if (availablePets.isEmpty) {
-        final animalTypeStr = post.animalType == 'dog' ? '강아지' : '고양이';
+        final animalTypeStr = post.animalType == 0 ? '강아지' : '고양이';
         _showIncompatiblePetBottomSheet(animalTypeStr);
         return;
       }
@@ -1071,7 +1071,7 @@ class _UserDonationPostsListScreenState
                           Row(
                             children: [
                               Icon(
-                                displayPost.animalType == 'dog'
+                                displayPost.animalType == 0
                                     ? FontAwesomeIcons.dog
                                     : FontAwesomeIcons.cat,
                                 size: 16,
@@ -1087,7 +1087,7 @@ class _UserDonationPostsListScreenState
                               ),
                               Expanded(
                                 child: Text(
-                                  displayPost.animalType == 'dog' ? '강아지' : '고양이',
+                                  displayPost.animalType == 0 ? '강아지' : '고양이',
                                   style: AppTheme.bodyMediumStyle.copyWith(
                                     fontWeight: FontWeight.w600,
                                   ),
@@ -2431,11 +2431,11 @@ class _DonationApplicationPageState extends State<DonationApplicationPage> {
 
           // animal_type이 null인 경우 기존 species로 매칭 (하위 호환성)
           if (pet['animal_type'] == null) {
-            if (widget.post.animalType == 'dog') {
+            if (widget.post.animalType == 0) {
               // 강아지
               animalTypeMatch =
                   pet['species'] == '강아지' || pet['species'] == '개';
-            } else if (widget.post.animalType == 'cat') {
+            } else if (widget.post.animalType == 1) {
               // 고양이
               animalTypeMatch = pet['species'] == '고양이';
             }
@@ -2495,11 +2495,11 @@ class _DonationApplicationPageState extends State<DonationApplicationPage> {
 
           // animal_type이 null인 경우 기존 species로 매칭 (하위 호환성)
           if (pet['animal_type'] == null) {
-            if (widget.post.animalType == 'dog') {
+            if (widget.post.animalType == 0) {
               // 강아지
               animalTypeMatch =
                   pet['species'] == '강아지' || pet['species'] == '개';
-            } else if (widget.post.animalType == 'cat') {
+            } else if (widget.post.animalType == 1) {
               // 고양이
               animalTypeMatch = pet['species'] == '고양이';
             }
@@ -2531,7 +2531,7 @@ class _DonationApplicationPageState extends State<DonationApplicationPage> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 FaIcon(
-                  widget.post.animalType == 'dog'
+                  widget.post.animalType == 0
                       ? FontAwesomeIcons.dog
                       : FontAwesomeIcons.cat,
                   size: 30,
@@ -2543,7 +2543,7 @@ class _DonationApplicationPageState extends State<DonationApplicationPage> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        '해당 헌혈 게시글에 참여할 수 있는 \n${widget.post.animalType == 'dog' ? "강아지" : "고양이"}가 없습니다',
+                        '해당 헌혈 게시글에 참여할 수 있는 \n${widget.post.animalType == 0 ? "강아지" : "고양이"}가 없습니다',
                         style: AppTheme.bodyLargeStyle.copyWith(
                           fontWeight: FontWeight.w500,
                           color: Colors.grey.shade600,
