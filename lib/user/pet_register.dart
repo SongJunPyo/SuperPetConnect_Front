@@ -7,6 +7,7 @@ import '../utils/preferences_manager.dart';
 import 'package:connect/utils/config.dart';
 import 'package:connect/models/pet_model.dart';
 import '../utils/app_theme.dart';
+import '../utils/blood_type_constants.dart';
 import '../widgets/app_button.dart';
 import '../widgets/app_input_field.dart';
 import '../widgets/app_app_bar.dart';
@@ -76,35 +77,10 @@ class _PetRegisterScreenState extends State<PetRegisterScreen> {
 
   // 혈액형 유효성 검사 함수
   String? _validateBloodType(String species, String? bloodType) {
-    if (bloodType == null) return null;
-
-    List<String> validBloodTypes;
-    if (species == '강아지') {
-      validBloodTypes = [
-        'DEA 1.1+',
-        'DEA 1.1-',
-        'DEA 1.2+',
-        'DEA 1.2-',
-        'DEA 3',
-        'DEA 4',
-        'DEA 5',
-        'DEA 6',
-        'DEA 7',
-        '기타',
-      ];
-    } else if (species == '고양이') {
-      validBloodTypes = ['A형', 'B형', 'AB형', '기타'];
-    } else {
-      validBloodTypes = ['기타'];
-    }
-
-    // 혈액형이 유효한지 확인
-    if (validBloodTypes.contains(bloodType)) {
-      return bloodType;
-    } else {
-      // 유효하지 않은 혈액형인 경우 '기타'로 설정
-      return '기타';
-    }
+    return BloodTypeConstants.normalizeBloodType(
+      bloodType: bloodType,
+      species: species,
+    );
   }
 
   @override
@@ -782,26 +758,10 @@ class _PetRegisterScreenState extends State<PetRegisterScreen> {
 
   // 혈액형 선택 드롭다운 위젯
   Widget _buildBloodTypeDropdown(BuildContext context) {
-    // 종류에 따른 혈액형 목록
-    final List<String> bloodTypes;
-    if (_selectedSpecies == '강아지') {
-      bloodTypes = [
-        'DEA 1.1+',
-        'DEA 1.1-',
-        'DEA 1.2+',
-        'DEA 1.2-',
-        'DEA 3',
-        'DEA 4',
-        'DEA 5',
-        'DEA 6',
-        'DEA 7',
-        '기타',
-      ];
-    } else if (_selectedSpecies == '고양이') {
-      bloodTypes = ['A형', 'B형', 'AB형', '기타'];
-    } else {
-      bloodTypes = ['기타'];
-    }
+    // 종류에 따른 혈액형 목록 (중앙집중식 관리)
+    final bloodTypes = BloodTypeConstants.getBloodTypes(
+      species: _selectedSpecies,
+    );
     return Padding(
       padding: const EdgeInsets.only(bottom: 16.0),
       child: Column(

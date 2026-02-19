@@ -54,6 +54,7 @@ class UnifiedPostModel {
   // ===== 날짜 =====
   final DateTime createdDate; // 게시글 작성일 (ISO 8601)
   final DateTime? donationDate; // 첫 번째 헌혈 예정일
+  final DateTime? updatedAt; // 게시글 수정일 (nullable)
 
   // ===== 병원 정보 (flat, camelCase 통일) =====
   final String hospitalName; // 병원 표시이름
@@ -83,6 +84,7 @@ class UnifiedPostModel {
     required this.applicantCount,
     required this.createdDate,
     this.donationDate,
+    this.updatedAt,
     required this.hospitalName,
     this.hospitalNickname,
     this.hospitalCode,
@@ -122,6 +124,7 @@ class UnifiedPostModel {
       // ===== 날짜 파싱 =====
       DateTime createdAt = _parseCreatedDate(json);
       DateTime? donationDate = _parseDonationDate(json);
+      DateTime? updatedAt = _parseUpdatedAt(json);
 
       // ===== 병원 정보 파싱 (flat 우선, nested 지원) =====
       String hospitalName = '';
@@ -242,6 +245,7 @@ class UnifiedPostModel {
                 0,
         createdDate: createdAt,
         donationDate: donationDate,
+        updatedAt: updatedAt,
         hospitalName: hospitalName,
         hospitalNickname: hospitalNickname,
         hospitalCode: hospitalCode,
@@ -357,6 +361,31 @@ class UnifiedPostModel {
     return null;
   }
 
+  /// 게시글 수정일 파싱
+  static DateTime? _parseUpdatedAt(Map<String, dynamic> json) {
+    // 우선순위: updatedAt > updated_at > modifiedAt
+    final candidates = [
+      json['updatedAt'],
+      json['updated_at'],
+      json['modifiedAt'],
+      json['modified_at'],
+    ];
+
+    for (final candidate in candidates) {
+      if (candidate != null &&
+          candidate.toString().isNotEmpty &&
+          candidate.toString() != 'null') {
+        try {
+          return DateTime.parse(candidate.toString());
+        } catch (e) {
+          continue;
+        }
+      }
+    }
+
+    return null;
+  }
+
   // ===== Getter 헬퍼 메서드 =====
 
   /// 긴급 헌혈 여부
@@ -412,6 +441,33 @@ class UnifiedPostModel {
 
     return null;
   }
+
+  /// 헌혈 날짜 표시용 헬퍼 메서드 (기존 DonationPost 호환)
+  String get donationDatesText {
+    // availableDates가 있는 경우
+    if (availableDates != null && availableDates!.isNotEmpty) {
+      final dates = availableDates!.keys.toList()..sort();
+
+      if (dates.length == 1) {
+        return '헌혈 날짜: ${dates.first}';
+      } else if (dates.length <= 3) {
+        return '헌혈날짜: ${dates.join(', ')}';
+      } else {
+        return '헌혈날짜: ${dates.take(2).join(', ')} 외 ${dates.length - 2}개';
+      }
+    }
+
+    // donationDate가 있는 경우
+    if (donationDate != null) {
+      final dateStr = donationDate.toString().split(' ')[0];
+      return '헌혈 날짜: $dateStr';
+    }
+
+    return '예정된 헌혈 날짜가 없습니다.';
+  }
+
+  /// createdAt getter (기존 코드 호환용)
+  DateTime get createdAt => createdDate;
 }
 
 /// 게시글 이미지 모델

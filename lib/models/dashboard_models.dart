@@ -1,4 +1,4 @@
-import 'donation_post_model.dart';
+import 'unified_post_model.dart';
 import 'column_post_model.dart';
 import 'notice_post_model.dart';
 
@@ -17,7 +17,7 @@ class DashboardResponse {
 }
 
 class DashboardData {
-  final List<DonationPost> donations;
+  final List<UnifiedPostModel> donations;
   final List<ColumnPost> columns;
   final List<NoticePost> notices;
   final DashboardStatistics statistics;
@@ -33,7 +33,7 @@ class DashboardData {
     return DashboardData(
       donations:
           (json['donations'] as List)
-              .map((item) => DonationPost.fromJson(item))
+              .map((item) => UnifiedPostModel.fromJson(item))
               .toList(),
       columns:
           (json['columns'] as List)

@@ -6,6 +6,7 @@ import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import '../utils/config.dart';
 import '../utils/preferences_manager.dart';
 import '../utils/app_theme.dart';
+import '../utils/blood_type_constants.dart';
 import '../models/donation_post_time_model.dart';
 import '../models/donation_post_image_model.dart';
 import '../widgets/rich_text_editor.dart';
@@ -90,7 +91,10 @@ class _HospitalPostState extends State<HospitalPost> {
     }
 
     if (_locationController.text.trim().isEmpty) {
-      _showAlertDialog('알림', '병원 위치를 입력해주세요.');
+      _showAlertDialog(
+        '알림',
+        '병원 위치가 설정되지 않았습니다.\n프로필 관리에서 주소를 먼저 설정해주세요.',
+      );
       return;
     }
 
@@ -231,14 +235,17 @@ class _HospitalPostState extends State<HospitalPost> {
         _locationController.text = address;
       });
     } else {
-      // API에서 주소를 가져올 수 없으면 빈 값으로 설정 (사용자가 직접 입력하도록)
+      // API에서 주소를 가져올 수 없으면 빈 값으로 설정
       setState(() {
         _locationController.text = "";
       });
 
       // 주소를 가져올 수 없다는 메시지 표시
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        _showAlertDialog('알림', '병원 주소를 불러올 수 없습니다.\n직접 입력해주세요.');
+        _showAlertDialog(
+          '알림',
+          '병원 주소를 불러올 수 없습니다.\n프로필 관리에서 주소를 먼저 설정해주세요.',
+        );
       });
     }
   }
@@ -276,25 +283,21 @@ class _HospitalPostState extends State<HospitalPost> {
 
   // 동물 종류에 따른 혈액형 목록 반환
   List<String> _getBloodTypeOptions() {
+    // "dog" -> "강아지", "cat" -> "고양이"로 변환
+    final String? species;
     if (selectedAnimalType == "dog") {
-      return [
-        '전체',
-        'DEA 1.1+',
-        'DEA 1.1-',
-        'DEA 1.2+',
-        'DEA 1.2-',
-        'DEA 3',
-        'DEA 4',
-        'DEA 5',
-        'DEA 6',
-        'DEA 7',
-        '기타',
-      ];
+      species = "강아지";
     } else if (selectedAnimalType == "cat") {
-      return ['전체', 'A형', 'B형', 'AB형', '기타'];
+      species = "고양이";
     } else {
-      return ['전체', '기타'];
+      species = null;
     }
+
+    // BloodTypeConstants에서 혈액형 목록 가져오기
+    final bloodTypes = BloodTypeConstants.getBloodTypes(species: species);
+
+    // '전체' 옵션을 맨 앞에 추가
+    return ['전체', ...bloodTypes];
   }
 
   // 동물 종류 변경시 혈액형 유효성 검사
@@ -622,12 +625,14 @@ class _HospitalPostState extends State<HospitalPost> {
                   padding: const EdgeInsets.all(AppTheme.spacing20),
                   child: Column(
                     children: [
-                      // 지역 입력 (수정 가능한 텍스트 필드)
+                      // 지역 입력 (프로필 관리에서 설정한 주소, 수정 불가)
                       TextField(
                         controller: _locationController,
+                        readOnly: true, // 수정 불가
+                        enabled: false, // 비활성화 (회색으로 표시)
                         decoration: _buildInputDecoration(
                           context,
-                          "병원 위치 (필수) *",
+                          "병원 위치 (프로필 관리에서 수정 가능)",
                           Icons.location_on_outlined,
                         ),
                       ),

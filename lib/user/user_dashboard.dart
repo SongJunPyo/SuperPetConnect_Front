@@ -11,7 +11,7 @@ import 'user_donation_posts_list.dart';
 import 'user_column_list.dart';
 import 'donation_history_screen.dart';
 import '../services/dashboard_service.dart';
-import '../models/donation_post_model.dart';
+import '../models/unified_post_model.dart';
 import '../models/column_post_model.dart';
 import '../models/notice_post_model.dart';
 import '../models/hospital_column_model.dart';
@@ -56,7 +56,7 @@ class _UserDashboardState extends State<UserDashboard>
   // 서버 데이터
   List<HospitalColumn> columns = [];
   List<Notice> notices = [];
-  List<DonationPost> donations = [];
+  List<UnifiedPostModel> donations = [];
 
   // 내가 신청한 시간대 정보 (postTimesIdx -> MyApplicationInfo)
   Map<int, MyApplicationInfo> myApplicationsMap = {};
@@ -222,18 +222,18 @@ class _UserDashboardState extends State<UserDashboard>
   }
 
   // 헌혈 모집 데이터만 새로고침 (지역 필터링용)
-  Future<void> _refreshDonationPosts() async {
+  Future<void> _refreshUnifiedPostModels() async {
     setState(() {
       isLoadingDonations = true;
     });
 
     try {
-      List<DonationPost> allDonationPosts = [];
+      List<UnifiedPostModel> allUnifiedPostModels = [];
 
       if (selectedLargeRegions.isEmpty) {
         // 전체 지역 선택인 경우
         final posts = await DashboardService.getPublicPosts(limit: 50);
-        allDonationPosts.addAll(posts);
+        allUnifiedPostModels.addAll(posts);
       } else {
         // 선택된 지역들에서 데이터 가져오기
         for (final largeRegion in selectedLargeRegions) {
@@ -245,7 +245,7 @@ class _UserDashboardState extends State<UserDashboard>
               limit: 20,
               region: _getSimpleRegionName(largeRegion.name),
             );
-            allDonationPosts.addAll(posts);
+            allUnifiedPostModels.addAll(posts);
           } else {
             // 구체적인 시/군/구 선택인 경우 - 서버 권장 간단명칭 사용
             for (final mediumRegion in mediumRegions) {
@@ -254,21 +254,21 @@ class _UserDashboardState extends State<UserDashboard>
                 region: _getSimpleRegionName(largeRegion.name),
                 subRegion: mediumRegion.name,
               );
-              allDonationPosts.addAll(posts);
+              allUnifiedPostModels.addAll(posts);
             }
           }
         }
       }
 
       // 중복 제거 (postIdx 기준)
-      final uniquePosts = <int, DonationPost>{};
-      for (final post in allDonationPosts) {
-        uniquePosts[post.postIdx] = post;
+      final uniquePosts = <int, UnifiedPostModel>{};
+      for (final post in allUnifiedPostModels) {
+        uniquePosts[post.id] = post;
       }
       final donationPosts = uniquePosts.values.toList();
 
       // 헌혈 모집글 정렬 (긴급 우선, 그 다음 최신순)
-      final sortedDonations = List<DonationPost>.from(donationPosts);
+      final sortedDonations = List<UnifiedPostModel>.from(donationPosts);
       sortedDonations.sort((a, b) {
         if (a.isUrgent && !b.isUrgent) return -1;
         if (!a.isUrgent && b.isUrgent) return 1;
@@ -329,12 +329,12 @@ class _UserDashboardState extends State<UserDashboard>
 
     try {
       // 다중 지역 선택에 따른 헌혈 모집글 로딩
-      List<DonationPost> allDonationPosts = [];
+      List<UnifiedPostModel> allUnifiedPostModels = [];
 
       if (selectedLargeRegions.isEmpty) {
         // 전체 지역 선택인 경우
         final posts = await DashboardService.getPublicPosts(limit: 10);
-        allDonationPosts.addAll(posts);
+        allUnifiedPostModels.addAll(posts);
       } else {
         // 선택된 지역들에서 데이터 가져오기 (초기 로딩이므로 제한적으로)
         for (final largeRegion in selectedLargeRegions.take(3)) {
@@ -347,7 +347,7 @@ class _UserDashboardState extends State<UserDashboard>
               limit: 5,
               region: _getSimpleRegionName(largeRegion.name),
             );
-            allDonationPosts.addAll(posts);
+            allUnifiedPostModels.addAll(posts);
           } else {
             // 구체적인 시/군/구 선택인 경우 (첫 번째만) - 서버 권장 간단명칭 사용
             final posts = await DashboardService.getPublicPosts(
@@ -355,15 +355,15 @@ class _UserDashboardState extends State<UserDashboard>
               region: _getSimpleRegionName(largeRegion.name),
               subRegion: mediumRegions.first.name,
             );
-            allDonationPosts.addAll(posts);
+            allUnifiedPostModels.addAll(posts);
           }
         }
       }
 
       // 중복 제거
-      final uniquePosts = <int, DonationPost>{};
-      for (final post in allDonationPosts) {
-        uniquePosts[post.postIdx] = post;
+      final uniquePosts = <int, UnifiedPostModel>{};
+      for (final post in allUnifiedPostModels) {
+        uniquePosts[post.id] = post;
       }
       final donationPosts = uniquePosts.values.take(10).toList();
 
@@ -382,7 +382,7 @@ class _UserDashboardState extends State<UserDashboard>
       final noticePosts = futures[1] as List<NoticePost>;
 
       // 헌혈 모집글 정렬 (긴급 우선, 그 다음 최신순)
-      final sortedDonations = List<DonationPost>.from(donationPosts);
+      final sortedDonations = List<UnifiedPostModel>.from(donationPosts);
       sortedDonations.sort((a, b) {
         if (a.isUrgent && !b.isUrgent) return -1;
         if (!a.isUrgent && b.isUrgent) return 1;
@@ -644,7 +644,7 @@ class _UserDashboardState extends State<UserDashboard>
               // 선호 지역 저장
               _savePreferredRegions();
               // 지역이 변경되면 헌혈 모집 데이터만 새로고침
-              _refreshDonationPosts();
+              _refreshUnifiedPostModels();
             },
           ),
     );
@@ -963,7 +963,7 @@ class _UserDashboardState extends State<UserDashboard>
                         final donation = donations[index];
 
                         return InkWell(
-                          onTap: () => _showDonationPostBottomSheet(donation),
+                          onTap: () => _showUnifiedPostModelBottomSheet(donation),
                           child: Container(
                             padding: const EdgeInsets.symmetric(
                               horizontal: 12,
@@ -1801,13 +1801,13 @@ class _UserDashboardState extends State<UserDashboard>
   }
 
   // 헌혈 모집 게시글 바텀시트 표시 (상세 페이지와 동일한 형식)
-  Future<void> _showDonationPostBottomSheet(DonationPost donation) async {
+  Future<void> _showUnifiedPostModelBottomSheet(UnifiedPostModel donation) async {
     // 내 신청 목록 새로고침 (중복 신청 방지를 위해)
     await _loadMyApplications();
 
     // 상세 정보 조회
     final detailPost = await DashboardService.getDonationPostDetail(
-      donation.postIdx,
+      donation.id,
     );
 
     if (!mounted) return;
@@ -1946,34 +1946,6 @@ class _UserDashboardState extends State<UserDashboard>
                           const SizedBox(height: 8),
 
                           // 담당자 이름 (있는 경우만 표시)
-                          if (displayPost.userName?.isNotEmpty ?? false) ...[
-                            Row(
-                              children: [
-                                Icon(
-                                  Icons.person,
-                                  size: 16,
-                                  color: AppTheme.textSecondary,
-                                ),
-                                const SizedBox(width: 8),
-                                Text(
-                                  '담당자: ',
-                                  style: AppTheme.bodyMediumStyle.copyWith(
-                                    fontWeight: FontWeight.w500,
-                                    color: Colors.grey[700],
-                                  ),
-                                ),
-                                Expanded(
-                                  child: Text(
-                                    displayPost.userName!,
-                                    style: AppTheme.bodyMediumStyle.copyWith(
-                                      fontWeight: FontWeight.w600,
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ],
-                          const SizedBox(height: 8),
 
                           // 주소
                           Row(
@@ -1998,7 +1970,7 @@ class _UserDashboardState extends State<UserDashboard>
                           Row(
                             children: [
                               Icon(
-                                displayPost.animalType == 0
+                                displayPost.animalType == 'dog'
                                     ? FontAwesomeIcons.dog
                                     : FontAwesomeIcons.cat,
                                 size: 16,
@@ -2014,7 +1986,7 @@ class _UserDashboardState extends State<UserDashboard>
                               ),
                               Expanded(
                                 child: Text(
-                                  displayPost.animalType == 0 ? '강아지' : '고양이',
+                                  displayPost.animalType == 'dog' ? '강아지' : '고양이',
                                   style: AppTheme.bodyMediumStyle.copyWith(
                                     fontWeight: FontWeight.w600,
                                   ),
@@ -2078,8 +2050,8 @@ class _UserDashboardState extends State<UserDashboard>
                           const SizedBox(height: 20),
 
                           // 혈액형 정보
-                          if (displayPost.emergencyBloodType != null &&
-                              displayPost.emergencyBloodType!.isNotEmpty) ...[
+                          if (displayPost.bloodType != null &&
+                              displayPost.bloodType!.isNotEmpty) ...[
                             Text('필요 혈액형', style: AppTheme.h4Style),
                             const SizedBox(height: 8),
                             Container(
@@ -2136,9 +2108,9 @@ class _UserDashboardState extends State<UserDashboard>
                                       ).format(displayPost.donationDate!),
                                       {
                                         'time':
-                                            displayPost.donationTime != null
+                                            displayPost.donationDate != null
                                                 ? DateFormat('HH:mm').format(
-                                                  displayPost.donationTime!,
+                                                  displayPost.donationDate!,
                                                 )
                                                 : '',
                                         'post_times_idx': 0,
@@ -2181,11 +2153,11 @@ class _UserDashboardState extends State<UserDashboard>
                                                           FontWeight.w600,
                                                     ),
                                               ),
-                                              if (displayPost.donationTime !=
+                                              if (displayPost.donationDate !=
                                                   null) ...[
                                                 const SizedBox(height: 4),
                                                 Text(
-                                                  '예정 시간: ${DateFormat('HH:mm').format(displayPost.donationTime!)}',
+                                                  '예정 시간: ${DateFormat('HH:mm').format(displayPost.donationDate!)}',
                                                   style: AppTheme
                                                       .bodyMediumStyle
                                                       .copyWith(
@@ -2305,7 +2277,7 @@ class _UserDashboardState extends State<UserDashboard>
   }
 
   // 날짜/시간 선택 드롭다운 위젯
-  Widget _buildDateTimeDropdownWidget(DonationPost post) {
+  Widget _buildDateTimeDropdownWidget(UnifiedPostModel post) {
     if (post.availableDates == null || post.availableDates!.isEmpty) {
       return const SizedBox.shrink();
     }
@@ -2492,7 +2464,7 @@ class _UserDashboardState extends State<UserDashboard>
 
   // 헌혈 신청 모달 표시
   void _showDonationApplicationModal(
-    DonationPost post,
+    UnifiedPostModel post,
     String dateStr,
     Map<String, dynamic> timeSlot,
   ) {

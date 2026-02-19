@@ -4,7 +4,7 @@ import '../utils/preferences_manager.dart';
 import '../utils/app_theme.dart';
 import '../utils/config.dart';
 import '../services/dashboard_service.dart';
-import '../models/donation_post_model.dart';
+import '../models/unified_post_model.dart';
 import '../services/applied_donation_service.dart';
 import '../models/applied_donation_model.dart';
 import '../widgets/marquee_text.dart';
@@ -15,7 +15,7 @@ import 'package:intl/intl.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 
 class UserDonationPostsListScreen extends StatefulWidget {
-  final DonationPost? initialPost; // 초기에 표시할 게시글
+  final UnifiedPostModel? initialPost; // 초기에 표시할 게시글
   final bool autoShowBottomSheet; // 자동으로 바텀 시트 표시 여부
 
   const UserDonationPostsListScreen({
@@ -32,8 +32,8 @@ class UserDonationPostsListScreen extends StatefulWidget {
 class _UserDonationPostsListScreenState
     extends State<UserDonationPostsListScreen>
     with TickerProviderStateMixin {
-  List<DonationPost> allPosts = [];
-  List<DonationPost> filteredPosts = [];
+  List<UnifiedPostModel> allPosts = [];
+  List<UnifiedPostModel> filteredPosts = [];
   bool isLoading = true;
   String errorMessage = '';
   String searchQuery = '';
@@ -183,7 +183,7 @@ class _UserDonationPostsListScreenState
   }
 
   void _filterPosts() {
-    List<DonationPost> filtered = allPosts;
+    List<UnifiedPostModel> filtered = allPosts;
 
     // 탭에 따른 필터링
     if (_currentTabIndex == 0) {
@@ -233,7 +233,7 @@ class _UserDonationPostsListScreenState
   // ignore: unused_element
   void _showTimeSelectionDialog(
     BuildContext context,
-    DonationPost post,
+    UnifiedPostModel post,
     String selectedDate,
   ) {
     // 새로운 availableDates 구조 사용
@@ -376,7 +376,7 @@ class _UserDonationPostsListScreenState
   // 헌혈 신청 다이얼로그 표시 (시간대 선택 버전)
   void _showDonationApplicationDialog(
     BuildContext context,
-    DonationPost post,
+    UnifiedPostModel post,
     String selectedDate,
     int postTimesIdx,
     String time,
@@ -609,7 +609,7 @@ class _UserDonationPostsListScreenState
   }
 
   // 일반 헌혈 신청 제출 (단일 날짜/시간 버전)
-  Future<void> _submitGeneralDonationApplication(DonationPost post) async {
+  Future<void> _submitGeneralDonationApplication(UnifiedPostModel post) async {
     try {
       // 사용자 반려동물 목록 가져오기
       final userPets = await _fetchUserPets();
@@ -625,10 +625,10 @@ class _UserDonationPostsListScreenState
 
             // animal_type이 null인 경우 기존 species로 매칭 (하위 호환성)
             if (pet['animal_type'] == null) {
-              if (post.animalType == 0) {
+              if (post.animalType == 'dog') {
                 // 강아지
                 animalTypeMatch = pet['species'] == '강아지';
-              } else if (post.animalType == 1) {
+              } else if (post.animalType == 'cat') {
                 // 고양이
                 animalTypeMatch = pet['species'] == '고양이';
               }
@@ -638,7 +638,7 @@ class _UserDonationPostsListScreenState
           }).toList();
 
       if (availablePets.isEmpty) {
-        final animalTypeStr = post.animalType == 0 ? '강아지' : '고양이';
+        final animalTypeStr = post.animalType == 'dog' ? '강아지' : '고양이';
         _showIncompatiblePetBottomSheet(animalTypeStr);
         return;
       }
@@ -649,7 +649,7 @@ class _UserDonationPostsListScreenState
       final response = await AuthHttpClient.post(
         Uri.parse('${Config.serverUrl}/api/donation/apply/general'),
         body: jsonEncode({
-          'post_idx': post.postIdx,
+          'post_idx': post.id,
           'pet_idx': petIdx,
           'applicant_message': '우리 반려동물이 건강하게 헌혈에 참여하고 싶습니다.',
         }),
@@ -684,7 +684,7 @@ class _UserDonationPostsListScreenState
 
   // 시간대 별 헌혈 신청 제출 (실제 API 호출)
   Future<void> _submitDonationApplication(
-    DonationPost post,
+    UnifiedPostModel post,
     String selectedDate,
     int postTimesIdx,
     String time,
@@ -705,10 +705,10 @@ class _UserDonationPostsListScreenState
 
             // animal_type이 null인 경우 기존 species로 매칭 (하위 호환성)
             if (pet['animal_type'] == null) {
-              if (post.animalType == 0) {
+              if (post.animalType == 'dog') {
                 // 강아지
                 animalTypeMatch = pet['species'] == '강아지';
-              } else if (post.animalType == 1) {
+              } else if (post.animalType == 'cat') {
                 // 고양이
                 animalTypeMatch = pet['species'] == '고양이';
               }
@@ -718,7 +718,7 @@ class _UserDonationPostsListScreenState
           }).toList();
 
       if (availablePets.isEmpty) {
-        final animalTypeStr = post.animalType == 0 ? '강아지' : '고양이';
+        final animalTypeStr = post.animalType == 'dog' ? '강아지' : '고양이';
         _showIncompatiblePetBottomSheet(animalTypeStr);
         return;
       }
@@ -765,7 +765,7 @@ class _UserDonationPostsListScreenState
   // 일반 헌혈 신청 다이얼로그 (단일 날짜/시간 버전)
   void _showGeneralDonationApplicationDialog(
     BuildContext context,
-    DonationPost post,
+    UnifiedPostModel post,
   ) {
     showDialog(
       context: context,
@@ -831,10 +831,10 @@ class _UserDonationPostsListScreenState
                           fontWeight: FontWeight.w600,
                         ),
                       ),
-                      if (post.donationTime != null) ...[
+                      if (post.donationDate != null) ...[
                         const SizedBox(height: 4),
                         Text(
-                          '예정 시간: ${DateFormat('HH:mm').format(post.donationTime!)}',
+                          '예정 시간: ${DateFormat('HH:mm').format(post.donationDate!)}',
                           style: AppTheme.bodyMediumStyle.copyWith(
                             color: AppTheme.textSecondary,
                           ),
@@ -905,10 +905,10 @@ class _UserDonationPostsListScreenState
     );
   }
 
-  Future<void> _showPostDetail(DonationPost post) async {
+  Future<void> _showPostDetail(UnifiedPostModel post) async {
     // 상세 정보 조회
     final detailPost = await DashboardService.getDonationPostDetail(
-      post.postIdx,
+      post.id,
     );
 
     if (!mounted) return;
@@ -1047,34 +1047,6 @@ class _UserDonationPostsListScreenState
                           ),
                           const SizedBox(height: 8),
 
-                          // 담당자 이름 (있는 경우만 표시)
-                          if (displayPost.userName?.isNotEmpty ?? false) ...[
-                            Row(
-                              children: [
-                                Icon(
-                                  Icons.person,
-                                  size: 16,
-                                  color: AppTheme.textSecondary,
-                                ),
-                                const SizedBox(width: 8),
-                                Text(
-                                  '담당자: ',
-                                  style: AppTheme.bodyMediumStyle.copyWith(
-                                    fontWeight: FontWeight.w500,
-                                    color: Colors.grey[700],
-                                  ),
-                                ),
-                                Expanded(
-                                  child: Text(
-                                    displayPost.userName!,
-                                    style: AppTheme.bodyMediumStyle.copyWith(
-                                      fontWeight: FontWeight.w600,
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ],
                           const SizedBox(height: 8),
                           // 주소
                           Row(
@@ -1099,7 +1071,7 @@ class _UserDonationPostsListScreenState
                           Row(
                             children: [
                               Icon(
-                                displayPost.animalType == 0
+                                displayPost.animalType == 'dog'
                                     ? FontAwesomeIcons.dog
                                     : FontAwesomeIcons.cat,
                                 size: 16,
@@ -1115,7 +1087,7 @@ class _UserDonationPostsListScreenState
                               ),
                               Expanded(
                                 child: Text(
-                                  displayPost.animalType == 0 ? '강아지' : '고양이',
+                                  displayPost.animalType == 'dog' ? '강아지' : '고양이',
                                   style: AppTheme.bodyMediumStyle.copyWith(
                                     fontWeight: FontWeight.w600,
                                   ),
@@ -1177,8 +1149,8 @@ class _UserDonationPostsListScreenState
 
                           const SizedBox(height: 20),
                           // 혈액형 정보
-                          if (displayPost.emergencyBloodType != null &&
-                              displayPost.emergencyBloodType!.isNotEmpty) ...[
+                          if (displayPost.bloodType != null &&
+                              displayPost.bloodType!.isNotEmpty) ...[
                             Text('필요 혈액형', style: AppTheme.h4Style),
                             const SizedBox(height: 8),
                             Container(
@@ -1290,11 +1262,11 @@ class _UserDonationPostsListScreenState
                                                           FontWeight.w600,
                                                     ),
                                               ),
-                                              if (displayPost.donationTime !=
+                                              if (displayPost.donationDate !=
                                                   null) ...[
                                                 const SizedBox(height: 4),
                                                 Text(
-                                                  '예정 시간: ${DateFormat('HH:mm').format(displayPost.donationTime!)}',
+                                                  '예정 시간: ${DateFormat('HH:mm').format(displayPost.donationDate!)}',
                                                   style: AppTheme
                                                       .bodyMediumStyle
                                                       .copyWith(
@@ -1592,7 +1564,7 @@ class _UserDonationPostsListScreenState
     );
   }
 
-  Widget _buildPostListItem(DonationPost post) {
+  Widget _buildPostListItem(UnifiedPostModel post) {
     return InkWell(
       onTap: () => _showPostDetail(post),
       child: Container(
@@ -1691,7 +1663,7 @@ class _UserDonationPostsListScreenState
   }
 
   // 날짜별 그룹화된 확장 가능한 드롭다운 UI
-  Widget _buildDateTimeDropdown(DonationPost post) {
+  Widget _buildDateTimeDropdown(UnifiedPostModel post) {
     if (post.availableDates == null || post.availableDates!.isEmpty) {
       return const SizedBox.shrink();
     }
@@ -1881,7 +1853,7 @@ class _UserDonationPostsListScreenState
     String dateStr,
     Map<String, dynamic> timeSlot,
     String displayText,
-    DonationPost post,
+    UnifiedPostModel post,
   ) {
     showModalBottomSheet(
       context: context,
@@ -1944,7 +1916,7 @@ class _UserDonationPostsListScreenState
   // 헌혈 신청 처리
   // ignore: unused_element
   void _processDonationApplication(
-    DonationPost post,
+    UnifiedPostModel post,
     Map<String, dynamic> timeSlot,
   ) {
     // 성공 시 별도의 스낵바 메시지 표시하지 않음
@@ -2198,7 +2170,7 @@ class _CancelApplicationBottomSheetState
 
 // 새로운 헌혈 신청 페이지 위젯
 class DonationApplicationPage extends StatefulWidget {
-  final DonationPost post;
+  final UnifiedPostModel post;
   final String selectedDate;
   final Map<String, dynamic> selectedTimeSlot;
   final String displayText;
@@ -2459,11 +2431,11 @@ class _DonationApplicationPageState extends State<DonationApplicationPage> {
 
           // animal_type이 null인 경우 기존 species로 매칭 (하위 호환성)
           if (pet['animal_type'] == null) {
-            if (widget.post.animalType == 0) {
+            if (widget.post.animalType == 'dog') {
               // 강아지
               animalTypeMatch =
                   pet['species'] == '강아지' || pet['species'] == '개';
-            } else if (widget.post.animalType == 1) {
+            } else if (widget.post.animalType == 'cat') {
               // 고양이
               animalTypeMatch = pet['species'] == '고양이';
             }
@@ -2523,11 +2495,11 @@ class _DonationApplicationPageState extends State<DonationApplicationPage> {
 
           // animal_type이 null인 경우 기존 species로 매칭 (하위 호환성)
           if (pet['animal_type'] == null) {
-            if (widget.post.animalType == 0) {
+            if (widget.post.animalType == 'dog') {
               // 강아지
               animalTypeMatch =
                   pet['species'] == '강아지' || pet['species'] == '개';
-            } else if (widget.post.animalType == 1) {
+            } else if (widget.post.animalType == 'cat') {
               // 고양이
               animalTypeMatch = pet['species'] == '고양이';
             }
@@ -2559,7 +2531,7 @@ class _DonationApplicationPageState extends State<DonationApplicationPage> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 FaIcon(
-                  widget.post.animalType == 0
+                  widget.post.animalType == 'dog'
                       ? FontAwesomeIcons.dog
                       : FontAwesomeIcons.cat,
                   size: 30,
@@ -2571,7 +2543,7 @@ class _DonationApplicationPageState extends State<DonationApplicationPage> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        '해당 헌혈 게시글에 참여할 수 있는 \n${widget.post.animalType == 0 ? "강아지" : "고양이"}가 없습니다',
+                        '해당 헌혈 게시글에 참여할 수 있는 \n${widget.post.animalType == 'dog' ? "강아지" : "고양이"}가 없습니다',
                         style: AppTheme.bodyLargeStyle.copyWith(
                           fontWeight: FontWeight.w500,
                           color: Colors.grey.shade600,

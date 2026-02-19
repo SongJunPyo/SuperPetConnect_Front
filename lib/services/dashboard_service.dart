@@ -3,7 +3,7 @@ import 'package:flutter/foundation.dart';
 import '../utils/config.dart';
 import '../utils/api_endpoints.dart';
 import '../utils/app_constants.dart';
-import '../models/donation_post_model.dart';
+import '../models/unified_post_model.dart';
 import '../models/column_post_model.dart';
 import '../models/notice_post_model.dart';
 import '../models/pagination_model.dart';
@@ -83,11 +83,11 @@ class DashboardService {
       return DashboardResponse(
         success: true,
         data: DashboardData(
-          donations: futures[0] as List<DonationPost>,
+          donations: futures[0] as List<UnifiedPostModel>,
           columns: futures[1] as List<ColumnPost>,
           notices: futures[2] as List<NoticePost>,
           statistics: DashboardStatistics(
-            activeDonations: (futures[0] as List<DonationPost>).length,
+            activeDonations: (futures[0] as List<UnifiedPostModel>).length,
             totalPublishedColumns: (futures[1] as List<ColumnPost>).length,
             totalActiveNotices: (futures[2] as List<NoticePost>).length,
           ),
@@ -98,8 +98,8 @@ class DashboardService {
     }
   }
 
-  // 개별 API: 헌혈 모집글
-  static Future<List<DonationPost>> getPublicPosts({
+  // 개별 API: 헌혈 모집글 (통합 API 응답)
+  static Future<List<UnifiedPostModel>> getPublicPosts({
     int limit = 11,
     String? region,
     String? subRegion,
@@ -138,13 +138,14 @@ class DashboardService {
         final posts =
             postsData
                 .take(limit)
-                .map((item) => DonationPost.fromJson(item))
+                .map((item) => UnifiedPostModel.fromJson(item))
                 .toList();
         return posts;
       } else {
         return [];
       }
     } catch (e) {
+      debugPrint('getPublicPosts error: $e');
       return [];
     }
   }
@@ -437,8 +438,8 @@ class DashboardService {
     }
   }
 
-  // 상세 게시글 정보 및 헌혈 날짜 조회 (통합 데이터 사용)
-  static Future<DonationPost?> getDonationPostDetail(int postIdx) async {
+  // 상세 게시글 정보 및 헌혈 날짜 조회 (통합 API 응답)
+  static Future<UnifiedPostModel?> getDonationPostDetail(int postIdx) async {
     try {
       final uri = Uri.parse(
         '${Config.serverUrl}${ApiEndpoints.publicPostDetail(postIdx)}',
@@ -449,14 +450,16 @@ class DashboardService {
       if (response.statusCode == 200) {
         final data = response.parseJson();
 
-        // 서버에서 통합된 데이터를 제공하므로 바로 DonationPost 생성
-        final donationPost = DonationPost.fromJson(data);
+        // 서버에서 통합된 UnifiedPostResponse 제공
+        final donationPost = UnifiedPostModel.fromJson(data);
 
         return donationPost;
       } else {
+        debugPrint('getDonationPostDetail error: ${response.statusCode}');
         return null;
       }
     } catch (e) {
+      debugPrint('getDonationPostDetail error: $e');
       return null;
     }
   }

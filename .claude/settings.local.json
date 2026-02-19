@@ -22,7 +22,17 @@
       "Bash(/mnt/c/flutter/bin/flutter.bat run:*)",
       "Bash(cmd.exe:*)",
       "Bash(unzip:*)",
-      "WebFetch(domain:pub.dev)"
+      "WebFetch(domain:pub.dev)",
+      "Bash(git config:*)",
+      "Bash(git merge:*)",
+      "Bash(Select-String -Pattern \"deprecated_member_use|Analyzing|issues found\")",
+      "WebFetch(domain:api.flutter.dev)",
+      "Bash(ls:*)",
+      "Bash(find:*)",
+      "Bash(fi)",
+      "Bash(done)",
+      "Bash(git commit:*)",
+      "Bash(xargs -I {} sh -c 'echo \"\"=== {} ===\"\" && head -20 {}')"
     ],
     "deny": []
   }

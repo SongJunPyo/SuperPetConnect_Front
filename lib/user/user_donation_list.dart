@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import '../utils/app_theme.dart';
 import '../services/dashboard_service.dart';
-import '../models/donation_post_model.dart';
+import '../models/unified_post_model.dart';
 import 'package:intl/intl.dart';
 import '../widgets/marquee_text.dart';
 import '../utils/number_format_util.dart';
@@ -14,7 +14,7 @@ class UserDonationListScreen extends StatefulWidget {
 }
 
 class _UserDonationListScreenState extends State<UserDonationListScreen> {
-  List<DonationPost> donations = [];
+  List<UnifiedPostModel> donations = [];
   bool isLoading = true;
   String? errorMessage;
 
@@ -53,7 +53,7 @@ class _UserDonationListScreenState extends State<UserDonationListScreen> {
       final allDonations = await DashboardService.getPublicPosts(limit: 100);
 
       // 필터링 적용
-      List<DonationPost> filteredDonations =
+      List<UnifiedPostModel> filteredDonations =
           allDonations.where((donation) {
             // 검색어 필터
             if (searchQuery.isNotEmpty) {
@@ -70,7 +70,7 @@ class _UserDonationListScreenState extends State<UserDonationListScreen> {
 
             // 동물 타입 필터
             if (selectedAnimalType != '전체') {
-              String animalTypeText = donation.animalTypeText;
+              String animalTypeText = donation.animalTypeKorean;
               String filterValue = selectedAnimalType == 'DOG' ? '강아지' : '고양이';
               if (animalTypeText != filterValue) {
                 return false;
@@ -659,9 +659,9 @@ class _UserDonationListScreenState extends State<UserDonationListScreen> {
     );
   }
 
-  Future<void> _showDonationBottomSheet(DonationPost donation) async {
+  Future<void> _showDonationBottomSheet(UnifiedPostModel donation) async {
     final detail = await DashboardService.getDonationPostDetail(
-      donation.postIdx,
+      donation.id,
     );
 
     if (!mounted) return;

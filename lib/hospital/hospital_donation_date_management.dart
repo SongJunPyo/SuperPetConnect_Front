@@ -6,7 +6,7 @@ import '../widgets/app_app_bar.dart';
 import '../services/donation_date_service.dart';
 import '../models/donation_post_date_model.dart';
 import '../services/dashboard_service.dart';
-import '../models/donation_post_model.dart';
+import '../models/unified_post_model.dart';
 import '../utils/preferences_manager.dart';
 
 class HospitalDonationDateManagementScreen extends StatefulWidget {
@@ -19,7 +19,7 @@ class HospitalDonationDateManagementScreen extends StatefulWidget {
 
 class _HospitalDonationDateManagementScreenState
     extends State<HospitalDonationDateManagementScreen> {
-  List<DonationPost> hospitalPosts = [];
+  List<UnifiedPostModel> hospitalPosts = [];
   bool isLoading = true;
   String? errorMessage;
 
@@ -164,7 +164,7 @@ class _HospitalDonationDateManagementScreenState
     );
   }
 
-  Widget _buildPostCard(DonationPost post) {
+  Widget _buildPostCard(UnifiedPostModel post) {
     return Container(
       margin: const EdgeInsets.only(bottom: AppTheme.spacing16),
       decoration: BoxDecoration(
@@ -280,12 +280,12 @@ class _HospitalDonationDateManagementScreenState
                     Icon(Icons.pets, size: 16, color: AppTheme.textSecondary),
                     const SizedBox(width: AppTheme.spacing4),
                     Text(
-                      post.animalTypeText,
+                      post.animalTypeKorean,
                       style: AppTheme.bodySmallStyle.copyWith(
                         color: AppTheme.textSecondary,
                       ),
                     ),
-                    if (post.isUrgent && post.emergencyBloodType != null) ...[
+                    if (post.isUrgent && post.bloodType != null) ...[
                       const SizedBox(width: AppTheme.spacing16),
                       Icon(
                         Icons.bloodtype,
@@ -294,7 +294,7 @@ class _HospitalDonationDateManagementScreenState
                       ),
                       const SizedBox(width: AppTheme.spacing4),
                       Text(
-                        post.emergencyBloodType!,
+                        post.bloodType!,
                         style: AppTheme.bodySmallStyle.copyWith(
                           color: AppTheme.textSecondary,
                         ),
@@ -319,9 +319,9 @@ class _HospitalDonationDateManagementScreenState
                       const SizedBox(width: AppTheme.spacing8),
                       Expanded(
                         child: Text(
-                          post.donationDates?.isEmpty ?? true
+                          post.availableDates?.isEmpty ?? true
                               ? '헌혈 날짜가 설정되지 않았습니다'
-                              : '${post.donationDates!.length}개의 헌혈 날짜 설정됨',
+                              : '${post.availableDates!.keys.length}개의 헌혈 날짜 설정됨',
                           style: AppTheme.bodySmallStyle.copyWith(
                             color: AppTheme.primaryBlue,
                             fontWeight: FontWeight.w500,
@@ -359,7 +359,7 @@ class _HospitalDonationDateManagementScreenState
     }
   }
 
-  void _showDateManagementDialog(DonationPost post) {
+  void _showDateManagementDialog(UnifiedPostModel post) {
     showDialog(
       context: context,
       builder:
@@ -372,7 +372,7 @@ class _HospitalDonationDateManagementScreenState
 }
 
 class DonationDateManagementDialog extends StatefulWidget {
-  final DonationPost post;
+  final UnifiedPostModel post;
   final VoidCallback onDatesUpdated;
 
   const DonationDateManagementDialog({
@@ -404,7 +404,7 @@ class _DonationDateManagementDialogState
 
     try {
       final dates = await DonationDateService.getDonationDatesByPostIdx(
-        widget.post.postIdx,
+        widget.post.id,
       );
       setState(() {
         donationDates = dates;
@@ -632,7 +632,7 @@ class _DonationDateManagementDialogState
 
         try {
           await DonationDateService.addDonationDate(
-            widget.post.postIdx,
+            widget.post.id,
             fullDateTime,
           );
           await _loadDonationDates();
