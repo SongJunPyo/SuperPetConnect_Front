@@ -7,6 +7,7 @@ class DonationHistory {
   final int petIdx;
   final DateTime donationDate;
   final String? hospitalName;
+  final String? hospitalNickname; // 병원 닉네임
   final int? bloodVolumeMl;
   final String? notes;
   final bool isSystemRecord; // true: 시스템 자동 기록, false: 수동 입력
@@ -18,6 +19,7 @@ class DonationHistory {
     required this.petIdx,
     required this.donationDate,
     this.hospitalName,
+    this.hospitalNickname,
     this.bloodVolumeMl,
     this.notes,
     required this.isSystemRecord,
@@ -31,6 +33,7 @@ class DonationHistory {
       petIdx: json['pet_idx'],
       donationDate: DateTime.parse(json['donation_date']),
       hospitalName: json['hospital_name'],
+      hospitalNickname: json['hospital_nickname'],
       bloodVolumeMl: json['blood_volume_ml'],
       notes: json['notes'],
       isSystemRecord: json['is_system_record'] ?? false,
@@ -45,6 +48,7 @@ class DonationHistory {
       'pet_idx': petIdx,
       'donation_date': donationDate.toIso8601String().split('T')[0],
       'hospital_name': hospitalName,
+      'hospital_nickname': hospitalNickname,
       'blood_volume_ml': bloodVolumeMl,
       'notes': notes,
       'is_system_record': isSystemRecord,
@@ -52,6 +56,9 @@ class DonationHistory {
       'created_at': createdAt.toIso8601String(),
     };
   }
+
+  /// 표시용 병원명 (닉네임 우선, 없으면 병원명)
+  String? get displayHospitalName => hospitalNickname ?? hospitalName;
 
   /// 수정/삭제 가능 여부 (수동 입력만 가능)
   bool get canEdit => !isSystemRecord;

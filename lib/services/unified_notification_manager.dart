@@ -52,10 +52,7 @@ class UnifiedNotificationManager {
 
   /// 플랫폼에 따라 적절한 알림 소스 초기화
   Future<void> initialize() async {
-    if (_isInitialized) {
-      debugPrint('[UnifiedNotificationManager] 이미 초기화됨');
-      return;
-    }
+    if (_isInitialized) return;
 
     _connectionController.add(NotificationConnectionStatus.connecting);
 
@@ -69,11 +66,7 @@ class UnifiedNotificationManager {
       }
 
       _isInitialized = true;
-      debugPrint(
-        '[UnifiedNotificationManager] 초기화 완료 (플랫폼: ${kIsWeb ? "웹" : "모바일"})',
-      );
     } catch (e) {
-      debugPrint('[UnifiedNotificationManager] 초기화 실패: $e');
       _connectionController.add(NotificationConnectionStatus.error);
     }
   }
@@ -86,13 +79,9 @@ class UnifiedNotificationManager {
     // FCM 알림을 통합 스트림으로 전달
     _fcmSubscription = _fcmHandler!.notificationStream.listen(
       (notification) {
-        debugPrint(
-          '[UnifiedNotificationManager] FCM 알림 수신: ${notification.title}',
-        );
         _notificationController.add(notification);
       },
       onError: (error) {
-        debugPrint('[UnifiedNotificationManager] FCM 스트림 오류: $error');
         _connectionController.add(NotificationConnectionStatus.error);
       },
     );
@@ -109,13 +98,9 @@ class UnifiedNotificationManager {
     // WebSocket 알림을 통합 스트림으로 전달
     _webSocketSubscription = _webSocketHandler!.notificationStream.listen(
       (notification) {
-        debugPrint(
-          '[UnifiedNotificationManager] WebSocket 알림 수신: ${notification.title}',
-        );
         _notificationController.add(notification);
       },
       onError: (error) {
-        debugPrint('[UnifiedNotificationManager] WebSocket 스트림 오류: $error');
         _connectionController.add(NotificationConnectionStatus.error);
       },
     );

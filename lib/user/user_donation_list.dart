@@ -5,6 +5,7 @@ import '../models/unified_post_model.dart';
 import 'package:intl/intl.dart';
 import '../widgets/marquee_text.dart';
 import '../utils/number_format_util.dart';
+import '../widgets/rich_text_viewer.dart';
 
 class UserDonationListScreen extends StatefulWidget {
   const UserDonationListScreen({super.key});
@@ -864,13 +865,21 @@ class _UserDonationListScreenState extends State<UserDonationListScreen> {
                   Expanded(
                     child: SingleChildScrollView(
                       controller: scrollController,
-                      child: Text(
-                        post.description,
-                        style: AppTheme.bodyMediumStyle.copyWith(
-                          height: 1.6,
-                          color: AppTheme.textPrimary,
-                        ),
-                      ),
+                      child:
+                          post.contentDelta != null &&
+                                  post.contentDelta!.isNotEmpty
+                              ? RichTextViewer(
+                                contentDelta: post.contentDelta,
+                                plainText: post.description,
+                                padding: EdgeInsets.zero,
+                              )
+                              : Text(
+                                post.description,
+                                style: AppTheme.bodyMediumStyle.copyWith(
+                                  height: 1.6,
+                                  color: AppTheme.textPrimary,
+                                ),
+                              ),
                     ),
                   ),
                   const SizedBox(height: 16),

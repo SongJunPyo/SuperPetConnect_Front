@@ -26,6 +26,7 @@ class ApiEndpoints {
 
   // ===== Admin =====
   static const String admin = '$api/admin';
+  static const String adminPosts = '$admin/posts';
   static const String adminNotices = '$admin/notices';
   static const String adminSignups = '$admin/signups';
   static const String adminUsers = '$admin/users';

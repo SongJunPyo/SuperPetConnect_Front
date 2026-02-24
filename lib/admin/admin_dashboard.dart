@@ -29,6 +29,7 @@ import '../widgets/dashboard/dashboard_empty_state.dart';
 import '../widgets/dashboard/dashboard_more_button.dart';
 import '../widgets/dashboard/dashboard_list_item.dart';
 import '../services/hospital_column_service.dart';
+import '../widgets/rich_text_viewer.dart';
 
 class AdminDashboard extends StatefulWidget {
   // StatelessWidget -> StatefulWidget으로 변경 (향후 상태관리 유연성 위해)
@@ -938,13 +939,21 @@ class _AdminDashboardState extends State<AdminDashboard>
                   Expanded(
                     child: SingleChildScrollView(
                       controller: scrollController,
-                      child: Text(
-                        detailColumn.content,
-                        style: AppTheme.bodyMediumStyle.copyWith(
-                          height: 1.6,
-                          color: AppTheme.textPrimary,
-                        ),
-                      ),
+                      child:
+                          detailColumn.contentDelta != null &&
+                                  detailColumn.contentDelta!.isNotEmpty
+                              ? RichTextViewer(
+                                contentDelta: detailColumn.contentDelta,
+                                plainText: detailColumn.content,
+                                padding: EdgeInsets.zero,
+                              )
+                              : Text(
+                                detailColumn.content,
+                                style: AppTheme.bodyMediumStyle.copyWith(
+                                  height: 1.6,
+                                  color: AppTheme.textPrimary,
+                                ),
+                              ),
                     ),
                   ),
                   const SizedBox(height: 16),

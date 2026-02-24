@@ -1,7 +1,6 @@
 // services/applied_donation_service.dart
 
 import 'dart:convert';
-import 'package:flutter/foundation.dart';
 import 'auth_http_client.dart';
 import '../models/applied_donation_model.dart';
 import '../utils/config.dart';
@@ -16,18 +15,9 @@ class AppliedDonationService {
     int petIdx,
     int postTimesIdx,
   ) async {
-    debugPrint(
-      '[AppliedDonationService] 헌혈 신청 요청 - petIdx: $petIdx, postTimesIdx: $postTimesIdx',
-    );
-
     final response = await AuthHttpClient.post(
       Uri.parse('${Config.serverUrl}${ApiEndpoints.donationApply}'),
       body: jsonEncode({'pet_idx': petIdx, 'post_times_idx': postTimesIdx}),
-    );
-
-    debugPrint('[AppliedDonationService] 응답 코드: ${response.statusCode}');
-    debugPrint(
-      '[AppliedDonationService] 응답 내용: ${utf8.decode(response.bodyBytes)}',
     );
 
     if (response.statusCode == 200 || response.statusCode == 201) {
@@ -38,8 +28,6 @@ class AppliedDonationService {
       return AppliedDonation.fromJson(data);
     } else if (response.statusCode == 400) {
       // 중복 신청 등 Bad Request 처리
-      debugPrint('[AppliedDonationService] 400 에러: ${response.body}');
-
       throw response.extractErrorMessage('이미 신청한 시간대입니다.');
     } else {
       throw '헌혈 신청에 실패했습니다. (${response.statusCode})';
@@ -257,7 +245,7 @@ class AppliedDonationService {
           results.add(result);
         } catch (e) {
           // 개별 신청 상태 변경 실패 시 로그 출력하고 계속 진행
-          debugPrint('Failed to update application $id: $e');
+          // 개별 실패 무시하고 계속 진행
         }
       }
 
@@ -363,15 +351,8 @@ class AppliedDonationService {
   /// 서버 API 응답 형식에 맞춤
   static Future<List<MyApplicationInfo>> getMyApplicationsFromServer() async {
     try {
-      debugPrint('[AppliedDonationService] 내 신청 목록 조회 요청');
-
       final response = await AuthHttpClient.get(
         Uri.parse('${Config.serverUrl}${ApiEndpoints.donationMyApplications}'),
-      );
-
-      debugPrint('[AppliedDonationService] 응답 코드: ${response.statusCode}');
-      debugPrint(
-        '[AppliedDonationService] 응답 내용: ${response.body}',
       );
 
       if (response.statusCode == 200) {
@@ -394,7 +375,6 @@ class AppliedDonationService {
         throw Exception('내 신청 목록 조회 실패: ${response.statusCode}');
       }
     } catch (e) {
-      debugPrint('[AppliedDonationService] 내 신청 목록 조회 오류: $e');
       throw Exception('내 신청 목록 조회 중 오류 발생: $e');
     }
   }
@@ -403,17 +383,8 @@ class AppliedDonationService {
   /// 대기중(status=0) 상태일 때만 취소 가능
   static Future<bool> cancelApplicationToServer(int applicationId) async {
     try {
-      debugPrint(
-        '[AppliedDonationService] 신청 취소 요청 - applicationId: $applicationId',
-      );
-
       final response = await AuthHttpClient.delete(
         Uri.parse('${Config.serverUrl}${ApiEndpoints.donationApplication(applicationId)}'),
-      );
-
-      debugPrint('[AppliedDonationService] 응답 코드: ${response.statusCode}');
-      debugPrint(
-        '[AppliedDonationService] 응답 내용: ${response.body}',
       );
 
       if (response.statusCode == 200 || response.statusCode == 204) {
@@ -425,7 +396,6 @@ class AppliedDonationService {
         throw '신청 취소에 실패했습니다. (${response.statusCode})';
       }
     } catch (e) {
-      debugPrint('[AppliedDonationService] 신청 취소 오류: $e');
       if (e is String) rethrow;
       throw '신청 취소 중 오류 발생: $e';
     }
@@ -439,7 +409,6 @@ class AppliedDonationService {
       final allApplications = await getMyApplicationsFromServer();
       return allApplications.where((app) => app.postId == postIdx).toList();
     } catch (e) {
-      debugPrint('[AppliedDonationService] 게시글별 신청 조회 오류: $e');
       return [];
     }
   }
@@ -458,7 +427,6 @@ class AppliedDonationService {
       }
       return null;
     } catch (e) {
-      debugPrint('[AppliedDonationService] 시간대별 신청 조회 오류: $e');
       return null;
     }
   }

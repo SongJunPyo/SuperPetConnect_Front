@@ -26,6 +26,7 @@ class PostTimeItem {
   final String location;
   final String hospitalNickname;
   final String hospitalName;
+  final double? bloodVolumeMl; // 헌혈량 (mL) - 헌혈완료 시간대에서만 사용
   final String createdDate;
   final String updatedDate;
 
@@ -47,6 +48,7 @@ class PostTimeItem {
     this.petName,
     this.bloodType,
     this.animalType,
+    this.bloodVolumeMl,
     required this.location,
     required this.hospitalNickname,
     required this.hospitalName,
@@ -73,6 +75,7 @@ class PostTimeItem {
       petName: json['pet_name'] as String?,
       bloodType: json['blood_type'] as String?,
       animalType: json['animal_type'] as int?,
+      bloodVolumeMl: (json['blood_volume_ml'] ?? json['blood_volume'])?.toDouble(),
       location: json['location'] as String,
       hospitalNickname: json['hospital_nickname'] as String,
       hospitalName: json['hospital_name'] as String,
@@ -100,6 +103,7 @@ class PostTimeItem {
       'pet_name': petName,
       'blood_type': bloodType,
       'animal_type': animalType,
+      'blood_volume_ml': bloodVolumeMl,
       'location': location,
       'hospital_nickname': hospitalNickname,
       'hospital_name': hospitalName,

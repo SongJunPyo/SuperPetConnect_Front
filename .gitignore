@@ -60,3 +60,12 @@ ios/Runner/GoogleService-Info.plist
 backup_before_format/
 터미널 출력.txt
 rich_editor_ui_prototype.html
+
+# 설명서 (매뉴얼, 스크린샷 포함)
+docs/
+
+# DB 백업
+super_pet_backup.sql
+
+# Claude 로컬 설정
+.claude/settings.local.json

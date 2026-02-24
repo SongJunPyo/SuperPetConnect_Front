@@ -59,7 +59,7 @@ class AppConstants {
   static const int noticeImportant = 1;
 
   // ===== 대시보드 페이지 크기 =====
-  static const int dashboardItemLimit = 11;
+  static const int dashboardItemLimit = 10;
   static const int detailListPageSize = 15;
 
   // ===== 유틸리티 메서드 =====

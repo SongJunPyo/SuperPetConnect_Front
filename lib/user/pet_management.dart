@@ -1234,7 +1234,7 @@ class _PetDetailBottomSheetState extends State<_PetDetailBottomSheet> {
               ),
               const SizedBox(width: 4),
               Text(
-                history.hospitalName ?? '정보 없음',
+                history.displayHospitalName ?? '정보 없음',
                 style: AppTheme.bodySmallStyle.copyWith(
                   color: AppTheme.textSecondary,
                 ),

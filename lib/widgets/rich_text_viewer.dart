@@ -64,13 +64,8 @@ class _RichTextViewerState extends State<RichTextViewer> {
 
   /// 컨트롤러 초기화
   void _initializeController() {
-    debugPrint('[RichTextViewer] 초기화 시작');
-    debugPrint('[RichTextViewer] contentDelta: ${widget.contentDelta}');
-    debugPrint('[RichTextViewer] plainText: ${widget.plainText}');
-
     // contentDelta가 있으면 Delta JSON 파싱
     if (widget.contentDelta != null && widget.contentDelta!.isNotEmpty) {
-      debugPrint('[RichTextViewer] Delta JSON 파싱 시도...');
       try {
         final deltaJson = jsonDecode(widget.contentDelta!) as List;
         final List<Map<String, dynamic>> processedDelta = [];

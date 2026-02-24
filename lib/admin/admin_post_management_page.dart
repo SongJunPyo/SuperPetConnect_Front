@@ -5,8 +5,11 @@ import 'dart:convert';
 import '../utils/config.dart';
 import '../services/auth_http_client.dart';
 import '../utils/app_theme.dart';
+import '../utils/app_constants.dart';
 import '../widgets/app_app_bar.dart';
-import '../models/donation_post_model.dart';
+import '../models/unified_post_model.dart';
+import '../services/dashboard_service.dart';
+import '../widgets/pagination_bar.dart';
 
 class AdminPostManagementPage extends StatefulWidget {
   final String? postId;
@@ -28,15 +31,28 @@ class AdminPostManagementPage extends StatefulWidget {
 class _AdminPostManagementPageState extends State<AdminPostManagementPage>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
-  List<DonationPost> _pendingPosts = [];
-  List<DonationPost> _approvedPosts = [];
-  List<DonationPost> _rejectedPosts = [];
-  List<DonationPost> _completedPosts = [];
   bool _isLoading = true;
+
+  // 탭별 status 키
+  static const List<String> _statusKeys = ['approved', 'pending', 'rejected', 'completed'];
+
+  // 탭별 독립 페이지네이션 상태
+  final Map<String, List<UnifiedPostModel>> _postsByStatus = {};
+  final Map<String, int> _pageByStatus = {};
+  final Map<String, int> _totalPagesByStatus = {};
+  final Map<String, ScrollController> _scrollControllerByStatus = {};
 
   @override
   void initState() {
     super.initState();
+
+    // 페이징 상태 초기화
+    for (final key in _statusKeys) {
+      _postsByStatus[key] = [];
+      _pageByStatus[key] = 1;
+      _totalPagesByStatus[key] = 1;
+      _scrollControllerByStatus[key] = ScrollController();
+    }
 
     // 초기 탭 설정
     int initialTabIndex = 0;
@@ -61,6 +77,9 @@ class _AdminPostManagementPageState extends State<AdminPostManagementPage>
 
   @override
   void dispose() {
+    for (final controller in _scrollControllerByStatus.values) {
+      controller.dispose();
+    }
     _tabController.dispose();
     super.dispose();
   }
@@ -70,50 +89,62 @@ class _AdminPostManagementPageState extends State<AdminPostManagementPage>
       _isLoading = true;
     });
 
-    try {
-      // 병렬로 데이터 로드
-      final futures = await Future.wait([
-        _fetchPostsByStatus('pending'),
-        _fetchPostsByStatus('approved'),
-        _fetchPostsByStatus('rejected'),
-        _fetchPostsByStatus('completed'),
-      ]);
+    // 모든 탭 상태 초기화
+    for (final key in _statusKeys) {
+      _postsByStatus[key] = [];
+      _pageByStatus[key] = 1;
+      _totalPagesByStatus[key] = 1;
+    }
 
-      setState(() {
-        _pendingPosts = futures[0];
-        _approvedPosts = futures[1];
-        _rejectedPosts = futures[2];
-        _completedPosts = futures[3];
-        _isLoading = false;
-      });
-    } catch (e) {
+    try {
+      // 병렬로 첫 페이지 로드
+      await Future.wait(
+        _statusKeys.map((status) => _fetchPosts(status, page: 1, isInitial: true)),
+      );
+    } catch (_) {}
+
+    if (mounted) {
       setState(() {
         _isLoading = false;
       });
     }
   }
 
-  Future<List<DonationPost>> _fetchPostsByStatus(String status) async {
+  Future<void> _fetchPosts(String status, {int page = 1, bool isInitial = false}) async {
     try {
-      final response = await AuthHttpClient.get(
-        Uri.parse('${Config.serverUrl}/api/admin/posts?status=$status'),
+      final response = await DashboardService.fetchAdminPostsPage(
+        page: page,
+        pageSize: AppConstants.detailListPageSize,
+        status: status,
       );
 
-      if (response.statusCode == 200) {
-        final data = jsonDecode(utf8.decode(response.bodyBytes));
-        if (data['success'] == true && data['posts'] != null) {
-          return (data['posts'] as List)
-              .map((post) => DonationPost.fromJson(post))
-              .toList();
+      final pagination = response.pagination;
+
+      if (mounted) {
+        setState(() {
+          _postsByStatus[status] = response.posts;
+          _pageByStatus[status] = pagination.currentPage;
+          _totalPagesByStatus[status] = pagination.totalPages;
+        });
+
+        // 스크롤 맨 위로 (초기 로드가 아닌 경우)
+        if (!isInitial) {
+          final controller = _scrollControllerByStatus[status];
+          if (controller != null && controller.hasClients) {
+            controller.jumpTo(0);
+          }
         }
       }
-      return [];
     } catch (e) {
-      return [];
+      if (mounted) {
+        setState(() {
+          _postsByStatus[status] = _postsByStatus[status] ?? [];
+        });
+      }
     }
   }
 
-  void _showApproveBottomSheet(DonationPost post) {
+  void _showApproveBottomSheet(UnifiedPostModel post) {
     showModalBottomSheet(
       context: context,
       shape: const RoundedRectangleBorder(
@@ -206,7 +237,7 @@ class _AdminPostManagementPageState extends State<AdminPostManagementPage>
                       child: ElevatedButton(
                         onPressed: () {
                           Navigator.pop(context);
-                          _approvePost(post.postIdx);
+                          _approvePost(post.id);
                         },
                         style: ElevatedButton.styleFrom(
                           backgroundColor: AppTheme.success,
@@ -251,7 +282,7 @@ class _AdminPostManagementPageState extends State<AdminPostManagementPage>
     }
   }
 
-  void _showRejectBottomSheet(DonationPost post) {
+  void _showRejectBottomSheet(UnifiedPostModel post) {
     showModalBottomSheet(
       context: context,
       shape: const RoundedRectangleBorder(
@@ -344,7 +375,7 @@ class _AdminPostManagementPageState extends State<AdminPostManagementPage>
                       child: ElevatedButton(
                         onPressed: () {
                           Navigator.pop(context);
-                          _rejectPost(post.postIdx);
+                          _rejectPost(post.id);
                         },
                         style: ElevatedButton.styleFrom(
                           backgroundColor: AppTheme.error,
@@ -406,10 +437,10 @@ class _AdminPostManagementPageState extends State<AdminPostManagementPage>
               unselectedLabelColor: AppTheme.textSecondary,
               indicatorColor: AppTheme.primaryBlue,
               tabs: [
-                Tab(text: '승인됨 (${_approvedPosts.length})'),
-                Tab(text: '승인 대기 (${_pendingPosts.length})'),
-                Tab(text: '거절됨 (${_rejectedPosts.length})'),
-                Tab(text: '헌혈완료 (${_completedPosts.length})'),
+                Tab(text: '승인됨 (${(_postsByStatus['approved'] ?? []).length})'),
+                Tab(text: '승인 대기 (${(_postsByStatus['pending'] ?? []).length})'),
+                Tab(text: '거절됨 (${(_postsByStatus['rejected'] ?? []).length})'),
+                Tab(text: '헌혈완료 (${(_postsByStatus['completed'] ?? []).length})'),
               ],
             ),
           ),
@@ -420,10 +451,10 @@ class _AdminPostManagementPageState extends State<AdminPostManagementPage>
                     : TabBarView(
                       controller: _tabController,
                       children: [
-                        _buildPostList(_approvedPosts, 'approved'),
-                        _buildPostList(_pendingPosts, 'pending'),
-                        _buildPostList(_rejectedPosts, 'rejected'),
-                        _buildPostList(_completedPosts, 'completed'),
+                        _buildPostList('approved'),
+                        _buildPostList('pending'),
+                        _buildPostList('rejected'),
+                        _buildPostList('completed'),
                       ],
                     ),
           ),
@@ -432,7 +463,9 @@ class _AdminPostManagementPageState extends State<AdminPostManagementPage>
     );
   }
 
-  Widget _buildPostList(List<DonationPost> posts, String status) {
+  Widget _buildPostList(String status) {
+    final posts = _postsByStatus[status] ?? [];
+
     if (posts.isEmpty) {
       return Center(
         child: Column(
@@ -451,16 +484,31 @@ class _AdminPostManagementPageState extends State<AdminPostManagementPage>
       );
     }
 
+    final currentPage = _pageByStatus[status] ?? 1;
+    final totalPages = _totalPagesByStatus[status] ?? 1;
+
     return RefreshIndicator(
-      onRefresh: _loadPosts,
+      onRefresh: () => _fetchPosts(status, page: 1),
       child: ListView.builder(
+        controller: _scrollControllerByStatus[status],
         padding: const EdgeInsets.all(16),
-        itemCount: posts.length,
+        itemCount: posts.length + 1,
         itemBuilder: (context, index) {
+          if (index >= posts.length) {
+            // 마지막: PaginationBar
+            return PaginationBar(
+              currentPage: currentPage,
+              totalPages: totalPages,
+              onPageChanged: (page) {
+                _fetchPosts(status, page: page);
+              },
+            );
+          }
+
           final post = posts[index];
           final isHighlighted =
               widget.highlightPostId != null &&
-              post.postIdx.toString() == widget.highlightPostId;
+              post.id.toString() == widget.highlightPostId;
 
           return Container(
             margin: const EdgeInsets.only(bottom: 12),

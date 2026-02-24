@@ -1,6 +1,22 @@
 import '../utils/app_constants.dart';
 import 'column_post_model.dart';
 import 'notice_post_model.dart';
+import 'unified_post_model.dart';
+
+class PaginatedPostsResult {
+  final List<UnifiedPostModel> posts;
+  final PaginationMeta pagination;
+
+  PaginatedPostsResult({required this.posts, required this.pagination});
+}
+
+/// Raw JSON Map 형태의 페이징 결과 (기존 raw Map 사용 화면용)
+class PaginatedRawPostsResult {
+  final List<Map<String, dynamic>> posts;
+  final PaginationMeta pagination;
+
+  PaginatedRawPostsResult({required this.posts, required this.pagination});
+}
 
 class PaginatedColumnsResult {
   final List<ColumnPost> columns;

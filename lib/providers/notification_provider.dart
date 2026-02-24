@@ -73,17 +73,7 @@ class NotificationProvider extends ChangeNotifier {
   /// Provider 초기화
   /// 앱 시작 시 또는 로그인 후 호출됩니다.
   Future<void> initialize() async {
-    debugPrint(
-      '[NotificationProvider] initialize() 호출 - isInitialized: $_isInitialized, isInitializing: $_isInitializing',
-    );
-    if (_isInitialized) {
-      debugPrint('[NotificationProvider] 이미 초기화됨, 건너뜀');
-      return;
-    }
-    if (_isInitializing) {
-      debugPrint('[NotificationProvider] 초기화 진행 중, 건너뜀');
-      return;
-    }
+    if (_isInitialized || _isInitializing) return;
 
     _isInitializing = true;
     _setLoading(true);
@@ -113,63 +103,42 @@ class NotificationProvider extends ChangeNotifier {
 
       // 웹에서 브라우저 알림 권한 요청 (비동기로 실행, 기다리지 않음)
       if (kIsWeb) {
-        // 권한 요청은 백그라운드에서 실행 (사용자 응답 대기하지 않음)
-        WebNotificationHelper.requestPermission().catchError((e) {
-          debugPrint('[NotificationProvider] 브라우저 알림 권한 요청 실패: $e');
-          return false;
-        });
+        WebNotificationHelper.requestPermission().catchError((_) => false);
       }
 
       // 초기 알림 목록 로드 (로딩 상태 해제 후 호출)
-      debugPrint('[NotificationProvider] loadNotifications 호출 전');
       _isLoading = false;
       await loadNotifications(refresh: true);
-      debugPrint(
-        '[NotificationProvider] loadNotifications 완료 - 알림 수: ${_notifications.length}',
-      );
 
       _isInitialized = true;
       _isInitializing = false;
       _connectionStatus = ConnectionStatus.connected;
       _isLoading = false;
-      debugPrint(
-        '[NotificationProvider] 초기화 완료 - isInitialized: $_isInitialized, connectionStatus: $_connectionStatus',
-      );
-      notifyListeners(); // 초기화 완료 후 UI 갱신
+      notifyListeners();
     } catch (e) {
       _errorMessage = '알림 시스템 초기화 실패: $e';
       _connectionStatus = ConnectionStatus.error;
-      _isInitialized = true; // 에러 발생해도 초기화 완료로 처리 (무한 로딩 방지)
+      _isInitialized = true;
       _isInitializing = false;
       _isLoading = false;
-      debugPrint('[NotificationProvider] 초기화 실패: $e');
-      notifyListeners(); // 에러 상태 UI 갱신
+      notifyListeners();
     }
   }
 
   /// 실시간 알림 스트림 구독 설정
   void _setupRealtimeSubscription() {
-    debugPrint('[NotificationProvider] _setupRealtimeSubscription 호출');
-    if (_notificationManager == null) {
-      debugPrint('[NotificationProvider] _notificationManager가 null');
-      return;
-    }
+    if (_notificationManager == null) return;
 
-    // 통합 알림 관리자 스트림 구독
     _notificationSubscription?.cancel();
-    debugPrint('[NotificationProvider] 알림 스트림 구독 시작');
     _notificationSubscription = _notificationManager!.notificationStream.listen(
       (notification) {
-        debugPrint('[NotificationProvider] 스트림에서 알림 수신: ${notification.title}');
         _onNewNotification(notification);
       },
       onError: (error) {
-        debugPrint('[NotificationProvider] 실시간 알림 스트림 오류: $error');
         _connectionStatus = ConnectionStatus.error;
         notifyListeners();
       },
     );
-    debugPrint('[NotificationProvider] 알림 스트림 구독 완료');
 
     // 연결 상태 스트림 구독
     _connectionSubscription?.cancel();
@@ -215,7 +184,6 @@ class NotificationProvider extends ChangeNotifier {
       _clearError();
     } catch (e) {
       _errorMessage = '알림 목록 로드 실패: $e';
-      debugPrint('[NotificationProvider] 알림 목록 로드 실패: $e');
     } finally {
       _setLoading(false);
     }
@@ -247,11 +215,7 @@ class NotificationProvider extends ChangeNotifier {
 
   /// 알림 목록 새로고침
   Future<void> refresh() async {
-    debugPrint('[NotificationProvider] refresh() 호출');
     await loadNotifications(refresh: true);
-    debugPrint(
-      '[NotificationProvider] refresh() 완료 - 알림 수: ${_notifications.length}',
-    );
   }
 
   /// 다음 페이지 로드
@@ -274,8 +238,6 @@ class NotificationProvider extends ChangeNotifier {
       _unreadCount++;
       notifyListeners();
 
-      debugPrint('[NotificationProvider] 새 알림 수신: ${notification.title}');
-
       // 웹에서 알림 표시
       if (kIsWeb) {
         // 브라우저 알림 (윈도우 우측 하단)
@@ -288,7 +250,6 @@ class NotificationProvider extends ChangeNotifier {
 
   /// 웹 브라우저 알림 표시 (윈도우 우측 하단)
   void _showBrowserNotification(NotificationModel notification) {
-    debugPrint('[NotificationProvider] 브라우저 알림 표시 시도: ${notification.title}');
     WebNotificationHelper.showNotification(
       title: notification.title,
       body: notification.content,
@@ -297,13 +258,8 @@ class NotificationProvider extends ChangeNotifier {
 
   /// 웹에서 토스트 알림 표시
   void _showToastNotification(NotificationModel notification) {
-    debugPrint('[NotificationProvider] 토스트 알림 표시 시도: ${notification.title}');
     final context = NotificationService.navigatorKey.currentContext;
-    if (context == null) {
-      debugPrint('[NotificationProvider] 토스트 알림 실패: context가 null');
-      return;
-    }
-    debugPrint('[NotificationProvider] context 확인됨, ScaffoldMessenger 호출');
+    if (context == null) return;
 
     try {
       // ScaffoldMessenger를 통해 SnackBar 표시
@@ -358,10 +314,7 @@ class NotificationProvider extends ChangeNotifier {
           ),
         ),
       );
-      debugPrint('[NotificationProvider] 토스트 알림 표시 완료');
-    } catch (e) {
-      debugPrint('[NotificationProvider] 토스트 알림 표시 실패: $e');
-    }
+    } catch (_) {}
   }
 
   /// FCM 알림을 Provider에 추가 (모바일에서 FCM 수신 시 호출)
@@ -373,35 +326,23 @@ class NotificationProvider extends ChangeNotifier {
 
   /// 개별 알림 읽음 처리
   Future<bool> markAsRead(int notificationId) async {
-    debugPrint(
-      '[NotificationProvider] markAsRead 호출 - notificationId: $notificationId',
-    );
     try {
       final success = await NotificationApiService.markAsRead(notificationId);
-      debugPrint('[NotificationProvider] markAsRead API 결과: $success');
 
       if (success) {
         final index = _notifications.indexWhere(
           (n) => n.notificationId == notificationId,
         );
-        debugPrint('[NotificationProvider] 알림 인덱스: $index');
 
         if (index != -1 && !_notifications[index].isRead) {
-          final oldNotification = _notifications[index];
           _notifications[index] = _notifications[index].markAsRead();
           _unreadCount = _unreadCount > 0 ? _unreadCount - 1 : 0;
-          debugPrint(
-            '[NotificationProvider] 읽음 처리 완료 - 이전 isRead: ${oldNotification.isRead}, 현재 isRead: ${_notifications[index].isRead}',
-          );
           notifyListeners();
-        } else {
-          debugPrint('[NotificationProvider] 읽음 처리 스킵 - 이미 읽음 상태');
         }
       }
 
       return success;
     } catch (e) {
-      debugPrint('[NotificationProvider] 읽음 처리 실패: $e');
       return false;
     }
   }
@@ -419,7 +360,6 @@ class NotificationProvider extends ChangeNotifier {
 
       return success;
     } catch (e) {
-      debugPrint('[NotificationProvider] 전체 읽음 처리 실패: $e');
       return false;
     }
   }
@@ -450,7 +390,6 @@ class NotificationProvider extends ChangeNotifier {
 
       return success;
     } catch (e) {
-      debugPrint('[NotificationProvider] 알림 삭제 실패: $e');
       return false;
     }
   }
@@ -497,7 +436,6 @@ class NotificationProvider extends ChangeNotifier {
 
       return success;
     } catch (e) {
-      debugPrint('[NotificationProvider] 다건 알림 삭제 실패: $e');
       return false;
     }
   }
@@ -515,7 +453,6 @@ class NotificationProvider extends ChangeNotifier {
 
       return success;
     } catch (e) {
-      debugPrint('[NotificationProvider] 전체 알림 삭제 실패: $e');
       return false;
     }
   }
@@ -530,9 +467,7 @@ class NotificationProvider extends ChangeNotifier {
         _unreadCount = count;
         notifyListeners();
       }
-    } catch (e) {
-      debugPrint('[NotificationProvider] 읽지 않은 개수 조회 실패: $e');
-    }
+    } catch (_) {}
   }
 
   // === 유틸리티 ===

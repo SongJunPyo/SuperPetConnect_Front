@@ -5,12 +5,20 @@ import '../models/donation_application_model.dart';
 import '../models/post_time_item_model.dart';
 import '../services/hospital_post_service.dart';
 import '../utils/app_theme.dart';
+import '../utils/app_constants.dart';
 import 'package:intl/intl.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import '../models/applied_donation_model.dart';
 import 'donation_completion_sheet.dart';
 import 'donation_cancellation_sheet.dart';
 import '../widgets/rich_text_viewer.dart';
+import '../widgets/post_detail/post_detail_handle_bar.dart';
+import '../widgets/post_detail/post_detail_meta_section.dart';
+import '../widgets/post_detail/post_detail_blood_type.dart';
+import '../widgets/post_detail/post_detail_description.dart';
+import '../widgets/post_detail/post_detail_patient_info.dart';
+import '../widgets/blinking_icon.dart';
+import '../widgets/pagination_bar.dart';
 
 class HospitalPostCheck extends StatefulWidget {
   const HospitalPostCheck({super.key});
@@ -32,6 +40,11 @@ class _HospitalPostCheckState extends State<HospitalPostCheck>
   final TextEditingController _searchController = TextEditingController();
   DateTime? selectedDate;
 
+  // 페이지네이션 관련 (탭 0, 1에서 사용)
+  final ScrollController _scrollController = ScrollController();
+  int _currentPage = 1;
+  int _totalPages = 1;
+
   // 슬라이딩 탭 관련
   TabController? _tabController;
   int _currentTabIndex = 0;
@@ -50,17 +63,27 @@ class _HospitalPostCheckState extends State<HospitalPostCheck>
         _tabController!.index != _currentTabIndex) {
       setState(() {
         _currentTabIndex = _tabController!.index;
+        if (_currentTabIndex <= 1) {
+          _currentPage = 1;
+        }
       });
-      // 탭이 변경되면 해당 탭의 데이터를 로드
-      _loadPosts();
+      _loadPosts(page: _currentTabIndex <= 1 ? 1 : null);
     }
   }
 
   @override
   void dispose() {
+    _scrollController.dispose();
     _tabController?.dispose();
     _searchController.dispose();
     super.dispose();
+  }
+
+  void _onPageChanged(int page) {
+    setState(() {
+      _currentPage = page;
+    });
+    _loadPosts(page: page);
   }
 
   void _onSearchChanged() {
@@ -135,11 +158,6 @@ class _HospitalPostCheckState extends State<HospitalPostCheck>
           // 모집마감: 시간대별로 분해하여 applicant_status=1(승인)인 시간대만 표시
           filteredPostTimeItems =
               postTimeItems.where((item) => item.applicantStatus == 1).toList();
-          debugPrint(
-            '[HospitalPostCheck] 모집마감 탭 filter result count: '
-            '${filteredPostTimeItems.length}',
-          );
-
           // 검색어 필터링
           if (_searchController.text.isNotEmpty) {
             filteredPostTimeItems =
@@ -254,7 +272,7 @@ class _HospitalPostCheckState extends State<HospitalPostCheck>
         date1.day == date2.day;
   }
 
-  Future<void> _loadPosts() async {
+  Future<void> _loadPosts({int? page}) async {
     try {
       if (mounted) {
         setState(() {
@@ -267,14 +285,26 @@ class _HospitalPostCheckState extends State<HospitalPostCheck>
       switch (_currentTabIndex) {
         case 0:
         case 1:
-          // 모집대기, 헌혈모집: 기존 게시글 API 사용
-          final loadedPosts =
-              await HospitalPostService.getUnifiedPostModelsForCurrentUser();
+          // 모집대기, 헌혈모집: 페이징 API 사용
+          final response = await HospitalPostService.fetchHospitalPostsPage(
+            page: page ?? _currentPage,
+            pageSize: AppConstants.detailListPageSize,
+          );
+
+          final pagination = response.pagination;
+
           if (mounted) {
             setState(() {
-              posts = loadedPosts;
+              posts = response.posts;
               isLoading = false;
+              _currentPage = pagination.currentPage;
+              _totalPages = pagination.totalPages;
             });
+
+            // 스크롤 맨 위로 (페이지 전환 시)
+            if (page != null && _scrollController.hasClients) {
+              _scrollController.jumpTo(0);
+            }
           }
           break;
 
@@ -282,13 +312,7 @@ class _HospitalPostCheckState extends State<HospitalPostCheck>
           // 모집마감: 승인된 신청자(applicant_status=1)만 조회
           final approvedClosedItems = await HospitalPostService.getPostTimes(
             applicantStatus: 1,
-            postStatus: 3,
           );
-          debugPrint(
-            '[HospitalPostCheck] 모집마감 탭 fetch - applicant=1 count: '
-            '${approvedClosedItems.length}',
-          );
-
           if (mounted) {
             setState(() {
               postTimeItems = approvedClosedItems;
@@ -298,10 +322,9 @@ class _HospitalPostCheckState extends State<HospitalPostCheck>
           break;
 
         case 3:
-          // 헌혈완료: applicant_status=7, post_status=3
+          // 헌혈완료: applicant_status=7
           final loadedPostTimes = await HospitalPostService.getPostTimes(
             applicantStatus: 7,
-            postStatus: 3,
           );
           if (mounted) {
             setState(() {
@@ -313,11 +336,8 @@ class _HospitalPostCheckState extends State<HospitalPostCheck>
 
         case 4:
           // 헌혈취소: 모집거절 게시글 + 취소/거절된 시간대
-          // 모집거절 게시글 조회 (서비스 계층에서 422 에러 시 자동으로 대체 방법 사용)
           final loadedRejectedPosts =
               await HospitalPostService.getRejectedPosts();
-
-          // applicant_status=2 (거절) 또는 4 (취소)인 시간대
           final rejectedTimeItems = await HospitalPostService.getPostTimes(
             applicantStatus: 2,
           );
@@ -328,7 +348,6 @@ class _HospitalPostCheckState extends State<HospitalPostCheck>
           if (mounted) {
             setState(() {
               rejectedPosts = loadedRejectedPosts;
-              // 거절과 취소 시간대 합치기
               postTimeItems = [...rejectedTimeItems, ...cancelledTimeItems];
               isLoading = false;
             });
@@ -336,7 +355,6 @@ class _HospitalPostCheckState extends State<HospitalPostCheck>
           break;
 
         default:
-          // 기본적으로 전체 게시글 로드
           final loadedPosts =
               await HospitalPostService.getUnifiedPostModelsForCurrentUser();
           if (mounted) {
@@ -582,16 +600,33 @@ class _HospitalPostCheckState extends State<HospitalPostCheck>
       );
     }
 
+    // 탭 0,1에서만 PaginationBar 표시
+    final bool isPostsTab = _currentTabIndex <= 1;
+    final int paginationBarCount = (isPostsTab && _totalPages > 1) ? 1 : 0;
+
     return RefreshIndicator(
-      onRefresh: _loadPosts,
+      onRefresh: () => _loadPosts(page: isPostsTab ? 1 : null),
       color: AppTheme.primaryBlue,
       child: ListView.builder(
+        controller: _scrollController,
         padding: EdgeInsets.zero,
-        itemCount: itemCount + 1, // 헤더 포함
+        itemCount: itemCount + 1 + paginationBarCount, // 헤더 + 아이템 + PaginationBar
         itemBuilder: (context, index) {
           // 첫 번째 아이템은 헤더
           if (index == 0) {
             return _buildHeaderRow();
+          }
+
+          // 게시글 범위를 벗어나면 PaginationBar
+          if (index > itemCount) {
+            if (isPostsTab) {
+              return PaginationBar(
+                currentPage: _currentPage,
+                totalPages: _totalPages,
+                onPageChanged: _onPageChanged,
+              );
+            }
+            return const SizedBox.shrink();
           }
 
           // 나머지는 게시글 아이템
@@ -1428,6 +1463,15 @@ class _HospitalPostCheckState extends State<HospitalPostCheck>
                                         item.bloodType!,
                                       ),
                                     ],
+                                    // 헌혈량 표시 (헌혈완료 시)
+                                    if (item.bloodVolumeMl != null) ...[
+                                      const SizedBox(height: 12),
+                                      _buildInfoRow(
+                                        Icons.water_drop,
+                                        '헌혈량',
+                                        '${item.bloodVolumeMl!.toStringAsFixed(item.bloodVolumeMl! == item.bloodVolumeMl!.roundToDouble() ? 0 : 1)} mL',
+                                      ),
+                                    ],
                                     if (item.applicantStatus != null) ...[
                                       const SizedBox(height: 12),
                                       Row(
@@ -2021,17 +2065,9 @@ class _PostDetailBottomSheetState extends State<PostDetailBottomSheet> {
           child: Column(
             children: [
               // 핸들 바
-              Container(
-                width: 40,
-                height: 4,
-                margin: const EdgeInsets.symmetric(vertical: 12),
-                decoration: BoxDecoration(
-                  color: Colors.grey[300],
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              ),
+              const PostDetailHandleBar(),
 
-              // 헤더
+              // 헤더 (삭제 버튼 포함)
               Container(
                 padding: const EdgeInsets.fromLTRB(20, 8, 20, 16),
                 child: Row(
@@ -2108,50 +2144,19 @@ class _PostDetailBottomSheetState extends State<PostDetailBottomSheet> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // 메타 정보
-                      // 병원명과 등록일
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          // 병원명
-                          Row(
-                            children: [
-                              Icon(
-                                Icons.business,
-                                size: 16,
-                                color: AppTheme.textSecondary,
-                              ),
-                              const SizedBox(width: 8),
-                              Text(
-                                '병원명: ',
-                                style: AppTheme.bodyMediumStyle.copyWith(
-                                  fontWeight: FontWeight.w500,
-                                  color: AppTheme.textPrimary,
-                                ),
-                              ),
-                              Text(
-                                widget.post.hospitalNickname ?? widget.post.hospitalName,
-                                style: AppTheme.bodyMediumStyle.copyWith(
-                                  fontWeight: FontWeight.w600,
-                                  color: AppTheme.textPrimary,
-                                ),
-                              ),
-                            ],
-                          ),
-                          // 등록일 (가장 오른쪽)
-                          Text(
-                            DateFormat(
-                              'yy.MM.dd',
-                            ).format(widget.post.createdDate),
-                            style: AppTheme.bodySmallStyle.copyWith(
-                              color: AppTheme.textSecondary,
-                            ),
-                          ),
-                        ],
+                      // 메타 정보 (병원명, 주소, 동물 종류, 신청자 수)
+                      PostDetailMetaSection(
+                        hospitalName: widget.post.hospitalName,
+                        hospitalNickname: widget.post.hospitalNickname,
+                        location: widget.post.location,
+                        animalType: widget.post.animalType,
+                        applicantCount: applicants.length,
+                        createdAt: widget.post.createdDate,
                       ),
+
                       const SizedBox(height: 8),
 
-                      // 담당자 이름
+                      // 담당자 이름 (병원 전용 - 공통 위젯에 없음)
                       Row(
                         children: [
                           Icon(
@@ -2164,7 +2169,7 @@ class _PostDetailBottomSheetState extends State<PostDetailBottomSheet> {
                             '담당자: ',
                             style: AppTheme.bodyMediumStyle.copyWith(
                               fontWeight: FontWeight.w500,
-                              color: AppTheme.textPrimary,
+                              color: Colors.grey[700],
                             ),
                           ),
                           Expanded(
@@ -2172,160 +2177,32 @@ class _PostDetailBottomSheetState extends State<PostDetailBottomSheet> {
                               widget.post.hospitalNickname ?? widget.post.hospitalName,
                               style: AppTheme.bodyMediumStyle.copyWith(
                                 fontWeight: FontWeight.w600,
-                                color: AppTheme.textPrimary,
                               ),
                             ),
                           ),
                         ],
                       ),
-                      const SizedBox(height: 8),
 
-                      // 주소
-                      Row(
-                        children: [
-                          Icon(
-                            Icons.location_on,
-                            size: 16,
-                            color: AppTheme.textSecondary,
-                          ),
-                          const SizedBox(width: 8),
-                          Text(
-                            '주소: ',
-                            style: AppTheme.bodyMediumStyle.copyWith(
-                              fontWeight: FontWeight.w600,
-                              color: AppTheme.textPrimary,
-                            ),
-                          ),
-                          Expanded(
-                            child: Text(
-                              widget.post.location,
-                              style: AppTheme.bodyMediumStyle.copyWith(
-                                color: AppTheme.textPrimary,
-                              ),
-                            ),
-                          ),
-                        ],
+                      // 설명글
+                      PostDetailDescription(
+                        contentDelta: widget.post.contentDelta,
+                        plainText: widget.post.description,
                       ),
-                      const SizedBox(height: 8),
 
-                      // 동물 종류
-                      Row(
-                        children: [
-                          Icon(
-                            widget.post.animalType == 0
-                                ? FontAwesomeIcons.dog
-                                : FontAwesomeIcons.cat,
-                            size: 16,
-                            color: AppTheme.textSecondary,
-                          ),
-                          const SizedBox(width: 8),
-                          Text(
-                            '동물 종류: ',
-                            style: AppTheme.bodyMediumStyle.copyWith(
-                              fontWeight: FontWeight.w500,
-                              color: AppTheme.textPrimary,
-                            ),
-                          ),
-                          Expanded(
-                            child: Text(
-                              widget.post.animalTypeKorean,
-                              style: AppTheme.bodyMediumStyle.copyWith(
-                                fontWeight: FontWeight.w600,
-                                color: AppTheme.textPrimary,
-                              ),
-                            ),
-                          ),
-                        ],
+                      // 환자 정보 (긴급 헌혈만)
+                      PostDetailPatientInfo(
+                        isUrgent: widget.post.isUrgent,
+                        patientName: widget.post.patientName,
+                        breed: widget.post.breed,
+                        age: widget.post.age,
+                        diagnosis: widget.post.diagnosis,
                       ),
-                      const SizedBox(height: 8),
 
-                      // 신청자 수
-                      Row(
-                        children: [
-                          Icon(
-                            Icons.group_outlined,
-                            size: 16,
-                            color: AppTheme.textSecondary,
-                          ),
-                          const SizedBox(width: 8),
-                          Text(
-                            '신청자 수: ',
-                            style: AppTheme.bodyMediumStyle.copyWith(
-                              fontWeight: FontWeight.w500,
-                              color: AppTheme.textPrimary,
-                            ),
-                          ),
-                          Expanded(
-                            child: Text(
-                              '${applicants.length}명',
-                              style: AppTheme.bodyMediumStyle.copyWith(
-                                fontWeight: FontWeight.w600,
-                                color: AppTheme.textPrimary,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                      // 설명글 (있는 경우만)
-                      if ((widget.post.contentDelta != null &&
-                              widget.post.contentDelta!.isNotEmpty) ||
-                          widget.post.description.isNotEmpty) ...[
-                        const SizedBox(height: 12),
-                        Container(
-                          width: double.infinity,
-                          decoration: BoxDecoration(
-                            color: AppTheme.veryLightGray,
-                            borderRadius: BorderRadius.circular(8),
-                            border: Border.all(
-                              color: AppTheme.lightGray.withValues(alpha: 0.5),
-                            ),
-                          ),
-                          child: RichTextViewer(
-                            contentDelta: widget.post.contentDelta,
-                            plainText: widget.post.description,
-                            padding: const EdgeInsets.all(12),
-                          ),
-                        ),
-                      ],
-
-                      const SizedBox(height: 20),
                       // 혈액형 정보
-                      if (widget.post.bloodType != null &&
-                          widget.post.bloodType!.isNotEmpty) ...[
-                        Text('필요 혈액형', style: AppTheme.h4Style),
-                        const SizedBox(height: 8),
-                        Container(
-                          width: double.infinity,
-                          padding: const EdgeInsets.all(16),
-                          decoration: BoxDecoration(
-                            color:
-                                widget.post.isUrgent
-                                    ? Colors.red.shade50
-                                    : Colors.blue.shade50,
-                            borderRadius: BorderRadius.circular(12),
-                            border: Border.all(
-                              color:
-                                  widget.post.isUrgent
-                                      ? Colors.red.shade200
-                                      : Colors.blue.shade200,
-                            ),
-                          ),
-                          child: Text(
-                            widget.post.displayBloodType,
-                            style: AppTheme.h3Style.copyWith(
-                              color:
-                                  widget.post.isUrgent
-                                      ? Colors.red
-                                      : Colors.blue,
-                              fontWeight: FontWeight.bold,
-                            ),
-                            textAlign: TextAlign.center,
-                          ),
-                        ),
-                      ],
-                      const SizedBox(height: 8),
-
-                      const SizedBox(height: 24),
+                      PostDetailBloodType(
+                        bloodType: widget.post.bloodType,
+                        isUrgent: widget.post.isUrgent,
+                      ),
 
                       // 헌혈 예정일
                       Text("헌혈 예정일", style: AppTheme.h4Style),
@@ -2705,10 +2582,11 @@ class _PostDetailBottomSheetState extends State<PostDetailBottomSheet> {
                       ),
                     ],
                   ),
-                  trailing: Icon(
-                    Icons.keyboard_arrow_down,
+                  trailing: BlinkingIcon(
+                    icon: Icons.keyboard_arrow_down,
                     color: Colors.black,
                     size: 24,
+                    duration: Duration(milliseconds: 1500),
                   ),
                   children:
                       timeSlots.map<Widget>((timeSlot) {
@@ -2803,7 +2681,7 @@ class _PostDetailBottomSheetState extends State<PostDetailBottomSheet> {
           final timeMatch = applicant.selectedTime == timeSlot.time;
 
           // 팀 매칭: timeSlot.team이 "1", "2" 형태인 경우 "A", "B"로 변환
-          String teamString = timeSlot.team;
+          String teamString = timeSlot.team.toString();
           if (RegExp(r'^\d+$').hasMatch(teamString)) {
             // 숫자 문자열인 경우 (예: "1", "2")
             final teamNum = int.tryParse(teamString);
@@ -2940,7 +2818,7 @@ class _PostDetailBottomSheetState extends State<PostDetailBottomSheet> {
       final timeMatch = applicant.selectedTime == timeSlot.time;
 
       // 팀 매칭 로직 (showApplicantsBottomSheet와 동일)
-      String teamString = timeSlot.team;
+      String teamString = timeSlot.team.toString();
       if (RegExp(r'^\d+$').hasMatch(teamString)) {
         final teamNum = int.tryParse(teamString);
         if (teamNum != null && teamNum > 0) {

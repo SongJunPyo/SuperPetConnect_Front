@@ -8,9 +8,12 @@ import '../widgets/marquee_text.dart';
 import '../utils/number_format_util.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../utils/app_constants.dart';
+import '../widgets/pagination_bar.dart';
 
 class UserNoticeListScreen extends StatefulWidget {
-  const UserNoticeListScreen({super.key});
+  final bool isPublic; // true: 로그인 전 (공개 API 사용), false: 로그인 후 (인증 API 사용)
+
+  const UserNoticeListScreen({super.key, this.isPublic = false});
 
   @override
   State<UserNoticeListScreen> createState() => _UserNoticeListScreenState();
@@ -25,95 +28,81 @@ class _UserNoticeListScreenState extends State<UserNoticeListScreen> {
   DateTime? startDate;
   DateTime? endDate;
   final List<Notice> _allNotices = [];
-  late final ScrollController _scrollController;
+  final ScrollController _scrollController = ScrollController();
   int _currentPage = 1;
-  bool _hasNextPage = true;
-  bool _isLoadingMore = false;
-  bool _isEndOfList = false;
+  int _totalPages = 1;
 
   @override
   void initState() {
     super.initState();
-    _scrollController = ScrollController()..addListener(_onScroll);
     _loadNotices();
   }
 
   @override
   void dispose() {
-    _scrollController.removeListener(_onScroll);
     _scrollController.dispose();
     searchController.dispose();
     super.dispose();
   }
 
-  Future<void> _loadNotices({bool reset = true}) async {
-    if (reset) {
-      setState(() {
-        isLoading = true;
-        errorMessage = null;
-        _currentPage = 1;
-        _hasNextPage = true;
-        _isEndOfList = false;
-        _allNotices.clear();
-        notices = [];
-      });
-    } else {
-      if (!_hasNextPage || _isLoadingMore) {
-        return;
-      }
-      setState(() {
-        _isLoadingMore = true;
-        errorMessage = null;
-      });
+  void _onPageChanged(int page) {
+    setState(() {
+      _currentPage = page;
+      notices = _paginateFiltered(_applyFilters(_allNotices));
+    });
+    if (_scrollController.hasClients) {
+      _scrollController.jumpTo(0);
     }
+  }
+
+  List<Notice> _paginateFiltered(List<Notice> filtered) {
+    const pageSize = AppConstants.detailListPageSize;
+    _totalPages = filtered.isEmpty ? 1 : (filtered.length / pageSize).ceil();
+    if (_currentPage > _totalPages) _currentPage = _totalPages;
+    final start = (_currentPage - 1) * pageSize;
+    final end = (start + pageSize).clamp(0, filtered.length);
+    return filtered.sublist(start, end);
+  }
+
+  Future<void> _loadNotices() async {
+    setState(() {
+      isLoading = true;
+      errorMessage = null;
+      _currentPage = 1;
+      _allNotices.clear();
+      notices = [];
+    });
 
     try {
-      // 사용자는 인증된 API 사용 (targetAudience 0, 3 포함)
-      final response = await DashboardService.fetchAuthenticatedNoticesPage(
-        page: _currentPage,
-        pageSize: DashboardService.detailListPageSize,
-      );
+      // 서버 페이지네이션을 통해 모든 데이터를 순차적으로 가져옴
+      int page = 1;
+      bool hasMore = true;
 
-      final visibleNoticePosts = response.notices.where(
-        (noticePost) =>
-            noticePost.targetAudience == AppConstants.noticeTargetAll || noticePost.targetAudience == AppConstants.noticeTargetUser,
-      );
+      while (hasMore) {
+        final response = widget.isPublic
+            ? await DashboardService.fetchNoticesPage(page: page)
+            : await DashboardService.fetchAuthenticatedNoticesPage(page: page);
 
-      final mappedNotices = visibleNoticePosts.map(_mapToNotice).toList();
-
-      for (final notice in mappedNotices) {
-        final exists = _allNotices.any(
-          (stored) => stored.noticeIdx == notice.noticeIdx,
+        final visibleNoticePosts = response.notices.where(
+          (noticePost) =>
+              noticePost.targetAudience == AppConstants.noticeTargetAll || noticePost.targetAudience == AppConstants.noticeTargetUser,
         );
-        if (!exists) {
-          _allNotices.add(notice);
-        }
-      }
 
-      final filteredNotices = _applyFilters(_allNotices);
-      final pagination = response.pagination;
+        _allNotices.addAll(visibleNoticePosts.map(_mapToNotice));
+        hasMore = response.pagination.hasNext;
+        page++;
+      }
 
       if (!mounted) return;
       setState(() {
-        notices = filteredNotices;
+        notices = _paginateFiltered(_applyFilters(_allNotices));
         isLoading = false;
-        _isLoadingMore = false;
-        _isEndOfList = pagination.isEnd;
-        _hasNextPage = pagination.hasNext;
-        _currentPage =
-            pagination.hasNext
-                ? pagination.currentPage + 1
-                : pagination.currentPage;
       });
     } catch (e) {
       if (!mounted) return;
       setState(() {
         errorMessage = e.toString();
-        if (reset) {
-          isLoading = false;
-        }
-        _isLoadingMore = false;
-        _hasNextPage = false;
+        isLoading = false;
       });
     }
   }
@@ -121,8 +110,9 @@ class _UserNoticeListScreenState extends State<UserNoticeListScreen> {
   void _onSearchChanged(String query) {
     setState(() {
       searchQuery = query;
+      _currentPage = 1;
+      notices = _paginateFiltered(_applyFilters(_allNotices));
     });
-    _loadNotices();
   }
 
   Future<void> _selectDateRange() async {
@@ -148,8 +138,9 @@ class _UserNoticeListScreenState extends State<UserNoticeListScreen> {
       setState(() {
         startDate = picked.start;
         endDate = picked.end;
+        _currentPage = 1;
+        notices = _paginateFiltered(_applyFilters(_allNotices));
       });
-      _loadNotices();
     }
   }
 
@@ -157,18 +148,9 @@ class _UserNoticeListScreenState extends State<UserNoticeListScreen> {
     setState(() {
       startDate = null;
       endDate = null;
+      _currentPage = 1;
+      notices = _paginateFiltered(_applyFilters(_allNotices));
     });
-    _loadNotices();
-  }
-
-  void _onScroll() {
-    if (!_scrollController.hasClients || _isLoadingMore || !_hasNextPage) {
-      return;
-    }
-    final threshold = _scrollController.position.maxScrollExtent - 200;
-    if (_scrollController.position.pixels >= threshold) {
-      _loadNotices(reset: false);
-    }
   }
 
   List<Notice> _applyFilters(List<Notice> source) {
@@ -229,10 +211,10 @@ class _UserNoticeListScreenState extends State<UserNoticeListScreen> {
   }
 
   void _showNoticeDetail(Notice notice) async {
-    // 상세 조회 API 호출 (조회수 자동 증가)
-    final noticeDetail = await DashboardService.getNoticeDetail(
-      notice.noticeIdx,
-    );
+    // 상세 조회 API 호출 (isPublic이면 공개 API 사용)
+    final noticeDetail = widget.isPublic
+        ? await DashboardService.getPublicNoticeDetail(notice.noticeIdx)
+        : await DashboardService.getNoticeDetail(notice.noticeIdx);
 
     if (noticeDetail != null) {
       // 목록의 조회수를 업데이트된 값으로 반영
@@ -654,17 +636,14 @@ class _UserNoticeListScreenState extends State<UserNoticeListScreen> {
       );
     }
 
-    final bool showLoadingTile = _isLoadingMore;
-    final bool showEndTile = !_isLoadingMore && _isEndOfList;
-    final int itemCount =
-        notices.length + (showLoadingTile ? 1 : 0) + (showEndTile ? 1 : 0);
+    final int paginationBarCount = _totalPages > 1 ? 1 : 0;
 
     return Container(
       decoration: BoxDecoration(color: Colors.white),
       child: ListView.separated(
         controller: _scrollController,
         padding: EdgeInsets.zero,
-        itemCount: itemCount,
+        itemCount: notices.length + paginationBarCount,
         separatorBuilder:
             (context, index) => Container(
               height: 1,
@@ -673,10 +652,11 @@ class _UserNoticeListScreenState extends State<UserNoticeListScreen> {
             ),
         itemBuilder: (context, index) {
           if (index >= notices.length) {
-            if (showLoadingTile && index == notices.length) {
-              return _buildBottomLoader();
-            }
-            return _buildEndOfListMessage();
+            return PaginationBar(
+              currentPage: _currentPage,
+              totalPages: _totalPages,
+              onPageChanged: _onPageChanged,
+            );
           }
 
           final notice = notices[index];
@@ -848,37 +828,4 @@ class _UserNoticeListScreenState extends State<UserNoticeListScreen> {
     );
   }
 
-  Widget _buildBottomLoader() {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 16),
-      child: Center(
-        child: SizedBox(
-          width: 24,
-          height: 24,
-          child: CircularProgressIndicator(
-            strokeWidth: 3,
-            color: AppTheme.primaryBlue,
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildEndOfListMessage() {
-    if (!_isEndOfList) {
-      return const SizedBox.shrink();
-    }
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 12),
-      child: Center(
-        child: Text(
-          '더 이상 불러올 공지가 없습니다.',
-          style: AppTheme.bodySmallStyle.copyWith(
-            color: AppTheme.textTertiary,
-            fontWeight: FontWeight.w500,
-          ),
-        ),
-      ),
-    );
-  }
 }

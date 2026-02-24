@@ -1,6 +1,6 @@
 {
-    "name": "connect",
-    "short_name": "connect",
+    "name": "슈퍼펫커넥트",
+    "short_name": "슈퍼펫커넥트",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",

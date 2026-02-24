@@ -18,7 +18,7 @@
 
     <application
         android:usesCleartextTraffic="true"
-        android:label="connect"
+        android:label="슈퍼펫커넥트"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher"
         android:enableOnBackInvokedCallback="true"> <!-- Android 13+ 뒤로가기 제스처 경고 해결 -->

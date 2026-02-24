@@ -999,53 +999,9 @@ class _HospitalColumnManagementScreenState
                 ),
                 const SizedBox(width: 8),
                 // 상태 표시 (공개/대기)
-                Container(
-                  height: 36,
-                  width: 40,
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 2,
-                    vertical: 2,
-                  ),
-                  decoration: BoxDecoration(
-                    color:
-                        column.isPublished
-                            ? AppTheme.success.withValues(alpha: 0.2)
-                            : AppTheme.warning.withValues(alpha: 0.2),
-                    borderRadius: BorderRadius.circular(6),
-                    border: Border.all(
-                      color:
-                          column.isPublished
-                              ? AppTheme.success.withValues(alpha: 0.3)
-                              : AppTheme.warning.withValues(alpha: 0.3),
-                      width: 1,
-                    ),
-                  ),
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(
-                        column.isPublished ? Icons.check_circle : Icons.pending,
-                        size: 10,
-                        color:
-                            column.isPublished
-                                ? AppTheme.success
-                                : AppTheme.warning,
-                      ),
-                      Text(
-                        column.isPublished ? '공개' : '대기',
-                        style: AppTheme.bodySmallStyle.copyWith(
-                          color:
-                              column.isPublished
-                                  ? AppTheme.success
-                                  : AppTheme.warning,
-                          fontSize: 8,
-                          fontWeight: FontWeight.w500,
-                        ),
-                        textAlign: TextAlign.center,
-                      ),
-                    ],
-                  ),
+                Text(
+                  column.isPublished ? '🟢' : '🟡',
+                  style: const TextStyle(fontSize: 16),
                 ),
               ],
             ),

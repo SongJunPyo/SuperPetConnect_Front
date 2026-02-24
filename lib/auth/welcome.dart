@@ -623,7 +623,7 @@ class _WelcomeScreenState extends State<WelcomeScreen>
                       Navigator.push(
                         context,
                         MaterialPageRoute(
-                          builder: (context) => const UserNoticeListScreen(),
+                          builder: (context) => const UserNoticeListScreen(isPublic: true),
                         ),
                       );
                     },
@@ -740,7 +740,7 @@ class _WelcomeScreenState extends State<WelcomeScreen>
   void _showNoticeBottomSheet(BuildContext context, Notice notice) async {
     NoticePost? noticeDetail;
     try {
-      noticeDetail = await DashboardService.getNoticeDetail(notice.noticeIdx);
+      noticeDetail = await DashboardService.getPublicNoticeDetail(notice.noticeIdx);
     } catch (_) {}
 
     if (noticeDetail != null && mounted) {

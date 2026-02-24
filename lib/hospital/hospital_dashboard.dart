@@ -30,6 +30,7 @@ import '../widgets/dashboard/dashboard_list_item.dart';
 import 'hospital_notice_list.dart';
 import '../providers/notification_provider.dart';
 import '../utils/app_constants.dart';
+import '../widgets/rich_text_viewer.dart';
 
 class HospitalDashboard extends StatefulWidget {
   final String? highlightPostId;
@@ -847,13 +848,21 @@ class _HospitalDashboardState extends State<HospitalDashboard>
                   Expanded(
                     child: SingleChildScrollView(
                       controller: scrollController,
-                      child: Text(
-                        detailColumn.content,
-                        style: AppTheme.bodyMediumStyle.copyWith(
-                          height: 1.6,
-                          color: AppTheme.textPrimary,
-                        ),
-                      ),
+                      child:
+                          detailColumn.contentDelta != null &&
+                                  detailColumn.contentDelta!.isNotEmpty
+                              ? RichTextViewer(
+                                contentDelta: detailColumn.contentDelta,
+                                plainText: detailColumn.content,
+                                padding: EdgeInsets.zero,
+                              )
+                              : Text(
+                                detailColumn.content,
+                                style: AppTheme.bodyMediumStyle.copyWith(
+                                  height: 1.6,
+                                  color: AppTheme.textPrimary,
+                                ),
+                              ),
                     ),
                   ),
                   const SizedBox(height: 16),

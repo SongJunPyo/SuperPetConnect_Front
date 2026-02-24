@@ -127,7 +127,7 @@ class DashboardService {
         List<dynamic> postsData;
         if (data is Map<String, dynamic>) {
           // 서버가 객체로 래핑한 경우
-          postsData = data['posts'] ?? data['data'] ?? data['donations'] ?? [];
+          postsData = data['items'] ?? data['posts'] ?? data['data'] ?? data['donations'] ?? [];
         } else if (data is List) {
           // 서버가 직접 리스트로 반환한 경우
           postsData = data;
@@ -147,6 +147,253 @@ class DashboardService {
     } catch (e) {
       debugPrint('getPublicPosts error: $e');
       return [];
+    }
+  }
+
+  /// 페이징 지원 공개 게시글 조회
+  static Future<PaginatedPostsResult> fetchPublicPostsPage({
+    int page = 1,
+    int pageSize = detailListPageSize,
+    String? region,
+    String? subRegion,
+  }) async {
+    try {
+      final queryParameters = <String, String>{
+        'page': page.toString(),
+        'page_size': pageSize.toString(),
+      };
+
+      if (region != null && region.isNotEmpty && region != '전체 지역') {
+        queryParameters['region'] = region;
+        if (subRegion != null && subRegion.isNotEmpty) {
+          queryParameters['sub_region'] = subRegion;
+        }
+      }
+
+      final uri = Uri.parse(
+        '${Config.serverUrl}${ApiEndpoints.publicPosts}',
+      ).replace(queryParameters: queryParameters);
+
+      final response = await http.get(uri);
+
+      if (response.statusCode == 200) {
+        final data = response.parseJsonDynamic();
+
+        List<dynamic> postsData;
+        Map<String, dynamic>? paginationJson;
+
+        if (data is Map<String, dynamic>) {
+          postsData = data['items'] ?? data['posts'] ?? data['data'] ?? data['donations'] ?? [];
+          paginationJson = data['pagination'] as Map<String, dynamic>?;
+        } else if (data is List) {
+          postsData = data;
+        } else {
+          postsData = [];
+        }
+
+        final posts = postsData
+            .map((item) => UnifiedPostModel.fromJson(item))
+            .toList();
+
+        final pagination = paginationJson != null
+            ? PaginationMeta.fromJson(paginationJson)
+            : PaginationMeta.derived(
+                currentPage: page,
+                pageSize: pageSize,
+                itemCount: posts.length,
+              );
+
+        return PaginatedPostsResult(posts: posts, pagination: pagination);
+      } else {
+        return PaginatedPostsResult(
+          posts: [],
+          pagination: PaginationMeta.singlePage(
+            currentPage: page,
+            pageSize: pageSize,
+            totalCount: 0,
+          ),
+        );
+      }
+    } catch (e) {
+      debugPrint('fetchPublicPostsPage error: $e');
+      return PaginatedPostsResult(
+        posts: [],
+        pagination: PaginationMeta.singlePage(
+          currentPage: page,
+          pageSize: pageSize,
+          totalCount: 0,
+        ),
+      );
+    }
+  }
+
+  /// 페이징 지원 관리자 게시글 조회 (인증 필요)
+  static Future<PaginatedPostsResult> fetchAdminPostsPage({
+    int page = 1,
+    int pageSize = detailListPageSize,
+    String? status,
+    String? search,
+    String? startDate,
+    String? endDate,
+  }) async {
+    try {
+      final queryParameters = <String, String>{
+        'page': page.toString(),
+        'page_size': pageSize.toString(),
+      };
+
+      if (status != null && status.isNotEmpty) {
+        queryParameters['status'] = status;
+      }
+      if (search != null && search.isNotEmpty) {
+        queryParameters['search'] = search;
+      }
+      if (startDate != null && startDate.isNotEmpty) {
+        queryParameters['start_date'] = startDate;
+      }
+      if (endDate != null && endDate.isNotEmpty) {
+        queryParameters['end_date'] = endDate;
+      }
+
+      final uri = Uri.parse(
+        '${Config.serverUrl}${ApiEndpoints.adminPosts}',
+      ).replace(queryParameters: queryParameters);
+
+      final response = await AuthHttpClient.get(uri);
+
+      if (response.statusCode == 200) {
+        final data = response.parseJsonDynamic();
+
+        List<dynamic> postsData;
+        Map<String, dynamic>? paginationJson;
+
+        if (data is Map<String, dynamic>) {
+          postsData = data['items'] ?? data['posts'] ?? data['data'] ?? [];
+          paginationJson = data['pagination'] as Map<String, dynamic>?;
+        } else if (data is List) {
+          postsData = data;
+        } else {
+          postsData = [];
+        }
+
+        final posts = postsData
+            .map((item) => UnifiedPostModel.fromJson(item))
+            .toList();
+
+        final pagination = paginationJson != null
+            ? PaginationMeta.fromJson(paginationJson)
+            : PaginationMeta.derived(
+                currentPage: page,
+                pageSize: pageSize,
+                itemCount: posts.length,
+              );
+
+        return PaginatedPostsResult(posts: posts, pagination: pagination);
+      } else {
+        return PaginatedPostsResult(
+          posts: [],
+          pagination: PaginationMeta.singlePage(
+            currentPage: page,
+            pageSize: pageSize,
+            totalCount: 0,
+          ),
+        );
+      }
+    } catch (e) {
+      debugPrint('fetchAdminPostsPage error: $e');
+      return PaginatedPostsResult(
+        posts: [],
+        pagination: PaginationMeta.singlePage(
+          currentPage: page,
+          pageSize: pageSize,
+          totalCount: 0,
+        ),
+      );
+    }
+  }
+
+  /// 페이징 지원 관리자 게시글 조회 - Raw JSON 반환 (기존 화면 호환)
+  static Future<PaginatedRawPostsResult> fetchAdminPostsPageRaw({
+    int page = 1,
+    int pageSize = detailListPageSize,
+    String? status,
+    String? search,
+    String? startDate,
+    String? endDate,
+  }) async {
+    try {
+      final queryParameters = <String, String>{
+        'page': page.toString(),
+        'page_size': pageSize.toString(),
+      };
+
+      if (status != null && status.isNotEmpty) {
+        queryParameters['status'] = status;
+      }
+      if (search != null && search.isNotEmpty) {
+        queryParameters['search'] = search;
+      }
+      if (startDate != null && startDate.isNotEmpty) {
+        queryParameters['start_date'] = startDate;
+      }
+      if (endDate != null && endDate.isNotEmpty) {
+        queryParameters['end_date'] = endDate;
+      }
+
+      final uri = Uri.parse(
+        '${Config.serverUrl}${ApiEndpoints.adminPosts}',
+      ).replace(queryParameters: queryParameters);
+
+      final response = await AuthHttpClient.get(uri);
+
+      if (response.statusCode == 200) {
+        final data = response.parseJsonDynamic();
+
+        List<dynamic> postsData;
+        Map<String, dynamic>? paginationJson;
+
+        if (data is Map<String, dynamic>) {
+          postsData = data['items'] ?? data['posts'] ?? data['data'] ?? [];
+          paginationJson = data['pagination'] as Map<String, dynamic>?;
+        } else if (data is List) {
+          postsData = data;
+        } else {
+          postsData = [];
+        }
+
+        final posts = postsData
+            .map((item) => Map<String, dynamic>.from(item as Map))
+            .toList();
+
+        final pagination = paginationJson != null
+            ? PaginationMeta.fromJson(paginationJson)
+            : PaginationMeta.derived(
+                currentPage: page,
+                pageSize: pageSize,
+                itemCount: posts.length,
+              );
+
+        return PaginatedRawPostsResult(posts: posts, pagination: pagination);
+      } else {
+        return PaginatedRawPostsResult(
+          posts: [],
+          pagination: PaginationMeta.singlePage(
+            currentPage: page,
+            pageSize: pageSize,
+            totalCount: 0,
+          ),
+        );
+      }
+    } catch (e) {
+      debugPrint('fetchAdminPostsPageRaw error: $e');
+      return PaginatedRawPostsResult(
+        posts: [],
+        pagination: PaginationMeta.singlePage(
+          currentPage: page,
+          pageSize: pageSize,
+          totalCount: 0,
+        ),
+      );
     }
   }
 
@@ -419,13 +666,37 @@ class DashboardService {
   }
 
   // 개별 공지사항 상세 조회 API (조회수 자동 증가)
+  // 인증된 API 사용 - 병원전용(target_audience=2) 공지도 조회 가능
   static Future<NoticePost?> getNoticeDetail(int noticeIdx) async {
     try {
       final uri = Uri.parse(
-        '${Config.serverUrl}${ApiEndpoints.publicNoticeDetail(noticeIdx)}',
+        '${Config.serverUrl}${ApiEndpoints.noticeDetail(noticeIdx)}',
       );
 
-      final response = await http.get(uri);
+      final response = await AuthHttpClient.get(uri);
+
+      if (response.statusCode == 200) {
+        final data = response.parseJson();
+        return NoticePost.fromJson(data);
+      } else {
+        return null;
+      }
+    } catch (e) {
+      return null;
+    }
+  }
+
+  // 공개 공지사항 상세 조회 API (인증 불필요 - 웰컴페이지용)
+  // /api/notices/{noticeIdx} 엔드포인트를 일반 http로 호출
+  static Future<NoticePost?> getPublicNoticeDetail(int noticeIdx) async {
+    try {
+      final uri = Uri.parse(
+        '${Config.serverUrl}${ApiEndpoints.noticeDetail(noticeIdx)}',
+      );
+
+      final response = await http.get(uri, headers: {
+        'Content-Type': 'application/json; charset=UTF-8',
+      });
 
       if (response.statusCode == 200) {
         final data = response.parseJson();

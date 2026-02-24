@@ -51,13 +51,11 @@ class FCMHandler {
     // 5. 앱이 완전히 종료된 상태에서 알림으로 앱을 연 경우
     _initialMessage = await FirebaseMessaging.instance.getInitialMessage();
 
-    debugPrint('[FCMHandler] 초기화 완료');
   }
 
   /// FCM 토큰 갱신 리스너 설정
   void _setupTokenRefreshListener() {
     FirebaseMessaging.instance.onTokenRefresh.listen((String token) {
-      debugPrint('[FCMHandler] 토큰 갱신됨, 서버로 전송');
       _sendTokenToServer(token);
     });
   }
@@ -70,7 +68,7 @@ class FCMHandler {
         await _sendTokenToServer(token);
       }
     } catch (e) {
-      debugPrint('[FCMHandler] FCM 토큰 획득 실패: $e');
+      // FCM 토큰 획득 실패 시 무시
     }
   }
 
@@ -79,12 +77,9 @@ class FCMHandler {
     try {
       final authToken = (await PreferencesManager.getAuthToken()) ?? '';
 
-      if (authToken.isEmpty) {
-        debugPrint('[FCMHandler] 인증 토큰 없음, 토큰 전송 스킵');
-        return;
-      }
+      if (authToken.isEmpty) return;
 
-      final response = await http.post(
+      await http.post(
         Uri.parse('${Config.serverUrl}/api/user/fcm-token'),
         headers: {
           'Authorization': 'Bearer $authToken',
@@ -92,14 +87,8 @@ class FCMHandler {
         },
         body: jsonEncode({'fcm_token': token}),
       );
-
-      if (response.statusCode == 200) {
-        debugPrint('[FCMHandler] FCM 토큰 서버 전송 성공');
-      } else {
-        debugPrint('[FCMHandler] FCM 토큰 서버 전송 실패: ${response.statusCode}');
-      }
     } catch (e) {
-      debugPrint('[FCMHandler] FCM 토큰 서버 전송 오류: $e');
+      // FCM 토큰 서버 전송 오류 무시
     }
   }
 
@@ -110,8 +99,6 @@ class FCMHandler {
 
   /// 포그라운드 메시지 처리
   Future<void> _handleForegroundMessage(RemoteMessage message) async {
-    debugPrint('[FCMHandler] 포그라운드 메시지 수신: ${message.data['type']}');
-
     final notification = await NotificationConverter.fromFCM(message);
     if (notification != null) {
       _notificationController.add(notification);
@@ -120,8 +107,6 @@ class FCMHandler {
 
   /// 백그라운드/종료 상태에서 앱 열림 처리
   Future<void> _handleMessageOpenedApp(RemoteMessage message) async {
-    debugPrint('[FCMHandler] 백그라운드에서 앱 열림: ${message.data['type']}');
-
     final notification = await NotificationConverter.fromFCM(message);
     if (notification != null) {
       _notificationController.add(notification);
@@ -139,7 +124,7 @@ class FCMHandler {
           message.data['navigation'] ?? '{}',
         );
       } catch (e) {
-        debugPrint('[FCMHandler] navigation 파싱 실패: $e');
+        // navigation 파싱 실패 시 무시
       }
     }
 
@@ -148,7 +133,7 @@ class FCMHandler {
       try {
         parsedData['post_info'] = jsonDecode(message.data['post_info'] ?? '{}');
       } catch (e) {
-        debugPrint('[FCMHandler] post_info 파싱 실패: $e');
+        // post_info 파싱 실패 시 무시
       }
     }
 

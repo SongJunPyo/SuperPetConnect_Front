@@ -9,6 +9,8 @@ import '../utils/number_format_util.dart';
 import '../widgets/app_app_bar.dart';
 import '../widgets/marquee_text.dart';
 import '../widgets/rich_text_viewer.dart';
+import '../utils/app_constants.dart';
+import '../widgets/pagination_bar.dart';
 
 class HospitalColumnList extends StatefulWidget {
   const HospitalColumnList({super.key});
@@ -26,32 +28,48 @@ class _HospitalColumnListState extends State<HospitalColumnList> {
   DateTime? startDate;
   DateTime? endDate;
   final List<ColumnPost> _allColumns = [];
-  late final ScrollController _scrollController;
+  final ScrollController _scrollController = ScrollController();
   int _currentPage = 1;
-  bool _hasNextPage = true;
-  bool _isLoadingMore = false;
-  bool _isEndOfList = false;
+  int _totalPages = 1;
 
   @override
   void initState() {
     super.initState();
-    _scrollController = ScrollController()..addListener(_onScroll);
     _loadColumns();
   }
 
   @override
   void dispose() {
-    _scrollController.removeListener(_onScroll);
     _scrollController.dispose();
     searchController.dispose();
     super.dispose();
   }
 
+  void _onPageChanged(int page) {
+    setState(() {
+      _currentPage = page;
+      columns = _paginateFiltered(_applyFilters(_allColumns));
+    });
+    if (_scrollController.hasClients) {
+      _scrollController.jumpTo(0);
+    }
+  }
+
+  List<ColumnPost> _paginateFiltered(List<ColumnPost> filtered) {
+    const pageSize = AppConstants.detailListPageSize;
+    _totalPages = filtered.isEmpty ? 1 : (filtered.length / pageSize).ceil();
+    if (_currentPage > _totalPages) _currentPage = _totalPages;
+    final start = (_currentPage - 1) * pageSize;
+    final end = (start + pageSize).clamp(0, filtered.length);
+    return filtered.sublist(start, end);
+  }
+
   void _onSearchChanged(String query) {
     setState(() {
       searchQuery = query;
+      _currentPage = 1;
+      columns = _paginateFiltered(_applyFilters(_allColumns));
     });
-    _loadColumns();
   }
 
   Future<void> _selectDateRange() async {
@@ -77,8 +95,9 @@ class _HospitalColumnListState extends State<HospitalColumnList> {
       setState(() {
         startDate = picked.start;
         endDate = picked.end;
+        _currentPage = 1;
+        columns = _paginateFiltered(_applyFilters(_allColumns));
       });
-      _loadColumns();
     }
   }
 
@@ -86,8 +105,9 @@ class _HospitalColumnListState extends State<HospitalColumnList> {
     setState(() {
       startDate = null;
       endDate = null;
+      _currentPage = 1;
+      columns = _paginateFiltered(_applyFilters(_allColumns));
     });
-    _loadColumns();
   }
 
   void _showColumnBottomSheet(ColumnPost column) {
@@ -382,10 +402,7 @@ class _HospitalColumnListState extends State<HospitalColumnList> {
       );
     }
 
-    final bool showLoadingTile = _isLoadingMore;
-    final bool showEndTile = !_isLoadingMore && _isEndOfList;
-    final int itemCount =
-        columns.length + (showLoadingTile ? 1 : 0) + (showEndTile ? 1 : 0);
+    final int paginationBarCount = _totalPages > 1 ? 1 : 0;
 
     return Container(
       decoration: BoxDecoration(
@@ -398,7 +415,7 @@ class _HospitalColumnListState extends State<HospitalColumnList> {
             child: ListView.separated(
               controller: _scrollController,
               padding: EdgeInsets.zero,
-              itemCount: itemCount,
+              itemCount: columns.length + paginationBarCount,
               separatorBuilder:
                   (context, index) => Container(
                     height: 1,
@@ -407,10 +424,11 @@ class _HospitalColumnListState extends State<HospitalColumnList> {
                   ),
               itemBuilder: (context, index) {
                 if (index >= columns.length) {
-                  if (showLoadingTile && index == columns.length) {
-                    return _buildBottomLoader();
-                  }
-                  return _buildEndOfListMessage();
+                  return PaginationBar(
+                    currentPage: _currentPage,
+                    totalPages: _totalPages,
+                    onPageChanged: _onPageChanged,
+                  );
                 }
 
                 final column = columns[index];
@@ -716,112 +734,38 @@ class _HospitalColumnListState extends State<HospitalColumnList> {
     );
   }
 
-  Widget _buildBottomLoader() {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 16),
-      child: Center(
-        child: SizedBox(
-          width: 24,
-          height: 24,
-          child: CircularProgressIndicator(
-            strokeWidth: 3,
-            color: AppTheme.primaryBlue,
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildEndOfListMessage() {
-    if (!_isEndOfList) {
-      return const SizedBox.shrink();
-    }
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 12),
-      child: Center(
-        child: Text(
-          '더 이상 불러올 칼럼이 없습니다.',
-          style: AppTheme.bodySmallStyle.copyWith(
-            color: AppTheme.textTertiary,
-            fontWeight: FontWeight.w500,
-          ),
-        ),
-      ),
-    );
-  }
-
-  Future<void> _loadColumns({bool reset = true}) async {
-    if (reset) {
-      setState(() {
-        isLoading = true;
-        errorMessage = null;
-        _currentPage = 1;
-        _hasNextPage = true;
-        _isEndOfList = false;
-        _allColumns.clear();
-        columns = [];
-      });
-    } else {
-      if (!_hasNextPage || _isLoadingMore) {
-        return;
-      }
-      setState(() {
-        _isLoadingMore = true;
-        errorMessage = null;
-      });
-    }
+  Future<void> _loadColumns() async {
+    setState(() {
+      isLoading = true;
+      errorMessage = null;
+      _currentPage = 1;
+      _allColumns.clear();
+      columns = [];
+    });
 
     try {
-      final response = await DashboardService.fetchColumnsPage(
-        page: _currentPage,
-        pageSize: DashboardService.detailListPageSize,
-      );
+      // 서버 페이지네이션을 통해 모든 데이터를 순차적으로 가져옴
+      int page = 1;
+      bool hasMore = true;
 
-      final fetchedColumns = response.columns;
-      for (final column in fetchedColumns) {
-        final exists = _allColumns.any(
-          (stored) => stored.columnIdx == column.columnIdx,
-        );
-        if (!exists) {
-          _allColumns.add(column);
-        }
+      while (hasMore) {
+        final response = await DashboardService.fetchColumnsPage(page: page);
+        _allColumns.addAll(response.columns);
+        hasMore = response.pagination.hasNext;
+        page++;
       }
-
-      final filteredColumns = _applyFilters(_allColumns);
-      final pagination = response.pagination;
 
       if (!mounted) return;
       setState(() {
-        columns = filteredColumns;
+        columns = _paginateFiltered(_applyFilters(_allColumns));
         isLoading = false;
-        _isLoadingMore = false;
-        _isEndOfList = pagination.isEnd;
-        _hasNextPage = pagination.hasNext;
-        _currentPage =
-            pagination.hasNext
-                ? pagination.currentPage + 1
-                : pagination.currentPage;
       });
     } catch (e) {
       if (!mounted) return;
       setState(() {
         errorMessage = e.toString();
-        if (reset) {
-          isLoading = false;
-        }
-        _isLoadingMore = false;
-        _hasNextPage = false;
+        isLoading = false;
       });
-    }
-  }
-
-  void _onScroll() {
-    if (!_scrollController.hasClients || _isLoadingMore || !_hasNextPage) {
-      return;
-    }
-    final threshold = _scrollController.position.maxScrollExtent - 200;
-    if (_scrollController.position.pixels >= threshold) {
-      _loadColumns(reset: false);
     }
   }
 

@@ -274,15 +274,6 @@ class HospitalColumnService {
 
       if (response.statusCode == 200) {
         final data = response.parseJsonDynamic();
-        debugPrint('[AdminColumns] 응답 데이터: $data');
-        // content_delta 필드 확인
-        if (data['columns'] != null && data['columns'] is List) {
-          for (var col in data['columns']) {
-            debugPrint(
-              '[AdminColumns] 칼럼 ${col['column_idx']}: content_delta=${col['content_delta']}',
-            );
-          }
-        }
         return HospitalColumnListResponse.fromJson(data);
       } else if (response.statusCode == 403) {
         throw Exception('관리자 권한이 없습니다.');

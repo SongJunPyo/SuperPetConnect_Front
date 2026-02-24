@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
 import 'dart:convert';
 import '../utils/config.dart';
-import '../services/auth_http_client.dart';
 import '../utils/app_theme.dart';
+import '../utils/app_constants.dart';
+import '../services/auth_http_client.dart';
+import '../services/dashboard_service.dart';
 import '../widgets/marquee_text.dart';
 import '../widgets/rich_text_viewer.dart';
+import '../widgets/pagination_bar.dart';
 import 'package:intl/intl.dart';
 
 class AdminApprovedPostsScreen extends StatefulWidget {
@@ -25,6 +28,11 @@ class _AdminApprovedPostsScreenState extends State<AdminApprovedPostsScreen>
   DateTime? startDate;
   DateTime? endDate;
 
+  // 페이지네이션 관련
+  final ScrollController _scrollController = ScrollController();
+  int _currentPage = 1;
+  int _totalPages = 1;
+
   // 슬라이딩 탭 관련
   TabController? _tabController;
   int _currentTabIndex = 0;
@@ -42,100 +50,80 @@ class _AdminApprovedPostsScreenState extends State<AdminApprovedPostsScreen>
         _tabController!.index != _currentTabIndex) {
       setState(() {
         _currentTabIndex = _tabController!.index;
+        _currentPage = 1;
       });
+      fetchPosts(page: 1);
     }
   }
 
   @override
   void dispose() {
+    _scrollController.dispose();
     _tabController?.dispose();
     searchController.dispose();
     super.dispose();
   }
 
-  // 게시글 필터링 함수
-  List<dynamic> get filteredPosts {
-    List<dynamic> filtered;
-    if (_currentTabIndex == 0) {
-      // 모집진행 탭: status가 1인 게시글만 표시
-      filtered = posts.where((post) => post['status'] == 1).toList();
-    } else {
-      // 모집마감 탭: status가 3인 게시글만 표시
-      filtered = posts.where((post) => post['status'] == 3).toList();
-    }
+  /// 현재 탭의 서버 status 값
+  String get _currentServerStatus =>
+      _currentTabIndex == 0 ? '모집중' : '모집마감';
 
-    return filtered;
+  void _onPageChanged(int page) {
+    setState(() {
+      _currentPage = page;
+    });
+    fetchPosts(page: page);
   }
 
-  Future<void> fetchPosts() async {
-    if (mounted) {
-      setState(() {
-        isLoading = true;
-        errorMessage = '';
-      });
-    }
+  Future<void> fetchPosts({int? page}) async {
+    setState(() {
+      isLoading = true;
+      errorMessage = '';
+    });
 
     try {
-      // API URL 구성 - 모든 게시글 조회
-      String apiUrl = '${Config.serverUrl}/api/admin/posts';
-      List<String> queryParams = [];
+      final response = await DashboardService.fetchAdminPostsPageRaw(
+        page: page ?? _currentPage,
+        pageSize: AppConstants.detailListPageSize,
+        status: _currentServerStatus,
+        search: searchQuery.isNotEmpty ? searchQuery : null,
+        startDate: startDate != null
+            ? DateFormat('yyyy-MM-dd').format(startDate!)
+            : null,
+        endDate: endDate != null
+            ? DateFormat('yyyy-MM-dd').format(endDate!)
+            : null,
+      );
 
-      if (startDate != null) {
-        queryParams.add(
-          'start_date=${DateFormat('yyyy-MM-dd').format(startDate!)}',
-        );
-      }
+      final pagination = response.pagination;
 
-      if (endDate != null) {
-        queryParams.add(
-          'end_date=${DateFormat('yyyy-MM-dd').format(endDate!)}',
-        );
-      }
+      if (!mounted) return;
+      setState(() {
+        posts = response.posts;
+        isLoading = false;
+        _currentPage = pagination.currentPage;
+        _totalPages = pagination.totalPages;
+      });
 
-      if (searchQuery.isNotEmpty) {
-        queryParams.add('search=${Uri.encodeComponent(searchQuery)}');
-      }
-
-      if (queryParams.isNotEmpty) {
-        apiUrl += '?${queryParams.join('&')}';
-      }
-
-      final url = Uri.parse(apiUrl);
-
-      final response = await AuthHttpClient.get(url);
-
-      if (response.statusCode == 200) {
-        final data = json.decode(utf8.decode(response.bodyBytes));
-        if (mounted) {
-          setState(() {
-            posts = data is List ? data : [];
-            isLoading = false;
-          });
-        }
-      } else {
-        if (mounted) {
-          setState(() {
-            errorMessage =
-                '게시물 목록을 불러오는데 실패했습니다: ${response.statusCode}\n${utf8.decode(response.bodyBytes)}';
-            isLoading = false;
-          });
-        }
+      // 스크롤 맨 위로
+      if (page != null && _scrollController.hasClients) {
+        _scrollController.jumpTo(0);
       }
     } catch (e) {
-      if (mounted) {
-        setState(() {
-          errorMessage = '오류가 발생했습니다: $e';
-          isLoading = false;
-        });
-      }
+      if (!mounted) return;
+      setState(() {
+        errorMessage = '오류가 발생했습니다: $e';
+        isLoading = false;
+      });
     }
   }
 
   void _onSearchChanged(String query) {
     setState(() {
       searchQuery = query;
+      _currentPage = 1;
     });
-    fetchPosts();
+    fetchPosts(page: 1);
   }
 
   Future<void> _selectDateRange() async {
@@ -163,8 +151,9 @@ class _AdminApprovedPostsScreenState extends State<AdminApprovedPostsScreen>
       setState(() {
         startDate = picked.start;
         endDate = picked.end;
+        _currentPage = 1;
       });
-      fetchPosts();
+      fetchPosts(page: 1);
     }
   }
 
@@ -172,8 +161,9 @@ class _AdminApprovedPostsScreenState extends State<AdminApprovedPostsScreen>
     setState(() {
       startDate = null;
       endDate = null;
+      _currentPage = 1;
     });
-    fetchPosts();
+    fetchPosts(page: 1);
   }
 
   void _showApplicantList(int? postTimesIdx, String donationDateTime) {
@@ -427,20 +417,21 @@ class _AdminApprovedPostsScreenState extends State<AdminApprovedPostsScreen>
 
   String _formatDate(String dateTime) {
     try {
-      if (dateTime.isEmpty) return '-';
+      if (dateTime.isEmpty || dateTime == 'N/A') return '-';
 
-      // YYYY-MM-DD HH:mm:ss 또는 YYYY-MM-DD 형식 처리
-      final datePart = dateTime.split(' ')[0];
-      final parts = datePart.split('-');
-
-      if (parts.length == 3) {
-        // YY.MM.DD 형식으로 반환 (2024 → 24)
-        final year = parts[0].length >= 2 ? parts[0].substring(2) : parts[0];
-        return '$year.${parts[1]}.${parts[2]}';
-      }
-
-      return dateTime;
+      // ISO 8601, YYYY-MM-DD HH:mm:ss, YYYY-MM-DD 모두 처리
+      final parsed = DateTime.parse(dateTime);
+      return DateFormat('yy.MM.dd').format(parsed);
     } catch (e) {
+      // 파싱 실패 시 기존 로직 시도
+      try {
+        final datePart = dateTime.split(' ')[0].split('T')[0];
+        final parts = datePart.split('-');
+        if (parts.length == 3) {
+          final year = parts[0].length >= 2 ? parts[0].substring(2) : parts[0];
+          return '$year.${parts[1]}.${parts[2]}';
+        }
+      } catch (_) {}
       return '-';
     }
   }
@@ -660,7 +651,7 @@ class _AdminApprovedPostsScreenState extends State<AdminApprovedPostsScreen>
       );
     }
 
-    if (filteredPosts.isEmpty) {
+    if (posts.isEmpty) {
       String emptyMessage;
       if (_currentTabIndex == 0) {
         emptyMessage = '모집 진행 중인 게시글이 없습니다.';
@@ -739,19 +730,27 @@ class _AdminApprovedPostsScreenState extends State<AdminApprovedPostsScreen>
         Expanded(
           child: RefreshIndicator(
             onRefresh: () async {
-              await fetchPosts();
+              await fetchPosts(page: 1);
             },
             color: AppTheme.primaryBlue,
             backgroundColor: Colors.white,
             child: ListView.builder(
+              controller: _scrollController,
               padding: const EdgeInsets.symmetric(horizontal: 16.0),
-              itemCount: filteredPosts.length,
+              itemCount: posts.length + 1,
               itemBuilder: (context, index) {
-                final post = filteredPosts[index];
-                String postStatus = _getPostStatus(post['status']);
-                String postType = post['types'] == 0 ? '긴급' : '정기';
-
-                return _buildPostListItem(post, index, postStatus, postType);
+                if (index < posts.length) {
+                  final post = posts[index];
+                  String postStatus = _getPostStatus(post['status']);
+                  String postType = post['types'] == 0 ? '긴급' : '정기';
+                  return _buildPostListItem(post, index, postStatus, postType);
+                }
+                // 마지막: PaginationBar
+                return PaginationBar(
+                  currentPage: _currentPage,
+                  totalPages: _totalPages,
+                  onPageChanged: _onPageChanged,
+                );
               },
             ),
           ),
@@ -825,7 +824,7 @@ class _AdminApprovedPostsScreenState extends State<AdminApprovedPostsScreen>
               width: 80,
               alignment: Alignment.center,
               child: Text(
-                _formatDate(post['created_date'] ?? ''),
+                _formatDate(post['createdDate'] ?? post['created_date'] ?? ''),
                 style: AppTheme.bodySmallStyle.copyWith(
                   fontSize: 11,
                   color: Colors.grey[600],
@@ -846,9 +845,9 @@ class _AdminApprovedPostsScreenState extends State<AdminApprovedPostsScreen>
   ) {
     // 동물 종류 표시를 위한 변환
     String animalTypeKorean = '';
-    if (post['animalType'] == 'dog') {
+    if (post['animalType'] == 'dog' || post['animalType'] == 0) {
       animalTypeKorean = '강아지';
-    } else if (post['animalType'] == 'cat') {
+    } else if (post['animalType'] == 'cat' || post['animalType'] == 1) {
       animalTypeKorean = '고양이';
     }
 
@@ -914,7 +913,7 @@ class _AdminApprovedPostsScreenState extends State<AdminApprovedPostsScreen>
                         context,
                         Icons.business_outlined,
                         '병원명',
-                        post['nickname'] ?? 'N/A',
+                        post['hospitalName'] ?? post['nickname'] ?? 'N/A',
                       ),
                       _buildDetailRow(
                         context,
@@ -926,7 +925,7 @@ class _AdminApprovedPostsScreenState extends State<AdminApprovedPostsScreen>
                         context,
                         Icons.calendar_today_outlined,
                         '요청일',
-                        post['created_date'] ?? 'N/A',
+                        _formatDate(post['createdDate'] ?? post['created_date'] ?? 'N/A'),
                       ),
                       _buildDetailRow(
                         context,
@@ -940,13 +939,13 @@ class _AdminApprovedPostsScreenState extends State<AdminApprovedPostsScreen>
                         '게시글 타입',
                         postType,
                       ),
-                      if (post['blood_type'] != null &&
-                          post['blood_type'].toString().isNotEmpty)
+                      if ((post['bloodType'] ?? post['blood_type']) != null &&
+                          (post['bloodType'] ?? post['blood_type']).toString().isNotEmpty)
                         _buildDetailRow(
                           context,
                           Icons.bloodtype_outlined,
                           '혈액형',
-                          post['blood_type'] ?? 'N/A',
+                          post['bloodType'] ?? post['blood_type'] ?? 'N/A',
                         ),
                       _buildDetailRow(
                         context,
@@ -1114,24 +1113,29 @@ class _AdminApprovedPostsScreenState extends State<AdminApprovedPostsScreen>
     try {
       if (dateTime == 'N/A' || dateTime.isEmpty) return dateTime;
 
-      // YYYY-MM-DD HH:mm:ss 형식으로 가정
-      final parts = dateTime.split(' ');
-      if (parts.length >= 2) {
-        final dateParts = parts[0].split('-');
-        final timePart = parts[1].split(':');
-        if (dateParts.length == 3 && timePart.length >= 2) {
-          return '${dateParts[0]}.${dateParts[1]}.${dateParts[2]} : ${timePart[0]}:${timePart[1]}';
-        }
-      }
-
-      // 단순 시간 형식 (HH:mm)
-      if (dateTime.contains(':') && !dateTime.contains('-')) {
-        return '시간: $dateTime';
-      }
-
-      // 파싱에 실패하면 원본 반환
-      return dateTime;
+      // ISO 8601 또는 YYYY-MM-DD HH:mm:ss 형식 처리
+      final parsed = DateTime.parse(dateTime);
+      return DateFormat('yyyy.MM.dd HH:mm').format(parsed);
     } catch (e) {
+      // 파싱 실패 시 기존 로직 시도
+      try {
+        final parts = dateTime.split(' ');
+        if (parts.length >= 2) {
+          final dateParts = parts[0].split('-');
+          final timePart = parts[1].split(':');
+          if (dateParts.length == 3 && timePart.length >= 2) {
+            return '${dateParts[0]}.${dateParts[1]}.${dateParts[2]} : ${timePart[0]}:${timePart[1]}';
+          }
+        }
+
+        // 단순 시간 형식 (HH:mm)
+        if (dateTime.contains(':') && !dateTime.contains('-')) {
+          return '시간: $dateTime';
+        }
+      } catch (_) {
+        // 내부 파싱 실패 시 원본 반환
+      }
+
       return dateTime;
     }
   }

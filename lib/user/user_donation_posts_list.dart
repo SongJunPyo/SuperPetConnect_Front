@@ -3,6 +3,7 @@ import 'dart:convert';
 import '../utils/preferences_manager.dart';
 import '../utils/app_theme.dart';
 import '../utils/config.dart';
+import '../utils/app_constants.dart';
 import '../services/dashboard_service.dart';
 import '../models/unified_post_model.dart';
 import '../services/applied_donation_service.dart';
@@ -11,6 +12,7 @@ import '../widgets/marquee_text.dart';
 import '../services/auth_http_client.dart';
 import '../widgets/custom_tab_bar.dart';
 import '../widgets/rich_text_viewer.dart';
+import '../widgets/pagination_bar.dart';
 import 'package:intl/intl.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 
@@ -32,12 +34,17 @@ class UserDonationPostsListScreen extends StatefulWidget {
 class _UserDonationPostsListScreenState
     extends State<UserDonationPostsListScreen>
     with TickerProviderStateMixin {
-  List<UnifiedPostModel> allPosts = [];
   List<UnifiedPostModel> filteredPosts = [];
   bool isLoading = true;
   String errorMessage = '';
   String searchQuery = '';
   TextEditingController searchController = TextEditingController();
+
+  // 페이징 관련
+  final ScrollController _scrollController = ScrollController();
+  final List<UnifiedPostModel> _allPosts = [];
+  int _currentPage = 1;
+  int _totalPages = 1;
 
   // 탭 컨트롤러
   late TabController _tabController;
@@ -144,6 +151,7 @@ class _UserDonationPostsListScreenState
         _tabController.index != _currentTabIndex) {
       setState(() {
         _currentTabIndex = _tabController.index;
+        _currentPage = 1;
         _filterPosts();
       });
     }
@@ -151,30 +159,50 @@ class _UserDonationPostsListScreenState
 
   @override
   void dispose() {
+    _scrollController.dispose();
     _tabController.dispose();
     searchController.dispose();
     super.dispose();
+  }
+
+  /// 페이지 변경 핸들러
+  void _onPageChanged(int page) {
+    setState(() {
+      _currentPage = page;
+    });
+    if (_scrollController.hasClients) {
+      _scrollController.jumpTo(0);
+    }
   }
 
   Future<void> _loadDonationPosts() async {
     setState(() {
       isLoading = true;
       errorMessage = '';
+      _allPosts.clear();
+      filteredPosts = [];
     });
 
     try {
-      // 모든 헌혈 모집글을 가져옵니다 (limit을 크게 설정)
-      final posts = await DashboardService.getPublicPosts(limit: 100);
+      // 서버 페이지네이션을 통해 모든 데이터를 순차적으로 가져옴
+      int page = 1;
+      bool hasMore = true;
 
+      while (hasMore) {
+        final response = await DashboardService.fetchPublicPostsPage(page: page);
+        _allPosts.addAll(response.posts);
+        hasMore = response.pagination.hasNext;
+        page++;
+      }
+
+      if (!mounted) return;
       setState(() {
-        allPosts = posts;
+        _currentPage = 1;
         _filterPosts();
         isLoading = false;
       });
-
-      // 초기 게시글이 있더라도 자동으로 바텀 시트는 표시하지 않음
-      // 사용자가 직접 클릭해야만 상세보기가 열림
     } catch (e) {
+      if (!mounted) return;
       setState(() {
         errorMessage = '헌혈 모집글을 불러오는데 실패했습니다: $e';
         isLoading = false;
@@ -183,7 +211,7 @@ class _UserDonationPostsListScreenState
   }
 
   void _filterPosts() {
-    List<UnifiedPostModel> filtered = allPosts;
+    List<UnifiedPostModel> filtered = _allPosts;
 
     // 탭에 따른 필터링
     if (_currentTabIndex == 0) {
@@ -217,14 +245,23 @@ class _UserDonationPostsListScreenState
       return b.createdAt.compareTo(a.createdAt);
     });
 
+    // 클라이언트 측 페이지네이션 계산
+    const pageSize = AppConstants.detailListPageSize;
+    _totalPages = (filtered.length / pageSize).ceil().clamp(1, 999);
+    if (_currentPage > _totalPages) _currentPage = _totalPages;
+
+    final startIndex = (_currentPage - 1) * pageSize;
+    final endIndex = (startIndex + pageSize).clamp(0, filtered.length);
+
     setState(() {
-      filteredPosts = filtered;
+      filteredPosts = filtered.sublist(startIndex, endIndex);
     });
   }
 
   void _onSearchChanged(String query) {
     setState(() {
       searchQuery = query;
+      _currentPage = 1;
     });
     _filterPosts();
   }
@@ -1493,9 +1530,14 @@ class _UserDonationPostsListScreenState
       );
     }
 
-    return ListView.builder(
+    final int paginationBarCount = _totalPages > 1 ? 1 : 0;
+
+    return RefreshIndicator(
+      onRefresh: () => _loadDonationPosts(),
+      child: ListView.builder(
+      controller: _scrollController,
       padding: EdgeInsets.zero,
-      itemCount: filteredPosts.length + 1, // 헤더 포함
+      itemCount: filteredPosts.length + 1 + paginationBarCount, // 헤더 + 아이템 + 페이지네이션
       itemBuilder: (context, index) {
         // 첫 번째 아이템은 헤더
         if (index == 0) {
@@ -1554,6 +1596,15 @@ class _UserDonationPostsListScreenState
           );
         }
 
+        // 게시글 범위를 벗어나면 페이지네이션 바
+        if (index > filteredPosts.length) {
+          return PaginationBar(
+            currentPage: _currentPage,
+            totalPages: _totalPages,
+            onPageChanged: _onPageChanged,
+          );
+        }
+
         // 나머지는 게시글 아이템
         final post = filteredPosts[index - 1];
         return Padding(
@@ -1561,6 +1612,7 @@ class _UserDonationPostsListScreenState
           child: _buildPostListItem(post),
         );
       },
+    ),
     );
   }
 

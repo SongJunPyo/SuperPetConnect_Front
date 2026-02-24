@@ -5,6 +5,7 @@ import '../services/hospital_column_service.dart';
 import '../models/hospital_column_model.dart';
 import '../utils/app_theme.dart';
 import '../widgets/rich_text_viewer.dart';
+import '../hospital/hospital_column_edit.dart';
 import 'package:intl/intl.dart';
 
 class AdminColumnManagement extends StatefulWidget {
@@ -139,115 +140,23 @@ class _AdminColumnManagementState extends State<AdminColumnManagement>
     }
   }
 
-  void _showEditColumnDialog(HospitalColumn column) {
-    final TextEditingController titleController = TextEditingController(
-      text: column.title,
+  void _showEditColumnDialog(HospitalColumn column) async {
+    final result = await Navigator.of(context).push<bool>(
+      MaterialPageRoute(
+        builder: (_) => HospitalColumnEdit(column: column),
+      ),
     );
-    final TextEditingController contentController = TextEditingController(
-      text: column.content,
-    );
 
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: const Text('칼럼 수정'),
-          content: SizedBox(
-            width: MediaQuery.of(context).size.width * 0.8,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                TextField(
-                  controller: titleController,
-                  decoration: const InputDecoration(
-                    labelText: '제목',
-                    border: OutlineInputBorder(),
-                  ),
-                  maxLines: 1,
-                ),
-                const SizedBox(height: 16),
-                TextField(
-                  controller: contentController,
-                  decoration: const InputDecoration(
-                    labelText: '내용',
-                    border: OutlineInputBorder(),
-                    alignLabelWithHint: true,
-                  ),
-                  maxLines: 10,
-                  minLines: 5,
-                ),
-              ],
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: const Text('취소'),
-            ),
-            ElevatedButton(
-              onPressed: () async {
-                if (titleController.text.trim().isEmpty) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('제목을 입력해주세요.'),
-                      backgroundColor: Colors.red,
-                    ),
-                  );
-                  return;
-                }
-
-                if (contentController.text.trim().isEmpty) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('내용을 입력해주세요.'),
-                      backgroundColor: Colors.red,
-                    ),
-                  );
-                  return;
-                }
-
-                try {
-                  final navigator = Navigator.of(context);
-                  final messenger = ScaffoldMessenger.of(context);
-
-                  await HospitalColumnService.updateColumn(
-                    column.columnIdx,
-                    HospitalColumnUpdateRequest(
-                      title: titleController.text.trim(),
-                      content: contentController.text.trim(),
-                    ),
-                  );
-
-                  if (mounted) {
-                    navigator.pop();
-                    messenger.showSnackBar(
-                      const SnackBar(
-                        content: Text('칼럼이 수정되었습니다.'),
-                        backgroundColor: Colors.green,
-                      ),
-                    );
-                    _loadAllColumns(); // 목록 새로고침
-                  }
-                } catch (e) {
-                  final messenger = ScaffoldMessenger.of(context);
-                  if (mounted) {
-                    messenger.showSnackBar(
-                      SnackBar(
-                        content: Text(
-                          '수정 실패: ${e.toString().replaceAll('Exception: ', '')}',
-                        ),
-                        backgroundColor: Colors.red,
-                      ),
-                    );
-                  }
-                }
-              },
-              child: const Text('수정'),
-            ),
-          ],
-        );
-      },
-    );
+    // 수정 완료 후 목록 새로고침
+    if (result == true && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('칼럼이 수정되었습니다.'),
+          backgroundColor: Colors.green,
+        ),
+      );
+      _loadAllColumns();
+    }
   }
 
   void _showColumnDetail(HospitalColumn column) {

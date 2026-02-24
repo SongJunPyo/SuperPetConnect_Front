@@ -28,15 +28,20 @@ import '../widgets/dashboard/dashboard_more_button.dart';
 import '../widgets/dashboard/dashboard_list_item.dart';
 import '../services/auth_http_client.dart';
 import '../widgets/region_selection_sheet.dart';
+import '../widgets/blinking_icon.dart';
 import '../models/region_model.dart';
 import '../utils/text_personalization_util.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../providers/notification_provider.dart';
 import '../widgets/rich_text_viewer.dart';
-import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import '../services/applied_donation_service.dart';
 import '../models/applied_donation_model.dart';
 import '../utils/app_constants.dart';
+import '../widgets/post_detail/post_detail_handle_bar.dart';
+import '../widgets/post_detail/post_detail_header.dart';
+import '../widgets/post_detail/post_detail_meta_section.dart';
+import '../widgets/post_detail/post_detail_blood_type.dart';
+import '../widgets/post_detail/post_detail_description.dart';
 
 class UserDashboard extends StatefulWidget {
   const UserDashboard({super.key});
@@ -294,13 +299,6 @@ class _UserDashboardState extends State<UserDashboard>
       final applications =
           await AppliedDonationService.getMyApplicationsFromServer();
 
-      debugPrint('[UserDashboard] 서버에서 받은 신청 목록: ${applications.length}개');
-      for (final app in applications) {
-        debugPrint(
-          '[UserDashboard] - postTimesIdx: ${app.postTimesIdx}, status: ${app.status}, shouldShow: ${app.shouldShowAppliedBorder}',
-        );
-      }
-
       if (mounted) {
         setState(() {
           myApplicationsMap = {
@@ -310,11 +308,8 @@ class _UserDashboardState extends State<UserDashboard>
         });
       }
 
-      debugPrint(
-        '[UserDashboard] 중복 체크용 맵: ${myApplicationsMap.keys.toList()}',
-      );
     } catch (e) {
-      debugPrint('[UserDashboard] 내 신청 목록 로드 실패: $e');
+      // 내 신청 목록 로드 실패 시 무시
     }
   }
 
@@ -499,7 +494,6 @@ class _UserDashboardState extends State<UserDashboard>
     // 지역 설정 초기화 플래그 (한 번이라도 설정하면 자동 설정 안 함)
     await PreferencesManager.setRegionInitialized(true);
 
-    debugPrint('[UserDashboard] 선호 지역 저장 완료: ${largeRegionCodes.length}개 시/도');
   }
 
   // SharedPreferences에서 선호 지역 불러오기
@@ -554,9 +548,6 @@ class _UserDashboardState extends State<UserDashboard>
         selectedMediumRegions = loadedMediumRegions;
       });
 
-      debugPrint(
-        '[UserDashboard] 선호 지역 불러오기 완료: ${loadedLargeRegions.length}개 시/도',
-      );
     }
 
     // 선호 지역을 한 번도 설정하지 않은 경우 → 주소 기반 기본 지역 자동 설정
@@ -606,7 +597,6 @@ class _UserDashboardState extends State<UserDashboard>
     }
 
     if (regionCode == null) {
-      debugPrint('[UserDashboard] 주소에서 시/도를 판별할 수 없음: $address');
       return;
     }
 
@@ -622,7 +612,6 @@ class _UserDashboardState extends State<UserDashboard>
 
       // 기본 지역을 SharedPreferences에 저장
       await _savePreferredRegions();
-      debugPrint('[UserDashboard] 주소 기반 기본 지역 설정: ${region.name}');
     }
   }
 
@@ -1834,72 +1823,15 @@ class _UserDashboardState extends State<UserDashboard>
               ),
               child: Column(
                 children: [
-                  // 핸들 바
-                  Container(
-                    width: 40,
-                    height: 4,
-                    margin: const EdgeInsets.symmetric(vertical: 12),
-                    decoration: BoxDecoration(
-                      color: Colors.grey[300],
-                      borderRadius: BorderRadius.circular(2),
-                    ),
-                  ),
+                  // 핸들바
+                  const PostDetailHandleBar(),
 
                   // 헤더
-                  Container(
-                    padding: const EdgeInsets.fromLTRB(20, 8, 20, 16),
-                    child: Row(
-                      children: [
-                        // 긴급/정기 뱃지
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 8,
-                            vertical: 4,
-                          ),
-                          decoration: BoxDecoration(
-                            color:
-                                displayPost.isUrgent
-                                    ? Colors.red.withValues(alpha: 0.15)
-                                    : Colors.blue.withValues(alpha: 0.15),
-                            borderRadius: BorderRadius.circular(6),
-                          ),
-                          child: Text(
-                            displayPost.typeText,
-                            style: AppTheme.bodySmallStyle.copyWith(
-                              color:
-                                  displayPost.isUrgent
-                                      ? Colors.red
-                                      : Colors.blue,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                displayPost.title,
-                                style: AppTheme.h3Style.copyWith(
-                                  color:
-                                      displayPost.isUrgent
-                                          ? Colors.red
-                                          : AppTheme.textPrimary,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                                maxLines: 2,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ],
-                          ),
-                        ),
-                        IconButton(
-                          icon: const Icon(Icons.close),
-                          onPressed: () => Navigator.pop(context),
-                        ),
-                      ],
-                    ),
+                  PostDetailHeader(
+                    title: displayPost.title,
+                    isUrgent: displayPost.isUrgent,
+                    typeText: displayPost.typeText,
+                    onClose: () => Navigator.pop(context),
                   ),
 
                   const Divider(height: 1),
@@ -1912,178 +1844,27 @@ class _UserDashboardState extends State<UserDashboard>
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          // 병원 닉네임
-                          Row(
-                            children: [
-                              Icon(
-                                Icons.business,
-                                size: 16,
-                                color: AppTheme.textSecondary,
-                              ),
-                              const SizedBox(width: 8),
-                              Text(
-                                '병원명: ',
-                                style: AppTheme.bodyMediumStyle.copyWith(
-                                  fontWeight: FontWeight.w500,
-                                  color: Colors.grey[700],
-                                ),
-                              ),
-                              Expanded(
-                                child: Text(
-                                  (displayPost.hospitalNickname?.isNotEmpty ??
-                                          false)
-                                      ? displayPost.hospitalNickname!
-                                      : displayPost.hospitalName.isNotEmpty
-                                      ? displayPost.hospitalName
-                                      : '병원',
-                                  style: AppTheme.bodyMediumStyle.copyWith(
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 8),
-
-                          // 담당자 이름 (있는 경우만 표시)
-
-                          // 주소
-                          Row(
-                            children: [
-                              Icon(
-                                Icons.location_on,
-                                size: 16,
-                                color: AppTheme.textSecondary,
-                              ),
-                              const SizedBox(width: 8),
-                              Expanded(
-                                child: Text(
-                                  displayPost.location,
-                                  style: AppTheme.bodyMediumStyle,
-                                ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 8),
-
-                          // 동물 종류
-                          Row(
-                            children: [
-                              Icon(
-                                displayPost.animalType == 0
-                                    ? FontAwesomeIcons.dog
-                                    : FontAwesomeIcons.cat,
-                                size: 16,
-                                color: AppTheme.textSecondary,
-                              ),
-                              const SizedBox(width: 8),
-                              Text(
-                                '동물 종류: ',
-                                style: AppTheme.bodyMediumStyle.copyWith(
-                                  fontWeight: FontWeight.w500,
-                                  color: Colors.grey[700],
-                                ),
-                              ),
-                              Expanded(
-                                child: Text(
-                                  displayPost.animalType == 0 ? '강아지' : '고양이',
-                                  style: AppTheme.bodyMediumStyle.copyWith(
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 8),
-
-                          // 신청자 수
-                          Row(
-                            children: [
-                              Icon(
-                                Icons.group_outlined,
-                                size: 16,
-                                color: AppTheme.textSecondary,
-                              ),
-                              const SizedBox(width: 8),
-                              Text(
-                                '신청자 수: ',
-                                style: AppTheme.bodyMediumStyle.copyWith(
-                                  fontWeight: FontWeight.w500,
-                                  color: Colors.grey[700],
-                                ),
-                              ),
-                              Expanded(
-                                child: Text(
-                                  '${displayPost.applicantCount}명',
-                                  style: AppTheme.bodyMediumStyle.copyWith(
-                                    color: Colors.black,
-                                  ),
-                                ),
-                              ),
-                            ],
+                          // 메타 정보 (병원명, 주소, 동물, 신청자수, 작성일)
+                          PostDetailMetaSection(
+                            hospitalName: displayPost.hospitalName,
+                            hospitalNickname: displayPost.hospitalNickname,
+                            location: displayPost.location,
+                            animalType: displayPost.animalType,
+                            applicantCount: displayPost.applicantCount,
+                            createdAt: displayPost.createdAt,
                           ),
 
-                          // 설명글 (있는 경우만)
-                          if ((displayPost.contentDelta != null &&
-                                  displayPost.contentDelta!.isNotEmpty) ||
-                              displayPost.description.isNotEmpty) ...[
-                            const SizedBox(height: 12),
-                            Container(
-                              width: double.infinity,
-                              decoration: BoxDecoration(
-                                color: AppTheme.veryLightGray,
-                                borderRadius: BorderRadius.circular(8),
-                                border: Border.all(
-                                  color: AppTheme.lightGray.withValues(
-                                    alpha: 0.5,
-                                  ),
-                                ),
-                              ),
-                              child: RichTextViewer(
-                                contentDelta: displayPost.contentDelta,
-                                plainText: displayPost.description,
-                                padding: const EdgeInsets.all(12),
-                              ),
-                            ),
-                          ],
+                          // 설명글
+                          PostDetailDescription(
+                            contentDelta: displayPost.contentDelta,
+                            plainText: displayPost.description,
+                          ),
 
-                          const SizedBox(height: 20),
-
-                          // 혈액형 정보
-                          if (displayPost.bloodType != null &&
-                              displayPost.bloodType!.isNotEmpty) ...[
-                            Text('필요 혈액형', style: AppTheme.h4Style),
-                            const SizedBox(height: 8),
-                            Container(
-                              width: double.infinity,
-                              padding: const EdgeInsets.all(16),
-                              decoration: BoxDecoration(
-                                color:
-                                    displayPost.isUrgent
-                                        ? Colors.red.shade50
-                                        : Colors.blue.shade50,
-                                borderRadius: BorderRadius.circular(12),
-                                border: Border.all(
-                                  color:
-                                      displayPost.isUrgent
-                                          ? Colors.red.shade200
-                                          : Colors.blue.shade200,
-                                ),
-                              ),
-                              child: Text(
-                                displayPost.displayBloodType,
-                                style: AppTheme.h3Style.copyWith(
-                                  color:
-                                      displayPost.isUrgent
-                                          ? Colors.red
-                                          : Colors.blue,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                                textAlign: TextAlign.center,
-                              ),
-                            ),
-                            const SizedBox(height: 24),
-                          ],
+                          // 혈액형
+                          PostDetailBloodType(
+                            bloodType: displayPost.bloodType,
+                            isUrgent: displayPost.isUrgent,
+                          ),
 
                           // 헌혈 날짜 정보
                           Text('헌혈 예정일', style: AppTheme.h4Style),
@@ -2340,10 +2121,11 @@ class _UserDashboardState extends State<UserDashboard>
                       color: AppTheme.textPrimary,
                     ),
                   ),
-                  trailing: Icon(
-                    Icons.keyboard_arrow_down,
+                  trailing: BlinkingIcon(
+                    icon: Icons.keyboard_arrow_down,
                     color: Colors.black,
                     size: 24,
+                    duration: Duration(milliseconds: 1500),
                   ),
                   children:
                       timeSlots.map<Widget>((timeSlot) {
@@ -2351,10 +2133,6 @@ class _UserDashboardState extends State<UserDashboard>
                         final postTimesIdx = timeSlot['post_times_idx'] ?? 0;
                         final myApplication = myApplicationsMap[postTimesIdx];
                         final isAlreadyApplied = myApplication != null;
-
-                        debugPrint(
-                          '[UserDashboard] 시간대 체크 - postTimesIdx: $postTimesIdx, 신청여부: $isAlreadyApplied, 맵 키: ${myApplicationsMap.keys.toList()}',
-                        );
 
                         return Container(
                           margin: const EdgeInsets.symmetric(

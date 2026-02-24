@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import '../models/unified_post_model.dart';
+import '../models/pagination_model.dart';
 import '../models/donation_application_model.dart';
 import '../models/post_time_item_model.dart';
 import '../utils/config.dart';
@@ -39,13 +40,14 @@ class HospitalPostService {
               }).toList();
           return posts;
         }
-        // 서버가 {posts: [...]} 형태로 반환하는 경우
-        else if (data is Map && data['posts'] != null) {
-          final posts =
-              (data['posts'] as List).map((post) {
-                return UnifiedPostModel.fromJson(post);
-              }).toList();
-          return posts;
+        // 서버가 {items: [...]} 또는 {posts: [...]} 형태로 반환하는 경우
+        else if (data is Map) {
+          final listData = data['items'] ?? data['posts'];
+          if (listData is List) {
+            return listData.map((post) {
+              return UnifiedPostModel.fromJson(post);
+            }).toList();
+          }
         }
 
         return [];
@@ -98,23 +100,72 @@ class HospitalPostService {
   // 기존 hospital API 사용
   static Future<List<UnifiedPostModel>> _getUnifiedPostModelsViaHospitalAPI() async {
     final response = await AuthHttpClient.get(
-      Uri.parse('${Config.serverUrl}${ApiEndpoints.hospitalPosts}'),
+      Uri.parse('${Config.serverUrl}${ApiEndpoints.hospitalPosts}?page_size=100'),
     );
 
     if (response.statusCode == 200) {
       final data = response.parseJsonDynamic();
-      debugPrint(
-        '[UnifiedPostModelService] API 응답 데이터 샘플: ${data is List && data.isNotEmpty ? data[0] : data}',
-      );
 
       if (data is List) {
         return data.map((post) => UnifiedPostModel.fromJson(post)).toList();
-      } else if (data is Map && data['posts'] != null) {
-        return (data['posts'] as List)
-            .map((post) => UnifiedPostModel.fromJson(post))
-            .toList();
+      } else if (data is Map) {
+        final listData = data['items'] ?? data['posts'];
+        if (listData is List) {
+          return listData
+              .map((post) => UnifiedPostModel.fromJson(post))
+              .toList();
+        }
       }
       return [];
+    } else {
+      throw Exception('hospital API 호출 실패: ${response.statusCode}');
+    }
+  }
+
+  /// 페이징 지원 병원 게시글 조회
+  static Future<PaginatedPostsResult> fetchHospitalPostsPage({
+    int page = 1,
+    int pageSize = 15,
+  }) async {
+    final queryParameters = <String, String>{
+      'page': page.toString(),
+      'page_size': pageSize.toString(),
+    };
+
+    final uri = Uri.parse(
+      '${Config.serverUrl}${ApiEndpoints.hospitalPosts}',
+    ).replace(queryParameters: queryParameters);
+
+    final response = await AuthHttpClient.get(uri);
+
+    if (response.statusCode == 200) {
+      final data = response.parseJsonDynamic();
+
+      List<dynamic> postsData;
+      Map<String, dynamic>? paginationJson;
+
+      if (data is Map<String, dynamic>) {
+        postsData = data['items'] ?? data['posts'] ?? [];
+        paginationJson = data['pagination'] as Map<String, dynamic>?;
+      } else if (data is List) {
+        postsData = data;
+      } else {
+        postsData = [];
+      }
+
+      final posts = postsData
+          .map((post) => UnifiedPostModel.fromJson(post))
+          .toList();
+
+      final pagination = paginationJson != null
+          ? PaginationMeta.fromJson(paginationJson)
+          : PaginationMeta.derived(
+              currentPage: page,
+              pageSize: pageSize,
+              itemCount: posts.length,
+            );
+
+      return PaginatedPostsResult(posts: posts, pagination: pagination);
     } else {
       throw Exception('hospital API 호출 실패: ${response.statusCode}');
     }
@@ -249,11 +300,7 @@ class HospitalPostService {
         '${Config.serverUrl}${ApiEndpoints.hospitalPostTimes}',
       ).replace(queryParameters: queryParams);
 
-      debugPrint('Fetching post-times: $uri');
-
       final response = await AuthHttpClient.get(uri);
-
-      debugPrint('Response status: ${response.statusCode}');
 
       if (response.statusCode == 200) {
         final data = response.parseJsonDynamic();
@@ -264,14 +311,12 @@ class HospitalPostService {
               (data['post_times'] as List)
                   .map((item) => PostTimeItem.fromJson(item))
                   .toList();
-          debugPrint('Fetched ${postTimesList.length} post-times');
           return postTimesList;
         }
         // 또는 직접 배열 반환
         else if (data is List) {
           final postTimesList =
               data.map((item) => PostTimeItem.fromJson(item)).toList();
-          debugPrint('Fetched ${postTimesList.length} post-times');
           return postTimesList;
         }
 
@@ -292,13 +337,8 @@ class HospitalPostService {
         Uri.parse('${Config.serverUrl}${ApiEndpoints.hospitalPostsRejected}'),
       );
 
-      debugPrint('getRejectedPosts response status: ${response.statusCode}');
-
       // 422 에러 발생 시 대체 방법 시도: post_status=2로 시간대별 조회
       if (response.statusCode == 422) {
-        debugPrint(
-          '422 error - trying alternative method with getPostTimes(postStatus=2)',
-        );
         return await getRejectedPostsViaPostTimes();
       }
 
@@ -307,19 +347,13 @@ class HospitalPostService {
 
         // 서버 응답이 { "success": true, "posts": [...] } 형태
         if (data is Map && data['posts'] != null) {
-          final rejectedPostsList =
-              (data['posts'] as List)
-                  .map((item) => RejectedPost.fromJson(item))
-                  .toList();
-          debugPrint('Fetched ${rejectedPostsList.length} rejected posts');
-          return rejectedPostsList;
+          return (data['posts'] as List)
+              .map((item) => RejectedPost.fromJson(item))
+              .toList();
         }
         // 또는 직접 배열 반환
         else if (data is List) {
-          final rejectedPostsList =
-              data.map((item) => RejectedPost.fromJson(item)).toList();
-          debugPrint('Fetched ${rejectedPostsList.length} rejected posts');
-          return rejectedPostsList;
+          return data.map((item) => RejectedPost.fromJson(item)).toList();
         }
 
         return [];
@@ -327,7 +361,6 @@ class HospitalPostService {
         throw Exception('모집거절 게시글 목록을 불러오는데 실패했습니다.');
       }
     } catch (e) {
-      debugPrint('Error fetching rejected posts: $e');
       rethrow;
     }
   }
@@ -335,16 +368,8 @@ class HospitalPostService {
   /// 대체 방법: post_status=2로 거절된 게시글 조회
   static Future<List<RejectedPost>> getRejectedPostsViaPostTimes() async {
     try {
-      debugPrint(
-        'Fetching rejected posts via post-times API with postStatus=2',
-      );
-
       // post_status=2 (모집거절)인 시간대 조회
       final postTimeItems = await getPostTimes(postStatus: 2);
-
-      debugPrint(
-        'Found ${postTimeItems.length} time-slot items with postStatus=2',
-      );
 
       // PostTimeItem을 RejectedPost로 변환 (중복 제거)
       final Map<int, RejectedPost> rejectedPostsMap = {};
@@ -364,12 +389,8 @@ class HospitalPostService {
         }
       }
 
-      final rejectedPosts = rejectedPostsMap.values.toList();
-      debugPrint('Converted to ${rejectedPosts.length} unique rejected posts');
-
-      return rejectedPosts;
+      return rejectedPostsMap.values.toList();
     } catch (e) {
-      debugPrint('Error in getRejectedPostsViaPostTimes: $e');
       rethrow;
     }
   }
