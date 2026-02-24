@@ -342,4 +342,13 @@ class ApiEndpoints {
   /// 관리자 병원 상세: /api/admin/hospitals/{accountIdx}
   static String adminHospital(int accountIdx) =>
       '$adminHospitals/$accountIdx';
+
+  // ===== Hospital Master (병원 마스터 데이터) =====
+  static const String adminHospitalsMaster = '$adminHospitals/master';
+  static const String adminHospitalsMasterRegister =
+      '$adminHospitalsMaster/register';
+
+  /// 병원 마스터 상세: /api/admin/hospitals/master/{hospitalCode}
+  static String adminHospitalMaster(String hospitalCode) =>
+      '$adminHospitalsMaster/$hospitalCode';
 }

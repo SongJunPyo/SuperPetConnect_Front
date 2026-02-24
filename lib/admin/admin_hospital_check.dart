@@ -1,6 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:kpostal/kpostal.dart';
 import '../services/admin_hospital_service.dart';
 import '../utils/app_theme.dart';
+import '../utils/kakao_postcode_stub.dart'
+    if (dart.library.html) '../utils/kakao_postcode_web.dart';
 import 'package:intl/intl.dart';
 
 class AdminHospitalCheck extends StatefulWidget {
@@ -24,6 +28,14 @@ class _AdminHospitalCheckState extends State<AdminHospitalCheck>
   int totalCount = 0;
   bool isSearching = false;
 
+  // 병원 마스터 관련
+  List<HospitalMaster> _masterHospitals = [];
+  bool _isMasterLoading = true;
+  bool _hasMasterError = false;
+  String _masterErrorMessage = '';
+  String _masterSearchQuery = '';
+  final TextEditingController _masterSearchController = TextEditingController();
+
   // 슬라이딩 탭 관련
   TabController? _tabController;
   int _currentTabIndex = 0;
@@ -31,8 +43,9 @@ class _AdminHospitalCheckState extends State<AdminHospitalCheck>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 2, vsync: this);
+    _tabController = TabController(length: 3, vsync: this);
     _tabController!.addListener(_handleTabChange);
+    _loadMasterHospitals();
     _loadHospitals();
   }
 
@@ -41,7 +54,11 @@ class _AdminHospitalCheckState extends State<AdminHospitalCheck>
         _tabController!.index != _currentTabIndex) {
       setState(() {
         _currentTabIndex = _tabController!.index;
-        _updateFilteredHospitals();
+        if (_currentTabIndex == 0) {
+          // 병원 등록 탭
+        } else {
+          _updateFilteredHospitals();
+        }
       });
     }
   }
@@ -50,7 +67,412 @@ class _AdminHospitalCheckState extends State<AdminHospitalCheck>
   void dispose() {
     _tabController?.dispose();
     searchController.dispose();
+    _masterSearchController.dispose();
     super.dispose();
+  }
+
+  // ===== 병원 마스터 관련 메서드 =====
+
+  Future<void> _loadMasterHospitals() async {
+    setState(() {
+      _isMasterLoading = true;
+      _hasMasterError = false;
+    });
+
+    try {
+      final response = await AdminHospitalService.getHospitalMasterList(
+        search: _masterSearchQuery.isNotEmpty ? _masterSearchQuery : null,
+      );
+
+      setState(() {
+        _masterHospitals = response.hospitals;
+        _isMasterLoading = false;
+      });
+    } catch (e) {
+      setState(() {
+        _isMasterLoading = false;
+        _hasMasterError = true;
+        _masterErrorMessage = e.toString().replaceAll('Exception: ', '');
+      });
+    }
+  }
+
+  void _onMasterSearchChanged(String value) {
+    setState(() {
+      _masterSearchQuery = value;
+    });
+    _loadMasterHospitals();
+  }
+
+  Future<void> _openAddressSearch(TextEditingController controller, void Function(void Function()) setStateCallback) async {
+    if (kIsWeb) {
+      openKakaoPostcode((String address) {
+        setStateCallback(() {
+          controller.text = address;
+        });
+      });
+    } else {
+      await showModalBottomSheet(
+        context: context,
+        isScrollControlled: true,
+        backgroundColor: Colors.transparent,
+        builder: (sheetCtx) => Container(
+          height: MediaQuery.of(sheetCtx).size.height * 0.9,
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+          ),
+          child: ClipRRect(
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+            child: KpostalView(
+              callback: (Kpostal result) {
+                setStateCallback(() {
+                  controller.text = result.address;
+                });
+              },
+            ),
+          ),
+        ),
+      );
+    }
+  }
+
+  void _showRegisterDialog() {
+    final nameController = TextEditingController();
+    final addressController = TextEditingController();
+    final phoneController = TextEditingController();
+    final formKey = GlobalKey<FormState>();
+
+    showDialog(
+      context: context,
+      builder: (BuildContext dialogContext) {
+        bool isSubmitting = false;
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return AlertDialog(
+              title: const Text('새 병원 등록'),
+              content: SingleChildScrollView(
+                child: Form(
+                  key: formKey,
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      TextFormField(
+                        controller: nameController,
+                        decoration: InputDecoration(
+                          labelText: '병원명 *',
+                          hintText: '예: 서울동물병원',
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                        ),
+                        validator: (value) {
+                          if (value == null || value.trim().isEmpty) {
+                            return '병원명을 입력하세요';
+                          }
+                          return null;
+                        },
+                      ),
+                      const SizedBox(height: 12),
+                      TextFormField(
+                        controller: addressController,
+                        readOnly: true,
+                        onTap: () => _openAddressSearch(addressController, setDialogState),
+                        decoration: InputDecoration(
+                          labelText: '주소 *',
+                          hintText: '터치하여 주소 검색',
+                          prefixIcon: const Icon(Icons.location_on_outlined, size: 20),
+                          suffixIcon: addressController.text.isNotEmpty
+                              ? IconButton(
+                                  icon: const Icon(Icons.clear, size: 18),
+                                  onPressed: () {
+                                    setDialogState(() {
+                                      addressController.clear();
+                                    });
+                                  },
+                                )
+                              : const Icon(Icons.search, size: 20),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                        ),
+                        validator: (value) {
+                          if (value == null || value.trim().isEmpty) {
+                            return '주소를 검색하여 입력하세요';
+                          }
+                          return null;
+                        },
+                      ),
+                      const SizedBox(height: 12),
+                      TextFormField(
+                        controller: phoneController,
+                        decoration: InputDecoration(
+                          labelText: '전화번호 *',
+                          hintText: '예: 02-1234-5678',
+                          prefixIcon: const Icon(Icons.phone_outlined, size: 20),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                        ),
+                        keyboardType: TextInputType.phone,
+                        validator: (value) {
+                          if (value == null || value.trim().isEmpty) {
+                            return '전화번호를 입력하세요';
+                          }
+                          return null;
+                        },
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(dialogContext).pop(),
+                  child: const Text('취소'),
+                ),
+                ElevatedButton(
+                  onPressed: isSubmitting
+                      ? null
+                      : () async {
+                          if (!formKey.currentState!.validate()) return;
+                          setDialogState(() => isSubmitting = true);
+                          try {
+                            await AdminHospitalService.registerHospitalMaster(
+                              hospitalName: nameController.text.trim(),
+                              hospitalAddress: addressController.text.trim(),
+                              hospitalPhone: phoneController.text.trim(),
+                            );
+                            if (dialogContext.mounted) {
+                              Navigator.of(dialogContext).pop();
+                            }
+                            _loadMasterHospitals();
+                            if (mounted) {
+                              ScaffoldMessenger.of(this.context).showSnackBar(
+                                const SnackBar(content: Text('병원이 등록되었습니다.')),
+                              );
+                            }
+                          } catch (e) {
+                            setDialogState(() => isSubmitting = false);
+                            if (mounted) {
+                              ScaffoldMessenger.of(this.context).showSnackBar(
+                                SnackBar(
+                                  content: Text('등록 실패: ${e.toString().replaceAll('Exception: ', '')}'),
+                                  backgroundColor: Colors.red,
+                                ),
+                              );
+                            }
+                          }
+                        },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.black,
+                    foregroundColor: Colors.white,
+                  ),
+                  child: isSubmitting
+                      ? const SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                        )
+                      : const Text('등록'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
+  void _showMasterDetailSheet(HospitalMaster master) {
+    final nameController = TextEditingController(text: master.hospitalName);
+    final addressController = TextEditingController(text: master.hospitalAddress ?? '');
+    final phoneController = TextEditingController(text: master.hospitalPhone ?? '');
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (sheetContext) {
+        bool isUpdating = false;
+        return StatefulBuilder(
+          builder: (context, setSheetState) {
+            return Padding(
+              padding: EdgeInsets.only(
+                left: 20,
+                right: 20,
+                top: 20,
+                bottom: MediaQuery.of(sheetContext).viewInsets.bottom + 20,
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: AppTheme.primaryBlue.withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: Text(
+                          master.hospitalCode,
+                          style: AppTheme.bodyMediumStyle.copyWith(
+                            color: AppTheme.primaryBlue,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                      const Spacer(),
+                      IconButton(
+                        onPressed: () => Navigator.pop(sheetContext),
+                        icon: const Icon(Icons.close),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  TextField(
+                    controller: nameController,
+                    decoration: InputDecoration(
+                      labelText: '병원명',
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: addressController,
+                    readOnly: true,
+                    onTap: () => _openAddressSearch(addressController, setSheetState),
+                    decoration: InputDecoration(
+                      labelText: '주소',
+                      prefixIcon: const Icon(Icons.location_on_outlined, size: 20),
+                      suffixIcon: addressController.text.isNotEmpty
+                          ? IconButton(
+                              icon: const Icon(Icons.clear, size: 18),
+                              onPressed: () {
+                                setSheetState(() {
+                                  addressController.clear();
+                                });
+                              },
+                            )
+                          : const Icon(Icons.search, size: 20),
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: phoneController,
+                    decoration: InputDecoration(
+                      labelText: '전화번호',
+                      prefixIcon: const Icon(Icons.phone_outlined, size: 20),
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                    ),
+                    keyboardType: TextInputType.phone,
+                  ),
+                  const SizedBox(height: 16),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: ElevatedButton(
+                          onPressed: isUpdating
+                              ? null
+                              : () async {
+                                  setSheetState(() => isUpdating = true);
+                                  try {
+                                    await AdminHospitalService.updateHospitalMaster(
+                                      master.hospitalCode,
+                                      hospitalName: nameController.text.trim(),
+                                      hospitalAddress: addressController.text.trim(),
+                                      hospitalPhone: phoneController.text.trim(),
+                                    );
+                                    if (sheetContext.mounted) Navigator.pop(sheetContext);
+                                    _loadMasterHospitals();
+                                    if (mounted) {
+                                      ScaffoldMessenger.of(this.context).showSnackBar(
+                                        const SnackBar(content: Text('병원 정보가 수정되었습니다.')),
+                                      );
+                                    }
+                                  } catch (e) {
+                                    setSheetState(() => isUpdating = false);
+                                    if (mounted) {
+                                      ScaffoldMessenger.of(this.context).showSnackBar(
+                                        SnackBar(content: Text('수정 실패: ${e.toString().replaceAll('Exception: ', '')}')),
+                                      );
+                                    }
+                                  }
+                                },
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.black,
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                          ),
+                          child: const Text('수정'),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: ElevatedButton(
+                          onPressed: isUpdating
+                              ? null
+                              : () async {
+                                  final confirmed = await showDialog<bool>(
+                                    context: sheetContext,
+                                    builder: (ctx) => AlertDialog(
+                                      title: const Text('병원 삭제'),
+                                      content: Text('${master.hospitalName} (${master.hospitalCode})을 삭제하시겠습니까?'),
+                                      actions: [
+                                        TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('취소')),
+                                        ElevatedButton(
+                                          onPressed: () => Navigator.pop(ctx, true),
+                                          style: ElevatedButton.styleFrom(backgroundColor: Colors.red, foregroundColor: Colors.white),
+                                          child: const Text('삭제'),
+                                        ),
+                                      ],
+                                    ),
+                                  );
+                                  if (confirmed != true) return;
+                                  setSheetState(() => isUpdating = true);
+                                  try {
+                                    await AdminHospitalService.deleteHospitalMaster(master.hospitalCode);
+                                    if (sheetContext.mounted) Navigator.pop(sheetContext);
+                                    _loadMasterHospitals();
+                                    if (mounted) {
+                                      ScaffoldMessenger.of(this.context).showSnackBar(
+                                        SnackBar(content: Text('${master.hospitalName}이 삭제되었습니다.')),
+                                      );
+                                    }
+                                  } catch (e) {
+                                    setSheetState(() => isUpdating = false);
+                                    if (mounted) {
+                                      ScaffoldMessenger.of(this.context).showSnackBar(
+                                        SnackBar(content: Text('삭제 실패: ${e.toString().replaceAll('Exception: ', '')}')),
+                                      );
+                                    }
+                                  }
+                                },
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppTheme.error,
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                          ),
+                          child: const Text('삭제'),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
+    );
   }
 
   Future<void> _loadHospitals() async {
@@ -130,13 +552,13 @@ class _AdminHospitalCheckState extends State<AdminHospitalCheck>
     }
   }
 
-  // 필터링된 병원 목록 가져오기
+  // 필터링된 병원 목록 가져오기 (탭 1: 비활성화, 탭 2: 활성화)
   void _updateFilteredHospitals() {
     filteredHospitals =
         hospitals
             .where(
               (hospital) =>
-                  _currentTabIndex == 0
+                  _currentTabIndex == 1
                       ? !hospital.columnActive
                       : hospital.columnActive,
             )
@@ -159,9 +581,15 @@ class _AdminHospitalCheckState extends State<AdminHospitalCheck>
         ),
         centerTitle: false,
         actions: [
+          if (_currentTabIndex == 0)
+            IconButton(
+              icon: const Icon(Icons.add),
+              onPressed: _showRegisterDialog,
+              tooltip: '새 병원 등록',
+            ),
           IconButton(
             icon: const Icon(Icons.refresh),
-            onPressed: _loadHospitals,
+            onPressed: _currentTabIndex == 0 ? _loadMasterHospitals : _loadHospitals,
             tooltip: '새로고침',
           ),
         ],
@@ -172,8 +600,18 @@ class _AdminHospitalCheckState extends State<AdminHospitalCheck>
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
+                  Icon(Icons.business, size: 20),
+                  SizedBox(width: 4),
+                  Text('병원 등록'),
+                ],
+              ),
+            ),
+            Tab(
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
                   Icon(Icons.block, size: 20),
-                  SizedBox(width: 8),
+                  SizedBox(width: 4),
                   Text('비활성화'),
                 ],
               ),
@@ -183,7 +621,7 @@ class _AdminHospitalCheckState extends State<AdminHospitalCheck>
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   Icon(Icons.check_circle, size: 20),
-                  SizedBox(width: 8),
+                  SizedBox(width: 4),
                   Text('활성화'),
                 ],
               ),
@@ -194,126 +632,257 @@ class _AdminHospitalCheckState extends State<AdminHospitalCheck>
           indicatorColor: Colors.black87,
         ),
       ),
-      body: Column(
-        children: [
-          // 검색 필드
-          Padding(
-            padding: const EdgeInsets.symmetric(
-              horizontal: 20.0,
-              vertical: 16.0,
-            ),
-            child: TextField(
-              controller: searchController,
-              onChanged: _onSearchChanged,
-              decoration: InputDecoration(
-                labelText: '병원 검색 (이름, 이메일, 주소)',
-                hintText: '검색어를 입력하세요',
-                prefixIcon: const Icon(Icons.search_outlined),
-                suffixIcon:
-                    (searchQuery.isNotEmpty || isSearching)
-                        ? IconButton(
-                          icon:
-                              isSearching
-                                  ? const SizedBox(
-                                    width: 20,
-                                    height: 20,
-                                    child: CircularProgressIndicator(
-                                      strokeWidth: 2,
-                                    ),
-                                  )
-                                  : const Icon(Icons.clear),
-                          onPressed:
-                              isSearching
-                                  ? null
-                                  : () {
-                                    searchController.clear();
-                                    _onSearchChanged('');
-                                  },
-                        )
-                        : null,
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide(color: Colors.grey.shade300),
-                ),
-                focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide(color: colorScheme.primary, width: 2),
-                ),
-                enabledBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide(color: Colors.grey.shade300),
-                ),
-                filled: true,
-                fillColor: Colors.grey.shade50,
-                labelStyle: TextStyle(color: Colors.grey[700]),
+      body: _currentTabIndex == 0
+          ? _buildMasterTab(textTheme, colorScheme)
+          : _buildAccountTab(textTheme, colorScheme),
+    );
+  }
+
+  // ===== 병원 등록 탭 (마스터 데이터) =====
+  Widget _buildMasterTab(TextTheme textTheme, ColorScheme colorScheme) {
+    return Column(
+      children: [
+        // 검색 필드
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 16.0),
+          child: TextField(
+            controller: _masterSearchController,
+            onChanged: _onMasterSearchChanged,
+            decoration: InputDecoration(
+              labelText: '병원 검색 (코드, 이름, 주소)',
+              hintText: '검색어를 입력하세요',
+              prefixIcon: const Icon(Icons.search_outlined),
+              suffixIcon: _masterSearchQuery.isNotEmpty
+                  ? IconButton(
+                      icon: const Icon(Icons.clear),
+                      onPressed: () {
+                        _masterSearchController.clear();
+                        _onMasterSearchChanged('');
+                      },
+                    )
+                  : null,
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide(color: Colors.grey.shade300),
               ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide(color: colorScheme.primary, width: 2),
+              ),
+              filled: true,
+              fillColor: Colors.grey.shade50,
             ),
           ),
-
-          // 헤더 추가
-          Container(
-            padding: const EdgeInsets.symmetric(
-              horizontal: 20.0,
-              vertical: 8.0,
-            ),
-            decoration: BoxDecoration(
-              color: Colors.grey.shade100,
-              border: Border(
-                bottom: BorderSide(color: Colors.grey.shade300, width: 1),
+        ),
+        // 헤더
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 8.0),
+          decoration: BoxDecoration(
+            color: Colors.grey.shade100,
+            border: Border(bottom: BorderSide(color: Colors.grey.shade300, width: 1)),
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 40,
+                alignment: Alignment.center,
+                child: Text('번호', style: AppTheme.bodyMediumStyle.copyWith(fontWeight: FontWeight.bold, color: Colors.grey[700], fontSize: 13)),
               ),
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.only(left: 8.0),
+                  child: Text('병원명', style: AppTheme.bodyMediumStyle.copyWith(fontWeight: FontWeight.bold, color: Colors.grey[700], fontSize: 13)),
+                ),
+              ),
+              Container(
+                width: 70,
+                alignment: Alignment.center,
+                child: Text('코드', style: AppTheme.bodyMediumStyle.copyWith(fontWeight: FontWeight.bold, color: Colors.grey[700], fontSize: 13)),
+              ),
+            ],
+          ),
+        ),
+        // 목록
+        Expanded(child: _buildMasterList(textTheme)),
+      ],
+    );
+  }
+
+  Widget _buildMasterList(TextTheme textTheme) {
+    if (_isMasterLoading) {
+      return const Center(child: CircularProgressIndicator());
+    }
+    if (_hasMasterError) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.error_outline, size: 60, color: Colors.red[300]),
+            const SizedBox(height: 16),
+            Text(_masterErrorMessage, style: textTheme.bodySmall),
+            const SizedBox(height: 16),
+            ElevatedButton(onPressed: _loadMasterHospitals, child: const Text('다시 시도')),
+          ],
+        ),
+      );
+    }
+    if (_masterHospitals.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.business_outlined, size: 60, color: Colors.grey[300]),
+            const SizedBox(height: 16),
+            Text(
+              _masterSearchQuery.isNotEmpty ? '검색 결과가 없습니다.' : '등록된 병원이 없습니다.\n우상단 + 버튼으로 병원을 등록하세요.',
+              style: textTheme.titleMedium?.copyWith(color: Colors.grey[500]),
+              textAlign: TextAlign.center,
             ),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
-                // 번호 헤더
-                Container(
-                  width: 50,
-                  alignment: Alignment.center,
-                  child: Text(
-                    '번호',
-                    style: AppTheme.bodyMediumStyle.copyWith(
-                      fontWeight: FontWeight.bold,
-                      color: Colors.grey[700],
-                      fontSize: 13,
+          ],
+        ),
+      );
+    }
+
+    return RefreshIndicator(
+      onRefresh: _loadMasterHospitals,
+      child: ListView.builder(
+        padding: const EdgeInsets.symmetric(horizontal: 20.0),
+        itemCount: _masterHospitals.length,
+        itemBuilder: (context, index) {
+          final master = _masterHospitals[index];
+          return InkWell(
+            onTap: () => _showMasterDetailSheet(master),
+            child: Container(
+              padding: const EdgeInsets.symmetric(vertical: 12.0),
+              decoration: BoxDecoration(
+                border: Border(bottom: BorderSide(color: Colors.grey.shade200, width: 1)),
+              ),
+              child: Row(
+                children: [
+                  Container(
+                    width: 40,
+                    alignment: Alignment.center,
+                    child: Text(
+                      '${index + 1}',
+                      style: AppTheme.bodyMediumStyle.copyWith(fontWeight: FontWeight.w600, color: Colors.grey[600]),
                     ),
                   ),
-                ),
-                // 병원 헤더 (닉네임으로 표시)
-                Expanded(
-                  child: Container(
-                    padding: const EdgeInsets.only(left: 8.0, right: 8.0),
-                    alignment: Alignment.centerLeft,
-                    child: Text(
-                      '병원',
-                      style: AppTheme.bodyMediumStyle.copyWith(
-                        fontWeight: FontWeight.bold,
-                        color: Colors.grey[700],
-                        fontSize: 13,
+                  Expanded(
+                    child: Padding(
+                      padding: const EdgeInsets.only(left: 8.0),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            master.hospitalName,
+                            style: AppTheme.bodyMediumStyle.copyWith(fontWeight: FontWeight.w600),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          if (master.hospitalAddress != null && master.hospitalAddress!.isNotEmpty)
+                            Text(
+                              master.hospitalAddress!,
+                              style: AppTheme.bodySmallStyle.copyWith(color: Colors.grey[600], fontSize: 11),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                        ],
                       ),
                     ),
                   ),
-                ),
-                // 칼럼권한 헤더
-                Container(
-                  width: 70,
-                  alignment: Alignment.center,
-                  child: Text(
-                    '칼럼권한',
-                    style: AppTheme.bodyMediumStyle.copyWith(
-                      fontWeight: FontWeight.bold,
-                      color: Colors.grey[700],
-                      fontSize: 13,
+                  Container(
+                    width: 70,
+                    alignment: Alignment.center,
+                    child: Text(
+                      master.hospitalCode,
+                      style: AppTheme.bodySmallStyle.copyWith(
+                        fontWeight: FontWeight.w600,
+                        color: AppTheme.primaryBlue,
+                        fontSize: 12,
+                      ),
                     ),
                   ),
-                ),
-              ],
+                ],
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  // ===== 기존 계정 기반 탭 (비활성화/활성화) =====
+  Widget _buildAccountTab(TextTheme textTheme, ColorScheme colorScheme) {
+    return Column(
+      children: [
+        // 검색 필드
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 16.0),
+          child: TextField(
+            controller: searchController,
+            onChanged: _onSearchChanged,
+            decoration: InputDecoration(
+              labelText: '병원 검색 (이름, 이메일, 주소)',
+              hintText: '검색어를 입력하세요',
+              prefixIcon: const Icon(Icons.search_outlined),
+              suffixIcon: (searchQuery.isNotEmpty || isSearching)
+                  ? IconButton(
+                      icon: isSearching
+                          ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
+                          : const Icon(Icons.clear),
+                      onPressed: isSearching
+                          ? null
+                          : () {
+                              searchController.clear();
+                              _onSearchChanged('');
+                            },
+                    )
+                  : null,
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide(color: Colors.grey.shade300),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide(color: colorScheme.primary, width: 2),
+              ),
+              filled: true,
+              fillColor: Colors.grey.shade50,
             ),
           ),
-
-          // 병원 목록
-          Expanded(child: _buildHospitalList(textTheme, colorScheme)),
-        ],
-      ),
+        ),
+        // 헤더
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 8.0),
+          decoration: BoxDecoration(
+            color: Colors.grey.shade100,
+            border: Border(bottom: BorderSide(color: Colors.grey.shade300, width: 1)),
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 50,
+                alignment: Alignment.center,
+                child: Text('번호', style: AppTheme.bodyMediumStyle.copyWith(fontWeight: FontWeight.bold, color: Colors.grey[700], fontSize: 13)),
+              ),
+              Expanded(
+                child: Container(
+                  padding: const EdgeInsets.only(left: 8.0, right: 8.0),
+                  alignment: Alignment.centerLeft,
+                  child: Text('병원', style: AppTheme.bodyMediumStyle.copyWith(fontWeight: FontWeight.bold, color: Colors.grey[700], fontSize: 13)),
+                ),
+              ),
+              Container(
+                width: 70,
+                alignment: Alignment.center,
+                child: Text('칼럼권한', style: AppTheme.bodyMediumStyle.copyWith(fontWeight: FontWeight.bold, color: Colors.grey[700], fontSize: 13)),
+              ),
+            ],
+          ),
+        ),
+        // 병원 목록
+        Expanded(child: _buildHospitalList(textTheme, colorScheme)),
+      ],
     );
   }
 
@@ -846,7 +1415,7 @@ class _AdminHospitalDetailScreenState extends State<AdminHospitalDetailScreen> {
                             _buildDetailRow(
                               context,
                               Icons.business_outlined,
-                              '요양기관기호',
+                              '병원 코드',
                               hospitalInfo.hospitalCode ?? '미등록',
                             ),
                             _buildDetailRow(
@@ -880,7 +1449,7 @@ class _AdminHospitalDetailScreenState extends State<AdminHospitalDetailScreen> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              '요양기관기호 수정',
+                              '병원 코드 수정',
                               style: textTheme.titleMedium?.copyWith(
                                 fontWeight: FontWeight.bold,
                               ),
@@ -889,8 +1458,8 @@ class _AdminHospitalDetailScreenState extends State<AdminHospitalDetailScreen> {
                             TextField(
                               controller: hospitalCodeController,
                               decoration: InputDecoration(
-                                labelText: '요양기관기호',
-                                hintText: '예: 1234567890',
+                                labelText: '병원 코드',
+                                hintText: '예: H0001',
                                 border: OutlineInputBorder(
                                   borderRadius: BorderRadius.circular(12),
                                 ),

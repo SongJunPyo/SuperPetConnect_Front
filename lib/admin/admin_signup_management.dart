@@ -3,6 +3,7 @@ import 'dart:convert';
 import '../utils/app_theme.dart';
 import '../utils/config.dart';
 import '../services/auth_http_client.dart';
+import '../services/admin_hospital_service.dart';
 import '../utils/app_constants.dart';
 
 // 회원 가입 신청자 데이터 모델
@@ -256,7 +257,12 @@ class _AdminSignupManagementState extends State<AdminSignupManagement> {
     int selectedUserType = user.userType;
     final TextTheme textTheme = Theme.of(context).textTheme;
     final ColorScheme colorScheme = Theme.of(context).colorScheme;
-    final hospitalIdController = TextEditingController();
+
+    // 병원 검색/선택 관련 상태
+    final hospitalSearchController = TextEditingController();
+    List<HospitalMaster> hospitalSearchResults = [];
+    HospitalMaster? selectedHospital;
+    bool isHospitalSearching = false;
 
     showDialog(
       context: context,
@@ -266,63 +272,221 @@ class _AdminSignupManagementState extends State<AdminSignupManagement> {
           builder: (context, setState) {
             return AlertDialog(
               title: Text('회원 유형 선택', style: textTheme.titleLarge),
-              content: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    '${user.name}님의 회원 유형을 선택해주세요.',
-                    style: textTheme.bodyMedium,
-                  ),
-                  const SizedBox(height: 16),
-                  DropdownButtonFormField<int>(
-                    initialValue: selectedUserType,
-                    isExpanded: true,
-                    items: const [
-                      DropdownMenuItem(value: AppConstants.accountTypeAdmin, child: Text('관리자')),
-                      DropdownMenuItem(value: AppConstants.accountTypeHospital, child: Text('병원')),
-                      DropdownMenuItem(value: AppConstants.accountTypeUser, child: Text('일반 사용자')),
-                    ],
-                    onChanged: (value) {
-                      if (value != null) {
-                        setState(() {
-                          selectedUserType = value;
-                        });
-                      }
-                    },
-                    decoration: InputDecoration(
-                      contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 8,
-                      ),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(8),
-                        borderSide: BorderSide(color: Colors.grey.shade300),
-                      ),
-                      focusedBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(8),
-                        borderSide: BorderSide(
-                          color: colorScheme.primary,
-                          width: 2,
-                        ),
-                      ),
+              content: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      '${user.name}님의 회원 유형을 선택해주세요.',
+                      style: textTheme.bodyMedium,
                     ),
-                  ),
-                  if (selectedUserType == AppConstants.accountTypeHospital)
-                    Padding(
-                      padding: const EdgeInsets.only(top: 16.0),
-                      child: TextField(
-                        controller: hospitalIdController,
-                        decoration: InputDecoration(
-                          labelText: '요양기관기호',
-                          hintText: '병원 코드를 입력하세요.',
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(8),
+                    const SizedBox(height: 16),
+                    DropdownButtonFormField<int>(
+                      initialValue: selectedUserType,
+                      isExpanded: true,
+                      items: const [
+                        DropdownMenuItem(value: AppConstants.accountTypeAdmin, child: Text('관리자')),
+                        DropdownMenuItem(value: AppConstants.accountTypeHospital, child: Text('병원')),
+                        DropdownMenuItem(value: AppConstants.accountTypeUser, child: Text('일반 사용자')),
+                      ],
+                      onChanged: (value) {
+                        if (value != null) {
+                          setState(() {
+                            selectedUserType = value;
+                            // 병원 외 선택 시 초기화
+                            if (value != AppConstants.accountTypeHospital) {
+                              selectedHospital = null;
+                              hospitalSearchResults = [];
+                              hospitalSearchController.clear();
+                            }
+                          });
+                        }
+                      },
+                      decoration: InputDecoration(
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 8,
+                        ),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                          borderSide: BorderSide(color: Colors.grey.shade300),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                          borderSide: BorderSide(
+                            color: colorScheme.primary,
+                            width: 2,
                           ),
                         ),
                       ),
                     ),
-                ],
+                    if (selectedUserType == AppConstants.accountTypeHospital)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 16.0),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            // 병원 검색 필드
+                            TextField(
+                              controller: hospitalSearchController,
+                              onChanged: (value) async {
+                                if (value.trim().isEmpty) {
+                                  setState(() {
+                                    hospitalSearchResults = [];
+                                  });
+                                  return;
+                                }
+                                setState(() => isHospitalSearching = true);
+                                try {
+                                  final response = await AdminHospitalService.getHospitalMasterList(
+                                    search: value.trim(),
+                                  );
+                                  setState(() {
+                                    hospitalSearchResults = response.hospitals;
+                                    isHospitalSearching = false;
+                                  });
+                                } catch (e) {
+                                  setState(() => isHospitalSearching = false);
+                                }
+                              },
+                              decoration: InputDecoration(
+                                labelText: '병원 검색',
+                                hintText: '병원명 또는 코드로 검색',
+                                prefixIcon: const Icon(Icons.search, size: 20),
+                                suffixIcon: isHospitalSearching
+                                    ? const Padding(
+                                        padding: EdgeInsets.all(12),
+                                        child: SizedBox(
+                                          width: 16,
+                                          height: 16,
+                                          child: CircularProgressIndicator(strokeWidth: 2),
+                                        ),
+                                      )
+                                    : hospitalSearchController.text.isNotEmpty
+                                        ? IconButton(
+                                            icon: const Icon(Icons.clear, size: 18),
+                                            onPressed: () {
+                                              hospitalSearchController.clear();
+                                              setState(() {
+                                                hospitalSearchResults = [];
+                                                selectedHospital = null;
+                                              });
+                                            },
+                                          )
+                                        : null,
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                              ),
+                            ),
+                            // 검색 결과 리스트
+                            if (hospitalSearchResults.isNotEmpty)
+                              Container(
+                                constraints: const BoxConstraints(maxHeight: 150),
+                                margin: const EdgeInsets.only(top: 8),
+                                decoration: BoxDecoration(
+                                  border: Border.all(color: Colors.grey.shade300),
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: SingleChildScrollView(
+                                  child: Column(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: List.generate(hospitalSearchResults.length, (i) {
+                                      final hospital = hospitalSearchResults[i];
+                                      final isSelected = selectedHospital?.hospitalCode == hospital.hospitalCode;
+                                      return Column(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          if (i > 0)
+                                            Divider(height: 1, color: Colors.grey.shade200),
+                                          ListTile(
+                                            dense: true,
+                                            visualDensity: VisualDensity.compact,
+                                            selected: isSelected,
+                                            selectedTileColor: AppTheme.primaryBlue.withValues(alpha: 0.1),
+                                            title: Text(
+                                              '[${hospital.hospitalCode}] ${hospital.hospitalName}',
+                                              style: AppTheme.bodyMediumStyle.copyWith(
+                                                fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                                              ),
+                                            ),
+                                            subtitle: hospital.hospitalAddress != null && hospital.hospitalAddress!.isNotEmpty
+                                                ? Text(
+                                                    hospital.hospitalAddress!,
+                                                    maxLines: 1,
+                                                    overflow: TextOverflow.ellipsis,
+                                                    style: AppTheme.bodySmallStyle.copyWith(color: Colors.grey[600]),
+                                                  )
+                                                : null,
+                                            onTap: () {
+                                              setState(() {
+                                                selectedHospital = hospital;
+                                                hospitalSearchController.text = hospital.hospitalName;
+                                              });
+                                              // 다음 프레임에서 리스트 제거 (InkResponse 애니메이션 완료 후)
+                                              WidgetsBinding.instance.addPostFrameCallback((_) {
+                                                setState(() {
+                                                  hospitalSearchResults = [];
+                                                });
+                                              });
+                                            },
+                                          ),
+                                        ],
+                                      );
+                                    }),
+                                  ),
+                                ),
+                              ),
+                            // 선택된 병원 표시
+                            if (selectedHospital != null)
+                              Container(
+                                margin: const EdgeInsets.only(top: 8),
+                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                decoration: BoxDecoration(
+                                  color: Colors.green.withValues(alpha: 0.1),
+                                  borderRadius: BorderRadius.circular(8),
+                                  border: Border.all(color: Colors.green.shade300),
+                                ),
+                                child: Row(
+                                  children: [
+                                    const Icon(Icons.check_circle, color: Colors.green, size: 18),
+                                    const SizedBox(width: 8),
+                                    Expanded(
+                                      child: Text(
+                                        '[${selectedHospital!.hospitalCode}] ${selectedHospital!.hospitalName}',
+                                        style: AppTheme.bodySmallStyle.copyWith(fontWeight: FontWeight.w600),
+                                      ),
+                                    ),
+                                    GestureDetector(
+                                      onTap: () {
+                                        setState(() {
+                                          selectedHospital = null;
+                                          hospitalSearchController.clear();
+                                        });
+                                      },
+                                      child: const Icon(Icons.close, size: 16, color: Colors.grey),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            // 검색 결과 없을 때 새 병원 등록 안내
+                            if (hospitalSearchController.text.isNotEmpty &&
+                                hospitalSearchResults.isEmpty &&
+                                !isHospitalSearching &&
+                                selectedHospital == null)
+                              Padding(
+                                padding: const EdgeInsets.only(top: 8),
+                                child: Text(
+                                  '검색 결과가 없습니다. 병원 관리에서 먼저 병원을 등록해주세요.',
+                                  style: AppTheme.bodySmallStyle.copyWith(color: Colors.orange[700]),
+                                ),
+                              ),
+                          ],
+                        ),
+                      ),
+                  ],
+                ),
               ),
               actions: [
                 TextButton(
@@ -344,11 +508,19 @@ class _AdminSignupManagementState extends State<AdminSignupManagement> {
                 ),
                 ElevatedButton(
                   onPressed: () {
+                    // 병원 유형인데 병원 미선택 시 경고
+                    if (selectedUserType == AppConstants.accountTypeHospital &&
+                        selectedHospital == null) {
+                      ScaffoldMessenger.of(dialogContext).showSnackBar(
+                        const SnackBar(content: Text('병원을 검색하여 선택해주세요.')),
+                      );
+                      return;
+                    }
                     Navigator.of(dialogContext).pop();
                     approveUser(
                       user,
                       selectedUserType,
-                      hospitalIdController.text,
+                      selectedHospital?.hospitalCode,
                     );
                   },
                   style: ElevatedButton.styleFrom(
@@ -582,24 +754,6 @@ class _AdminSignupManagementState extends State<AdminSignupManagement> {
                               user.phoneNumber.isNotEmpty
                                   ? user.phoneNumber
                                   : '미제공',
-                            ),
-                            _buildDetailRow(
-                              context,
-                              Icons.location_on_outlined,
-                              '주소',
-                              user.address.isNotEmpty ? user.address : '미제공',
-                            ),
-                            _buildDetailRow(
-                              context,
-                              Icons.gps_fixed_outlined,
-                              '위치',
-                              '위도: ${user.latitude.toStringAsFixed(4)}, 경도: ${user.longitude.toStringAsFixed(4)}',
-                            ),
-                            _buildDetailRow(
-                              context,
-                              Icons.badge_outlined,
-                              '신청 유형',
-                              getUserTypeText(user.userType),
                             ),
                             _buildDetailRow(
                               context,

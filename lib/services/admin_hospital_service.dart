@@ -326,4 +326,193 @@ class AdminHospitalService {
       throw Exception('병원 통계 조회 중 오류 발생: $e');
     }
   }
+
+  // ===== 병원 마스터 데이터 CRUD =====
+
+  /// 병원 마스터 목록 조회 (검색 포함)
+  static Future<HospitalMasterListResponse> getHospitalMasterList({
+    String? search,
+    int? pageSize,
+  }) async {
+    try {
+      final queryParams = <String, String>{};
+      if (search != null && search.isNotEmpty) {
+        queryParams['search'] = search;
+      }
+      if (pageSize != null) {
+        queryParams['page_size'] = pageSize.toString();
+      }
+
+      final uri = Uri.parse(
+        '${Config.serverUrl}${ApiEndpoints.adminHospitalsMaster}',
+      ).replace(queryParameters: queryParams.isNotEmpty ? queryParams : null);
+
+      final response = await AuthHttpClient.get(uri);
+
+      if (response.statusCode == 200) {
+        final data = response.parseJsonDynamic();
+        return HospitalMasterListResponse.fromJson(data);
+      } else if (response.statusCode == 403) {
+        throw Exception('관리자 권한이 필요합니다.');
+      } else {
+        throw response.toException('병원 마스터 목록 조회에 실패했습니다.');
+      }
+    } catch (e) {
+      throw Exception('병원 마스터 목록 조회 중 오류 발생: $e');
+    }
+  }
+
+  /// 병원 마스터 등록
+  static Future<HospitalMaster> registerHospitalMaster({
+    required String hospitalName,
+    String? hospitalAddress,
+    String? hospitalPhone,
+  }) async {
+    try {
+      final body = <String, dynamic>{
+        'hospital_name': hospitalName,
+      };
+      if (hospitalAddress != null && hospitalAddress.isNotEmpty) {
+        body['hospital_address'] = hospitalAddress;
+      }
+      if (hospitalPhone != null && hospitalPhone.isNotEmpty) {
+        body['hospital_phone'] = hospitalPhone;
+      }
+
+      final response = await AuthHttpClient.post(
+        Uri.parse('${Config.serverUrl}${ApiEndpoints.adminHospitalsMasterRegister}'),
+        body: jsonEncode(body),
+      );
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        final data = response.parseJsonDynamic();
+        return HospitalMaster.fromJson(data);
+      } else if (response.statusCode == 403) {
+        throw Exception('관리자 권한이 필요합니다.');
+      } else {
+        throw response.toException('병원 등록에 실패했습니다.');
+      }
+    } catch (e) {
+      throw Exception('병원 등록 중 오류 발생: $e');
+    }
+  }
+
+  /// 병원 마스터 수정
+  static Future<HospitalMaster> updateHospitalMaster(
+    String hospitalCode, {
+    String? hospitalName,
+    String? hospitalAddress,
+    String? hospitalPhone,
+  }) async {
+    try {
+      final body = <String, dynamic>{};
+      if (hospitalName != null) body['hospital_name'] = hospitalName;
+      if (hospitalAddress != null) body['hospital_address'] = hospitalAddress;
+      if (hospitalPhone != null) body['hospital_phone'] = hospitalPhone;
+
+      final response = await AuthHttpClient.put(
+        Uri.parse('${Config.serverUrl}${ApiEndpoints.adminHospitalMaster(hospitalCode)}'),
+        body: jsonEncode(body),
+      );
+
+      if (response.statusCode == 200) {
+        final data = response.parseJsonDynamic();
+        return HospitalMaster.fromJson(data);
+      } else if (response.statusCode == 404) {
+        throw Exception('병원을 찾을 수 없습니다.');
+      } else if (response.statusCode == 403) {
+        throw Exception('관리자 권한이 필요합니다.');
+      } else {
+        throw response.toException('병원 수정에 실패했습니다.');
+      }
+    } catch (e) {
+      throw Exception('병원 수정 중 오류 발생: $e');
+    }
+  }
+
+  /// 병원 마스터 삭제
+  static Future<void> deleteHospitalMaster(String hospitalCode) async {
+    try {
+      final response = await AuthHttpClient.delete(
+        Uri.parse('${Config.serverUrl}${ApiEndpoints.adminHospitalMaster(hospitalCode)}'),
+      );
+
+      if (response.statusCode == 200 || response.statusCode == 204) {
+        return;
+      } else if (response.statusCode == 404) {
+        throw Exception('병원을 찾을 수 없습니다.');
+      } else if (response.statusCode == 403) {
+        throw Exception('관리자 권한이 필요합니다.');
+      } else {
+        throw response.toException('병원 삭제에 실패했습니다.');
+      }
+    } catch (e) {
+      throw Exception('병원 삭제 중 오류 발생: $e');
+    }
+  }
+}
+
+// ===== 병원 마스터 데이터 모델 =====
+
+class HospitalMaster {
+  final int hospitalMasterIdx;
+  final String hospitalCode;
+  final String hospitalName;
+  final String? hospitalAddress;
+  final String? hospitalPhone;
+  final DateTime createdAt;
+  final DateTime updatedAt;
+
+  HospitalMaster({
+    required this.hospitalMasterIdx,
+    required this.hospitalCode,
+    required this.hospitalName,
+    this.hospitalAddress,
+    this.hospitalPhone,
+    required this.createdAt,
+    required this.updatedAt,
+  });
+
+  factory HospitalMaster.fromJson(Map<String, dynamic> json) {
+    return HospitalMaster(
+      hospitalMasterIdx: json['hospital_master_idx'] ?? 0,
+      hospitalCode: json['hospital_code'] ?? '',
+      hospitalName: json['hospital_name'] ?? '',
+      hospitalAddress: json['hospital_address'],
+      hospitalPhone: json['hospital_phone'],
+      createdAt: DateTime.tryParse(json['created_at'] ?? '') ?? DateTime.now(),
+      updatedAt: DateTime.tryParse(json['updated_at'] ?? '') ?? DateTime.now(),
+    );
+  }
+}
+
+class HospitalMasterListResponse {
+  final List<HospitalMaster> hospitals;
+  final int totalCount;
+
+  HospitalMasterListResponse({
+    required this.hospitals,
+    required this.totalCount,
+  });
+
+  factory HospitalMasterListResponse.fromJson(dynamic jsonData) {
+    List<dynamic> hospitalsData = [];
+    Map<String, dynamic> json = {};
+
+    if (jsonData is List) {
+      hospitalsData = jsonData;
+    } else if (jsonData is Map<String, dynamic>) {
+      json = jsonData;
+      hospitalsData = json['hospitals'] ?? json['data'] ?? [];
+    }
+
+    final hospitalsList = hospitalsData
+        .map((h) => HospitalMaster.fromJson(h as Map<String, dynamic>))
+        .toList();
+
+    return HospitalMasterListResponse(
+      hospitals: hospitalsList,
+      totalCount: json['total_count'] ?? json['totalCount'] ?? hospitalsList.length,
+    );
+  }
 }

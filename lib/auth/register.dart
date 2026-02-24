@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart'; // 전화번호 포맷터 사용을 위해 추가
 import 'package:kpostal/kpostal.dart'; // 한국 주소 검색용
@@ -5,6 +6,8 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:firebase_messaging/firebase_messaging.dart'; // FCM 기능 추가
 import '../utils/config.dart';
+import '../utils/kakao_postcode_stub.dart'
+    if (dart.library.html) '../utils/kakao_postcode_web.dart';
 import 'welcome.dart';
 
 class RegisterScreen extends StatefulWidget {
@@ -513,19 +516,29 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 style: const TextStyle(fontSize: 16),
                 onTap: () async {
                   if (!mounted) return; // 위젯 마운트 상태 확인
-                  await Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder:
-                          (_) => KpostalView(
-                            callback: (Kpostal result) {
-                              setState(() {
-                                _addressController.text = result.address;
-                              });
-                            },
-                          ),
-                    ),
-                  );
+                  if (kIsWeb) {
+                    // 웹: 카카오 주소 검색 JS API 사용
+                    openKakaoPostcode((String address) {
+                      setState(() {
+                        _addressController.text = address;
+                      });
+                    });
+                  } else {
+                    // 모바일: KpostalView 위젯 사용
+                    await Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder:
+                            (_) => KpostalView(
+                              callback: (Kpostal result) {
+                                setState(() {
+                                  _addressController.text = result.address;
+                                });
+                              },
+                            ),
+                      ),
+                    );
+                  }
                 },
                 validator: (value) {
                   if (value == null || value.isEmpty) {
