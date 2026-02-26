@@ -282,10 +282,24 @@ class _UserDonationPostsListScreenState
     }
 
     if (timeSlots == null || timeSlots.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('해당 날짜의 시간 정보를 불러올 수 없습니다.'),
-          backgroundColor: AppTheme.error,
+      showDialog(
+        context: context,
+        builder: (context) => AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: Row(
+            children: [
+              Icon(Icons.error_outline, color: AppTheme.error),
+              const SizedBox(width: 8),
+              const Text('오류'),
+            ],
+          ),
+          content: const Text('해당 날짜의 시간 정보를 불러올 수 없습니다.'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('확인'),
+            ),
+          ],
         ),
       );
       return;
@@ -569,14 +583,14 @@ class _UserDonationPostsListScreenState
                           Icon(
                             Icons.lightbulb_outline,
                             size: 20,
-                            color: Colors.blue.shade600,
+                            color: AppTheme.primaryBlue,
                           ),
                           const SizedBox(width: 8),
                           Text(
                             '다른 헌혈 요청을 찾아보세요',
                             style: TextStyle(
                               fontWeight: FontWeight.w600,
-                              color: Colors.blue.shade600,
+                              color: AppTheme.primaryBlue,
                             ),
                           ),
                         ],
@@ -683,16 +697,30 @@ class _UserDonationPostsListScreenState
       // 첫 번째 매칭되는 반려동물로 신청 (추후 선택 UI로 개선 가능)
       final petIdx = availablePets.first['pet_idx'];
 
+      // post.availableDates에서 첫 번째 사용 가능한 post_times_idx 추출
+      int? postTimesIdx;
+      if (post.availableDates != null && post.availableDates!.isNotEmpty) {
+        final sortedDates = post.availableDates!.keys.toList()..sort();
+        final firstDateSlots = post.availableDates![sortedDates.first];
+        if (firstDateSlots != null && firstDateSlots.isNotEmpty) {
+          postTimesIdx = firstDateSlots.first['post_times_idx'];
+        }
+      }
+
+      if (postTimesIdx == null || postTimesIdx == 0) {
+        throw Exception('신청 가능한 시간대 정보를 찾을 수 없습니다.');
+      }
+
       final response = await AuthHttpClient.post(
-        Uri.parse('${Config.serverUrl}/api/donation/apply/general'),
+        Uri.parse('${Config.serverUrl}/api/donation/apply'),
         body: jsonEncode({
-          'post_idx': post.id,
+          'post_times_idx': postTimesIdx,
           'pet_idx': petIdx,
           'applicant_message': '우리 반려동물이 건강하게 헌혈에 참여하고 싶습니다.',
         }),
       );
 
-      if (response.statusCode == 200) {
+      if (response.statusCode == 200 || response.statusCode == 201) {
         final data = jsonDecode(utf8.decode(response.bodyBytes));
 
         if (data['success'] == true) {
@@ -701,18 +729,29 @@ class _UserDonationPostsListScreenState
           throw Exception(data['message'] ?? '신청 처리 중 오류가 발생했습니다.');
         }
       } else {
-        throw Exception('서버 연결 오류 (상태코드: ${response.statusCode})');
+        throw response.extractErrorMessage('신청 처리 중 오류가 발생했습니다.');
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('신청 중 오류가 발생했습니다: ${e.toString()}'),
-            backgroundColor: AppTheme.error,
-            behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(8),
+        final errorMsg = e.toString().replaceFirst('Exception: ', '');
+        showDialog(
+          context: context,
+          builder: (context) => AlertDialog(
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            title: Row(
+              children: [
+                Icon(Icons.error_outline, color: AppTheme.error),
+                const SizedBox(width: 8),
+                const Text('신청 실패'),
+              ],
             ),
+            content: Text(errorMsg),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('확인'),
+              ),
+            ],
           ),
         );
       }
@@ -772,7 +811,7 @@ class _UserDonationPostsListScreenState
         }),
       );
 
-      if (response.statusCode == 200) {
+      if (response.statusCode == 200 || response.statusCode == 201) {
         final data = jsonDecode(utf8.decode(response.bodyBytes));
 
         if (data['success'] == true) {
@@ -781,18 +820,29 @@ class _UserDonationPostsListScreenState
           throw Exception(data['message'] ?? '신청 처리 중 오류가 발생했습니다.');
         }
       } else {
-        throw Exception('서버 연결 오류 (상태코드: ${response.statusCode})');
+        throw response.extractErrorMessage('신청 처리 중 오류가 발생했습니다.');
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('신청 중 오류가 발생했습니다: ${e.toString()}'),
-            backgroundColor: AppTheme.error,
-            behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(8),
+        final errorMsg = e.toString().replaceFirst('Exception: ', '');
+        showDialog(
+          context: context,
+          builder: (context) => AlertDialog(
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            title: Row(
+              children: [
+                Icon(Icons.error_outline, color: AppTheme.error),
+                const SizedBox(width: 8),
+                const Text('신청 실패'),
+              ],
             ),
+            content: Text(errorMsg),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('확인'),
+              ),
+            ],
           ),
         );
       }
@@ -998,7 +1048,7 @@ class _UserDonationPostsListScreenState
                             color:
                                 displayPost.isUrgent
                                     ? Colors.red.withValues(alpha: 0.15)
-                                    : Colors.blue.withValues(alpha: 0.15),
+                                    : AppTheme.primaryBlue.withValues(alpha: 0.15),
                             borderRadius: BorderRadius.circular(6),
                           ),
                           child: Text(
@@ -1007,7 +1057,7 @@ class _UserDonationPostsListScreenState
                               color:
                                   displayPost.isUrgent
                                       ? Colors.red
-                                      : Colors.blue,
+                                      : AppTheme.primaryBlue,
                               fontWeight: FontWeight.bold,
                             ),
                           ),
@@ -1197,13 +1247,13 @@ class _UserDonationPostsListScreenState
                                 color:
                                     displayPost.isUrgent
                                         ? Colors.red.shade50
-                                        : Colors.blue.shade50,
+                                        : AppTheme.lightBlue,
                                 borderRadius: BorderRadius.circular(12),
                                 border: Border.all(
                                   color:
                                       displayPost.isUrgent
                                           ? Colors.red.shade200
-                                          : Colors.blue.shade200,
+                                          : AppTheme.lightGray,
                                 ),
                               ),
                               child: Text(
@@ -1212,7 +1262,7 @@ class _UserDonationPostsListScreenState
                                   color:
                                       displayPost.isUrgent
                                           ? Colors.red
-                                          : Colors.blue,
+                                          : AppTheme.primaryBlue,
                                   fontWeight: FontWeight.bold,
                                 ),
                                 textAlign: TextAlign.center,
@@ -1643,14 +1693,14 @@ class _UserDonationPostsListScreenState
                   color:
                       post.isUrgent
                           ? Colors.red.withValues(alpha: 0.15)
-                          : Colors.blue.withValues(alpha: 0.15),
+                          : AppTheme.primaryBlue.withValues(alpha: 0.15),
                   borderRadius: BorderRadius.circular(4.0),
                 ),
                 child: Text(
                   post.typeText,
                   style: AppTheme.bodySmallStyle.copyWith(
                     fontWeight: FontWeight.w600,
-                    color: post.isUrgent ? Colors.red : Colors.blue,
+                    color: post.isUrgent ? Colors.red : AppTheme.primaryBlue,
                     fontSize: 10,
                   ),
                   textAlign: TextAlign.center,
@@ -1906,8 +1956,8 @@ class _UserDonationPostsListScreenState
     Map<String, dynamic> timeSlot,
     String displayText,
     UnifiedPostModel post,
-  ) {
-    showModalBottomSheet(
+  ) async {
+    final result = await showModalBottomSheet<dynamic>(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
@@ -1919,6 +1969,35 @@ class _UserDonationPostsListScreenState
             displayText: displayText,
           ),
     );
+
+    // 바텀시트에서 에러가 반환된 경우 부모 화면에서 팝업 표시
+    if (result is Map && result['error'] != null && mounted) {
+      showDialog(
+        context: context,
+        builder: (context) => AlertDialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          title: Row(
+            children: [
+              Icon(Icons.error_outline, color: AppTheme.error),
+              const SizedBox(width: 8),
+              const Text('신청 실패'),
+            ],
+          ),
+          content: Text(
+            result['error'].toString(),
+            style: AppTheme.bodyMediumStyle,
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('확인'),
+            ),
+          ],
+        ),
+      );
+    }
   }
 
   /// 신청 취소 바텀시트 표시
@@ -1947,18 +2026,24 @@ class _UserDonationPostsListScreenState
         _loadMyApplications();
 
         // 취소 성공 메시지 표시
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: const Row(
+        showDialog(
+          context: context,
+          builder: (context) => AlertDialog(
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            title: Row(
               children: [
-                Icon(Icons.check_circle, color: Colors.white),
-                SizedBox(width: 8),
-                Text('신청이 취소되었습니다.'),
+                Icon(Icons.check_circle, color: Colors.green.shade600),
+                const SizedBox(width: 8),
+                const Text('완료'),
               ],
             ),
-            backgroundColor: Colors.green.shade600,
-            behavior: SnackBarBehavior.floating,
-            duration: const Duration(seconds: 2),
+            content: const Text('신청이 취소되었습니다.'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('확인'),
+              ),
+            ],
           ),
         );
       }
@@ -2201,18 +2286,24 @@ class _CancelApplicationBottomSheetState
           errorMessage = errorMessage.substring(11);
         }
 
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Row(
+        showDialog(
+          context: context,
+          builder: (context) => AlertDialog(
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            title: Row(
               children: [
-                const Icon(Icons.error_outline, color: Colors.white),
+                Icon(Icons.error_outline, color: Colors.red.shade600),
                 const SizedBox(width: 8),
-                Expanded(child: Text(errorMessage)),
+                const Text('취소 실패'),
               ],
             ),
-            backgroundColor: Colors.red.shade600,
-            behavior: SnackBarBehavior.floating,
-            duration: const Duration(seconds: 3),
+            content: Text(errorMessage),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('확인'),
+              ),
+            ],
           ),
         );
       }
@@ -2346,10 +2437,24 @@ class _DonationApplicationPageState extends State<DonationApplicationPage> {
       });
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('사용자 정보를 불러올 수 없습니다: ${e.toString()}'),
-            backgroundColor: Colors.red,
+        showDialog(
+          context: context,
+          builder: (context) => AlertDialog(
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            title: Row(
+              children: [
+                Icon(Icons.error_outline, color: AppTheme.error),
+                const SizedBox(width: 8),
+                const Text('오류'),
+              ],
+            ),
+            content: Text('사용자 정보를 불러올 수 없습니다: ${e.toString().replaceFirst('Exception: ', '')}'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('확인'),
+              ),
+            ],
           ),
         );
       }
@@ -2857,7 +2962,7 @@ class _DonationApplicationPageState extends State<DonationApplicationPage> {
         }),
       );
 
-      if (response.statusCode == 200) {
+      if (response.statusCode == 200 || response.statusCode == 201) {
         jsonDecode(utf8.decode(response.bodyBytes));
 
         if (mounted) {
@@ -2868,19 +2973,13 @@ class _DonationApplicationPageState extends State<DonationApplicationPage> {
 
         // 성공 시 별도의 스낵바 메시지 표시하지 않음
       } else {
-        final errorData = jsonDecode(utf8.decode(response.bodyBytes));
-        throw Exception(
-          errorData['detail'] ?? errorData['message'] ?? '신청 처리 중 오류가 발생했습니다.',
-        );
+        throw response.extractErrorMessage('신청 처리 중 오류가 발생했습니다.');
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('신청 실패: ${e.toString()}'),
-            backgroundColor: Colors.red,
-          ),
-        );
+        final errorMessage = e.toString().replaceFirst('Exception: ', '');
+        // 바텀시트를 닫고 에러 메시지를 부모에게 전달
+        Navigator.pop(context, {'error': errorMessage});
       }
     }
   }

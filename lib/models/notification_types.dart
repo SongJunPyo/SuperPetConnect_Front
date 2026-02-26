@@ -59,6 +59,7 @@ enum UserNotificationType {
   donationCompleted, // 헌혈 완료 알림
   applicationApproved, // 헌혈 신청 승인
   applicationRejected, // 헌혈 신청 거절
+  newDonationPost, // 새 헌혈 모집 게시글 알림
 }
 
 // 알림 타입 한국어 이름 매핑
@@ -94,6 +95,7 @@ class NotificationTypeNames {
     UserNotificationType.donationCompleted: '헌혈 완료',
     UserNotificationType.applicationApproved: '신청 승인',
     UserNotificationType.applicationRejected: '신청 거절',
+    UserNotificationType.newDonationPost: '새 헌혈 모집',
   };
 }
 
@@ -130,6 +132,7 @@ class NotificationTypeIcons {
     UserNotificationType.donationCompleted: '✅',
     UserNotificationType.applicationApproved: '✅',
     UserNotificationType.applicationRejected: '❌',
+    UserNotificationType.newDonationPost: '🩸',
   };
 }
 
@@ -171,6 +174,7 @@ class NotificationPriority {
     UserNotificationType.donationCompleted: high,
     UserNotificationType.applicationApproved: high,
     UserNotificationType.applicationRejected: high,
+    UserNotificationType.newDonationPost: high,
   };
 }
 
@@ -207,6 +211,7 @@ class NotificationTypeIds {
     UserNotificationType.donationCompleted: 303,
     UserNotificationType.applicationApproved: 304,
     UserNotificationType.applicationRejected: 305,
+    UserNotificationType.newDonationPost: 306,
   };
 
   // ID에서 타입으로 역매핑

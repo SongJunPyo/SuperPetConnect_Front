@@ -173,7 +173,7 @@ class _AdminDonationApprovalPageState extends State<AdminDonationApprovalPage> {
                           _buildStatItem(
                             '오늘 완료 대기',
                             statsData!['todayPendingCompletions'].toString(),
-                            Colors.blue,
+                            AppTheme.primaryBlue,
                           ),
                           _buildStatItem(
                             '오늘 취소 대기',
@@ -331,7 +331,7 @@ class _AdminDonationApprovalPageState extends State<AdminDonationApprovalPage> {
                   return ListTile(
                     leading: CircleAvatar(
                       backgroundColor:
-                          status == 5 ? Colors.blue : Colors.orange,
+                          status == 5 ? AppTheme.primaryBlue : Colors.orange,
                       child: Icon(
                         status == 5 ? Icons.check : Icons.cancel,
                         color: Colors.white,

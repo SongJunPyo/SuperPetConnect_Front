@@ -141,7 +141,7 @@ class _HospitalPostState extends State<HospitalPost> {
         "content_delta": contentDelta, // Delta JSON (리치 텍스트)
         "location": _locationController.text, // 지역 정보를 텍스트 필드에서 가져오기
         "animal_type": selectedAnimalType == "dog" ? 0 : 1, // 동물 종류 수정
-        "hospital_code": hospitalCode, // 요양기관기호 추가
+        "hospital_code": hospitalCode, // 병원 코드 추가
         // 이미지 ID 목록 (Delta JSON에 포함된 이미지)
         if (embeddedImageIds.isNotEmpty) "image_ids": embeddedImageIds,
       };

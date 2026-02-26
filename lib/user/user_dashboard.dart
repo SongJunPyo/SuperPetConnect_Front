@@ -75,24 +75,20 @@ class _UserDashboardState extends State<UserDashboard>
   double? userLatitude;
   double? userLongitude;
 
-  // 지역 선택 관련 변수들 - 다중 선택 지원
+  // 지역 선택 관련 변수들 - 시/도 단위 다중 선택
   List<Region> selectedLargeRegions = []; // 선택된 시/도 목록
-  Map<Region, List<Region>> selectedMediumRegions = {}; // 시/도별 선택된 시/군/구 목록
+
+  // 서버에 저장된 선호 지역 (프로필 API 응답)
+  String? serverPreferredLocation;
+
+  // 서버 프로필 전체 데이터 캐시 (PUT 시 전체 필드 전송 필요)
+  Map<String, dynamic>? _cachedProfileData;
 
   String get selectedRegionText {
     if (selectedLargeRegions.isEmpty) return '전체 지역';
 
     if (selectedLargeRegions.length == 1) {
-      final largeRegion = selectedLargeRegions.first;
-      final mediumRegions = selectedMediumRegions[largeRegion] ?? [];
-
-      if (mediumRegions.isEmpty) {
-        return '${largeRegion.name} 전체';
-      } else if (mediumRegions.length == 1) {
-        return '${largeRegion.name} ${mediumRegions.first.name}';
-      } else {
-        return '${largeRegion.name} ${mediumRegions.first.name} 외 ${mediumRegions.length - 1}곳';
-      }
+      return selectedLargeRegions.first.name;
     } else {
       return '${selectedLargeRegions.first.name} 외 ${selectedLargeRegions.length - 1}곳';
     }
@@ -156,6 +152,9 @@ class _UserDashboardState extends State<UserDashboard>
         final userRealName = data['name'] ?? '사용자';
         final userRealNickname = data['nickname'] ?? userRealName;
 
+        // 프로필 전체 데이터 캐시 (PUT 시 전체 필드 전송에 사용)
+        _cachedProfileData = Map<String, dynamic>.from(data);
+
         if (!mounted) return;
         setState(() {
           userName = userRealName;
@@ -163,6 +162,7 @@ class _UserDashboardState extends State<UserDashboard>
           userAddress = data['address'];
           userLatitude = (data['latitude'] as num?)?.toDouble();
           userLongitude = (data['longitude'] as num?)?.toDouble();
+          serverPreferredLocation = data['preferred_location'];
         });
 
         // 로컬 저장소에도 업데이트
@@ -240,28 +240,13 @@ class _UserDashboardState extends State<UserDashboard>
         final posts = await DashboardService.getPublicPosts(limit: 50);
         allUnifiedPostModels.addAll(posts);
       } else {
-        // 선택된 지역들에서 데이터 가져오기
+        // 선택된 시/도에서 데이터 가져오기
         for (final largeRegion in selectedLargeRegions) {
-          final mediumRegions = selectedMediumRegions[largeRegion] ?? [];
-
-          if (mediumRegions.isEmpty) {
-            // 시/도 전체 선택인 경우 - 서버 권장 간단명칭 사용
-            final posts = await DashboardService.getPublicPosts(
-              limit: 20,
-              region: _getSimpleRegionName(largeRegion.name),
-            );
-            allUnifiedPostModels.addAll(posts);
-          } else {
-            // 구체적인 시/군/구 선택인 경우 - 서버 권장 간단명칭 사용
-            for (final mediumRegion in mediumRegions) {
-              final posts = await DashboardService.getPublicPosts(
-                limit: 20,
-                region: _getSimpleRegionName(largeRegion.name),
-                subRegion: mediumRegion.name,
-              );
-              allUnifiedPostModels.addAll(posts);
-            }
-          }
+          final posts = await DashboardService.getPublicPosts(
+            limit: 20,
+            region: _getSimpleRegionName(largeRegion.name),
+          );
+          allUnifiedPostModels.addAll(posts);
         }
       }
 
@@ -331,27 +316,13 @@ class _UserDashboardState extends State<UserDashboard>
         final posts = await DashboardService.getPublicPosts(limit: 10);
         allUnifiedPostModels.addAll(posts);
       } else {
-        // 선택된 지역들에서 데이터 가져오기 (초기 로딩이므로 제한적으로)
+        // 선택된 시/도에서 데이터 가져오기 (초기 로딩이므로 제한적으로)
         for (final largeRegion in selectedLargeRegions.take(3)) {
-          // 처음 3개 지역만
-          final mediumRegions = selectedMediumRegions[largeRegion] ?? [];
-
-          if (mediumRegions.isEmpty) {
-            // 시/도 전체 선택인 경우 - 서버 권장 간단명칭 사용
-            final posts = await DashboardService.getPublicPosts(
-              limit: 5,
-              region: _getSimpleRegionName(largeRegion.name),
-            );
-            allUnifiedPostModels.addAll(posts);
-          } else {
-            // 구체적인 시/군/구 선택인 경우 (첫 번째만) - 서버 권장 간단명칭 사용
-            final posts = await DashboardService.getPublicPosts(
-              limit: 5,
-              region: _getSimpleRegionName(largeRegion.name),
-              subRegion: mediumRegions.first.name,
-            );
-            allUnifiedPostModels.addAll(posts);
-          }
+          final posts = await DashboardService.getPublicPosts(
+            limit: 5,
+            region: _getSimpleRegionName(largeRegion.name),
+          );
+          allUnifiedPostModels.addAll(posts);
         }
       }
 
@@ -475,25 +446,61 @@ class _UserDashboardState extends State<UserDashboard>
 
   // 날짜/시간 표시 로직
 
-  // 선호 지역을 SharedPreferences에 저장
+  // 선호 지역을 SharedPreferences에 저장 + 서버 동기화
   Future<void> _savePreferredRegions() async {
-    // 시/도 코드 목록 저장
     final largeRegionCodes = selectedLargeRegions.map((r) => r.code).toList();
     await PreferencesManager.setPreferredLargeRegions(largeRegionCodes);
-
-    // 시/군/구 코드를 JSON으로 저장
-    final mediumRegionsMap = <String, List<String>>{};
-    for (final entry in selectedMediumRegions.entries) {
-      mediumRegionsMap[entry.key.code] =
-          entry.value.map((r) => r.code).toList();
-    }
-    await PreferencesManager.setPreferredMediumRegions(
-      jsonEncode(mediumRegionsMap),
-    );
 
     // 지역 설정 초기화 플래그 (한 번이라도 설정하면 자동 설정 안 함)
     await PreferencesManager.setRegionInitialized(true);
 
+    // 서버에 preferred_location 동기화
+    _syncPreferredLocationToServer();
+  }
+
+  // 서버에 선호 지역 동기화 (전체 프로필 필드와 함께 전송)
+  // PUT /api/auth/profile은 전체 덮어쓰기 방식이므로 모든 필드를 포함해야 함
+  Future<void> _syncPreferredLocationToServer() async {
+    try {
+      final regionNames = selectedLargeRegions
+          .map((r) => _getSimpleRegionName(r.name))
+          .join(',');
+
+      // 캐시된 프로필 데이터가 없으면 서버에서 최신 데이터 가져오기
+      if (_cachedProfileData == null) {
+        final response = await AuthHttpClient.get(
+          Uri.parse('${Config.serverUrl}/api/auth/profile'),
+        );
+        if (response.statusCode == 200) {
+          _cachedProfileData = json.decode(utf8.decode(response.bodyBytes));
+        } else {
+          debugPrint('프로필 조회 실패, 선호 지역 동기화 중단');
+          return;
+        }
+      }
+
+      // 기존 프로필 데이터에 preferred_location만 업데이트하여 전송
+      final profileData = {
+        'name': _cachedProfileData!['name'],
+        'nickname': _cachedProfileData!['nickname'],
+        'phone_number': _cachedProfileData!['phone_number'],
+        'address': _cachedProfileData!['address'],
+        'latitude': _cachedProfileData!['latitude'],
+        'longitude': _cachedProfileData!['longitude'],
+        'preferred_location': regionNames.isEmpty ? null : regionNames,
+      };
+
+      await AuthHttpClient.put(
+        Uri.parse('${Config.serverUrl}/api/auth/profile'),
+        body: jsonEncode(profileData),
+      );
+
+      // 캐시도 업데이트
+      _cachedProfileData!['preferred_location'] =
+          regionNames.isEmpty ? null : regionNames;
+    } catch (e) {
+      debugPrint('선호 지역 서버 동기화 실패: $e');
+    }
   }
 
   // SharedPreferences에서 선호 지역 불러오기
@@ -504,50 +511,40 @@ class _UserDashboardState extends State<UserDashboard>
     final largeRegionCodes =
         await PreferencesManager.getPreferredLargeRegions();
 
-    // 시/군/구 코드 JSON 불러오기
-    final mediumRegionsJson =
-        await PreferencesManager.getPreferredMediumRegions();
-    final mediumRegionsMap =
-        mediumRegionsJson != null
-            ? Map<String, List<dynamic>>.from(jsonDecode(mediumRegionsJson))
-            : <String, List<dynamic>>{};
-
     // 코드를 Region 객체로 변환
     final loadedLargeRegions = <Region>[];
-    final loadedMediumRegions = <Region, List<Region>>{};
 
     for (final code in largeRegionCodes) {
-      // RegionData에서 해당 코드의 Region 찾기
       final largeRegion =
           RegionData.regions.where((r) => r.code == code).firstOrNull;
       if (largeRegion != null) {
         loadedLargeRegions.add(largeRegion);
+      }
+    }
 
-        // 해당 시/도의 시/군/구 목록 불러오기
-        final mediumCodes =
-            mediumRegionsMap[code]?.cast<String>() ?? [];
-        final mediumRegions = <Region>[];
-
-        for (final mediumCode in mediumCodes) {
-          final mediumRegion =
-              largeRegion.children
-                  ?.where((r) => r.code == mediumCode)
-                  .firstOrNull;
-          if (mediumRegion != null) {
-            mediumRegions.add(mediumRegion);
-          }
-        }
-
-        loadedMediumRegions[largeRegion] = mediumRegions;
+    // 서버에 지역이 있고 로컬이 비어있으면 → 서버 데이터로 로컬 초기화 (다른 기기 지원)
+    if (loadedLargeRegions.isEmpty &&
+        serverPreferredLocation != null &&
+        serverPreferredLocation!.isNotEmpty) {
+      final serverRegions = _parseServerPreferredLocation(serverPreferredLocation!);
+      if (serverRegions.isNotEmpty) {
+        loadedLargeRegions.addAll(serverRegions);
+        final codes = serverRegions.map((r) => r.code).toList();
+        await PreferencesManager.setPreferredLargeRegions(codes);
+        await PreferencesManager.setRegionInitialized(true);
       }
     }
 
     if (mounted) {
       setState(() {
         selectedLargeRegions = loadedLargeRegions;
-        selectedMediumRegions = loadedMediumRegions;
       });
+    }
 
+    // 마이그레이션: 로컬에는 있고 서버에는 없으면 서버에 동기화
+    if (loadedLargeRegions.isNotEmpty &&
+        (serverPreferredLocation == null || serverPreferredLocation!.isEmpty)) {
+      _syncPreferredLocationToServer();
     }
 
     // 선호 지역을 한 번도 설정하지 않은 경우 → 주소 기반 기본 지역 자동 설정
@@ -556,6 +553,46 @@ class _UserDashboardState extends State<UserDashboard>
         userAddress != null) {
       await _setDefaultRegionFromAddress(userAddress!);
     }
+  }
+
+  // 서버 preferred_location 문자열을 Region 객체 리스트로 변환
+  // 예: "서울,경기,인천" → [Region(seoul), Region(gyeonggi), Region(incheon)]
+  List<Region> _parseServerPreferredLocation(String preferredLocation) {
+    // 간단명칭 → region code 매핑 (역방향)
+    const simpleNameToCode = {
+      '서울': 'seoul',
+      '부산': 'busan',
+      '대구': 'daegu',
+      '인천': 'incheon',
+      '광주': 'gwangju',
+      '대전': 'daejeon',
+      '울산': 'ulsan',
+      '세종': 'sejong',
+      '경기': 'gyeonggi',
+      '강원': 'gangwon',
+      '충북': 'chungbuk',
+      '충남': 'chungnam',
+      '전북': 'jeonbuk',
+      '전남': 'jeonnam',
+      '경북': 'gyeongbuk',
+      '경남': 'gyeongnam',
+      '제주': 'jeju',
+    };
+
+    final regions = <Region>[];
+    final names = preferredLocation.split(',').map((s) => s.trim()).where((s) => s.isNotEmpty);
+
+    for (final name in names) {
+      final code = simpleNameToCode[name];
+      if (code != null) {
+        final region = RegionData.regions.where((r) => r.code == code).firstOrNull;
+        if (region != null) {
+          regions.add(region);
+        }
+      }
+    }
+
+    return regions;
   }
 
   // 주소에서 해당 시/도를 판별하여 기본 지역 1개 자동 설정
@@ -607,7 +644,6 @@ class _UserDashboardState extends State<UserDashboard>
     if (region != null && mounted) {
       setState(() {
         selectedLargeRegions = [region];
-        selectedMediumRegions = {}; // 시/도 전체 선택
       });
 
       // 기본 지역을 SharedPreferences에 저장
@@ -623,12 +659,10 @@ class _UserDashboardState extends State<UserDashboard>
       backgroundColor: Colors.transparent,
       builder:
           (context) => RegionSelectionSheet(
-            initialSelectedLargeRegions: List.from(selectedLargeRegions),
-            initialSelectedMediumRegions: Map.from(selectedMediumRegions),
-            onRegionSelected: (selectedLarges, selectedMediums) {
+            initialSelectedRegions: List.from(selectedLargeRegions),
+            onRegionSelected: (selectedRegions) {
               setState(() {
-                selectedLargeRegions = selectedLarges;
-                selectedMediumRegions = selectedMediums;
+                selectedLargeRegions = selectedRegions;
               });
               // 선호 지역 저장
               _savePreferredRegions();

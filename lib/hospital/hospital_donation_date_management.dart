@@ -203,13 +203,13 @@ class _HospitalDonationDateManagementScreenState
                         color:
                             post.isUrgent
                                 ? Colors.red.shade50
-                                : Colors.blue.shade50,
+                                : AppTheme.lightBlue,
                         borderRadius: BorderRadius.circular(AppTheme.radius8),
                         border: Border.all(
                           color:
                               post.isUrgent
                                   ? Colors.red.shade200
-                                  : Colors.blue.shade200,
+                                  : AppTheme.lightGray,
                           width: 1,
                         ),
                       ),
@@ -219,7 +219,7 @@ class _HospitalDonationDateManagementScreenState
                           color:
                               post.isUrgent
                                   ? Colors.red.shade700
-                                  : Colors.blue.shade700,
+                                  : AppTheme.primaryDarkBlue,
                           fontWeight: FontWeight.w600,
                         ),
                       ),

@@ -543,13 +543,13 @@ class _PetRegisterScreenState extends State<PetRegisterScreen> {
         child: Container(
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
-            color: Colors.blue.shade50,
+            color: AppTheme.lightBlue,
             borderRadius: BorderRadius.circular(8),
-            border: Border.all(color: Colors.blue.shade200),
+            border: Border.all(color: AppTheme.lightGray),
           ),
           child: Row(
             children: [
-              Icon(Icons.calendar_today, size: 20, color: Colors.blue.shade600),
+              Icon(Icons.calendar_today, size: 20, color: AppTheme.primaryBlue),
               const SizedBox(width: 12),
               Expanded(
                 child: Column(
@@ -558,7 +558,7 @@ class _PetRegisterScreenState extends State<PetRegisterScreen> {
                     Text(
                       '중성화 수술 일자',
                       style: AppTheme.bodySmallStyle.copyWith(
-                        color: Colors.blue.shade600,
+                        color: AppTheme.primaryBlue,
                         fontWeight: FontWeight.w600,
                       ),
                     ),
@@ -577,7 +577,7 @@ class _PetRegisterScreenState extends State<PetRegisterScreen> {
                   ],
                 ),
               ),
-              Icon(Icons.chevron_right, color: Colors.blue.shade400),
+              Icon(Icons.chevron_right, color: AppTheme.mediumGray),
             ],
           ),
         ),

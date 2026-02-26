@@ -1,12 +1,15 @@
 import 'package:flutter/material.dart';
 
-// 토스 스타일 디자인 시스템
 class AppTheme {
-  // 기본 색상 팔레트 (토스 스타일)
-  static const Color primaryBlue = Color(0xFF4A90E2);
-  static const Color primaryDarkBlue = Color(0xFF357ABD);
-  static const Color lightBlue = Color(0xFFF3F8FF);
-  static const Color veryLightBlue = Color(0xFFF8FBFF);
+  //static const Color primaryBlue = Color(0xFF4A90E2);
+  //static const Color primaryDarkBlue = Color(0xFF357ABD);
+  //static const Color lightBlue = Color(0xFFF3F8FF);
+  //static const Color veryLightBlue = Color(0xFFF8FBFF);
+  // 기본 색상 팔레트 (블랙 테마)
+  static const Color primaryBlue = Color(0xFF191F28);
+  static const Color primaryDarkBlue = Color(0xFF101318);
+  static const Color lightBlue = Color(0xFFF2F4F6);
+  static const Color veryLightBlue = Color(0xFFF7F8FA);
 
   // 그레이 스케일
   static const Color black = Color(0xFF191F28);

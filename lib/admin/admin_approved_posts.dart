@@ -201,19 +201,19 @@ class _AdminApprovedPostsScreenState extends State<AdminApprovedPostsScreen>
               Container(
                 padding: const EdgeInsets.all(12.0),
                 decoration: BoxDecoration(
-                  color: Colors.blue.shade50,
+                  color: AppTheme.lightBlue,
                   borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: Colors.blue.shade200),
+                  border: Border.all(color: AppTheme.lightGray),
                 ),
                 child: Row(
                   children: [
-                    Icon(Icons.schedule, color: Colors.blue.shade700, size: 20),
+                    Icon(Icons.schedule, color: AppTheme.primaryDarkBlue, size: 20),
                     const SizedBox(width: 8),
                     Text(
                       '헌혈 일시: ${_formatDateTime(donationDateTime)}',
                       style: AppTheme.bodyMediumStyle.copyWith(
                         fontWeight: FontWeight.w600,
-                        color: Colors.blue.shade700,
+                        color: AppTheme.primaryDarkBlue,
                       ),
                     ),
                   ],
@@ -790,14 +790,14 @@ class _AdminApprovedPostsScreenState extends State<AdminApprovedPostsScreen>
                   color:
                       postType == '긴급'
                           ? Colors.red.withAlpha(38)
-                          : Colors.blue.withAlpha(38),
+                          : AppTheme.primaryBlue.withAlpha(38),
                   borderRadius: BorderRadius.circular(4.0),
                 ),
                 child: Text(
                   postType,
                   style: AppTheme.bodySmallStyle.copyWith(
                     fontWeight: FontWeight.w600,
-                    color: postType == '긴급' ? Colors.red : Colors.blue,
+                    color: postType == '긴급' ? Colors.red : AppTheme.primaryBlue,
                     fontSize: 10,
                   ),
                   textAlign: TextAlign.center,

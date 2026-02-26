@@ -717,6 +717,8 @@ class _UnifiedNotificationPageState extends State<UnifiedNotificationPage> {
           return AppTheme.error;
         case UserNotificationType.recruitmentClosed:
           return AppTheme.warning;
+        case UserNotificationType.newDonationPost:
+          return AppTheme.primaryBlue;
         case UserNotificationType.systemNotice:
           return const Color(0xFF64748B); // 슬레이트
       }
@@ -863,6 +865,15 @@ class _UnifiedNotificationPageState extends State<UnifiedNotificationPage> {
         case UserNotificationType.donationCompleted:
           _navigateToUserPostDetail(notification);
           break;
+        case UserNotificationType.newDonationPost:
+          // 새 헌혈 모집 게시글 → 게시글 목록으로 이동
+          final postId = _extractPostId(notification.relatedData);
+          Navigator.pushNamed(
+            context,
+            '/user/donation-posts',
+            arguments: {'highlightPostId': postId},
+          );
+          break;
         case UserNotificationType.systemNotice:
           // 시스템 공지는 대시보드로 이동
           Navigator.pushReplacementNamed(context, '/user/dashboard');
@@ -1003,6 +1014,8 @@ class _UnifiedNotificationPageState extends State<UnifiedNotificationPage> {
         return Icons.thumb_up;
       case UserNotificationType.applicationRejected:
         return Icons.thumb_down;
+      case UserNotificationType.newDonationPost:
+        return Icons.bloodtype;
     }
   }
 

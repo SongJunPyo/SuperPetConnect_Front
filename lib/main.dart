@@ -238,7 +238,7 @@ class MyApp extends StatelessWidget {
       locale: const Locale('ko', 'KR'), // 기본 로케일을 한국어로 설정
       theme: ThemeData(
         // Material 3의 동적 색상 기능을 활용하여 기본 색상을 설정합니다.
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.blueAccent),
+        colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF191F28)),
         useMaterial3: true,
         // 앱 전체의 스캐폴드 배경색을 흰색으로 설정하여 깔끔함을 강조합니다.
         scaffoldBackgroundColor:

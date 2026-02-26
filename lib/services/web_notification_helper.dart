@@ -8,16 +8,29 @@ import 'dart:html' as html;
 
 /// 웹 브라우저 알림 헬퍼 클래스
 class WebNotificationHelper {
-  static bool _permissionRequested = false;
   static String _permission = 'default';
 
+  /// 현재 브라우저 알림 권한 상태 확인 (권한 요청 없이 조회만)
+  /// 반환값: 'default' (미요청), 'granted' (허용), 'denied' (거부)
+  static String checkCurrentPermission() {
+    if (!kIsWeb) return 'denied';
+
+    try {
+      _permission = html.Notification.permission ?? 'default';
+      return _permission;
+    } catch (e) {
+      debugPrint('[WebNotification] 권한 상태 확인 실패: $e');
+      return 'default';
+    }
+  }
+
   /// 브라우저 알림 권한 요청
+  /// 반드시 사용자 클릭 이벤트 내에서 호출해야 브라우저가 허용합니다.
   static Future<bool> requestPermission() async {
     if (!kIsWeb) return false;
 
     try {
       _permission = await html.Notification.requestPermission();
-      _permissionRequested = true;
       debugPrint('[WebNotification] 권한 상태: $_permission');
       return _permission == 'granted';
     } catch (e) {
@@ -32,31 +45,11 @@ class WebNotificationHelper {
     required String body,
     String? icon,
   }) {
-    debugPrint('[WebNotification] showNotification 호출 - kIsWeb: $kIsWeb');
     if (!kIsWeb) return;
 
     try {
-      debugPrint(
-        '[WebNotification] 권한 상태 확인 - requested: $_permissionRequested, permission: $_permission',
-      );
-
-      // 권한이 없으면 먼저 요청
-      if (!_permissionRequested) {
-        debugPrint('[WebNotification] 권한 미요청 상태, 권한 요청 시작');
-        requestPermission().then((granted) {
-          debugPrint('[WebNotification] 권한 요청 결과: $granted');
-          if (granted) {
-            _displayNotification(title: title, body: body, icon: icon);
-          }
-        });
-        return;
-      }
-
       if (_permission == 'granted') {
-        debugPrint('[WebNotification] 권한 있음, 알림 표시 시도');
         _displayNotification(title: title, body: body, icon: icon);
-      } else {
-        debugPrint('[WebNotification] 권한 없음: $_permission');
       }
     } catch (e) {
       debugPrint('[WebNotification] 알림 표시 실패: $e');
@@ -68,19 +61,15 @@ class WebNotificationHelper {
     required String body,
     String? icon,
   }) {
-    debugPrint('[WebNotification] _displayNotification 호출 - title: $title');
     try {
       final notification = html.Notification(
         title,
         body: body,
         icon: icon ?? '/icons/Icon-192.png',
       );
-      debugPrint('[WebNotification] Notification 객체 생성 완료');
 
       // 알림 클릭 시 해당 탭으로 포커스
       notification.onClick.listen((event) {
-        debugPrint('[WebNotification] 알림 클릭됨');
-        // 현재 윈도우로 포커스 이동
         html.document.documentElement?.focus();
         notification.close();
       });
@@ -89,13 +78,14 @@ class WebNotificationHelper {
       Future.delayed(const Duration(seconds: 5), () {
         notification.close();
       });
-
-      debugPrint('[WebNotification] 브라우저 알림 표시 성공!');
     } catch (e) {
       debugPrint('[WebNotification] 알림 생성 실패: $e');
     }
   }
 
-  /// 알림 권한 상태 확인
+  /// 알림 권한 허용 여부
   static bool get isPermissionGranted => _permission == 'granted';
+
+  /// 알림 권한을 아직 요청하지 않았는지 여부
+  static bool get isPermissionDefault => _permission == 'default';
 }

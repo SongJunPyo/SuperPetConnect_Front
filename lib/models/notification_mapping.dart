@@ -91,6 +91,11 @@ class ServerNotificationMapping {
       UserType.user: UserNotificationType.recruitmentClosed,
       UserType.hospital: HospitalNotificationType.recruitmentDeadline,
     },
+
+    // === 새 헌혈 모집 게시글 알림 (사용자에게 발송) ===
+    'new_donation_post': {
+      UserType.user: UserNotificationType.newDonationPost,
+    },
   };
 
   /// 프론트엔드 타입 -> 서버 타입 역매핑 (필요시 사용)
@@ -139,6 +144,8 @@ class ServerNotificationMapping {
       case 'application_approved':
       case 'application_rejected':
         return NotificationPriority.high;
+      case 'new_donation_post':
+        return NotificationPriority.high;
       default:
         return NotificationPriority.normal;
     }
@@ -164,6 +171,8 @@ class ServerNotificationMapping {
         return '✅';
       case 'application_rejected':
         return '❌';
+      case 'new_donation_post':
+        return '🩸';
       default:
         return '🔔';
     }

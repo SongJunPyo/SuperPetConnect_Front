@@ -229,16 +229,16 @@ class _DonationHistoryScreenState extends State<DonationHistoryScreen>
               margin: const EdgeInsets.symmetric(horizontal: 16),
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
               decoration: BoxDecoration(
-                color: Colors.blue.shade50,
+                color: AppTheme.lightBlue,
                 borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: Colors.blue.shade200),
+                border: Border.all(color: AppTheme.lightGray),
               ),
               child: Row(
                 children: [
                   Icon(
                     Icons.calendar_today,
                     size: 16,
-                    color: Colors.blue.shade700,
+                    color: AppTheme.primaryDarkBlue,
                   ),
                   const SizedBox(width: 8),
                   Text(
@@ -247,7 +247,7 @@ class _DonationHistoryScreenState extends State<DonationHistoryScreen>
                       'ko_KR',
                     ).format(selectedDate!),
                     style: AppTheme.bodyMediumStyle.copyWith(
-                      color: Colors.blue.shade700,
+                      color: AppTheme.primaryDarkBlue,
                       fontWeight: FontWeight.w500,
                     ),
                   ),
@@ -262,7 +262,7 @@ class _DonationHistoryScreenState extends State<DonationHistoryScreen>
                     child: Icon(
                       Icons.close,
                       size: 18,
-                      color: Colors.blue.shade700,
+                      color: AppTheme.primaryDarkBlue,
                     ),
                   ),
                 ],
@@ -366,7 +366,7 @@ class _DonationHistoryScreenState extends State<DonationHistoryScreen>
                 child: _buildStatItem(
                   '총 신청',
                   '$totalApplications건',
-                  Colors.blue,
+                  AppTheme.primaryBlue,
                 ),
               ),
               Expanded(
@@ -457,8 +457,8 @@ class _DonationHistoryScreenState extends State<DonationHistoryScreen>
         statusBackgroundColor = Colors.green.shade50;
         break;
       case '완료':
-        statusColor = Colors.blue.shade700;
-        statusBackgroundColor = Colors.blue.shade50;
+        statusColor = AppTheme.primaryDarkBlue;
+        statusBackgroundColor = AppTheme.lightBlue;
         break;
       default:
         statusColor = Colors.grey.shade700;

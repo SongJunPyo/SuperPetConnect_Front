@@ -99,13 +99,17 @@ class DashboardService {
   }
 
   // 개별 API: 헌혈 모집글 (통합 API 응답)
+  // 서버에서 최신순(created_date DESC) 정렬하여 반환
   static Future<List<UnifiedPostModel>> getPublicPosts({
     int limit = 11,
     String? region,
     String? subRegion,
   }) async {
     try {
-      Map<String, String> queryParams = {};
+      Map<String, String> queryParams = {
+        'page': '1',
+        'page_size': limit.toString(),
+      };
 
       // 지역 필터링 파라미터 추가
       if (region != null && region.isNotEmpty && region != '전체 지역') {
@@ -117,7 +121,7 @@ class DashboardService {
 
       final uri = Uri.parse(
         '${Config.serverUrl}${ApiEndpoints.publicPosts}',
-      ).replace(queryParameters: queryParams.isNotEmpty ? queryParams : null);
+      ).replace(queryParameters: queryParams);
 
       final response = await http.get(uri);
 
@@ -137,7 +141,6 @@ class DashboardService {
 
         final posts =
             postsData
-                .take(limit)
                 .map((item) => UnifiedPostModel.fromJson(item))
                 .toList();
         return posts;

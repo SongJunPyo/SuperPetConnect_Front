@@ -623,13 +623,26 @@ class _DonationApplicationDialogState extends State<DonationApplicationDialog> {
                   : isDisabled
                   ? () {
                     // 마감된 시간대 클릭 시 안내 메시지 표시
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
+                    showDialog(
+                      context: context,
+                      builder: (context) => AlertDialog(
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                        title: Row(
+                          children: [
+                            Icon(Icons.warning_amber, color: Colors.orange.shade700),
+                            const SizedBox(width: 8),
+                            const Text('안내'),
+                          ],
+                        ),
                         content: Text(
                           isClosed ? '이미 마감된 시간대입니다.' : '정원이 마감된 시간대입니다.',
                         ),
-                        backgroundColor: Colors.orange.shade700,
-                        duration: const Duration(seconds: 2),
+                        actions: [
+                          TextButton(
+                            onPressed: () => Navigator.pop(context),
+                            child: const Text('확인'),
+                          ),
+                        ],
                       ),
                     );
                   }
@@ -752,23 +765,31 @@ class _DonationApplicationDialogState extends State<DonationApplicationDialog> {
       );
 
       if (mounted) {
-        Navigator.of(context).pop(true); // 성공 결과와 함께 다이얼로그 닫기
-
-        // 성공 메시지 표시
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: const Row(
+        // 성공 팝업 표시 후 다이얼로그 닫기
+        await showDialog(
+          context: context,
+          builder: (context) => AlertDialog(
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            title: Row(
               children: [
-                Icon(Icons.check_circle, color: Colors.white),
-                SizedBox(width: 8),
-                Text('헌혈 신청이 완료되었습니다.'),
+                Icon(Icons.check_circle, color: Colors.green.shade600),
+                const SizedBox(width: 8),
+                const Text('완료'),
               ],
             ),
-            backgroundColor: Colors.green.shade600,
-            behavior: SnackBarBehavior.floating,
-            duration: const Duration(seconds: 2),
+            content: const Text('헌혈 신청이 완료되었습니다.'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('확인'),
+              ),
+            ],
           ),
         );
+
+        if (mounted) {
+          Navigator.of(context).pop(true); // 성공 결과와 함께 다이얼로그 닫기
+        }
       }
     } catch (e) {
       if (mounted) {
@@ -784,18 +805,24 @@ class _DonationApplicationDialogState extends State<DonationApplicationDialog> {
 
         debugPrint('[DonationDialog] 에러 발생: $errorMessage');
 
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Row(
+        showDialog(
+          context: context,
+          builder: (context) => AlertDialog(
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            title: Row(
               children: [
-                const Icon(Icons.error_outline, color: Colors.white),
+                Icon(Icons.error_outline, color: Colors.red.shade600),
                 const SizedBox(width: 8),
-                Expanded(child: Text(errorMessage)),
+                const Text('신청 실패'),
               ],
             ),
-            backgroundColor: Colors.red.shade600,
-            behavior: SnackBarBehavior.floating,
-            duration: const Duration(seconds: 3),
+            content: Text(errorMessage),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('확인'),
+              ),
+            ],
           ),
         );
       }
@@ -1015,23 +1042,32 @@ class _CancelApplicationBottomSheetState
       );
 
       if (mounted) {
-        Navigator.pop(context);
-        widget.onCancelSuccess();
-
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: const Row(
+        // 성공 팝업 표시 후 바텀시트 닫기
+        await showDialog(
+          context: context,
+          builder: (context) => AlertDialog(
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            title: Row(
               children: [
-                Icon(Icons.check_circle, color: Colors.white),
-                SizedBox(width: 8),
-                Text('신청이 취소되었습니다.'),
+                Icon(Icons.check_circle, color: Colors.green.shade600),
+                const SizedBox(width: 8),
+                const Text('완료'),
               ],
             ),
-            backgroundColor: Colors.green.shade600,
-            behavior: SnackBarBehavior.floating,
-            duration: const Duration(seconds: 2),
+            content: const Text('신청이 취소되었습니다.'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('확인'),
+              ),
+            ],
           ),
         );
+
+        if (mounted) {
+          Navigator.pop(context);
+          widget.onCancelSuccess();
+        }
       }
     } catch (e) {
       if (mounted) {
@@ -1044,18 +1080,24 @@ class _CancelApplicationBottomSheetState
           errorMessage = errorMessage.substring(11);
         }
 
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Row(
+        showDialog(
+          context: context,
+          builder: (context) => AlertDialog(
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            title: Row(
               children: [
-                const Icon(Icons.error_outline, color: Colors.white),
+                Icon(Icons.error_outline, color: Colors.red.shade600),
                 const SizedBox(width: 8),
-                Expanded(child: Text(errorMessage)),
+                const Text('취소 실패'),
               ],
             ),
-            backgroundColor: Colors.red.shade600,
-            behavior: SnackBarBehavior.floating,
-            duration: const Duration(seconds: 3),
+            content: Text(errorMessage),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('확인'),
+              ),
+            ],
           ),
         );
       }

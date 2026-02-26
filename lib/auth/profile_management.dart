@@ -231,14 +231,19 @@ class _ProfileManagementState extends State<ProfileManagement> {
 
   Future<void> _updateUserProfile() async {
     try {
+      // 병원 계정은 nickname, address를 전송하지 않음 (서버에서 hospital_master 기준으로 자동 관리)
+      final profileData = <String, String>{
+        'name': nameController.text,
+        'phone_number': phoneController.text,
+      };
+      if (!isHospitalUser) {
+        profileData['nickname'] = nicknameController.text;
+        profileData['address'] = addressController.text;
+      }
+
       final response = await AuthHttpClient.put(
         Uri.parse('${Config.serverUrl}/api/auth/profile'),
-        body: jsonEncode({
-          'name': nameController.text,
-          'nickname': nicknameController.text,
-          'phone_number': phoneController.text,
-          'address': addressController.text,
-        }),
+        body: jsonEncode(profileData),
       );
 
       if (response.statusCode == 200) {
@@ -276,6 +281,7 @@ class _ProfileManagementState extends State<ProfileManagement> {
   }
 
   bool get isNaverUser => loginType == 'naver';
+  bool get isHospitalUser => userType == AppConstants.accountTypeHospital;
 
   InputDecoration _buildInputDecoration(
     String labelText,
@@ -489,9 +495,48 @@ class _ProfileManagementState extends State<ProfileManagement> {
                               const SizedBox(width: AppTheme.spacing8),
                               Expanded(
                                 child: Text(
-                                  '주소 외의 정보는 네이버에서만 변경할 수 있습니다.',
+                                  isHospitalUser
+                                      ? '네이버 연동 계정입니다. 닉네임과 주소는 소속 병원 기준으로 자동 관리됩니다.'
+                                      : '주소 외의 정보는 네이버에서만 변경할 수 있습니다.',
                                   style: AppTheme.bodySmallStyle.copyWith(
                                     color: const Color(0xFF03C75A),
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      // 병원 계정 (비네이버) 주소 안내 문구
+                      if (!isNaverUser && isHospitalUser)
+                        Container(
+                          width: double.infinity,
+                          margin: const EdgeInsets.only(
+                            bottom: AppTheme.spacing16,
+                          ),
+                          padding: const EdgeInsets.all(AppTheme.spacing12),
+                          decoration: BoxDecoration(
+                            color: AppTheme.primaryBlue.withValues(alpha: 0.08),
+                            borderRadius: BorderRadius.circular(
+                              AppTheme.radius8,
+                            ),
+                            border: Border.all(
+                              color: AppTheme.primaryBlue.withValues(alpha: 0.3),
+                            ),
+                          ),
+                          child: Row(
+                            children: [
+                              Icon(
+                                Icons.info_outline,
+                                size: 18,
+                                color: AppTheme.primaryBlue,
+                              ),
+                              const SizedBox(width: AppTheme.spacing8),
+                              Expanded(
+                                child: Text(
+                                  '닉네임과 주소는 소속 병원 기준으로 자동 관리됩니다.',
+                                  style: AppTheme.bodySmallStyle.copyWith(
+                                    color: AppTheme.primaryBlue,
                                     fontWeight: FontWeight.w500,
                                   ),
                                 ),
@@ -516,15 +561,21 @@ class _ProfileManagementState extends State<ProfileManagement> {
                       TextField(
                         controller: nicknameController,
                         maxLength: 30,
-                        readOnly: isNaverUser,
+                        readOnly: isNaverUser || isHospitalUser,
                         decoration: _buildInputDecoration(
-                          "닉네임",
-                          Icons.badge_outlined,
+                          isHospitalUser
+                              ? "닉네임 (소속 병원 기준 자동 관리)"
+                              : "닉네임",
+                          isHospitalUser
+                              ? Icons.lock_outline
+                              : Icons.badge_outlined,
                           30,
                           nicknameController,
                         ),
                         onChanged:
-                            isNaverUser ? null : (value) => setState(() {}),
+                            (isNaverUser || isHospitalUser)
+                                ? null
+                                : (value) => setState(() {}),
                       ),
                       const SizedBox(height: AppTheme.spacing20),
                       TextField(
@@ -534,59 +585,69 @@ class _ProfileManagementState extends State<ProfileManagement> {
                         minLines: 1,
                         readOnly: true,
                         decoration: _buildInputDecoration(
-                          "주소",
+                          isHospitalUser
+                              ? "주소 (소속 병원 기준 자동 관리)"
+                              : "주소",
                           Icons.location_on_outlined,
                           50,
                           addressController,
                         ).copyWith(
                           suffixIcon: Icon(
-                            Icons.search_outlined,
+                            isHospitalUser
+                                ? Icons.lock_outline
+                                : Icons.search_outlined,
                             color: AppTheme.textSecondary,
                           ),
                         ),
-                        onTap: () async {
-                          if (!mounted) return;
-                          if (kIsWeb) {
-                            // 웹: 카카오 주소 검색 JS API 팝업 사용
-                            openKakaoPostcode((String address) {
-                              setState(() {
-                                addressController.text = address;
-                              });
-                            });
-                          } else {
-                            // 모바일: 바텀시트로 kpostal 주소 검색
-                            await showModalBottomSheet(
-                              context: context,
-                              isScrollControlled: true,
-                              backgroundColor: Colors.transparent,
-                              builder:
-                                  (context) => Container(
-                                    height:
-                                        MediaQuery.of(context).size.height *
-                                        0.9,
-                                    decoration: const BoxDecoration(
-                                      color: Colors.white,
-                                      borderRadius: BorderRadius.vertical(
-                                        top: Radius.circular(20),
-                                      ),
-                                    ),
-                                    child: ClipRRect(
-                                      borderRadius: const BorderRadius.vertical(
-                                        top: Radius.circular(20),
-                                      ),
-                                      child: KpostalView(
-                                        callback: (Kpostal result) {
-                                          setState(() {
-                                            addressController.text =
-                                                result.address;
-                                          });
-                                        },
-                                      ),
-                                    ),
-                                  ),
-                            );
-                          }
-                        },
+                        onTap: isHospitalUser
+                            ? null
+                            : () async {
+                                if (!mounted) return;
+                                if (kIsWeb) {
+                                  // 웹: 카카오 주소 검색 JS API 팝업 사용
+                                  openKakaoPostcode((String address) {
+                                    setState(() {
+                                      addressController.text = address;
+                                    });
+                                  });
+                                } else {
+                                  // 모바일: 바텀시트로 kpostal 주소 검색
+                                  await showModalBottomSheet(
+                                    context: context,
+                                    isScrollControlled: true,
+                                    backgroundColor: Colors.transparent,
+                                    builder:
+                                        (context) => Container(
+                                          height:
+                                              MediaQuery.of(context)
+                                                  .size
+                                                  .height *
+                                              0.9,
+                                          decoration: const BoxDecoration(
+                                            color: Colors.white,
+                                            borderRadius:
+                                                BorderRadius.vertical(
+                                              top: Radius.circular(20),
+                                            ),
+                                          ),
+                                          child: ClipRRect(
+                                            borderRadius:
+                                                const BorderRadius.vertical(
+                                              top: Radius.circular(20),
+                                            ),
+                                            child: KpostalView(
+                                              callback: (Kpostal result) {
+                                                setState(() {
+                                                  addressController.text =
+                                                      result.address;
+                                                });
+                                              },
+                                            ),
+                                          ),
+                                        ),
+                                  );
+                                }
+                              },
                       ),
                     ],
                   ),

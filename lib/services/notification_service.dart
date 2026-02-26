@@ -44,6 +44,8 @@ class NotificationService {
         _handleRecruitmentClosedNotification(message);
       } else if (message.data['type'] == 'donation_completed') {
         _handleDonationCompletedNotification(message);
+      } else if (message.data['type'] == 'new_donation_post') {
+        _handleNewDonationPostNotification(message);
       }
     });
 
@@ -78,6 +80,8 @@ class NotificationService {
           _navigateForRecruitmentClosed(message.data);
         } else if (message.data['type'] == 'donation_completed') {
           _navigateToDonationHistory(message.data);
+        } else if (message.data['type'] == 'new_donation_post') {
+          _navigateToNewDonationPost(parsedData);
         }
       } catch (e) {
         // 파싱 실패 시 기본 데이터로 처리
@@ -121,6 +125,8 @@ class NotificationService {
               _navigateForRecruitmentClosed(message.data);
             } else if (message.data['type'] == 'donation_completed') {
               _navigateToDonationHistory(message.data);
+            } else if (message.data['type'] == 'new_donation_post') {
+              _navigateToNewDonationPost(parsedData);
             }
           } catch (e) {
             // 파싱 실패 시 기본 데이터로 처리
@@ -166,6 +172,10 @@ class NotificationService {
           break;
         case 'donation_completed':
           _navigateToDonationHistory(data);
+          break;
+        case 'new_donation_post':
+          final parsedData = _parseNotificationData(data);
+          _navigateToNewDonationPost(parsedData);
           break;
         default:
       }
@@ -631,6 +641,8 @@ class NotificationService {
         return UserNotificationType.recruitmentClosed;
       case 'donation_completed':
         return UserNotificationType.donationCompleted;
+      case 'new_donation_post':
+        return UserNotificationType.newDonationPost;
       default:
         return null;
     }
@@ -669,6 +681,38 @@ class NotificationService {
       debugPrint('[NotificationService] 모집 마감 네비게이션 실패: $e');
       // 오류 발생 시 사용자 대시보드로 이동
       Navigator.pushNamed(context, '/user/dashboard');
+    }
+  }
+
+  // 새 헌혈 모집 게시글 알림 처리 (사용자용)
+  static void _handleNewDonationPostNotification(RemoteMessage message) {
+    debugPrint('[NotificationService] 새 헌혈 모집 게시글 알림 수신');
+    // FCM 알림을 실시간 스트림에 추가
+    _addFCMNotificationToStream(message);
+  }
+
+  // 새 헌혈 모집 게시글 알림 클릭 시 네비게이션
+  static void _navigateToNewDonationPost(Map<String, dynamic> data) {
+    final context = navigatorKey.currentContext;
+    if (context == null) return;
+
+    try {
+      // 알림 data에서 post_idx 추출
+      final postIdx = data['post_idx'] ?? data['data']?['post_idx'];
+
+      // 사용자 헌혈 게시물 목록으로 이동
+      Navigator.pushNamed(
+        context,
+        '/user/donation-posts',
+        arguments: {
+          'highlightPostId':
+              postIdx is String ? int.tryParse(postIdx) : postIdx,
+        },
+      );
+    } catch (e) {
+      debugPrint('[NotificationService] 새 헌혈 모집 네비게이션 실패: $e');
+      // 오류 발생 시 헌혈 게시글 목록으로 이동
+      Navigator.pushNamed(context, '/user/donation-posts');
     }
   }
 

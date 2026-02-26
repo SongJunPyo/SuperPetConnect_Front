@@ -1191,7 +1191,7 @@ class _PetDetailBottomSheetState extends State<_PetDetailBottomSheet> {
                 size: 18,
                 color:
                     history.isSystemRecord
-                        ? Colors.blue.shade400
+                        ? AppTheme.mediumGray
                         : Colors.green.shade400,
               ),
               const SizedBox(width: AppTheme.spacing8),
@@ -1207,7 +1207,7 @@ class _PetDetailBottomSheetState extends State<_PetDetailBottomSheet> {
                 decoration: BoxDecoration(
                   color:
                       history.isSystemRecord
-                          ? Colors.blue.shade50
+                          ? AppTheme.lightBlue
                           : Colors.green.shade50,
                   borderRadius: BorderRadius.circular(4),
                 ),
@@ -1216,7 +1216,7 @@ class _PetDetailBottomSheetState extends State<_PetDetailBottomSheet> {
                   style: AppTheme.bodySmallStyle.copyWith(
                     color:
                         history.isSystemRecord
-                            ? Colors.blue.shade600
+                            ? AppTheme.primaryBlue
                             : Colors.green.shade600,
                     fontSize: 11,
                   ),

@@ -488,7 +488,7 @@ class _ApplicantDetailSheetState extends State<_ApplicantDetailSheet> {
                 decoration: BoxDecoration(
                   color:
                       history.isSystemRecord
-                          ? Colors.blue.shade50
+                          ? AppTheme.lightBlue
                           : Colors.green.shade50,
                   borderRadius: BorderRadius.circular(4),
                 ),
@@ -497,7 +497,7 @@ class _ApplicantDetailSheetState extends State<_ApplicantDetailSheet> {
                   style: AppTheme.bodySmallStyle.copyWith(
                     color:
                         history.isSystemRecord
-                            ? Colors.blue.shade600
+                            ? AppTheme.primaryBlue
                             : Colors.green.shade600,
                     fontSize: 11,
                   ),

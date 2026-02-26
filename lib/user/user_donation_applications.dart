@@ -148,7 +148,7 @@ class _UserDonationApplicationsScreenState
                 child: _buildStatItem(
                   '총 신청',
                   '${stats['totalApplications']}건',
-                  Colors.blue,
+                  AppTheme.primaryBlue,
                 ),
               ),
               Expanded(

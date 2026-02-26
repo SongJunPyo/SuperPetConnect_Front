@@ -1396,7 +1396,7 @@ class _AdminPostCheckState extends State<AdminPostCheck>
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('신청 상태가 \'대기\'로 변경되었습니다.'),
-            backgroundColor: Colors.blue,
+            backgroundColor: AppTheme.primaryBlue,
           ),
         );
       } else {
@@ -3003,7 +3003,7 @@ class _AdminPostCheckState extends State<AdminPostCheck>
         alignment: Alignment.center,
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
         decoration: BoxDecoration(
-          color: Colors.blue,
+          color: AppTheme.primaryBlue,
           borderRadius: BorderRadius.circular(6),
         ),
         child: const Text(
@@ -3047,7 +3047,7 @@ class _AdminPostCheckState extends State<AdminPostCheck>
         alignment: Alignment.center,
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
         decoration: BoxDecoration(
-          color: isCompletion ? Colors.blue : Colors.pink,
+          color: isCompletion ? AppTheme.primaryBlue : Colors.pink,
           borderRadius: BorderRadius.circular(6),
         ),
         child: Text(
@@ -3655,7 +3655,7 @@ class _AdminPostCheckState extends State<AdminPostCheck>
                               decoration: BoxDecoration(
                                 color: post['types'] == 0
                                     ? Colors.red.withAlpha(38)
-                                    : Colors.blue.withAlpha(38),
+                                    : AppTheme.primaryBlue.withAlpha(38),
                                 borderRadius: BorderRadius.circular(6),
                               ),
                               child: Text(
@@ -3663,7 +3663,7 @@ class _AdminPostCheckState extends State<AdminPostCheck>
                                 style: AppTheme.bodySmallStyle.copyWith(
                                   color: post['types'] == 0
                                       ? Colors.red
-                                      : Colors.blue,
+                                      : AppTheme.primaryBlue,
                                   fontWeight: FontWeight.bold,
                                 ),
                               ),
@@ -3960,7 +3960,7 @@ class _AdminPostCheckState extends State<AdminPostCheck>
       case '마감':
         return Colors.orange.withAlpha(38);
       case '완료':
-        return Colors.blue.withAlpha(38);
+        return AppTheme.primaryBlue.withAlpha(38);
       case '중단':
         return Colors.grey.withAlpha(38); // 회색으로 변경
       case '거절':
@@ -3969,7 +3969,7 @@ class _AdminPostCheckState extends State<AdminPostCheck>
         return Colors.red.withAlpha(38);
       case '정기':
       default:
-        return Colors.blue.withAlpha(38);
+        return AppTheme.primaryBlue.withAlpha(38);
     }
   }
 
@@ -3985,7 +3985,7 @@ class _AdminPostCheckState extends State<AdminPostCheck>
       case '마감':
         return Colors.orange.shade700;
       case '완료':
-        return Colors.blue;
+        return AppTheme.primaryBlue;
       case '중단':
         return Colors.grey.shade700;
       case '거절':
@@ -3994,7 +3994,7 @@ class _AdminPostCheckState extends State<AdminPostCheck>
         return Colors.red;
       case '정기':
       default:
-        return Colors.blue;
+        return AppTheme.primaryBlue;
     }
   }
 
@@ -4410,18 +4410,18 @@ class _AdminPostCheckState extends State<AdminPostCheck>
                     Container(
                       padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
-                        color: Colors.blue.shade50,
+                        color: AppTheme.lightBlue,
                         borderRadius: BorderRadius.circular(8),
-                        border: Border.all(color: Colors.blue.shade200),
+                        border: Border.all(color: AppTheme.lightGray),
                       ),
                       child: Row(
                         children: [
-                          Icon(Icons.info_outline, color: Colors.blue.shade700),
+                          Icon(Icons.info_outline, color: AppTheme.primaryDarkBlue),
                           const SizedBox(width: 12),
                           Expanded(
                             child: Text(
                               '모든 시간대가 마감되었습니다. 전체 마감을 진행하시겠습니까?',
-                              style: TextStyle(color: Colors.blue.shade700),
+                              style: TextStyle(color: AppTheme.primaryDarkBlue),
                             ),
                           ),
                         ],
@@ -4837,7 +4837,7 @@ class _AdminPostCheckState extends State<AdminPostCheck>
                 decoration: BoxDecoration(
                   color:
                       history.isSystemRecord
-                          ? Colors.blue.shade50
+                          ? AppTheme.lightBlue
                           : Colors.green.shade50,
                   borderRadius: BorderRadius.circular(4),
                 ),
@@ -4846,7 +4846,7 @@ class _AdminPostCheckState extends State<AdminPostCheck>
                   style: AppTheme.bodySmallStyle.copyWith(
                     color:
                         history.isSystemRecord
-                            ? Colors.blue.shade600
+                            ? AppTheme.primaryBlue
                             : Colors.green.shade600,
                     fontSize: 11,
                   ),

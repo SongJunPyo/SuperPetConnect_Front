@@ -40,8 +40,9 @@ class _HospitalPostCheckState extends State<HospitalPostCheck>
   final TextEditingController _searchController = TextEditingController();
   DateTime? selectedDate;
 
-  // 페이지네이션 관련 (탭 0, 1에서 사용)
+  // 클라이언트 측 페이지네이션 (탭 0, 1에서 사용)
   final ScrollController _scrollController = ScrollController();
+  List<UnifiedPostModel> _allPosts = []; // 서버에서 받은 전체 게시글
   int _currentPage = 1;
   int _totalPages = 1;
 
@@ -63,11 +64,9 @@ class _HospitalPostCheckState extends State<HospitalPostCheck>
         _tabController!.index != _currentTabIndex) {
       setState(() {
         _currentTabIndex = _tabController!.index;
-        if (_currentTabIndex <= 1) {
-          _currentPage = 1;
-        }
+        _currentPage = 1;
       });
-      _loadPosts(page: _currentTabIndex <= 1 ? 1 : null);
+      _loadPosts(page: 1);
     }
   }
 
@@ -80,190 +79,209 @@ class _HospitalPostCheckState extends State<HospitalPostCheck>
   }
 
   void _onPageChanged(int page) {
+    _currentPage = page;
+    if (_currentTabIndex <= 1) {
+      _applyClientPagination();
+    } else {
+      _filterPosts();
+    }
+    // 스크롤 맨 위로
+    if (_scrollController.hasClients) {
+      _scrollController.jumpTo(0);
+    }
+  }
+
+  /// 클라이언트 측 페이징: _allPosts → 필터링 → 현재 페이지 슬라이스
+  void _applyClientPagination() {
+    // 1. 탭별 status 필터링
+    List<UnifiedPostModel> statusFiltered;
+    if (_currentTabIndex == 0) {
+      statusFiltered = _allPosts.where((post) => post.status == 0).toList();
+    } else {
+      statusFiltered = _allPosts.where((post) => post.status == 1).toList();
+    }
+
+    // 2. 검색어 필터링
+    if (_searchController.text.isNotEmpty) {
+      statusFiltered = statusFiltered
+          .where((post) => post.title.toLowerCase().contains(
+                _searchController.text.toLowerCase(),
+              ))
+          .toList();
+    }
+
+    // 3. 날짜 필터링
+    if (selectedDate != null) {
+      statusFiltered = statusFiltered
+          .where((post) => _isSameDay(post.createdDate, selectedDate!))
+          .toList();
+    }
+
+    // 4. 페이지 계산
+    const pageSize = AppConstants.detailListPageSize;
+    final totalPages = (statusFiltered.length / pageSize).ceil();
+    final safePage = _currentPage.clamp(1, totalPages > 0 ? totalPages : 1);
+    final start = (safePage - 1) * pageSize;
+    final end = start + pageSize > statusFiltered.length
+        ? statusFiltered.length
+        : start + pageSize;
+
     setState(() {
-      _currentPage = page;
+      filteredPosts = statusFiltered.sublist(start, end);
+      _currentPage = safePage;
+      _totalPages = totalPages > 0 ? totalPages : 1;
     });
-    _loadPosts(page: page);
   }
 
   void _onSearchChanged() {
-    _filterPosts();
+    _filterPosts(resetPage: true);
   }
 
-  void _filterPosts() {
-    setState(() {
-      // 탭별 필터링
-      switch (_currentTabIndex) {
-        case 0:
-          // 모집대기: status가 0인 게시글
-          filteredPosts = posts.where((post) => post.status == 0).toList();
+  void _filterPosts({bool resetPage = false}) {
+    if (resetPage) {
+      _currentPage = 1;
+    }
 
-          // 검색어 필터링
-          if (_searchController.text.isNotEmpty) {
-            filteredPosts =
-                filteredPosts
-                    .where(
-                      (post) => post.title.toLowerCase().contains(
-                        _searchController.text.toLowerCase(),
-                      ),
-                    )
-                    .toList();
-          }
+    // 탭 0, 1은 클라이언트 페이징에서 필터링 처리
+    if (_currentTabIndex <= 1) {
+      _applyClientPagination();
+      return;
+    }
 
-          // 날짜 필터링
-          if (selectedDate != null) {
-            filteredPosts =
-                filteredPosts
-                    .where(
-                      (post) => _isSameDay(
-                        post.createdDate,
-                        selectedDate!,
-                      ),
-                    )
-                    .toList();
-          }
-          break;
+    const pageSize = AppConstants.detailListPageSize;
 
-        case 1:
-          // 헌혈모집: status가 1인 게시글 (모집 진행 중)
-          filteredPosts = posts.where((post) => post.status == 1).toList();
+    switch (_currentTabIndex) {
+      case 2:
+        // 모집마감: applicant_status=1(승인) 필터링
+        var allItems = postTimeItems
+            .where((item) => item.applicantStatus == 1)
+            .toList();
 
-          // 검색어 필터링
-          if (_searchController.text.isNotEmpty) {
-            filteredPosts =
-                filteredPosts
-                    .where(
-                      (post) => post.title.toLowerCase().contains(
-                        _searchController.text.toLowerCase(),
-                      ),
-                    )
-                    .toList();
-          }
+        // 검색어 필터링
+        if (_searchController.text.isNotEmpty) {
+          allItems = allItems
+              .where((item) => item.postTitle
+                  .toLowerCase()
+                  .contains(_searchController.text.toLowerCase()))
+              .toList();
+        }
 
-          // 날짜 필터링
-          if (selectedDate != null) {
-            filteredPosts =
-                filteredPosts
-                    .where(
-                      (post) => _isSameDay(
-                        post.createdDate,
-                        selectedDate!,
-                      ),
-                    )
-                    .toList();
-          }
-          break;
+        // 날짜 필터링
+        if (selectedDate != null) {
+          allItems = allItems
+              .where((item) =>
+                  _isSameDay(DateTime.parse(item.date), selectedDate!))
+              .toList();
+        }
 
-        case 2:
-          // 모집마감: 시간대별로 분해하여 applicant_status=1(승인)인 시간대만 표시
-          filteredPostTimeItems =
-              postTimeItems.where((item) => item.applicantStatus == 1).toList();
-          // 검색어 필터링
-          if (_searchController.text.isNotEmpty) {
-            filteredPostTimeItems =
-                filteredPostTimeItems
-                    .where(
-                      (item) => item.postTitle.toLowerCase().contains(
-                        _searchController.text.toLowerCase(),
-                      ),
-                    )
-                    .toList();
-          }
+        // 페이지 계산 및 슬라이스
+        final totalPages2 = (allItems.length / pageSize).ceil();
+        final safePage2 =
+            _currentPage.clamp(1, totalPages2 > 0 ? totalPages2 : 1);
+        final start2 = (safePage2 - 1) * pageSize;
+        final end2 = (start2 + pageSize).clamp(0, allItems.length);
 
-          // 날짜 필터링
-          if (selectedDate != null) {
-            filteredPostTimeItems =
-                filteredPostTimeItems
-                    .where(
-                      (item) =>
-                          _isSameDay(DateTime.parse(item.date), selectedDate!),
-                    )
-                    .toList();
-          }
-          break;
+        setState(() {
+          filteredPostTimeItems = allItems.sublist(start2, end2);
+          _currentPage = safePage2;
+          _totalPages = totalPages2 > 0 ? totalPages2 : 1;
+        });
+        break;
 
-        case 3:
-          // 헌혈완료: 시간대별로 분해하여 applicant_status=7인 시간대만 표시
-          filteredPostTimeItems = postTimeItems.toList();
+      case 3:
+        // 헌혈완료: applicant_status=7
+        var allItems = postTimeItems.toList();
 
-          // 검색어 필터링
-          if (_searchController.text.isNotEmpty) {
-            filteredPostTimeItems =
-                filteredPostTimeItems
-                    .where(
-                      (item) => item.postTitle.toLowerCase().contains(
-                        _searchController.text.toLowerCase(),
-                      ),
-                    )
-                    .toList();
-          }
+        // 검색어 필터링
+        if (_searchController.text.isNotEmpty) {
+          allItems = allItems
+              .where((item) => item.postTitle
+                  .toLowerCase()
+                  .contains(_searchController.text.toLowerCase()))
+              .toList();
+        }
 
-          // 날짜 필터링
-          if (selectedDate != null) {
-            filteredPostTimeItems =
-                filteredPostTimeItems
-                    .where(
-                      (item) =>
-                          _isSameDay(DateTime.parse(item.date), selectedDate!),
-                    )
-                    .toList();
-          }
-          break;
+        // 날짜 필터링
+        if (selectedDate != null) {
+          allItems = allItems
+              .where((item) =>
+                  _isSameDay(DateTime.parse(item.date), selectedDate!))
+              .toList();
+        }
 
-        case 4:
-          // 헌혈취소: 모집거절 게시글 + 시간대별 취소/거절 항목
-          filteredRejectedPosts = rejectedPosts.toList();
-          filteredPostTimeItems = postTimeItems.toList();
+        // 페이지 계산 및 슬라이스
+        final totalPages3 = (allItems.length / pageSize).ceil();
+        final safePage3 =
+            _currentPage.clamp(1, totalPages3 > 0 ? totalPages3 : 1);
+        final start3 = (safePage3 - 1) * pageSize;
+        final end3 = (start3 + pageSize).clamp(0, allItems.length);
 
-          // 검색어 필터링 - 모집거절 게시글
-          if (_searchController.text.isNotEmpty) {
-            filteredRejectedPosts =
-                filteredRejectedPosts
-                    .where(
-                      (post) => post.title.toLowerCase().contains(
-                        _searchController.text.toLowerCase(),
-                      ),
-                    )
-                    .toList();
+        setState(() {
+          filteredPostTimeItems = allItems.sublist(start3, end3);
+          _currentPage = safePage3;
+          _totalPages = totalPages3 > 0 ? totalPages3 : 1;
+        });
+        break;
 
-            filteredPostTimeItems =
-                filteredPostTimeItems
-                    .where(
-                      (item) => item.postTitle.toLowerCase().contains(
-                        _searchController.text.toLowerCase(),
-                      ),
-                    )
-                    .toList();
-          }
+      case 4:
+        // 헌혈취소: 모집거절 게시글 + 시간대별 취소/거절 항목
+        var allRejected = rejectedPosts.toList();
+        var allTimeItems = postTimeItems.toList();
 
-          // 날짜 필터링
-          if (selectedDate != null) {
-            filteredRejectedPosts =
-                filteredRejectedPosts
-                    .where(
-                      (post) => _isSameDay(
-                        DateTime.parse(post.createdDate),
-                        selectedDate!,
-                      ),
-                    )
-                    .toList();
+        // 검색어 필터링
+        if (_searchController.text.isNotEmpty) {
+          final query = _searchController.text.toLowerCase();
+          allRejected = allRejected
+              .where((post) => post.title.toLowerCase().contains(query))
+              .toList();
+          allTimeItems = allTimeItems
+              .where(
+                  (item) => item.postTitle.toLowerCase().contains(query))
+              .toList();
+        }
 
-            filteredPostTimeItems =
-                filteredPostTimeItems
-                    .where(
-                      (item) =>
-                          _isSameDay(DateTime.parse(item.date), selectedDate!),
-                    )
-                    .toList();
-          }
-          break;
+        // 날짜 필터링
+        if (selectedDate != null) {
+          allRejected = allRejected
+              .where((post) => _isSameDay(
+                  DateTime.parse(post.createdDate), selectedDate!))
+              .toList();
+          allTimeItems = allTimeItems
+              .where((item) =>
+                  _isSameDay(DateTime.parse(item.date), selectedDate!))
+              .toList();
+        }
 
-        default:
+        // 두 리스트를 합쳐서 페이지 계산 (거절 게시글 먼저, 시간대 항목 뒤에)
+        final totalItems4 = allRejected.length + allTimeItems.length;
+        final totalPages4 = (totalItems4 / pageSize).ceil();
+        final safePage4 =
+            _currentPage.clamp(1, totalPages4 > 0 ? totalPages4 : 1);
+        final start4 = (safePage4 - 1) * pageSize;
+        final end4 = (start4 + pageSize).clamp(0, totalItems4);
+
+        // 거절 게시글과 시간대 항목을 결합 인덱스로 슬라이스
+        final rejectedStart = start4.clamp(0, allRejected.length);
+        final rejectedEnd = end4.clamp(0, allRejected.length);
+        final timeStart = (start4 - allRejected.length).clamp(0, allTimeItems.length);
+        final timeEnd = (end4 - allRejected.length).clamp(0, allTimeItems.length);
+
+        setState(() {
+          filteredRejectedPosts = allRejected.sublist(rejectedStart, rejectedEnd);
+          filteredPostTimeItems = allTimeItems.sublist(timeStart, timeEnd);
+          _currentPage = safePage4;
+          _totalPages = totalPages4 > 0 ? totalPages4 : 1;
+        });
+        break;
+
+      default:
+        setState(() {
           filteredPosts = [];
           filteredPostTimeItems = [];
           filteredRejectedPosts = [];
-      }
-    });
+          _totalPages = 1;
+        });
+    }
   }
 
   bool _isSameDay(DateTime date1, DateTime date2) {
@@ -285,26 +303,16 @@ class _HospitalPostCheckState extends State<HospitalPostCheck>
       switch (_currentTabIndex) {
         case 0:
         case 1:
-          // 모집대기, 헌혈모집: 페이징 API 사용
-          final response = await HospitalPostService.fetchHospitalPostsPage(
-            page: page ?? _currentPage,
-            pageSize: AppConstants.detailListPageSize,
-          );
-
-          final pagination = response.pagination;
+          // 모집대기, 헌혈모집: 전체 로드 후 클라이언트 측 페이징
+          _allPosts = await HospitalPostService.getUnifiedPostModelsForCurrentUser();
+          _currentPage = page ?? 1;
 
           if (mounted) {
             setState(() {
-              posts = response.posts;
+              posts = _allPosts;
               isLoading = false;
-              _currentPage = pagination.currentPage;
-              _totalPages = pagination.totalPages;
             });
-
-            // 스크롤 맨 위로 (페이지 전환 시)
-            if (page != null && _scrollController.hasClients) {
-              _scrollController.jumpTo(0);
-            }
+            _applyClientPagination();
           }
           break;
 
@@ -390,7 +398,7 @@ class _HospitalPostCheckState extends State<HospitalPostCheck>
       setState(() {
         selectedDate = picked;
       });
-      _filterPosts();
+      _filterPosts(resetPage: true);
     }
   }
 
@@ -431,7 +439,7 @@ class _HospitalPostCheckState extends State<HospitalPostCheck>
                 setState(() {
                   selectedDate = null;
                 });
-                _filterPosts();
+                _filterPosts(resetPage: true);
               },
             ),
           IconButton(
@@ -600,12 +608,11 @@ class _HospitalPostCheckState extends State<HospitalPostCheck>
       );
     }
 
-    // 탭 0,1에서만 PaginationBar 표시
-    final bool isPostsTab = _currentTabIndex <= 1;
-    final int paginationBarCount = (isPostsTab && _totalPages > 1) ? 1 : 0;
+    // 모든 탭에서 PaginationBar 표시 (15개 초과 시)
+    final int paginationBarCount = _totalPages > 1 ? 1 : 0;
 
     return RefreshIndicator(
-      onRefresh: () => _loadPosts(page: isPostsTab ? 1 : null),
+      onRefresh: () => _loadPosts(page: 1),
       color: AppTheme.primaryBlue,
       child: ListView.builder(
         controller: _scrollController,
@@ -619,14 +626,11 @@ class _HospitalPostCheckState extends State<HospitalPostCheck>
 
           // 게시글 범위를 벗어나면 PaginationBar
           if (index > itemCount) {
-            if (isPostsTab) {
-              return PaginationBar(
-                currentPage: _currentPage,
-                totalPages: _totalPages,
-                onPageChanged: _onPageChanged,
-              );
-            }
-            return const SizedBox.shrink();
+            return PaginationBar(
+              currentPage: _currentPage,
+              totalPages: _totalPages,
+              onPageChanged: _onPageChanged,
+            );
           }
 
           // 나머지는 게시글 아이템
@@ -737,14 +741,14 @@ class _HospitalPostCheckState extends State<HospitalPostCheck>
                   color:
                       post.isUrgent
                           ? Colors.red.withAlpha(38)
-                          : Colors.blue.withAlpha(38),
+                          : AppTheme.primaryBlue.withAlpha(38),
                   borderRadius: BorderRadius.circular(6.0),
                 ),
                 child: Text(
                   post.isUrgent ? '긴급' : '정기',
                   style: AppTheme.bodySmallStyle.copyWith(
                     fontWeight: FontWeight.w600,
-                    color: post.isUrgent ? Colors.red : Colors.blue,
+                    color: post.isUrgent ? Colors.red : AppTheme.primaryBlue,
                     fontSize: 11,
                   ),
                   textAlign: TextAlign.center,
@@ -947,18 +951,18 @@ class _HospitalPostCheckState extends State<HospitalPostCheck>
         badgeBgColor = Colors.red.withAlpha(51);
       } else {
         badgeText = item.typeText;
-        badgeColor = item.isUrgent ? Colors.red : Colors.blue;
+        badgeColor = item.isUrgent ? Colors.red : AppTheme.primaryBlue;
         badgeBgColor =
             item.isUrgent
                 ? Colors.red.withAlpha(38)
-                : Colors.blue.withAlpha(38);
+                : AppTheme.primaryBlue.withAlpha(38);
       }
     } else {
       // 다른 탭: 긴급/정기 표시
       badgeText = item.typeText;
-      badgeColor = item.isUrgent ? Colors.red : Colors.blue;
+      badgeColor = item.isUrgent ? Colors.red : AppTheme.primaryBlue;
       badgeBgColor =
-          item.isUrgent ? Colors.red.withAlpha(38) : Colors.blue.withAlpha(38);
+          item.isUrgent ? Colors.red.withAlpha(38) : AppTheme.primaryBlue.withAlpha(38);
     }
 
     // 헌혈취소 탭에서는 작성일, 다른 탭에서는 시간대
@@ -1231,13 +1235,13 @@ class _HospitalPostCheckState extends State<HospitalPostCheck>
                               color:
                                   item.isUrgent
                                       ? Colors.red.withAlpha(38)
-                                      : Colors.blue.withAlpha(38),
+                                      : AppTheme.primaryBlue.withAlpha(38),
                               borderRadius: BorderRadius.circular(6),
                             ),
                             child: Text(
                               item.typeText,
                               style: AppTheme.bodySmallStyle.copyWith(
-                                color: item.isUrgent ? Colors.red : Colors.blue,
+                                color: item.isUrgent ? Colors.red : AppTheme.primaryBlue,
                                 fontWeight: FontWeight.bold,
                               ),
                             ),
@@ -2082,14 +2086,14 @@ class _PostDetailBottomSheetState extends State<PostDetailBottomSheet> {
                         color:
                             widget.post.isUrgent
                                 ? Colors.red.withValues(alpha: 0.15)
-                                : Colors.blue.withValues(alpha: 0.15),
+                                : AppTheme.primaryBlue.withValues(alpha: 0.15),
                         borderRadius: BorderRadius.circular(6),
                       ),
                       child: Text(
                         widget.post.isUrgent ? '긴급' : '정기',
                         style: AppTheme.bodySmallStyle.copyWith(
                           color:
-                              widget.post.isUrgent ? Colors.red : Colors.blue,
+                              widget.post.isUrgent ? Colors.red : AppTheme.primaryBlue,
                           fontWeight: FontWeight.bold,
                         ),
                       ),
@@ -2318,7 +2322,7 @@ class _PostDetailBottomSheetState extends State<PostDetailBottomSheet> {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
               decoration: BoxDecoration(
-                color: Colors.blue.shade50,
+                color: AppTheme.lightBlue,
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Row(
@@ -2326,13 +2330,13 @@ class _PostDetailBottomSheetState extends State<PostDetailBottomSheet> {
                   Icon(
                     Icons.access_time,
                     size: 16,
-                    color: Colors.blue.shade600,
+                    color: AppTheme.primaryBlue,
                   ),
                   const SizedBox(width: 8),
                   Text(
                     '${_formatDateWithWeekday(applicant.selectedDate!)} ${_formatTime(applicant.selectedTime!)}',
                     style: AppTheme.bodyMediumStyle.copyWith(
-                      color: Colors.blue.shade700,
+                      color: AppTheme.primaryDarkBlue,
                       fontWeight: FontWeight.w500,
                     ),
                   ),

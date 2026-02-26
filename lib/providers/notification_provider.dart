@@ -101,11 +101,6 @@ class NotificationProvider extends ChangeNotifier {
       // 실시간 알림 스트림 구독 (먼저 설정해야 알림 수신 가능)
       _setupRealtimeSubscription();
 
-      // 웹에서 브라우저 알림 권한 요청 (비동기로 실행, 기다리지 않음)
-      if (kIsWeb) {
-        WebNotificationHelper.requestPermission().catchError((_) => false);
-      }
-
       // 초기 알림 목록 로드 (로딩 상태 해제 후 호출)
       _isLoading = false;
       await loadNotifications(refresh: true);
@@ -115,6 +110,17 @@ class NotificationProvider extends ChangeNotifier {
       _connectionStatus = ConnectionStatus.connected;
       _isLoading = false;
       notifyListeners();
+
+      // 웹에서 브라우저 알림 권한이 아직 미요청 상태면 다이얼로그 표시
+      if (kIsWeb) {
+        final permission = WebNotificationHelper.checkCurrentPermission();
+        if (permission == 'default') {
+          // 잠시 지연 후 다이얼로그 표시 (화면 렌더링 완료 대기)
+          Future.delayed(const Duration(milliseconds: 500), () {
+            _showNotificationPermissionDialog();
+          });
+        }
+      }
     } catch (e) {
       _errorMessage = '알림 시스템 초기화 실패: $e';
       _connectionStatus = ConnectionStatus.error;
@@ -248,6 +254,88 @@ class NotificationProvider extends ChangeNotifier {
     }
   }
 
+  /// 웹 브라우저 알림 권한 요청 다이얼로그
+  /// 사용자 클릭 이벤트 내에서 requestPermission()을 호출해야 브라우저가 허용합니다.
+  void _showNotificationPermissionDialog() {
+    final context = NotificationService.navigatorKey.currentContext;
+    if (context == null) return;
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          contentPadding: const EdgeInsets.fromLTRB(24, 24, 24, 0),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 56,
+                height: 56,
+                decoration: BoxDecoration(
+                  color: const Color(0xFF3182F6).withValues(alpha: 0.1),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(
+                  Icons.notifications_active_outlined,
+                  color: Color(0xFF3182F6),
+                  size: 28,
+                ),
+              ),
+              const SizedBox(height: 16),
+              const Text(
+                '알림 허용',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 8),
+              const Text(
+                '긴급 헌혈 요청, 지원 승인 등\n중요한 알림을 실시간으로 받을 수 있습니다.',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 14,
+                  color: Color(0xFF4E5968),
+                  height: 1.5,
+                ),
+              ),
+              const SizedBox(height: 24),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.of(dialogContext).pop();
+              },
+              child: const Text(
+                '나중에',
+                style: TextStyle(color: Color(0xFF8B95A1)),
+              ),
+            ),
+            TextButton(
+              onPressed: () async {
+                Navigator.of(dialogContext).pop();
+                // 사용자 클릭 이벤트 내에서 권한 요청 (브라우저 정책 충족)
+                await WebNotificationHelper.requestPermission();
+              },
+              child: const Text(
+                '허용',
+                style: TextStyle(
+                  color: Color(0xFF3182F6),
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
   /// 웹 브라우저 알림 표시 (윈도우 우측 하단)
   void _showBrowserNotification(NotificationModel notification) {
     WebNotificationHelper.showNotification(
@@ -262,8 +350,11 @@ class NotificationProvider extends ChangeNotifier {
     if (context == null) return;
 
     try {
-      // ScaffoldMessenger를 통해 SnackBar 표시
-      ScaffoldMessenger.of(context).showSnackBar(
+      final messenger = ScaffoldMessenger.of(context);
+      // 이전 알림 토스트가 있으면 즉시 제거
+      messenger.hideCurrentSnackBar();
+
+      final controller = messenger.showSnackBar(
         SnackBar(
           content: Row(
             children: [
@@ -314,6 +405,15 @@ class NotificationProvider extends ChangeNotifier {
           ),
         ),
       );
+
+      // 웹에서 action이 있는 SnackBar가 자동 dismiss 안 되는 문제 대응
+      if (kIsWeb) {
+        Timer(const Duration(seconds: 4), () {
+          try {
+            controller.close();
+          } catch (_) {}
+        });
+      }
     } catch (_) {}
   }
 

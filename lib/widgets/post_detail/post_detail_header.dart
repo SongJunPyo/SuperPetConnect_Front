@@ -37,13 +37,13 @@ class PostDetailHeader extends StatelessWidget {
             decoration: BoxDecoration(
               color: isUrgent
                   ? Colors.red.withValues(alpha: 0.15)
-                  : Colors.blue.withValues(alpha: 0.15),
+                  : AppTheme.primaryBlue.withValues(alpha: 0.15),
               borderRadius: BorderRadius.circular(6),
             ),
             child: Text(
               typeText,
               style: AppTheme.bodySmallStyle.copyWith(
-                color: isUrgent ? Colors.red : Colors.blue,
+                color: isUrgent ? Colors.red : AppTheme.primaryBlue,
                 fontWeight: FontWeight.bold,
               ),
             ),

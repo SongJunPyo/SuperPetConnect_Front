@@ -146,7 +146,7 @@ class _UserDonationHistoryScreenState extends State<UserDonationHistoryScreen> {
                   '등록 반려동물',
                   '${totalStats!['totalPets']}마리',
                   Icons.pets,
-                  Colors.blue,
+                  AppTheme.primaryBlue,
                 ),
               ),
               Expanded(

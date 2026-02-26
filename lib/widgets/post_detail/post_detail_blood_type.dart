@@ -32,16 +32,16 @@ class PostDetailBloodType extends StatelessWidget {
           width: double.infinity,
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
-            color: isUrgent ? Colors.red.shade50 : Colors.blue.shade50,
+            color: isUrgent ? Colors.red.shade50 : AppTheme.lightBlue,
             borderRadius: BorderRadius.circular(12),
             border: Border.all(
-              color: isUrgent ? Colors.red.shade200 : Colors.blue.shade200,
+              color: isUrgent ? Colors.red.shade200 : AppTheme.lightGray,
             ),
           ),
           child: Text(
             bloodType!,
             style: AppTheme.h3Style.copyWith(
-              color: isUrgent ? Colors.red : Colors.blue,
+              color: isUrgent ? Colors.red : AppTheme.primaryBlue,
               fontWeight: FontWeight.bold,
             ),
             textAlign: TextAlign.center,

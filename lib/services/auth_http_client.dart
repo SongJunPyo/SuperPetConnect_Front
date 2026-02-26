@@ -306,10 +306,30 @@ extension HttpResponseParsing on http.Response {
 
   /// 에러 응답에서 메시지 추출
   /// 서버 응답에서 detail → message → body 순으로 에러 메시지를 탐색
+  /// detail이 Map인 경우 (자격 검증 실패 등) failed_conditions를 파싱하여 상세 메시지 반환
   String extractErrorMessage([String fallback = '요청 처리 중 오류가 발생했습니다.']) {
     try {
       final data = parseJson();
-      final message = data['detail'] ?? data['message'] ?? data['error'];
+      final detail = data['detail'];
+
+      // detail이 Map인 경우 (서버 자격 검증 실패 응답)
+      if (detail is Map) {
+        final msg = detail['message'] ?? '';
+        final failedConditions = detail['failed_conditions'];
+        if (failedConditions is List && failedConditions.isNotEmpty) {
+          final reasons = failedConditions
+              .map((c) => c['message'] ?? c['condition'] ?? '')
+              .where((m) => m.toString().isNotEmpty)
+              .join(', ');
+          if (reasons.isNotEmpty) {
+            return '$msg ($reasons)';
+          }
+        }
+        return msg.toString().isNotEmpty ? msg.toString() : fallback;
+      }
+
+      // detail이 String인 경우 (기존 동작)
+      final message = detail ?? data['message'] ?? data['error'];
       if (message != null && message.toString().isNotEmpty) {
         return message.toString();
       }

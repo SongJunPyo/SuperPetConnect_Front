@@ -245,7 +245,7 @@ class AppliedDonationStatus {
       case pendingCancellation:
         return Colors.deepOrange;
       case finalCompleted:
-        return Colors.blue;
+        return AppTheme.primaryBlue;
       default:
         return Colors.grey;
     }

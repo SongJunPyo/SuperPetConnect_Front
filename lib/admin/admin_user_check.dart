@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import '../utils/app_theme.dart';
+import '../utils/app_constants.dart';
 import '../widgets/app_app_bar.dart';
+import '../widgets/pagination_bar.dart';
 import '../models/user_model.dart';
 import '../services/user_management_service.dart';
 import 'admin_user_check_bottom_sheets.dart';
@@ -16,7 +18,7 @@ class _AdminUserCheckState extends State<AdminUserCheck>
     with TickerProviderStateMixin {
   late TabController _tabController;
 
-  List<User> users = [];
+  List<User> users = []; // 현재 페이지에 표시할 사용자
   bool isLoading = true;
   String? errorMessage;
 
@@ -24,11 +26,9 @@ class _AdminUserCheckState extends State<AdminUserCheck>
   String searchQuery = '';
   int? statusFilter;
 
-  int currentPage = 1;
-  int pageSize = 10;
-  bool hasNextPage = false;
-  bool hasPreviousPage = false;
-  int totalCount = 0;
+  // 서버 측 페이지네이션
+  int _currentPage = 1;
+  int _totalPages = 1;
 
   @override
   void initState() {
@@ -49,8 +49,8 @@ class _AdminUserCheckState extends State<AdminUserCheck>
   void _onTabChanged() {
     if (_tabController.indexIsChanging) {
       setState(() {
-        users = []; // 탭 변경 시 리스트를 미리 비워서 이전 데이터 접근 방지
-        currentPage = 1;
+        users = [];
+        _currentPage = 1;
         searchQuery = '';
         searchController.clear();
 
@@ -74,23 +74,22 @@ class _AdminUserCheckState extends State<AdminUserCheck>
   Future<void> _loadUsers() async {
     try {
       setState(() {
-        users = []; // 로딩 시작 시 리스트 비우기
+        users = [];
         isLoading = true;
         errorMessage = null;
       });
 
       final response = await UserManagementService.getUsers(
-        page: currentPage,
-        pageSize: pageSize,
+        page: _currentPage,
+        pageSize: AppConstants.detailListPageSize,
         search: searchQuery.isNotEmpty ? searchQuery : null,
         status: statusFilter,
       );
 
       setState(() {
         users = response.users;
-        hasNextPage = response.hasNext;
-        hasPreviousPage = response.hasPrevious;
-        totalCount = response.totalCount;
+        _currentPage = response.currentPage;
+        _totalPages = response.totalPages;
         isLoading = false;
       });
     } catch (e) {
@@ -101,30 +100,17 @@ class _AdminUserCheckState extends State<AdminUserCheck>
     }
   }
 
-  void _onSearchChanged(String query) {
-    setState(() {
-      searchQuery = query;
-      currentPage = 1;
-    });
+  void _onPageChanged(int page) {
+    _currentPage = page;
     _loadUsers();
   }
 
-  void _nextPage() {
-    if (hasNextPage) {
-      setState(() {
-        currentPage++;
-      });
-      _loadUsers();
-    }
-  }
-
-  void _previousPage() {
-    if (hasPreviousPage) {
-      setState(() {
-        currentPage--;
-      });
-      _loadUsers();
-    }
+  void _onSearchChanged(String query) {
+    setState(() {
+      searchQuery = query;
+      _currentPage = 1;
+    });
+    _loadUsers();
   }
 
   Future<void> _showBlacklistDialog(User user) async {
@@ -210,7 +196,6 @@ class _AdminUserCheckState extends State<AdminUserCheck>
               children: [_buildUserListView(), _buildUserListView()],
             ),
           ),
-          if (totalCount > pageSize) _buildPagination(),
         ],
       ),
     );
@@ -289,9 +274,11 @@ class _AdminUserCheckState extends State<AdminUserCheck>
       );
     }
 
+    final int paginationBarCount = _totalPages > 1 ? 1 : 0;
+
     return Column(
       children: [
-        // 헤더 추가
+        // 헤더
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 8.0),
           decoration: BoxDecoration(
@@ -301,14 +288,12 @@ class _AdminUserCheckState extends State<AdminUserCheck>
             ),
           ),
           child: Row(
-            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              // 번호 헤더
-              Container(
-                width: 30,
-                alignment: Alignment.center,
+              SizedBox(
+                width: 36,
                 child: Text(
                   '번호',
+                  textAlign: TextAlign.center,
                   style: AppTheme.bodyMediumStyle.copyWith(
                     fontWeight: FontWeight.bold,
                     color: Colors.grey[700],
@@ -316,13 +301,11 @@ class _AdminUserCheckState extends State<AdminUserCheck>
                   ),
                 ),
               ),
-
-              // 전화번호 헤더
-              Container(
-                width: 150,
-                alignment: Alignment.center,
+              Expanded(
+                flex: 3,
                 child: Text(
                   '전화번호',
+                  textAlign: TextAlign.center,
                   style: AppTheme.bodyMediumStyle.copyWith(
                     fontWeight: FontWeight.bold,
                     color: Colors.grey[700],
@@ -330,12 +313,11 @@ class _AdminUserCheckState extends State<AdminUserCheck>
                   ),
                 ),
               ),
-              // 사용자 헤더
-              Container(
-                width: 50,
-                alignment: Alignment.center,
+              Expanded(
+                flex: 2,
                 child: Text(
                   '사용자',
+                  textAlign: TextAlign.center,
                   style: AppTheme.bodyMediumStyle.copyWith(
                     fontWeight: FontWeight.bold,
                     color: Colors.grey[700],
@@ -343,13 +325,11 @@ class _AdminUserCheckState extends State<AdminUserCheck>
                   ),
                 ),
               ),
-
-              // 닉네임 헤더
-              Container(
-                width: 150,
-                alignment: Alignment.center,
+              Expanded(
+                flex: 3,
                 child: Text(
                   '닉네임',
+                  textAlign: TextAlign.center,
                   style: AppTheme.bodyMediumStyle.copyWith(
                     fontWeight: FontWeight.bold,
                     color: Colors.grey[700],
@@ -362,24 +342,35 @@ class _AdminUserCheckState extends State<AdminUserCheck>
         ),
         // 사용자 목록
         Expanded(
-          child: ListView.builder(
-            padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 0),
-            itemCount: users.length,
-            itemBuilder: (context, index) {
-              // 인덱스 범위 체크 추가
-              if (index >= users.length) {
-                return const SizedBox.shrink();
-              }
-              final user = users[index];
-              return _buildUserListItem(user, index);
+          child: RefreshIndicator(
+            onRefresh: () async {
+              setState(() => _currentPage = 1);
+              await _loadUsers();
             },
+            color: AppTheme.primaryBlue,
+            child: ListView.builder(
+              padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 0),
+              itemCount: users.length + paginationBarCount,
+              itemBuilder: (context, index) {
+                if (index >= users.length) {
+                  return PaginationBar(
+                    currentPage: _currentPage,
+                    totalPages: _totalPages,
+                    onPageChanged: _onPageChanged,
+                  );
+                }
+                final user = users[index];
+                final displayNumber = (_currentPage - 1) * AppConstants.detailListPageSize + index + 1;
+                return _buildUserListItem(user, displayNumber);
+              },
+            ),
           ),
         ),
       ],
     );
   }
 
-  Widget _buildUserListItem(User user, int index) {
+  Widget _buildUserListItem(User user, int displayNumber) {
     return InkWell(
       onTap: () => _showUserBottomSheet(user),
       child: Container(
@@ -390,14 +381,13 @@ class _AdminUserCheckState extends State<AdminUserCheck>
           ),
         ),
         child: Row(
-          crossAxisAlignment: CrossAxisAlignment.center,
           children: [
-            // 번호 (리스트 인덱스 + 1)
-            Container(
-              width: 30,
-              alignment: Alignment.center,
+            // 번호
+            SizedBox(
+              width: 36,
               child: Text(
-                '${index + 1}',
+                '$displayNumber',
+                textAlign: TextAlign.center,
                 style: AppTheme.bodyMediumStyle.copyWith(
                   fontWeight: FontWeight.w600,
                   color: Colors.grey[600],
@@ -405,11 +395,12 @@ class _AdminUserCheckState extends State<AdminUserCheck>
               ),
             ),
 
-            Container(
-              width: 150,
-              alignment: Alignment.center,
+            // 전화번호
+            Expanded(
+              flex: 3,
               child: Text(
                 _formatPhoneNumber(user.phoneNumber),
+                textAlign: TextAlign.center,
                 style: AppTheme.bodyMediumStyle.copyWith(
                   fontWeight: FontWeight.w500,
                   color: AppTheme.textPrimary,
@@ -420,47 +411,42 @@ class _AdminUserCheckState extends State<AdminUserCheck>
             ),
 
             // 사용자
-            Container(
-              width: 50,
-              alignment: Alignment.center,
+            Expanded(
+              flex: 2,
               child: Tooltip(
                 message: user.name,
                 child: Text(
-                  user.name.length > 4
-                      ? '${user.name.substring(0, 4)}...'
-                      : user.name,
+                  user.name,
+                  textAlign: TextAlign.center,
                   style: AppTheme.bodyMediumStyle.copyWith(
                     fontWeight: FontWeight.w500,
                     color: AppTheme.textSecondary,
                   ),
                   maxLines: 1,
-                  overflow: TextOverflow.clip,
+                  overflow: TextOverflow.ellipsis,
                 ),
               ),
             ),
 
             // 닉네임
-            Container(
-              width: 150,
-              alignment: Alignment.center,
+            Expanded(
+              flex: 3,
               child: Tooltip(
                 message:
                     user.nickname?.isNotEmpty == true
                         ? user.nickname!
                         : user.name,
                 child: Text(
-                  _truncateText(
-                    user.nickname?.isNotEmpty == true
-                        ? user.nickname!
-                        : user.name,
-                    8,
-                  ),
+                  user.nickname?.isNotEmpty == true
+                      ? user.nickname!
+                      : user.name,
+                  textAlign: TextAlign.center,
                   style: AppTheme.bodyMediumStyle.copyWith(
                     fontWeight: FontWeight.w500,
                     color: AppTheme.textSecondary,
                   ),
                   maxLines: 1,
-                  overflow: TextOverflow.clip,
+                  overflow: TextOverflow.ellipsis,
                 ),
               ),
             ),
@@ -470,43 +456,10 @@ class _AdminUserCheckState extends State<AdminUserCheck>
     );
   }
 
-  // 텍스트 길이를 제한하는 헬퍼 메서드
-  String _truncateText(String text, int maxLength) {
-    if (text.length <= maxLength) return text;
-    return '${text.substring(0, maxLength)}...';
-  }
-
   // 전화번호 포맷팅 헬퍼 메서드
   String _formatPhoneNumber(String phoneNumber) {
     if (phoneNumber.length != 11) return phoneNumber;
     return '${phoneNumber.substring(0, 3)}-${phoneNumber.substring(3, 7)}-${phoneNumber.substring(7)}';
-  }
-
-  Widget _buildPagination() {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Text(
-            '총 $totalCount개 ($currentPage/${((totalCount - 1) / pageSize).ceil() + 1}페이지)',
-            style: AppTheme.bodySmallStyle,
-          ),
-          Row(
-            children: [
-              IconButton(
-                onPressed: hasPreviousPage ? _previousPage : null,
-                icon: const Icon(Icons.chevron_left),
-              ),
-              IconButton(
-                onPressed: hasNextPage ? _nextPage : null,
-                icon: const Icon(Icons.chevron_right),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
   }
 }
 

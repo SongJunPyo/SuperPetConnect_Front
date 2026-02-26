@@ -3,8 +3,10 @@ import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:kpostal/kpostal.dart';
 import '../services/admin_hospital_service.dart';
 import '../utils/app_theme.dart';
+import '../utils/app_constants.dart';
 import '../utils/kakao_postcode_stub.dart'
     if (dart.library.html) '../utils/kakao_postcode_web.dart';
+import '../widgets/pagination_bar.dart';
 import 'package:intl/intl.dart';
 
 class AdminHospitalCheck extends StatefulWidget {
@@ -18,23 +20,27 @@ class _AdminHospitalCheckState extends State<AdminHospitalCheck>
     with SingleTickerProviderStateMixin {
   List<HospitalInfo> hospitals = [];
   List<HospitalInfo> filteredHospitals = [];
+  List<HospitalInfo> _pagedHospitals = []; // 현재 페이지에 표시할 병원 목록
   bool isLoading = true;
   bool hasError = false;
   String errorMessage = '';
   String searchQuery = '';
   final TextEditingController searchController = TextEditingController();
-  int currentPage = 1;
-  final int pageSize = 10;
   int totalCount = 0;
   bool isSearching = false;
 
   // 병원 마스터 관련
   List<HospitalMaster> _masterHospitals = [];
+  List<HospitalMaster> _pagedMasterHospitals = []; // 현재 페이지에 표시할 마스터 목록
   bool _isMasterLoading = true;
   bool _hasMasterError = false;
   String _masterErrorMessage = '';
   String _masterSearchQuery = '';
   final TextEditingController _masterSearchController = TextEditingController();
+
+  // 클라이언트 측 페이지네이션 (모든 탭 공유)
+  int _currentPage = 1;
+  int _totalPages = 1;
 
   // 슬라이딩 탭 관련
   TabController? _tabController;
@@ -54,12 +60,22 @@ class _AdminHospitalCheckState extends State<AdminHospitalCheck>
         _tabController!.index != _currentTabIndex) {
       setState(() {
         _currentTabIndex = _tabController!.index;
-        if (_currentTabIndex == 0) {
-          // 병원 등록 탭
-        } else {
-          _updateFilteredHospitals();
-        }
+        _currentPage = 1;
       });
+      if (_currentTabIndex == 0) {
+        _applyMasterPagination();
+      } else {
+        _updateFilteredHospitals();
+      }
+    }
+  }
+
+  void _onPageChanged(int page) {
+    _currentPage = page;
+    if (_currentTabIndex == 0) {
+      _applyMasterPagination();
+    } else {
+      _applyHospitalPagination();
     }
   }
 
@@ -88,6 +104,7 @@ class _AdminHospitalCheckState extends State<AdminHospitalCheck>
         _masterHospitals = response.hospitals;
         _isMasterLoading = false;
       });
+      _applyMasterPagination();
     } catch (e) {
       setState(() {
         _isMasterLoading = false;
@@ -97,9 +114,40 @@ class _AdminHospitalCheckState extends State<AdminHospitalCheck>
     }
   }
 
+  /// 병원 마스터 클라이언트 페이징
+  void _applyMasterPagination() {
+    const pageSize = AppConstants.detailListPageSize;
+    final totalPages = (_masterHospitals.length / pageSize).ceil();
+    final safePage = _currentPage.clamp(1, totalPages > 0 ? totalPages : 1);
+    final start = (safePage - 1) * pageSize;
+    final end = (start + pageSize).clamp(0, _masterHospitals.length);
+
+    setState(() {
+      _pagedMasterHospitals = _masterHospitals.sublist(start, end);
+      _currentPage = safePage;
+      _totalPages = totalPages > 0 ? totalPages : 1;
+    });
+  }
+
+  /// 병원 계정 클라이언트 페이징
+  void _applyHospitalPagination() {
+    const pageSize = AppConstants.detailListPageSize;
+    final totalPages = (filteredHospitals.length / pageSize).ceil();
+    final safePage = _currentPage.clamp(1, totalPages > 0 ? totalPages : 1);
+    final start = (safePage - 1) * pageSize;
+    final end = (start + pageSize).clamp(0, filteredHospitals.length);
+
+    setState(() {
+      _pagedHospitals = filteredHospitals.sublist(start, end);
+      _currentPage = safePage;
+      _totalPages = totalPages > 0 ? totalPages : 1;
+    });
+  }
+
   void _onMasterSearchChanged(String value) {
     setState(() {
       _masterSearchQuery = value;
+      _currentPage = 1;
     });
     _loadMasterHospitals();
   }
@@ -483,7 +531,7 @@ class _AdminHospitalCheckState extends State<AdminHospitalCheck>
 
     try {
       final response = await AdminHospitalService.getHospitalList(
-        page: currentPage,
+        page: 1,
         pageSize: 100,
         search: searchQuery.isNotEmpty ? searchQuery : null,
         isActive: null,
@@ -492,10 +540,10 @@ class _AdminHospitalCheckState extends State<AdminHospitalCheck>
 
       setState(() {
         hospitals = response.hospitals;
-        _updateFilteredHospitals();
         totalCount = response.totalCount;
         isLoading = false;
       });
+      _updateFilteredHospitals();
     } catch (e) {
       setState(() {
         isLoading = false;
@@ -522,15 +570,15 @@ class _AdminHospitalCheckState extends State<AdminHospitalCheck>
           isActive: null,
           approved: null,
           page: 1,
-          pageSize: 50,
+          pageSize: 100,
         ),
       );
 
       setState(() {
         hospitals = response.hospitals;
-        _updateFilteredHospitals();
         isSearching = false;
       });
+      _updateFilteredHospitals();
     } catch (e) {
       setState(() {
         isSearching = false;
@@ -543,6 +591,7 @@ class _AdminHospitalCheckState extends State<AdminHospitalCheck>
   void _onSearchChanged(String value) {
     setState(() {
       searchQuery = value;
+      _currentPage = 1;
     });
 
     if (value.isEmpty) {
@@ -552,7 +601,7 @@ class _AdminHospitalCheckState extends State<AdminHospitalCheck>
     }
   }
 
-  // 필터링된 병원 목록 가져오기 (탭 1: 비활성화, 탭 2: 활성화)
+  // 필터링된 병원 목록 가져오기 (탭 1: 비활성화, 탭 2: 활성화) + 페이징 적용
   void _updateFilteredHospitals() {
     filteredHospitals =
         hospitals
@@ -563,6 +612,7 @@ class _AdminHospitalCheckState extends State<AdminHospitalCheck>
                       : hospital.columnActive,
             )
             .toList();
+    _applyHospitalPagination();
   }
 
   @override
@@ -743,13 +793,29 @@ class _AdminHospitalCheckState extends State<AdminHospitalCheck>
       );
     }
 
+    final int paginationBarCount = _totalPages > 1 ? 1 : 0;
+
     return RefreshIndicator(
-      onRefresh: _loadMasterHospitals,
+      onRefresh: () async {
+        _currentPage = 1;
+        await _loadMasterHospitals();
+      },
       child: ListView.builder(
         padding: const EdgeInsets.symmetric(horizontal: 20.0),
-        itemCount: _masterHospitals.length,
+        itemCount: _pagedMasterHospitals.length + paginationBarCount,
         itemBuilder: (context, index) {
-          final master = _masterHospitals[index];
+          // PaginationBar
+          if (index >= _pagedMasterHospitals.length) {
+            return PaginationBar(
+              currentPage: _currentPage,
+              totalPages: _totalPages,
+              onPageChanged: _onPageChanged,
+            );
+          }
+
+          final master = _pagedMasterHospitals[index];
+          // 전체 목록 기준 번호 계산
+          final displayNumber = (_currentPage - 1) * AppConstants.detailListPageSize + index + 1;
           return InkWell(
             onTap: () => _showMasterDetailSheet(master),
             child: Container(
@@ -763,7 +829,7 @@ class _AdminHospitalCheckState extends State<AdminHospitalCheck>
                     width: 40,
                     alignment: Alignment.center,
                     child: Text(
-                      '${index + 1}',
+                      '$displayNumber',
                       style: AppTheme.bodyMediumStyle.copyWith(fontWeight: FontWeight.w600, color: Colors.grey[600]),
                     ),
                   ),
@@ -943,14 +1009,30 @@ class _AdminHospitalCheckState extends State<AdminHospitalCheck>
       );
     }
 
+    final int paginationBarCount = _totalPages > 1 ? 1 : 0;
+
     return RefreshIndicator(
-      onRefresh: _loadHospitals,
+      onRefresh: () async {
+        _currentPage = 1;
+        await _loadHospitals();
+      },
       child: ListView.builder(
         padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 0),
-        itemCount: filteredHospitals.length,
+        itemCount: _pagedHospitals.length + paginationBarCount,
         itemBuilder: (context, index) {
-          final hospital = filteredHospitals[index];
-          return _buildHospitalListItem(hospital, index);
+          // PaginationBar
+          if (index >= _pagedHospitals.length) {
+            return PaginationBar(
+              currentPage: _currentPage,
+              totalPages: _totalPages,
+              onPageChanged: _onPageChanged,
+            );
+          }
+
+          final hospital = _pagedHospitals[index];
+          // 전체 목록 기준 번호 계산
+          final displayIndex = (_currentPage - 1) * AppConstants.detailListPageSize + index;
+          return _buildHospitalListItem(hospital, displayIndex);
         },
       ),
     );
@@ -1195,7 +1277,7 @@ class _AdminHospitalDetailScreenState extends State<AdminHospitalDetailScreen> {
       builder: (BuildContext context) {
         return AlertDialog(
           title: const Text('병원 탈퇴'),
-          content: Text('정말로 이 병원을 삭제하시겠습니까?\n\n병원명: ${hospitalInfo.name}'),
+          content: Text('정말로 이 병원을 삭제하시겠습니까?\n\n병원명: ${hospitalInfo.nickname?.isNotEmpty == true ? hospitalInfo.nickname! : hospitalInfo.name}'),
           actions: [
             TextButton(
               onPressed: () => Navigator.of(context).pop(false),
@@ -1431,7 +1513,7 @@ class _AdminHospitalDetailScreenState extends State<AdminHospitalDetailScreen> {
                       ),
                     ),
 
-                    // 요양기관기호 수정 카드
+                    // 병원 코드 수정 카드
                     Card(
                       margin: const EdgeInsets.symmetric(
                         horizontal: 20.0,
