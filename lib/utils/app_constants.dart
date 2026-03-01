@@ -15,10 +15,11 @@ class AppConstants {
   static const int accountStatusBlocked = 3;
 
   // ===== 헌혈 게시글 상태 (Post Status) =====
-  static const int postStatusRecruiting = 0;
-  static const int postStatusApproved = 1;
-  static const int postStatusCancelled = 2;
-  static const int postStatusClosed = 3;
+  static const int postStatusRecruiting = 0;  // 모집대기
+  static const int postStatusApproved = 1;    // 헌혈모집 (승인)
+  static const int postStatusCancelled = 2;   // 헌혈취소 (거절)
+  static const int postStatusClosed = 3;      // 모집마감
+  static const int postStatusCompleted = 4;   // 헌혈완료
 
   // ===== 신청자 상태 (Applicant Status) =====
   static const int applicantStatusWaiting = 0;
@@ -105,6 +106,8 @@ class AppConstants {
         return '거절';
       case postStatusClosed:
         return '마감';
+      case postStatusCompleted:
+        return '완료';
       default:
         return '알 수 없음';
     }

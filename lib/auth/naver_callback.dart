@@ -8,6 +8,8 @@ import '../providers/notification_provider.dart';
 import '../utils/app_theme.dart';
 import '../utils/app_constants.dart';
 import '../utils/preferences_manager.dart';
+import '../utils/web_redirect_stub.dart'
+    if (dart.library.html) '../utils/web_redirect.dart';
 
 /// 네이버 로그인 웹 콜백 처리 페이지
 /// 서버가 네이버 인증 처리 후 /#/naver-callback?... 으로 리다이렉트하면
@@ -28,7 +30,11 @@ class _NaverCallbackScreenState extends State<NaverCallbackScreen> {
   @override
   void initState() {
     super.initState();
-    _processCallback();
+    // 첫 프레임 렌더링 완료 후 콜백 처리
+    // (빌드 중 clearUrlQueryParams → replaceState → 라우팅 상태 변경 충돌 방지)
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _processCallback();
+    });
   }
 
   Future<void> _processCallback() async {
@@ -54,6 +60,10 @@ class _NaverCallbackScreenState extends State<NaverCallbackScreen> {
     }
 
     try {
+      // [핵심] 브라우저 URL에서 access_token 등 쿼리 파라미터 즉시 제거
+      // 이렇게 하지 않으면 로그아웃 후 새로고침 시 URL의 토큰으로 자동 재로그인됨
+      clearUrlQueryParams();
+
       // 기존 로그인 성공 처리 로직과 동일
       await PreferencesManager.setAuthToken(accessToken);
       // Refresh Token 저장 (보안 업데이트: Access Token 15분 + Refresh Token 7일)

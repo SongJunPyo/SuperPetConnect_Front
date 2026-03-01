@@ -25,10 +25,18 @@ class WebRouter {
     }
 
     // 네이버 로그인 콜백 (인증 없이 접근 가능)
+    // access_token이 없으면 콜백 처리 불가 → AuthGuard로 리다이렉트
+    // (로그아웃 후 URL에 /naver-callback 경로만 남은 경우 자동 재로그인 방지)
     if (routeName == naverCallback) {
       final queryParams = Uri.base.queryParameters;
+      if (queryParams.containsKey('access_token')) {
+        return MaterialPageRoute(
+          builder: (_) => NaverCallbackScreen(queryParams: queryParams),
+        );
+      }
+      // access_token 없으면 일반 인증 체크로 이동
       return MaterialPageRoute(
-        builder: (_) => NaverCallbackScreen(queryParams: queryParams),
+        builder: (_) => AuthGuard(requestedPath: '/'),
       );
     }
 
@@ -47,11 +55,16 @@ class WebRouter {
   }
 
   static String _getAuthenticatedRoute() {
-    // 웹에서 새로고침 시 현재 URL을 기반으로 라우트 반환
-    // 실제 인증 확인은 AuthGuard에서 처리
     final uri = Uri.base;
-    final route = uri.path == '/' ? welcome : uri.path;
-    return route;
+
+    // 네이버 콜백: URL에 access_token이 있으면 직접 /naver-callback 라우트로 시작
+    // 이렇게 하면 didPushRoute 충돌 없이 NaverCallbackScreen이 바로 생성됨
+    if (uri.queryParameters.containsKey('access_token')) {
+      return naverCallback;
+    }
+
+    // 일반 접근: 실제 인증 확인은 AuthGuard에서 처리
+    return uri.path == '/' ? welcome : uri.path;
   }
 }
 

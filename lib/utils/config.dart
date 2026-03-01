@@ -10,9 +10,9 @@ class Config {
       // 웹에서는 상대 경로 또는 프록시 URL 사용
       return dotenv.env['WEB_SERVER_URL'] ??
           dotenv.env['SERVER_URL'] ??
-          'https://62099daef838.ngrok-free.app';
+          'https://spc.choonok.kr';
     }
 
-    return dotenv.env['SERVER_URL'] ?? 'https://62099daef838.ngrok-free.app';
+    return dotenv.env['SERVER_URL'] ?? 'https://spc.choonok.kr';
   }
 }

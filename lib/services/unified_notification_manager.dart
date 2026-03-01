@@ -135,6 +135,20 @@ class UnifiedNotificationManager {
     }
   }
 
+  /// WebSocket 연결 해제 (로그아웃 시 사용, 싱글턴은 유지)
+  void disconnect() {
+    // WebSocket 스트림 구독 해제 (재연결 이벤트 수신 방지)
+    _webSocketSubscription?.cancel();
+    _webSocketSubscription = null;
+    _webSocketConnectionSubscription?.cancel();
+    _webSocketConnectionSubscription = null;
+
+    if (kIsWeb && _webSocketHandler != null) {
+      _webSocketHandler!.disconnect();
+    }
+    _isInitialized = false;
+  }
+
   /// 리소스 정리
   void dispose() {
     _fcmSubscription?.cancel();

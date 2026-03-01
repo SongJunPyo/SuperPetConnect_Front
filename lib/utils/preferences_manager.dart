@@ -203,8 +203,29 @@ class PreferencesManager {
   }
 
   /// 모든 데이터 삭제 (로그아웃)
+  /// SharedPreferences 2.5.x에서 clear()만으로는 인메모리 캐시가 완전히 삭제되지 않는
+  /// 버그가 있어, 각 키를 개별적으로 remove() 호출하여 캐시를 확실히 삭제
   static Future<bool> clearAll() async {
     final prefs = await SharedPreferences.getInstance();
+    // 인메모리 캐시에서 확실히 삭제하기 위해 각 키를 개별 remove
+    await Future.wait([
+      prefs.remove(keyAuthToken),
+      prefs.remove(keyRefreshToken),
+      prefs.remove(keyAccountType),
+      prefs.remove(keyAccountIdx),
+      prefs.remove(keyUserEmail),
+      prefs.remove(keyUserName),
+      prefs.remove(keyUserNickname),
+      prefs.remove(keyAdminName),
+      prefs.remove(keyAdminNickname),
+      prefs.remove(keyHospitalName),
+      prefs.remove(keyHospitalNickname),
+      prefs.remove(keyHospitalCode),
+      prefs.remove(keyRegionInitialized),
+      prefs.remove(keyPreferredLargeRegions),
+      prefs.remove(keyPreferredMediumRegions),
+    ]);
+    // 마지막으로 clear()도 호출하여 동적 키(column_viewed_* 등)도 삭제
     return prefs.clear();
   }
 }

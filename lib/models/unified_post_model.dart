@@ -278,9 +278,11 @@ class UnifiedPostModel {
         case '마감':
           return AppConstants.postStatusClosed;
         case '완료':
-          return AppConstants.postStatusClosed;
+        case '헌혈완료':
+          return AppConstants.postStatusCompleted;
         case '취소':
-          return 4; // 취소 상태 (확장)
+        case '헌혈취소':
+          return AppConstants.postStatusCancelled;
         default:
           return int.tryParse(value) ?? 0;
       }

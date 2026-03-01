@@ -46,11 +46,10 @@ class WebSocketHandler {
 
   /// WebSocket 초기화 및 연결
   Future<void> initialize() async {
-    if (!kIsWeb) {
-      debugPrint('[WebSocketHandler] 모바일 환경에서는 WebSocket 비활성화');
-      return;
-    }
+    if (!kIsWeb) return;
 
+    // disconnect()에서 설정된 _isDisposed 플래그를 리셋하여 연결 허용
+    _isDisposed = false;
     await _connect();
   }
 
@@ -62,7 +61,6 @@ class WebSocketHandler {
       final token = await PreferencesManager.getAuthToken();
 
       if (token == null || token.isEmpty) {
-        debugPrint('[WebSocketHandler] 인증 토큰 없음, 연결 스킵');
         _isConnected = false;
         _connectionController.add(false);
         return;
@@ -77,8 +75,6 @@ class WebSocketHandler {
       }
       // 토큰을 쿼리 파라미터로 전달 (브라우저 WebSocket은 커스텀 헤더 미지원)
       wsUrl = '$wsUrl?token=$token';
-
-      debugPrint('[WebSocketHandler] 연결 시도: $wsUrl');
 
       _channel = WebSocketChannel.connect(Uri.parse(wsUrl));
 
@@ -97,10 +93,7 @@ class WebSocketHandler {
 
       // Ping 타이머 시작 (연결 유지)
       _startPingTimer();
-
-      debugPrint('[WebSocketHandler] 연결 성공');
-    } catch (e) {
-      debugPrint('[WebSocketHandler] 연결 실패: $e');
+    } catch (_) {
       _isConnected = false;
       _connectionController.add(false);
       _scheduleReconnect();
@@ -118,26 +111,21 @@ class WebSocketHandler {
 
       // 현재 사용자 타입 확인
       final userType = await NotificationConverter.getCurrentUserType();
-      if (userType == null) {
-        debugPrint('[WebSocketHandler] 사용자 타입 없음');
-        return;
-      }
+      if (userType == null) return;
 
       // 서버 알림을 클라이언트 모델로 변환
       final notification = NotificationConverter.fromServerData(data, userType);
 
       if (notification != null) {
         _notificationController.add(notification);
-        debugPrint('[WebSocketHandler] 알림 변환 성공: ${notification.title}');
       }
-    } catch (e) {
-      debugPrint('[WebSocketHandler] 메시지 처리 실패: $e');
+    } catch (_) {
+      // 메시지 처리 실패 시 무시
     }
   }
 
   /// 연결 오류 처리
   void _handleError(dynamic error) {
-    debugPrint('[WebSocketHandler] 연결 오류: $error');
     _isConnected = false;
     _connectionController.add(false);
     _scheduleReconnect();
@@ -145,7 +133,6 @@ class WebSocketHandler {
 
   /// 연결 종료 처리
   void _handleDisconnect() {
-    debugPrint('[WebSocketHandler] 연결 종료');
     _isConnected = false;
     _connectionController.add(false);
     _scheduleReconnect();
@@ -158,7 +145,6 @@ class WebSocketHandler {
     _reconnectTimer?.cancel();
     _reconnectTimer = Timer(const Duration(seconds: 5), () {
       if (!_isConnected && !_isDisposed) {
-        debugPrint('[WebSocketHandler] 재연결 시도');
         _connect();
       }
     });
@@ -171,8 +157,8 @@ class WebSocketHandler {
       if (_isConnected && _channel != null) {
         try {
           _channel!.sink.add(jsonEncode({'type': 'ping'}));
-        } catch (e) {
-          debugPrint('[WebSocketHandler] Ping 전송 실패: $e');
+        } catch (_) {
+          // Ping 전송 실패 시 무시
         }
       }
     });
@@ -184,8 +170,10 @@ class WebSocketHandler {
     await _connect();
   }
 
-  /// 연결 종료
+  /// 연결 종료 (로그아웃 시 사용)
+  /// _isDisposed를 true로 설정하여 비동기 onClose 콜백에 의한 자동 재연결을 방지
   void disconnect() {
+    _isDisposed = true; // 재연결 방지 (initialize() 호출 시 리셋됨)
     _pingTimer?.cancel();
     _reconnectTimer?.cancel();
     _subscription?.cancel();

@@ -1,8 +1,10 @@
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'dart:convert';
+import 'package:http/http.dart' as http;
 import 'package:kpostal/kpostal.dart';
 import 'package:provider/provider.dart';
+import 'package:flutter_naver_login/flutter_naver_login.dart';
 import '../utils/app_theme.dart';
 import '../utils/config.dart';
 import '../utils/kakao_postcode_stub.dart'
@@ -11,6 +13,8 @@ import '../services/auth_http_client.dart';
 import '../utils/preferences_manager.dart';
 import '../utils/app_constants.dart';
 import '../providers/notification_provider.dart';
+import '../web/web_storage_helper_stub.dart'
+    if (dart.library.html) '../web/web_storage_helper.dart';
 
 class ProfileManagement extends StatefulWidget {
   const ProfileManagement({super.key});
@@ -95,8 +99,6 @@ class _ProfileManagementState extends State<ProfileManagement> {
 
       if (response.statusCode == 200) {
         final data = json.decode(utf8.decode(response.bodyBytes));
-        debugPrint('[프로필] API 응답 전체: $data');
-        debugPrint('[프로필] profile_image_url: ${data['profile_image_url']}');
         setState(() {
           nameController.text = data['name'] ?? '';
           nicknameController.text = data['nickname'] ?? '';
@@ -125,16 +127,14 @@ class _ProfileManagementState extends State<ProfileManagement> {
 
   // 로그아웃 기능
   Future<void> _logout() async {
+    final token = await PreferencesManager.getAuthToken();
     final refreshToken = await PreferencesManager.getRefreshToken();
 
-    // 서버에 로그아웃 API 호출 (Refresh Token 무효화)
-    try {
-      await AuthHttpClient.post(
-        Uri.parse('${Config.serverUrl}/api/auth/logout'),
-        body: jsonEncode({'refresh_token': refreshToken}),
-      );
-    } catch (e) {
-      // 서버 호출 실패해도 로컬 로그아웃은 진행
+    // 로컬 데이터 먼저 삭제 (서버 호출 결과와 관계없이 확실히 로그아웃)
+    await PreferencesManager.clearAll();
+    // 웹에서는 localStorage도 직접 클리어 (SharedPreferences 캐시 문제 방지)
+    if (kIsWeb) {
+      WebStorageHelper.clearAll();
     }
 
     // NotificationProvider 초기화 (알림 상태 및 연결 정리)
@@ -142,7 +142,29 @@ class _ProfileManagementState extends State<ProfileManagement> {
       context.read<NotificationProvider>().reset();
     }
 
-    await PreferencesManager.clearAll();
+    // 서버에 로그아웃 API 호출 (Refresh Token 무효화)
+    // AuthHttpClient 대신 plain http 사용 (로그아웃 중 자동 토큰 갱신 방지)
+    try {
+      await http.post(
+        Uri.parse('${Config.serverUrl}/api/auth/logout'),
+        headers: {
+          'Content-Type': 'application/json; charset=UTF-8',
+          if (token != null) 'Authorization': 'Bearer $token',
+        },
+        body: jsonEncode({'refresh_token': refreshToken}),
+      ).timeout(const Duration(seconds: 5));
+    } catch (_) {
+      // 서버 로그아웃 실패 시 무시 (로컬 데이터는 이미 삭제됨)
+    }
+
+    // 네이버 SDK 세션 클리어 (모바일에서 다른 계정으로 로그인 가능하도록)
+    if (!kIsWeb) {
+      try {
+        await FlutterNaverLogin.logOutAndDeleteToken();
+      } catch (_) {
+        // 네이버 로그인 세션이 없는 경우 무시
+      }
+    }
 
     if (mounted) {
       Navigator.of(
@@ -393,7 +415,6 @@ class _ProfileManagementState extends State<ProfileManagement> {
                               height: 120,
                               fit: BoxFit.cover,
                               errorBuilder: (context, error, stackTrace) {
-                                debugPrint('[프로필] 이미지 로딩 실패: $error');
                                 return Icon(
                                   _getProfileIcon(),
                                   size: 50,

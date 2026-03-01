@@ -7,46 +7,20 @@ class BloodTypeConstants {
   // ========== 강아지 혈액형 (Dog Erythrocyte Antigen - DEA) ==========
 
   /// 강아지 혈액형 목록
-  /// 국제적으로 인정된 DEA 혈액형: DEA1.1, DEA1.2, DEA3, DEA4, DEA5, DEA7
-  ///
-  /// 참고:
-  /// - DEA1.1과 DEA1.2는 양성(+) / 음성(-) 구분
-  /// - DEA1-형은 만능 공혈견 (Universal Donor)
-  /// - 강아지는 총 13개 혈액형이 있지만, 임상적으로 중요한 것은 DEA1형
   static const List<String> dogBloodTypes = [
-    'DEA 1.1+',  // DEA 1.1 양성
-    'DEA 1.1-',  // DEA 1.1 음성
-    'DEA 1.2+',  // DEA 1.2 양성
-    'DEA 1.2-',  // DEA 1.2 음성
-    'DEA 3',     // DEA 3형
-    'DEA 4',     // DEA 4형
-    'DEA 5',     // DEA 5형
-    'DEA 7',     // DEA 7형
-    '기타',       // 혈액형 모름 또는 기타
-  ];
-
-  /// 만능 공혈견 혈액형 (DEA1- = DEA 1.1-, DEA 1.2-)
-  static const List<String> universalDonorDogTypes = [
-    'DEA 1.1-',
-    'DEA 1.2-',
+    'DEA1+',
+    'DEA1-',
+    '기타',
   ];
 
   // ========== 고양이 혈액형 ==========
 
   /// 고양이 혈액형 목록
-  /// A형, B형, AB형 3가지
-  ///
-  /// 참고:
-  /// - 한국 고양이의 96% 이상이 A형
-  /// - B형은 약 4%
-  /// - AB형은 전 세계적으로 1% 미만으로 매우 희귀
-  /// - A형은 A형과 AB형에게 헌혈 가능
-  /// - B형과 AB형은 각각 자기 혈액형에게만 헌혈 가능
   static const List<String> catBloodTypes = [
-    'A형',   // A형 (가장 흔함)
-    'B형',   // B형 (희귀)
-    'AB형',  // AB형 (매우 희귀)
-    '기타',   // 혈액형 모름 또는 기타
+    'A형',
+    'B형',
+    'AB형',
+    '기타',
   ];
 
   // ========== 헬퍼 메서드 ==========
@@ -101,44 +75,4 @@ class BloodTypeConstants {
     return isValid ? bloodType : '기타';
   }
 
-  /// 만능 공혈견 여부 확인
-  /// DEA 1.1- 또는 DEA 1.2-인 경우 true
-  static bool isUniversalDonorDog(String? bloodType) {
-    if (bloodType == null) return false;
-    return universalDonorDogTypes.contains(bloodType);
-  }
-
-  /// 혈액형 한글 설명 반환
-  static String getBloodTypeDescription(String bloodType) {
-    switch (bloodType) {
-      // 강아지
-      case 'DEA 1.1+':
-        return 'DEA 1.1 양성 - DEA 1.1+형과 DEA 1-형에게 수혈 가능';
-      case 'DEA 1.1-':
-        return 'DEA 1.1 음성 - 만능 공혈견 (모든 혈액형에게 수혈 가능)';
-      case 'DEA 1.2+':
-        return 'DEA 1.2 양성 - DEA 1.2+형과 DEA 1-형에게 수혈 가능';
-      case 'DEA 1.2-':
-        return 'DEA 1.2 음성 - 만능 공혈견 (모든 혈액형에게 수혈 가능)';
-      case 'DEA 3':
-      case 'DEA 4':
-      case 'DEA 5':
-      case 'DEA 7':
-        return '$bloodType - 임상적으로 중요도가 낮은 혈액형';
-
-      // 고양이
-      case 'A형':
-        return 'A형 - A형과 AB형에게 헌혈 가능 (한국 고양이의 96% 이상)';
-      case 'B형':
-        return 'B형 - B형에게만 헌혈 가능 (희귀, 약 4%)';
-      case 'AB형':
-        return 'AB형 - AB형에게만 헌혈 가능 (매우 희귀, 1% 미만)';
-
-      case '기타':
-        return '혈액형 모름 - 헌혈 전 혈액형 검사 필요';
-
-      default:
-        return bloodType;
-    }
-  }
 }

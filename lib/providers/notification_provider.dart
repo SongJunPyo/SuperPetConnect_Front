@@ -81,10 +81,11 @@ class NotificationProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
-      // 사용자 타입 확인
+      // 사용자 타입 및 인증 토큰 확인
       final accountType = await PreferencesManager.getAccountType();
+      final token = await PreferencesManager.getAuthToken();
 
-      if (accountType == null) {
+      if (accountType == null || token == null || token.isEmpty) {
         _connectionStatus = ConnectionStatus.disconnected;
         _isInitialized = true; // 로그인되지 않은 상태도 초기화 완료로 처리
         _isInitializing = false;
@@ -595,6 +596,9 @@ class NotificationProvider extends ChangeNotifier {
   void reset() {
     _notificationSubscription?.cancel();
     _connectionSubscription?.cancel();
+
+    // WebSocket 연결 해제 (재연결 타이머 포함)
+    _notificationManager?.disconnect();
 
     _notifications = [];
     _unreadCount = 0;

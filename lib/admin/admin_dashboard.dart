@@ -537,51 +537,50 @@ class _AdminDashboardState extends State<AdminDashboard>
   List<Widget> _buildDynamicNotifications() {
     List<Widget> notifications = [];
 
-    if (pendingSignupsCount > 0) {
-      notifications.add(
-        SizedBox(
-          width: double.infinity,
-          child: AppInfoCard(
-            icon: Icons.person_add_outlined,
-            title: '새로운 회원가입 승인 요청 $pendingSignupsCount건이 있습니다!',
-            description: '승인 관리로 이동',
-            onTap: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => const AdminSignupManagement(),
-                ),
-              );
-            },
-          ),
+    // 회원가입 승인 요청 (하늘색)
+    notifications.add(
+      SizedBox(
+        width: double.infinity,
+        child: AppInfoCard(
+          icon: Icons.person_add_outlined,
+          title: '새로운 회원가입 승인 요청 $pendingSignupsCount건이 있습니다.',
+          description: '승인 관리로 이동',
+          iconColor: Colors.blue,
+          backgroundColor: Colors.blue.withValues(alpha: 0.08),
+          onTap: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => const AdminSignupManagement(),
+              ),
+            );
+          },
         ),
-      );
-      notifications.add(const SizedBox(height: AppTheme.spacing12));
-    }
+      ),
+    );
+    notifications.add(const SizedBox(height: AppTheme.spacing12));
 
-    if (pendingPostsCount > 0) {
-      notifications.add(
-        SizedBox(
-          width: double.infinity,
-          child: AppInfoCard(
-            icon: Icons.post_add_outlined,
-            title: '새로운 게시글 승인 요청 $pendingPostsCount건이 있습니다!',
-            description: '게시글 관리로 이동',
-            iconColor: AppTheme.warning,
-            backgroundColor: AppTheme.warning.withValues(alpha: 0.1),
-            onTap: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (context) => const AdminPostCheck()),
-              );
-            },
-          ),
+    // 게시글 승인 요청 (연두색)
+    notifications.add(
+      SizedBox(
+        width: double.infinity,
+        child: AppInfoCard(
+          icon: Icons.post_add_outlined,
+          title: '새로운 게시글 승인 요청 $pendingPostsCount건이 있습니다.',
+          description: '게시글 관리로 이동',
+          iconColor: Colors.green,
+          backgroundColor: Colors.green.withValues(alpha: 0.08),
+          onTap: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (context) => const AdminPostCheck()),
+            );
+          },
         ),
-      );
-      notifications.add(const SizedBox(height: AppTheme.spacing12));
-    }
+      ),
+    );
+    notifications.add(const SizedBox(height: AppTheme.spacing12));
 
-    // 알림이 없으면 빈 리스트 반환 (카드가 표시되지 않음)
     return notifications;
   }
 

@@ -20,6 +20,11 @@
   <meta content="IE=Edge" http-equiv="X-UA-Compatible">
   <meta name="description" content="A new Flutter project.">
 
+  <!-- 브라우저 HTTP 캐시 방지 (배포 시 구 버전 JS 로딩 방지) -->
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+  <meta http-equiv="Pragma" content="no-cache">
+  <meta http-equiv="Expires" content="0">
+
   <!-- iOS meta tags & icons -->
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black">
@@ -43,8 +48,36 @@
       }).open();
     }
   </script>
+  <script>
+    // Service Worker 완전 해제 및 캐시 삭제
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.getRegistrations().then(function(registrations) {
+        for (var registration of registrations) {
+          registration.unregister().then(function(success) {
+            if (success) {
+              console.log('[SW] Service Worker 해제 완료:', registration.scope);
+            }
+          });
+        }
+      });
+    }
+    if ('caches' in window) {
+      caches.keys().then(function(cacheNames) {
+        cacheNames.forEach(function(cacheName) {
+          caches.delete(cacheName);
+          console.log('[SW] 캐시 삭제:', cacheName);
+        });
+      });
+    }
+  </script>
 </head>
 <body>
-  <script src="flutter_bootstrap.js" async></script>
+  <!-- flutter_bootstrap.js를 캐시 버스팅으로 로드 (타임스탬프 추가) -->
+  <script>
+    var s = document.createElement('script');
+    s.src = 'flutter_bootstrap.js?v=' + Date.now();
+    s.async = true;
+    document.body.appendChild(s);
+  </script>
 </body>
 </html>

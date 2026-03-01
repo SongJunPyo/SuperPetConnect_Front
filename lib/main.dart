@@ -252,6 +252,14 @@ class MyApp extends StatelessWidget {
       // 웹에서는 라우팅 기반 네비게이션 사용
       initialRoute: kIsWeb ? WebRouter.getInitialRoute() : null,
       onGenerateRoute: kIsWeb ? WebRouter.generateRoute : null,
+      // 웹: initialRoute 경로 분해 방지 (예: '/naver-callback' → '/' + '/naver-callback' 두 개 push 방지)
+      onGenerateInitialRoutes: kIsWeb
+          ? (String initialRoute) {
+              return [
+                WebRouter.generateRoute(RouteSettings(name: initialRoute)),
+              ];
+            }
+          : null,
       routes:
           kIsWeb
               ? {}
