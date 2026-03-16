@@ -5,6 +5,7 @@ import '../admin/admin_dashboard.dart';
 import '../hospital/hospital_dashboard.dart';
 import '../user/user_dashboard.dart';
 import '../auth/login.dart';
+import '../auth/onboarding_screen.dart';
 import '../utils/preferences_manager.dart';
 import '../utils/config.dart';
 import 'web_storage_helper_stub.dart'
@@ -61,6 +62,17 @@ class _AuthGuardState extends State<AuthGuard> {
         await PreferencesManager.clearAll();
         WebStorageHelper.clearAll();
         _redirectToAuth();
+        return;
+      }
+
+      // 온보딩 미완료 체크
+      final onboardingCompleted =
+          await PreferencesManager.getOnboardingCompleted();
+      if (!onboardingCompleted) {
+        setState(() {
+          _isLoading = false;
+          _targetWidget = const OnboardingScreen();
+        });
         return;
       }
 

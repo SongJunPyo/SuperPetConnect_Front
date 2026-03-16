@@ -10,6 +10,7 @@ import '../utils/app_constants.dart';
 import '../utils/preferences_manager.dart';
 import '../utils/web_redirect_stub.dart'
     if (dart.library.html) '../utils/web_redirect.dart';
+import 'onboarding_screen.dart';
 
 /// 네이버 로그인 웹 콜백 처리 페이지
 /// 서버가 네이버 인증 처리 후 /#/naver-callback?... 으로 리다이렉트하면
@@ -95,6 +96,22 @@ class _NaverCallbackScreenState extends State<NaverCallbackScreen> {
       // 알림 Provider 초기화
       if (mounted) {
         context.read<NotificationProvider>().initialize();
+      }
+
+      // 온보딩 완료 여부 확인
+      final onboardingCompleted = params['onboarding_completed'] == 'true';
+      await PreferencesManager.setOnboardingCompleted(onboardingCompleted);
+
+      // 온보딩 미완료 시 온보딩 화면으로 이동
+      if (!onboardingCompleted) {
+        if (mounted) {
+          Navigator.pushAndRemoveUntil(
+            context,
+            MaterialPageRoute(builder: (context) => const OnboardingScreen()),
+            (route) => false,
+          );
+        }
+        return;
       }
 
       // 승인 여부 확인

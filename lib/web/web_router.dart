@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import '../auth/login.dart';
 import '../auth/naver_callback.dart';
+import '../auth/onboarding_screen.dart';
 import 'auth_guard.dart';
 
 class WebRouter {
@@ -15,6 +16,7 @@ class WebRouter {
   static const String adminSignupManagement = '/admin/signup';
   static const String adminHospitalCheck = '/admin/hospitals';
   static const String naverCallback = '/naver-callback';
+  static const String onboarding = '/onboarding';
 
   static Route<dynamic> generateRoute(RouteSettings settings) {
     final routeName = settings.name ?? '/';
@@ -22,6 +24,11 @@ class WebRouter {
     // 로그인 페이지만 인증 없이 접근 가능
     if (routeName == login) {
       return MaterialPageRoute(builder: (_) => const LoginScreen());
+    }
+
+    // 온보딩 화면 (인증 필요하지만 미승인 유저도 접근 가능)
+    if (routeName == onboarding) {
+      return MaterialPageRoute(builder: (_) => const OnboardingScreen());
     }
 
     // 네이버 로그인 콜백 (인증 없이 접근 가능)

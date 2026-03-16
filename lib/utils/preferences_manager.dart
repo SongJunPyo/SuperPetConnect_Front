@@ -15,6 +15,7 @@ class PreferencesManager {
   static const String keyHospitalName = 'hospital_name';
   static const String keyHospitalNickname = 'hospital_nickname';
   static const String keyHospitalCode = 'hospital_code';
+  static const String keyOnboardingCompleted = 'onboarding_completed';
   static const String keyRegionInitialized = 'region_preference_initialized';
   static const String keyPreferredLargeRegions = 'preferred_large_regions';
   static const String keyPreferredMediumRegions = 'preferred_medium_regions';
@@ -144,6 +145,17 @@ class PreferencesManager {
     return prefs.setString(keyHospitalCode, code);
   }
 
+  // ===== 온보딩 상태 =====
+  static Future<bool> getOnboardingCompleted() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool(keyOnboardingCompleted) ?? false;
+  }
+
+  static Future<bool> setOnboardingCompleted(bool value) async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.setBool(keyOnboardingCompleted, value);
+  }
+
   // ===== 지역 선택 =====
   static Future<bool> isRegionInitialized() async {
     final prefs = await SharedPreferences.getInstance();
@@ -221,6 +233,7 @@ class PreferencesManager {
       prefs.remove(keyHospitalName),
       prefs.remove(keyHospitalNickname),
       prefs.remove(keyHospitalCode),
+      prefs.remove(keyOnboardingCompleted),
       prefs.remove(keyRegionInitialized),
       prefs.remove(keyPreferredLargeRegions),
       prefs.remove(keyPreferredMediumRegions),

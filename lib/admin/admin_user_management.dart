@@ -379,29 +379,94 @@ class _AdminUserManagementScreenState extends State<AdminUserManagementScreen>
                     ),
                 ],
               ),
-              if (isActive) ...[
-                const SizedBox(height: 12),
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton(
-                    onPressed: () => _showBlacklistDialog(user),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.black,
-                      foregroundColor: Colors.white,
-                      elevation: 0,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(8),
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  if (isActive)
+                    Expanded(
+                      child: ElevatedButton(
+                        onPressed: () => _showBlacklistDialog(user),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.black,
+                          foregroundColor: Colors.white,
+                          elevation: 0,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                        ),
+                        child: const Text('블랙리스트 지정'),
                       ),
                     ),
-                    child: const Text('블랙리스트 지정'),
+                  if (isActive) const SizedBox(width: 8),
+                  Expanded(
+                    child: ElevatedButton.icon(
+                      onPressed: () => _deleteUser(user),
+                      icon: const Icon(Icons.delete_outline, size: 18),
+                      label: const Text('계정 삭제'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppTheme.error,
+                        foregroundColor: Colors.white,
+                        elevation: 0,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                      ),
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ],
           ),
         ),
       ),
     );
+  }
+
+  Future<void> _deleteUser(User user) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('계정 삭제'),
+        content: Text(
+          '정말 삭제하시겠습니까?\n이 작업은 되돌릴 수 없습니다.\n\n사용자: ${user.name} (${user.email})',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('취소'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppTheme.error,
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('삭제'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true) return;
+
+    try {
+      await UserManagementService.deleteUser(user.accountIdx);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('사용자 "${user.name}"의 계정이 삭제되었습니다.')),
+        );
+        _loadData();
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('삭제 실패: ${e.toString().replaceAll('Exception: ', '')}'),
+            backgroundColor: AppTheme.error,
+          ),
+        );
+      }
+    }
   }
 
   Widget _buildPagination() {

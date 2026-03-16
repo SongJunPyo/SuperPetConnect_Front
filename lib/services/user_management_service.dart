@@ -64,6 +64,20 @@ class UserManagementService {
     }
   }
 
+  // 사용자 계정 삭제
+  static Future<void> deleteUser(int userId) async {
+    final response = await AuthHttpClient.delete(
+      Uri.parse('${Config.serverUrl}/api/admin/users/$userId'),
+    );
+
+    if (response.statusCode != 200) {
+      if (response.statusCode == 404) {
+        throw Exception('해당 사용자를 찾을 수 없습니다.');
+      }
+      throw Exception('사용자 삭제 실패: ${response.statusCode}');
+    }
+  }
+
   static Future<void> updateUserStatus(int userId, int status) async {
     final response = await AuthHttpClient.patch(
       Uri.parse('${Config.serverUrl}/api/admin/users/$userId/status'),

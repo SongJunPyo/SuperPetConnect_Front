@@ -409,8 +409,8 @@ class _AdminDashboardState extends State<AdminDashboard>
                             icon: Icons.person_outline,
                             title: "사용자 관리",
                             subtitle: "사용자 계정 및 활동 관리",
-                            iconColor: AppTheme.primaryBlue,
-                            backgroundColor: AppTheme.lightBlue,
+                            iconColor: const Color(0xFF4A90E2),
+                            backgroundColor: const Color(0xFFF3F8FF),
                             onTap: () {
                               Navigator.push(
                                 context,

@@ -1277,7 +1277,7 @@ class _AdminHospitalDetailScreenState extends State<AdminHospitalDetailScreen> {
       builder: (BuildContext context) {
         return AlertDialog(
           title: const Text('병원 탈퇴'),
-          content: Text('정말로 이 병원을 삭제하시겠습니까?\n\n병원명: ${hospitalInfo.nickname?.isNotEmpty == true ? hospitalInfo.nickname! : hospitalInfo.name}'),
+          content: Text('정말 삭제하시겠습니까?\n이 작업은 되돌릴 수 없습니다.\n\n병원명: ${hospitalInfo.nickname?.isNotEmpty == true ? hospitalInfo.nickname! : hospitalInfo.name}'),
           actions: [
             TextButton(
               onPressed: () => Navigator.of(context).pop(false),
@@ -1386,7 +1386,7 @@ class _AdminHospitalDetailScreenState extends State<AdminHospitalDetailScreen> {
             onPressed: () {
               _deleteHospital();
             },
-            icon: const Icon(Icons.close, color: Colors.black, size: 24),
+            icon: const Icon(Icons.delete_outline, color: AppTheme.error, size: 24),
             tooltip: '병원 탈퇴',
           ),
         ],

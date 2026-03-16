@@ -7,8 +7,9 @@ import 'package:intl/intl.dart';
 // 정지된 사용자용 바텀시트
 class SuspendedUserBottomSheet extends StatefulWidget {
   final User user;
+  final VoidCallback? onDeletePressed;
 
-  const SuspendedUserBottomSheet({super.key, required this.user});
+  const SuspendedUserBottomSheet({super.key, required this.user, this.onDeletePressed});
 
   @override
   State<SuspendedUserBottomSheet> createState() =>
@@ -160,6 +161,15 @@ class _SuspendedUserBottomSheetState extends State<SuspendedUserBottomSheet> {
                 style: AppTheme.h3Style.copyWith(fontWeight: FontWeight.bold),
               ),
               const Spacer(),
+              if (widget.onDeletePressed != null)
+                IconButton(
+                  onPressed: () {
+                    Navigator.of(context).pop();
+                    widget.onDeletePressed!();
+                  },
+                  icon: const Icon(Icons.delete_outline, color: Colors.red),
+                  tooltip: '계정 삭제',
+                ),
               IconButton(
                 onPressed: () => Navigator.of(context).pop(),
                 icon: const Icon(Icons.close),
@@ -172,8 +182,7 @@ class _SuspendedUserBottomSheetState extends State<SuspendedUserBottomSheet> {
           if (widget.user.nickname?.isNotEmpty == true)
             _buildInfoRow('닉네임', widget.user.nickname!),
           _buildInfoRow('이메일', widget.user.email),
-          _buildInfoRow('전화번호', widget.user.phoneNumber),
-          _buildInfoRow('사용자 유형', widget.user.userTypeText),
+          _buildInfoRow('전화번호', _formatPhoneNumber(widget.user.phoneNumber)),
 
           const SizedBox(height: 24),
           SizedBox(
@@ -296,6 +305,16 @@ class _SuspendedUserBottomSheetState extends State<SuspendedUserBottomSheet> {
     );
   }
 
+  String _formatPhoneNumber(String phone) {
+    final digits = phone.replaceAll(RegExp(r'[^0-9]'), '');
+    if (digits.length == 11) {
+      return '${digits.substring(0, 3)}-${digits.substring(3, 7)}-${digits.substring(7)}';
+    } else if (digits.length == 10) {
+      return '${digits.substring(0, 3)}-${digits.substring(3, 6)}-${digits.substring(6)}';
+    }
+    return phone;
+  }
+
   Widget _buildInfoRow(String label, String value) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 8),
@@ -330,11 +349,13 @@ class _SuspendedUserBottomSheetState extends State<SuspendedUserBottomSheet> {
 class ActiveUserBottomSheet extends StatelessWidget {
   final User user;
   final VoidCallback? onBlacklistPressed;
+  final VoidCallback? onDeletePressed;
 
   const ActiveUserBottomSheet({
     super.key,
     required this.user,
     this.onBlacklistPressed,
+    this.onDeletePressed,
   });
 
   @override
@@ -356,6 +377,15 @@ class ActiveUserBottomSheet extends StatelessWidget {
                 style: AppTheme.h3Style.copyWith(fontWeight: FontWeight.bold),
               ),
               const Spacer(),
+              if (onDeletePressed != null)
+                IconButton(
+                  onPressed: () {
+                    Navigator.of(context).pop();
+                    onDeletePressed!();
+                  },
+                  icon: const Icon(Icons.delete_outline, color: Colors.red),
+                  tooltip: '계정 삭제',
+                ),
               IconButton(
                 onPressed: () => Navigator.of(context).pop(),
                 icon: const Icon(Icons.close),
@@ -367,9 +397,8 @@ class ActiveUserBottomSheet extends StatelessWidget {
           if (user.nickname?.isNotEmpty == true)
             _buildInfoRow('닉네임', user.nickname!),
           _buildInfoRow('이메일', user.email),
-          _buildInfoRow('전화번호', user.phoneNumber),
+          _buildInfoRow('전화번호', _formatPhoneNumber(user.phoneNumber)),
           _buildInfoRow('주소', user.address),
-          _buildInfoRow('사용자 유형', user.userTypeText),
           _buildInfoRow('상태', user.statusText),
           if (user.createdAt != null)
             _buildInfoRow(
@@ -396,6 +425,16 @@ class ActiveUserBottomSheet extends StatelessWidget {
         ],
       ),
     );
+  }
+
+  String _formatPhoneNumber(String phone) {
+    final digits = phone.replaceAll(RegExp(r'[^0-9]'), '');
+    if (digits.length == 11) {
+      return '${digits.substring(0, 3)}-${digits.substring(3, 7)}-${digits.substring(7)}';
+    } else if (digits.length == 10) {
+      return '${digits.substring(0, 3)}-${digits.substring(3, 6)}-${digits.substring(6)}';
+    }
+    return phone;
   }
 
   Widget _buildInfoRow(String label, String value) {

@@ -518,7 +518,7 @@ class _ProfileManagementState extends State<ProfileManagement> {
                                 child: Text(
                                   isHospitalUser
                                       ? '네이버 연동 계정입니다. 닉네임과 주소는 소속 병원 기준으로 자동 관리됩니다.'
-                                      : '주소 외의 정보는 네이버에서만 변경할 수 있습니다.',
+                                      : '네이버 연동 계정입니다. 이름은 네이버에서만 변경할 수 있습니다.',
                                   style: AppTheme.bodySmallStyle.copyWith(
                                     color: const Color(0xFF03C75A),
                                     fontWeight: FontWeight.w500,
@@ -581,8 +581,8 @@ class _ProfileManagementState extends State<ProfileManagement> {
                       const SizedBox(height: AppTheme.spacing20),
                       TextField(
                         controller: nicknameController,
-                        maxLength: 30,
-                        readOnly: isNaverUser || isHospitalUser,
+                        maxLength: 40,
+                        readOnly: isHospitalUser,
                         decoration: _buildInputDecoration(
                           isHospitalUser
                               ? "닉네임 (소속 병원 기준 자동 관리)"
@@ -590,11 +590,11 @@ class _ProfileManagementState extends State<ProfileManagement> {
                           isHospitalUser
                               ? Icons.lock_outline
                               : Icons.badge_outlined,
-                          30,
+                          40,
                           nicknameController,
                         ),
                         onChanged:
-                            (isNaverUser || isHospitalUser)
+                            isHospitalUser
                                 ? null
                                 : (value) => setState(() {}),
                       ),

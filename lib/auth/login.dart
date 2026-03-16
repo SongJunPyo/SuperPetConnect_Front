@@ -23,6 +23,7 @@ import '../services/notification_service.dart';
 import '../providers/notification_provider.dart';
 import '../utils/web_redirect_stub.dart'
     if (dart.library.html) '../utils/web_redirect.dart';
+import 'onboarding_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -69,6 +70,22 @@ class _LoginScreenState extends State<LoginScreen> {
       final provider = context.read<NotificationProvider>();
       provider.reset();
       await provider.initialize();
+    }
+
+    // 온보딩 완료 여부 저장
+    final onboardingCompleted = data['onboarding_completed'] ?? true;
+    await PreferencesManager.setOnboardingCompleted(onboardingCompleted);
+
+    // 온보딩 미완료 시 온보딩 화면으로 이동
+    if (onboardingCompleted == false) {
+      if (mounted) {
+        Navigator.pushAndRemoveUntil(
+          context,
+          MaterialPageRoute(builder: (context) => const OnboardingScreen()),
+          (route) => false,
+        );
+      }
+      return;
     }
 
     // 승인 여부 확인
@@ -390,6 +407,56 @@ class _LoginScreenState extends State<LoginScreen> {
     );
   }
 
+  // 테스트 로그인 (네이버 앱 개발 중 상태에서 온보딩 플로우 테스트용)
+  void _naverTestLogin() async {
+    try {
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => const Center(child: CircularProgressIndicator()),
+      );
+
+      final response = await http
+          .post(
+            Uri.parse('${Config.serverUrl}/api/auth/naver/test-login'),
+            headers: {
+              'Content-Type': 'application/json',
+              'Accept': 'application/json',
+            },
+            body: jsonEncode({
+              'name': '테스트유저',
+              'email': 'test@naver.com',
+              'phone': '010-0000-0000',
+            }),
+          )
+          .timeout(const Duration(seconds: 15));
+
+      if (mounted) Navigator.pop(context);
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        await _handleLoginSuccess(data);
+      } else if (response.statusCode == 403) {
+        if (mounted) {
+          _showAlertDialog(context, '비활성화', '운영 환경에서는 테스트 로그인을 사용할 수 없습니다.');
+        }
+      } else {
+        if (mounted) {
+          _showAlertDialog(
+            context,
+            '오류',
+            '테스트 로그인 실패: ${utf8.decode(response.bodyBytes)}',
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) Navigator.pop(context);
+      if (mounted) {
+        _showAlertDialog(context, '연결 오류', '서버 연결에 실패했습니다.\n$e');
+      }
+    }
+  }
+
   // 회원가입 버튼 클릭 시 호출될 함수
   void _signUp() {
     // 회원가입 페이지로 이동
@@ -483,6 +550,29 @@ class _LoginScreenState extends State<LoginScreen> {
                         ),
                       ),
                     ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: AppTheme.spacing8),
+              // 테스트 로그인 버튼 (네이버 앱 개발 중 상태에서 사용)
+              SizedBox(
+                width: double.infinity,
+                height: 44,
+                child: OutlinedButton(
+                  onPressed: _naverTestLogin,
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: AppTheme.textSecondary,
+                    side: BorderSide(color: AppTheme.lightGray),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                  child: Text(
+                    '테스트 로그인 (개발용)',
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w500,
+                    ),
                   ),
                 ),
               ),

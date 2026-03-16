@@ -126,6 +126,53 @@ class _AdminUserCheckState extends State<AdminUserCheck>
     }
   }
 
+  Future<void> _deleteUser(User user) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('계정 삭제'),
+        content: Text(
+          '정말 삭제하시겠습니까?\n이 작업은 되돌릴 수 없습니다.\n\n사용자: ${user.name} (${user.email})',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('취소'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppTheme.error,
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('삭제'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true) return;
+
+    try {
+      await UserManagementService.deleteUser(user.accountIdx);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('사용자 "${user.name}"의 계정이 삭제되었습니다.')),
+        );
+        _loadData();
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('삭제 실패: ${e.toString().replaceAll('Exception: ', '')}'),
+            backgroundColor: AppTheme.error,
+          ),
+        );
+      }
+    }
+  }
+
   Future<void> _showUserBottomSheet(User user) async {
     final result = await showModalBottomSheet<bool>(
       context: context,
@@ -140,8 +187,12 @@ class _AdminUserCheckState extends State<AdminUserCheck>
                       Navigator.of(context).pop();
                       _showBlacklistDialog(user);
                     },
+                    onDeletePressed: () => _deleteUser(user),
                   )
-                  : SuspendedUserBottomSheet(user: user),
+                  : SuspendedUserBottomSheet(
+                    user: user,
+                    onDeletePressed: () => _deleteUser(user),
+                  ),
     );
 
     if (result == true) {
