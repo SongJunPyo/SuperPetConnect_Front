@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:http/http.dart' as http;
+import '../main.dart' as main_app;
 import '../models/notification_model.dart';
 import '../utils/config.dart';
 import '../utils/preferences_manager.dart';
@@ -97,8 +98,10 @@ class FCMHandler {
     await updateFCMToken();
   }
 
-  /// 포그라운드 메시지 처리
+  /// 포그라운드 메시지 처리: 상단 로컬 푸시 표시 + 목록 스트림 추가.
+  /// 백그라운드/종료 상태는 시스템이 이미 푸시를 띄우므로 여기서만 호출.
   Future<void> _handleForegroundMessage(RemoteMessage message) async {
+    await main_app.showGlobalLocalNotification(message);
     await _convertAndPublish(message);
   }
 

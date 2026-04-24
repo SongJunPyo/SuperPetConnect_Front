@@ -5,7 +5,6 @@ import '../utils/config.dart';
 import '../utils/preferences_manager.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
-import '../main.dart' as main_app;
 import '../admin/admin_pet_management.dart';
 
 class NotificationService {
@@ -21,12 +20,8 @@ class NotificationService {
     // FCM 토큰 갱신 리스너 등록 (토큰 만료/갱신 시 자동으로 서버에 전송)
     setupTokenRefreshListener();
 
-    // 포그라운드 메시지 리스너: 상단 푸시 표시만 담당.
-    // 알림 목록 스트림 추가는 [FCMHandler]가 단일 원천으로 처리
-    // (UnifiedNotificationManager 구독). 여기서 stream add를 하면 목록에 중복됨.
-    FirebaseMessaging.onMessage.listen((RemoteMessage message) {
-      main_app.showGlobalLocalNotification(message);
-    });
+    // 포그라운드 메시지(onMessage) 수신 + 상단 푸시 + 목록 스트림 추가는
+    // 전부 [FCMHandler]가 담당. 이 클래스는 알림 탭 시 네비게이션만 책임.
 
     // 백그라운드에서 앱을 연 경우
     FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) {
