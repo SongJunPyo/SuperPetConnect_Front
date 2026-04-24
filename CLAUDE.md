@@ -420,6 +420,28 @@ Windows에서는 `.git/hooks/pre-commit.cmd` 사용.
 - **웹 전용 WebSocket**: `wss://<host>/ws?token=<access_token>` (쿼리스트링 인증, 브라우저가 커스텀 헤더 미지원). 5초 자동 재연결, 30초 ping.
 - **모바일 전용 FCM**: 로그인 직후 `POST /api/user/fcm-token` body `{"fcm_token": "..."}`로 디바이스 토큰 등록. `onTokenRefresh` 리스너가 갱신 시 자동 재전송.
 
+### 프론트 FCM 수신 아키텍처 (2026-04 단일화)
+
+**책임 분리 (단일 원천 원칙)**
+
+| 클래스 | 책임 |
+|--------|------|
+| [FCMHandler](lib/services/fcm_handler.dart) | FCM **수신** 전담. 포그라운드 `onMessage` 리스너, `onMessageOpenedApp` (스트림 추가용), 토큰 관리 (`updateFCMToken` / `onTokenRefresh`), 상단 로컬 푸시 표시, unknown type fallback |
+| [NotificationService](lib/services/notification_service.dart) | FCM **탭 네비게이션** 전담. `onMessageOpenedApp` (navigation용), `getInitialMessage`, `handleLocalNotificationTap`, 9개 `_navigateToXxx` 메서드, `navigatorKey` 보유. `updateTokenAfterLogin`은 `FCMHandler`로 위임하는 thin delegator |
+| [UnifiedNotificationManager](lib/services/unified_notification_manager.dart) | 플랫폼 분기. 모바일은 `FCMHandler.notificationStream`, 웹은 `WebSocketHandler.notificationStream`을 구독해 단일 스트림으로 제공 |
+
+**앱 상태별 알림 탭 → 네비게이션 경로** (세 경로 모두 `NotificationService`가 처리)
+
+| 앱 상태 | Firebase 콜백 | 핸들러 |
+|---------|--------------|--------|
+| 포그라운드 | `flutter_local_notifications` 탭 → `onDidReceiveNotificationResponse` | `NotificationService.handleLocalNotificationTap(payload)` |
+| 백그라운드 | `FirebaseMessaging.onMessageOpenedApp` | `NotificationService.initialize()` 내부 listener |
+| 킬 상태 | `FirebaseMessaging.instance.getInitialMessage()` | `NotificationService.initialize()` 내부 |
+
+**주의 — 리스너 중복 금지**: `FirebaseMessaging.onMessage.listen`과 `onTokenRefresh.listen`은 **각각 FCMHandler 1곳에서만** 등록해야 함. 2026-04 이전에 NotificationService와 FCMHandler가 각각 등록해서 동일 메시지가 목록에 2번 뜨거나 토큰 갱신 시 서버 전송이 2번 발생하던 버그 있었음. 향후 새 리스너 필요 시 FCMHandler에 추가.
+
+**주의 — 상단 푸시 호출 위치**: 포그라운드 상단 로컬 푸시(`main.dart::showGlobalLocalNotification`)는 `FCMHandler._handleForegroundMessage`에서만 호출. 백그라운드/킬 상태는 시스템이 이미 푸시를 표시하므로 `_handleMessageOpenedApp`에서는 호출하지 않음 (중복 표시 방지).
+
 ### WebSocket 메시지 스키마 (계약 확정)
 백엔드 `services/notification_service.py` 기준. **필드명 변경 금지**, `timestamp`는 **Unix 초(밀리초 아님)**.
 
