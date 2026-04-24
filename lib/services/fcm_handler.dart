@@ -99,17 +99,51 @@ class FCMHandler {
 
   /// 포그라운드 메시지 처리
   Future<void> _handleForegroundMessage(RemoteMessage message) async {
-    final notification = await NotificationConverter.fromFCM(message);
-    if (notification != null) {
-      _notificationController.add(notification);
-    }
+    await _convertAndPublish(message);
   }
 
   /// 백그라운드/종료 상태에서 앱 열림 처리
   Future<void> _handleMessageOpenedApp(RemoteMessage message) async {
-    final notification = await NotificationConverter.fromFCM(message);
-    if (notification != null) {
-      _notificationController.add(notification);
+    await _convertAndPublish(message);
+  }
+
+  /// FCM 메시지를 [NotificationModel]로 변환해 스트림에 올린다.
+  ///
+  /// 매핑에 없는 type은 silent drop 대신 유저타입별 `systemNotice`로 fallback 승격
+  /// (WebSocket 핸들러와 동일 패턴). 백엔드가 `NotificationType`을 추가했는데
+  /// 프론트 `ServerNotificationMapping`이 아직 따라가지 못한 경우의 safety-net.
+  Future<void> _convertAndPublish(RemoteMessage message) async {
+    try {
+      final notification = await NotificationConverter.fromFCM(message);
+      if (notification != null) {
+        _notificationController.add(notification);
+        return;
+      }
+
+      final userType = await NotificationConverter.getCurrentUserType();
+      if (userType == null) return;
+
+      final rawType = message.data['type']?.toString() ?? '';
+      debugPrint(
+        '[FCM] 알 수 없는 알림 타입: "$rawType" (userType=$userType). '
+        'fallback으로 systemNotice 표시. constants/enums.py::NotificationType 대조 필요.',
+      );
+
+      final title = message.notification?.title ?? '알림';
+      final body = message.notification?.body ?? '';
+      if (title.isEmpty && body.isEmpty) return;
+
+      final relatedData = NotificationConverter.parseRelatedData(message.data);
+      final fallback = NotificationConverter.createFallbackNotification(
+        userType: userType,
+        notificationId: DateTime.now().millisecondsSinceEpoch,
+        title: title,
+        content: body,
+        relatedData: relatedData,
+      );
+      _notificationController.add(fallback);
+    } catch (e) {
+      debugPrint('[FCM] 알림 스트림 처리 실패: $e');
     }
   }
 
