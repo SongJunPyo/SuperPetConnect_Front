@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:kpostal/kpostal.dart';
@@ -29,16 +30,19 @@ class _AdminHospitalCheckState extends State<AdminHospitalCheck>
   int totalCount = 0;
   bool isSearching = false;
 
-  // 병원 마스터 관련
-  List<HospitalMaster> _masterHospitals = [];
-  List<HospitalMaster> _pagedMasterHospitals = []; // 현재 페이지에 표시할 마스터 목록
+  // 병원 마스터 관련 (서버 사이드 페이지네이션)
+  List<HospitalMaster> _masterHospitals = []; // 현재 페이지의 마스터 목록
+  int _masterTotalCount = 0; // 서버가 내려준 전체 건수 (검색 필터 적용 후)
   bool _isMasterLoading = true;
   bool _hasMasterError = false;
   String _masterErrorMessage = '';
   String _masterSearchQuery = '';
   final TextEditingController _masterSearchController = TextEditingController();
+  Timer? _masterSearchDebounce; // 검색 입력 디바운스 타이머
+  static const Duration _masterSearchDelay = Duration(milliseconds: 400);
+  static const int _masterPageSize = 20; // 서버 max 100, 기본 20
 
-  // 클라이언트 측 페이지네이션 (모든 탭 공유)
+  // 페이지네이션 (모든 탭 공유) — 마스터 탭은 서버, 계정 탭은 클라이언트
   int _currentPage = 1;
   int _totalPages = 1;
 
@@ -63,7 +67,7 @@ class _AdminHospitalCheckState extends State<AdminHospitalCheck>
         _currentPage = 1;
       });
       if (_currentTabIndex == 0) {
-        _applyMasterPagination();
+        _loadMasterHospitals();
       } else {
         _updateFilteredHospitals();
       }
@@ -73,7 +77,8 @@ class _AdminHospitalCheckState extends State<AdminHospitalCheck>
   void _onPageChanged(int page) {
     _currentPage = page;
     if (_currentTabIndex == 0) {
-      _applyMasterPagination();
+      // 마스터 탭: 서버에서 해당 페이지만 재조회
+      _loadMasterHospitals();
     } else {
       _applyHospitalPagination();
     }
@@ -84,11 +89,17 @@ class _AdminHospitalCheckState extends State<AdminHospitalCheck>
     _tabController?.dispose();
     searchController.dispose();
     _masterSearchController.dispose();
+    _masterSearchDebounce?.cancel();
     super.dispose();
   }
 
   // ===== 병원 마스터 관련 메서드 =====
 
+  /// 병원 마스터 서버 사이드 조회.
+  ///
+  /// `_currentPage` / `_masterSearchQuery`를 기준으로 서버에 요청하며,
+  /// 응답의 `total_count`로 `_totalPages`를 재계산. 검색어 변경 시 호출자가
+  /// 먼저 `_currentPage = 1`로 리셋해야 한다.
   Future<void> _loadMasterHospitals() async {
     setState(() {
       _isMasterLoading = true;
@@ -97,14 +108,32 @@ class _AdminHospitalCheckState extends State<AdminHospitalCheck>
 
     try {
       final response = await AdminHospitalService.getHospitalMasterList(
+        page: _currentPage,
+        pageSize: _masterPageSize,
         search: _masterSearchQuery.isNotEmpty ? _masterSearchQuery : null,
       );
 
+      final totalPages =
+          (response.totalCount / _masterPageSize).ceil().clamp(1, 1 << 30);
+
+      // 페이지 오버플로우 자동 복구 — 두 경로 모두 1페이지 폴백 후 재조회:
+      //   (1) _currentPage > totalPages: 계산 기반 감지 (레코드 삭제 후 페이지 축소 등)
+      //   (2) total_count > 0 && hospitals.isEmpty: 응답 기반 감지
+      //       (서버/클라이언트 정수 나눗셈 차이, race condition, 잘못된 page 수동 입력 등)
+      // 백엔드 계약상 page overflow는 400이 아니라 {hospitals: [], total_count: <전체>} 응답.
+      final isOverflow = _currentPage > totalPages ||
+          (response.totalCount > 0 && response.hospitals.isEmpty);
+      if (isOverflow && response.totalCount > 0 && _currentPage != 1) {
+        _currentPage = 1;
+        return _loadMasterHospitals();
+      }
+
       setState(() {
         _masterHospitals = response.hospitals;
+        _masterTotalCount = response.totalCount;
+        _totalPages = totalPages;
         _isMasterLoading = false;
       });
-      _applyMasterPagination();
     } catch (e) {
       setState(() {
         _isMasterLoading = false;
@@ -112,21 +141,6 @@ class _AdminHospitalCheckState extends State<AdminHospitalCheck>
         _masterErrorMessage = e.toString().replaceAll('Exception: ', '');
       });
     }
-  }
-
-  /// 병원 마스터 클라이언트 페이징
-  void _applyMasterPagination() {
-    const pageSize = AppConstants.detailListPageSize;
-    final totalPages = (_masterHospitals.length / pageSize).ceil();
-    final safePage = _currentPage.clamp(1, totalPages > 0 ? totalPages : 1);
-    final start = (safePage - 1) * pageSize;
-    final end = (start + pageSize).clamp(0, _masterHospitals.length);
-
-    setState(() {
-      _pagedMasterHospitals = _masterHospitals.sublist(start, end);
-      _currentPage = safePage;
-      _totalPages = totalPages > 0 ? totalPages : 1;
-    });
   }
 
   /// 병원 계정 클라이언트 페이징
@@ -144,12 +158,18 @@ class _AdminHospitalCheckState extends State<AdminHospitalCheck>
     });
   }
 
+  /// 검색 입력 변경: 400ms 디바운스 후 서버 호출.
+  /// 키 입력마다 API가 호출되는 것을 방지 — 백엔드 부담 + UX(깜빡임) 완화.
   void _onMasterSearchChanged(String value) {
-    setState(() {
-      _masterSearchQuery = value;
-      _currentPage = 1;
+    _masterSearchDebounce?.cancel();
+    _masterSearchDebounce = Timer(_masterSearchDelay, () {
+      if (!mounted) return;
+      setState(() {
+        _masterSearchQuery = value.trim();
+        _currentPage = 1; // 검색어 변경 시 항상 1페이지로
+      });
+      _loadMasterHospitals();
     });
-    _loadMasterHospitals();
   }
 
   Future<void> _openAddressSearch(TextEditingController controller, void Function(void Function()) setStateCallback) async {
@@ -706,8 +726,14 @@ class _AdminHospitalCheckState extends State<AdminHospitalCheck>
                   ? IconButton(
                       icon: const Icon(Icons.clear),
                       onPressed: () {
+                        // clear는 디바운스 없이 즉시 반영
+                        _masterSearchDebounce?.cancel();
                         _masterSearchController.clear();
-                        _onMasterSearchChanged('');
+                        setState(() {
+                          _masterSearchQuery = '';
+                          _currentPage = 1;
+                        });
+                        _loadMasterHospitals();
                       },
                     )
                   : null,
@@ -784,7 +810,11 @@ class _AdminHospitalCheckState extends State<AdminHospitalCheck>
             Icon(Icons.business_outlined, size: 60, color: Colors.grey[300]),
             const SizedBox(height: 16),
             Text(
-              _masterSearchQuery.isNotEmpty ? '검색 결과가 없습니다.' : '등록된 병원이 없습니다.\n우상단 + 버튼으로 병원을 등록하세요.',
+              _masterSearchQuery.isNotEmpty
+                  ? '검색 결과가 없습니다.'
+                  : (_masterTotalCount == 0
+                      ? '등록된 병원이 없습니다.\n우상단 + 버튼으로 병원을 등록하세요.'
+                      : '이 페이지에는 병원이 없습니다.'),
               style: textTheme.titleMedium?.copyWith(color: Colors.grey[500]),
               textAlign: TextAlign.center,
             ),
@@ -802,10 +832,10 @@ class _AdminHospitalCheckState extends State<AdminHospitalCheck>
       },
       child: ListView.builder(
         padding: const EdgeInsets.symmetric(horizontal: 20.0),
-        itemCount: _pagedMasterHospitals.length + paginationBarCount,
+        itemCount: _masterHospitals.length + paginationBarCount,
         itemBuilder: (context, index) {
           // PaginationBar
-          if (index >= _pagedMasterHospitals.length) {
+          if (index >= _masterHospitals.length) {
             return PaginationBar(
               currentPage: _currentPage,
               totalPages: _totalPages,
@@ -813,9 +843,9 @@ class _AdminHospitalCheckState extends State<AdminHospitalCheck>
             );
           }
 
-          final master = _pagedMasterHospitals[index];
-          // 전체 목록 기준 번호 계산
-          final displayNumber = (_currentPage - 1) * AppConstants.detailListPageSize + index + 1;
+          final master = _masterHospitals[index];
+          // 전체 목록 기준 번호 계산 (서버 페이지 * pageSize)
+          final displayNumber = (_currentPage - 1) * _masterPageSize + index + 1;
           return InkWell(
             onTap: () => _showMasterDetailSheet(master),
             child: Container(

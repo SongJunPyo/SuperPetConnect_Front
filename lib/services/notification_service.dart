@@ -6,8 +6,7 @@ import '../utils/preferences_manager.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import '../main.dart' as main_app;
-import '../models/notification_model.dart';
-import '../models/notification_types.dart';
+import 'notification_converter.dart';
 import 'unified_notification_manager.dart';
 
 class NotificationService {
@@ -466,212 +465,43 @@ class NotificationService {
     }
   }
 
-  /// FCM 알림을 실시간 스트림에 추가하는 헬퍼 메서드
+  /// FCM 알림을 실시간 스트림에 추가하는 헬퍼 메서드.
+  ///
+  /// 변환은 [NotificationConverter.fromFCM]을 단일 원천으로 사용하며,
+  /// 매핑에 없는 type은 silent drop 대신 유저타입별 `systemNotice`로 fallback 승격
+  /// (WebSocket 핸들러와 동일 패턴).
   static void _addFCMNotificationToStream(RemoteMessage message) async {
     try {
-      // 현재 사용자 타입 확인
-      final accountType = await PreferencesManager.getAccountType();
-      final userType =
-          accountType != null ? UserTypeMapper.fromDbType(accountType) : null;
+      final userType = await NotificationConverter.getCurrentUserType();
+      if (userType == null) return;
 
-      if (userType == null) {
+      // 정규 매핑 시도 (ServerNotificationMapping 경유)
+      final notification = await NotificationConverter.fromFCM(message);
+      if (notification != null) {
+        UnifiedNotificationManager.instance.addNotification(notification);
         return;
       }
 
-      // FCM 메시지를 NotificationModel로 변환
-      final notification = _convertFCMToNotificationModel(message, userType);
-
-      if (notification != null) {
-        // 통합 알림 관리자의 스트림에 추가
-        UnifiedNotificationManager.instance.addNotification(notification);
-      }
-    } catch (e) {
-      // 알림 처리 실패 시 로그 출력
-      debugPrint('Failed to handle notification: $e');
-    }
-  }
-
-  /// FCM 메시지를 NotificationModel로 변환
-  static NotificationModel? _convertFCMToNotificationModel(
-    RemoteMessage message,
-    UserType userType,
-  ) {
-    try {
-      final data = message.data;
-      final notificationType = data['type'] ?? '';
-
-      // 알림 데이터에서 관련 ID 추출
-      Map<String, dynamic> relatedData = {};
-
-      // navigation 데이터 파싱
-      if (data.containsKey('navigation')) {
-        try {
-          final navData =
-              data['navigation'] is String
-                  ? jsonDecode(data['navigation'])
-                  : data['navigation'];
-          if (navData is Map<String, dynamic>) {
-            relatedData.addAll(navData);
-          }
-        } catch (e) {
-          // 네비게이션 데이터 파싱 실패 시 로그 출력
-          debugPrint('Failed to parse navigation data: $e');
-        }
-      }
-
-      // 다른 관련 데이터들 추가
-      for (final key in [
-        'post_idx',
-        'post_id',
-        'application_id',
-        'user_id',
-        'hospital_id',
-      ]) {
-        if (data.containsKey(key)) {
-          relatedData[key] = data[key];
-        }
-      }
-
+      // Unknown type fallback
+      final rawType = message.data['type']?.toString() ?? '';
+      debugPrint(
+        '[FCM] 알 수 없는 알림 타입: "$rawType" (userType=$userType). '
+        'fallback으로 systemNotice 표시. constants/enums.py::NotificationType 대조 필요.',
+      );
       final title = message.notification?.title ?? '알림';
-      final content = message.notification?.body ?? '';
-      final notificationId = DateTime.now().millisecondsSinceEpoch;
-
-      // 사용자 타입별 알림 생성
-      switch (userType) {
-        case UserType.admin:
-          final adminType = _getAdminNotificationTypeFromFCM(notificationType);
-          if (adminType == null) return null;
-
-          return NotificationFactory.createAdminNotification(
-            notificationId: notificationId,
-            userId: 0,
-            type: adminType,
-            title: title,
-            content: content,
-            relatedData: relatedData,
-          );
-
-        case UserType.hospital:
-          final hospitalType = _getHospitalNotificationTypeFromFCM(
-            notificationType,
-          );
-          if (hospitalType == null) return null;
-
-          return NotificationFactory.createHospitalNotification(
-            notificationId: notificationId,
-            userId: 0,
-            type: hospitalType,
-            title: title,
-            content: content,
-            relatedData: relatedData,
-          );
-
-        case UserType.user:
-          final userNotificationType = _getUserNotificationTypeFromFCM(
-            notificationType,
-          );
-          if (userNotificationType == null) return null;
-
-          return NotificationFactory.createUserNotification(
-            notificationId: notificationId,
-            userId: 0,
-            type: userNotificationType,
-            title: title,
-            content: content,
-            relatedData: relatedData,
-          );
-      }
+      final body = message.notification?.body ?? '';
+      if (title.isEmpty && body.isEmpty) return;
+      final relatedData = NotificationConverter.parseRelatedData(message.data);
+      final fallback = NotificationConverter.createFallbackNotification(
+        userType: userType,
+        notificationId: DateTime.now().millisecondsSinceEpoch,
+        title: title,
+        content: body,
+        relatedData: relatedData,
+      );
+      UnifiedNotificationManager.instance.addNotification(fallback);
     } catch (e) {
-      return null;
-    }
-  }
-
-  /// FCM 타입을 관리자 알림 타입으로 변환
-  static AdminNotificationType? _getAdminNotificationTypeFromFCM(
-    String fcmType,
-  ) {
-    switch (fcmType) {
-      case 'new_user_registration':
-        return AdminNotificationType.signupRequest;
-      case 'new_post_approval':
-        return AdminNotificationType.postApprovalRequest;
-      case 'new_donation_application':
-      case 'donation_application':
-        return AdminNotificationType.donationApplicationRequest;
-      case 'column_approval':
-        return AdminNotificationType.columnApprovalRequest;
-      case 'donation_completed':
-        return AdminNotificationType.donationCompleted;
-      case 'pet_review_request':
-        return AdminNotificationType.petReviewRequest;
-      default:
-        return null;
-    }
-  }
-
-  /// FCM 타입을 병원 알림 타입으로 변환
-  static HospitalNotificationType? _getHospitalNotificationTypeFromFCM(
-    String fcmType,
-  ) {
-    switch (fcmType) {
-      case 'donation_application':
-      case 'new_donation_application':
-      case 'new_donation_application_hospital':
-        return HospitalNotificationType.donationApplication;
-      case 'donation_post_approved':
-        return HospitalNotificationType.postApproved;
-      case 'donation_post_rejected':
-        return HospitalNotificationType.postRejected;
-      case 'column_approved':
-        return HospitalNotificationType.columnApproved;
-      case 'column_rejected':
-        return HospitalNotificationType.columnRejected;
-      case 'timeslot_filled':
-        return HospitalNotificationType.timeslotFilled;
-      case 'all_timeslots_filled':
-        return HospitalNotificationType.allTimeslotsFilled;
-      case 'recruitment_closed':
-        return HospitalNotificationType.recruitmentDeadline;
-      case 'donation_completed':
-        return HospitalNotificationType.donationCompleted;
-      case 'document_request':
-        return HospitalNotificationType.documentRequest;
-      case 'post_suspended':
-        return HospitalNotificationType.postRejected;
-      case 'post_resumed':
-        return HospitalNotificationType.postApproved;
-      default:
-        return null;
-    }
-  }
-
-  /// FCM 타입을 사용자 알림 타입으로 변환
-  static UserNotificationType? _getUserNotificationTypeFromFCM(String fcmType) {
-    switch (fcmType) {
-      case 'account_approved':
-      case 'account_rejected':
-      case 'account_suspended':
-      case 'application_approved':
-      case 'application_rejected':
-        return UserNotificationType.systemNotice;
-      case 'donation_application_approved':
-        return UserNotificationType.applicationApproved;
-      case 'donation_application_rejected':
-        return UserNotificationType.applicationRejected;
-      case 'recruitment_closed':
-        return UserNotificationType.recruitmentClosed;
-      case 'donation_completed':
-        return UserNotificationType.donationCompleted;
-      case 'new_donation_post':
-        return UserNotificationType.newDonationPost;
-      case 'pet_approved':
-        return UserNotificationType.petApproved;
-      case 'pet_rejected':
-        return UserNotificationType.petRejected;
-      case 'donation_final_completed':
-        return UserNotificationType.donationCompleted;
-      default:
-        return null;
+      debugPrint('[FCM] 알림 스트림 처리 실패: $e');
     }
   }
 

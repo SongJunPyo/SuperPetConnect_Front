@@ -372,6 +372,7 @@ class _UserDashboardState extends State<UserDashboard>
               createdAt: column.createdAt,
               updatedAt: column.updatedAt,
               authorNickname: column.authorNickname, // 병원 닉네임
+              hospitalProfileImage: column.hospitalProfileImage,
               columnUrl: column.columnUrl,
             );
           }).toList();
@@ -409,6 +410,7 @@ class _UserDashboardState extends State<UserDashboard>
                   authorEmail: notice.authorEmail,
                   authorName: notice.authorName,
                   authorNickname: notice.authorNickname, // 작성자 닉네임
+                  authorProfileImage: notice.authorProfileImage,
                   viewCount: notice.viewCount,
                   targetAudience: notice.targetAudience,
                   noticeUrl: notice.noticeUrl,
@@ -1228,6 +1230,7 @@ class _UserDashboardState extends State<UserDashboard>
                   enableTextPersonalization: true,
                   userName: userName,
                   userNickname: userNickname,
+                  getProfileImage: (c) => c.hospitalProfileImage,
                 );
               },
             ),
@@ -1505,6 +1508,7 @@ class _UserDashboardState extends State<UserDashboard>
                   enableTextPersonalization: true,
                   userName: userName,
                   userNickname: userNickname,
+                  getProfileImage: (n) => n.authorProfileImage,
                 );
               },
             ),

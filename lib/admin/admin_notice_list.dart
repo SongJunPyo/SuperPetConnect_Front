@@ -1,6 +1,7 @@
 ﻿import 'package:flutter/material.dart';
 import '../utils/app_theme.dart';
 import '../utils/app_constants.dart';
+import '../utils/config.dart';
 import '../models/notice_model.dart';
 import '../services/notice_service.dart';
 import 'admin_notice_create.dart';
@@ -916,8 +917,8 @@ class _AdminNoticeListScreenState extends State<AdminNoticeListScreen>
                                 text: notice.title,
                                 style: AppTheme.bodyMediumStyle.copyWith(
                                   color: AppTheme.textPrimary,
-                                  fontWeight: FontWeight.w500,
-                                  fontSize: 14,
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 13,
                                 ),
                                 animationDuration: const Duration(
                                   milliseconds: 4000,
@@ -930,9 +931,34 @@ class _AdminNoticeListScreenState extends State<AdminNoticeListScreen>
                           ],
                         ),
                         const SizedBox(height: 6),
-                        // 두 번째 줄: [닉네임][수정 일자]
+                        // 두 번째 줄: [프로필 사진][닉네임][수정 일자]
                         Row(
                           children: [
+                            // 작성자 프로필 사진
+                            Builder(
+                              builder: (context) {
+                                final profileImage = notice.authorProfileImage;
+                                final hasImage = profileImage != null && profileImage.isNotEmpty;
+                                return CircleAvatar(
+                                  radius: 10,
+                                  backgroundColor: AppTheme.veryLightGray,
+                                  foregroundImage: hasImage
+                                      ? NetworkImage(
+                                          profileImage.startsWith('http')
+                                              ? profileImage
+                                              : '${Config.serverUrl}$profileImage',
+                                        )
+                                      : null,
+                                  onForegroundImageError: hasImage ? (_, __) {} : null,
+                                  child: Icon(
+                                    Icons.business,
+                                    size: 12,
+                                    color: AppTheme.textTertiary,
+                                  ),
+                                );
+                              },
+                            ),
+                            const SizedBox(width: 6),
                             // 닉네임 (작성자 닉네임)
                             Expanded(
                               child: Text(
@@ -944,7 +970,7 @@ class _AdminNoticeListScreenState extends State<AdminNoticeListScreen>
                                         notice.authorName),
                                 style: AppTheme.bodySmallStyle.copyWith(
                                   color: AppTheme.textSecondary,
-                                  fontSize: 12,
+                                  fontSize: 13,
                                 ),
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
@@ -968,7 +994,7 @@ class _AdminNoticeListScreenState extends State<AdminNoticeListScreen>
                             '작성: ${DateFormat('yy.MM.dd').format(notice.createdAt)}',
                             style: AppTheme.bodySmallStyle.copyWith(
                               color: AppTheme.textTertiary,
-                              fontSize: 11,
+                              fontSize: 13,
                             ),
                           ),
                           const SizedBox(height: 2),
@@ -976,7 +1002,7 @@ class _AdminNoticeListScreenState extends State<AdminNoticeListScreen>
                             '수정: ${DateFormat('yy.MM.dd').format(notice.updatedAt)}',
                             style: AppTheme.bodySmallStyle.copyWith(
                               color: AppTheme.textTertiary,
-                              fontSize: 11,
+                              fontSize: 13,
                             ),
                           ),
                         ],

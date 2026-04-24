@@ -349,6 +349,7 @@ class _WelcomeScreenState extends State<WelcomeScreen>
                   createdAt: column.createdAt,
                   updatedAt: column.updatedAt,
                   authorNickname: displayNickname,
+                  hospitalProfileImage: column.hospitalProfileImage,
                   columnUrl: column.columnUrl,
                   targetAudience: column.targetAudience,
                 );
@@ -394,6 +395,7 @@ class _WelcomeScreenState extends State<WelcomeScreen>
                   authorEmail: notice.authorEmail,
                   authorName: notice.authorName,
                   authorNickname: displayNickname,
+                  authorProfileImage: notice.authorProfileImage,
                   viewCount: notice.viewCount,
                   targetAudience: notice.targetAudience,
                   noticeUrl: notice.noticeUrl,
@@ -647,6 +649,7 @@ class _WelcomeScreenState extends State<WelcomeScreen>
                   shouldShowBadge: (n) => n.showBadge,
                   getBadgeText: (n) => n.badgeText,
                   enableTextPersonalization: false,
+                  getProfileImage: (n) => n.authorProfileImage,
                 );
               },
             ),
@@ -730,6 +733,7 @@ class _WelcomeScreenState extends State<WelcomeScreen>
                   shouldShowBadge: (c) => c.title.contains('[중요]') || c.title.contains('[공지]'),
                   getBadgeText: (c) => '중요',
                   enableTextPersonalization: false,
+                  getProfileImage: (c) => c.hospitalProfileImage,
                 );
               },
             ),
@@ -768,6 +772,7 @@ class _WelcomeScreenState extends State<WelcomeScreen>
             authorEmail: noticeDetail.authorEmail,
             authorName: noticeDetail.authorName,
             authorNickname: displayNickname,
+            authorProfileImage: noticeDetail.authorProfileImage ?? notices[idx].authorProfileImage,
             viewCount: noticeDetail.viewCount,
             targetAudience: noticeDetail.targetAudience,
             noticeUrl: noticeDetail.noticeUrl,

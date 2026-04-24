@@ -5,7 +5,8 @@ class ApiEndpoints {
   static const String api = '/api';
 
   // ===== Auth =====
-  static const String authLogin = '$api/auth/login';
+  // 로그인은 /api/login 레거시 경로를 그대로 사용합니다 ( /api/auth/login 은 존재하지 않음 ).
+  // 호출 위치: lib/auth/login.dart
   static const String authSignup = '$api/auth/signup';
   static const String authProfile = '$api/auth/profile';
   static const String authRefresh = '$api/auth/refresh';

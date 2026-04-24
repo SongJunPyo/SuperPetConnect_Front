@@ -203,6 +203,35 @@ final response = await http.post(
 
 ## 개발 가이드라인
 
+### 새 기능 추가 시 체크리스트
+
+작업 완료 전 아래를 한 번 확인하세요. 중앙 집중 구조를 깨뜨리지 않는 것이 이 프로젝트의 장기 유지보수성의 핵심입니다.
+
+- [ ] **API 경로**: 새 엔드포인트는 [lib/utils/api_endpoints.dart](lib/utils/api_endpoints.dart)에 추가했는가? 서비스 파일에 `/api/...` 문자열을 하드코딩하지 않았는가?
+- [ ] **상수/enum 값**: 상태 코드, 계정 타입, 긴급도 등의 `int` 리터럴을 직접 쓰지 않고 [lib/utils/app_constants.dart](lib/utils/app_constants.dart)의 상수를 참조했는가?
+- [ ] **모델 위치**: 새 모델 클래스는 [lib/models/](lib/models/)에 분리했는가? 서비스 파일 안에 모델 정의를 섞지 않았는가? (기존 `admin_hospital_service.dart` 같은 통합 케이스는 점진 분리 대상)
+- [ ] **HTTP 호출**: 인증 필요한 요청에 `http.get/post` 대신 [AuthHttpClient](lib/services/auth_http_client.dart)를 사용했는가?
+- [ ] **저장소 접근**: `SharedPreferences.getInstance()` 직접 호출 대신 [PreferencesManager](lib/utils/preferences_manager.dart)를 경유했는가?
+- [ ] **에러 메시지**: 서버 에러는 `response.extractErrorMessage()` 또는 `response.toException()`을 사용했는가? (백엔드의 `detail` Map 구조까지 자동 파싱됨)
+- [ ] **로그**: `print()` 대신 `debugPrint()`를 사용했는가? (`analysis_options.yaml`의 `avoid_print` 룰이 차단)
+- [ ] **dead code**: 임시 추가한 상수/함수가 결국 안 쓰이게 되었다면 제거했는가?
+- [ ] **`flutter analyze`**: 이슈 0건 확인했는가?
+- [ ] **계약 변경**: 백엔드 응답 스키마/enum 값이 바뀌는 작업이라면 CLAUDE.md의 해당 섹션도 함께 업데이트했는가?
+
+### pre-commit hook (선택, 권장)
+
+`.git/hooks/pre-commit` 파일을 만들고 실행 권한을 주면 커밋 전에 자동으로 lint가 돌아갑니다:
+
+```bash
+#!/bin/sh
+flutter analyze --no-fatal-infos || {
+  echo "flutter analyze 실패 — 이슈를 먼저 해결하세요."
+  exit 1
+}
+```
+
+Windows에서는 `.git/hooks/pre-commit.cmd` 사용.
+
 ### 핵심 작업 원칙
 
 **API 우선 접근법**
@@ -244,16 +273,17 @@ final response = await http.post(
 
 ## 데이터 타입 및 상수 정의
 
-### 사용자 유형 (User Type / account_type)
-- `1`: **관리자** (시스템 관리자)
+### 사용자 유형 (Account Type / accounts.account_type)
+백엔드 `constants/enums.py`의 `AccountType` 기준. **라우팅의 핵심 필드이므로 절대 문자열화하거나 재매핑하지 말 것** (`int` 값 그대로 유지).
+- `1`: **ADMIN** (관리자 / 시스템 관리자)
   - 사용자 승인 및 관리
   - 병원 검증 및 승인
   - 시스템 전체 콘텐츠 조정
-- `2`: **병원** (동물병원)
+- `2`: **HOSPITAL** (병원 / 동물병원)
   - 헌혈 요청 게시물 작성
   - 지원자 관리 및 승인
   - 스케줄링 관리
-- `3`: **일반 사용자** (반려동물 소유자)
+- `3`: **USER** (일반 사용자 / 반려동물 소유자)
   - 반려동물 등록 및 관리
   - 헌혈 요청 조회 및 지원
   - 교육 콘텐츠 접근
@@ -264,22 +294,35 @@ final response = await http.post(
 - `2`: **비활성화** - 계정 일시 정지
 - `3`: **차단됨** - 계정 영구 정지
 
-### 헌혈 요청 상태 (Post Status)
-- `0`: **모집 진행** - 지원자 모집 중
-- `1`: **모집 승인** - 필요한 지원자 확보
-- `2`: **모집 취소** - 요청 취소
+### 헌혈 요청 상태 (Post Status / donation_posts.status)
+백엔드 `constants/enums.py`의 `PostStatus` 기준. 프론트 `lib/utils/app_constants.dart`도 동일한 값을 사용.
+- `0`: **WAIT** (모집 대기) - 등록 직후 관리자 검토 대기
+- `1`: **APPROVED** (승인) - 관리자 승인, 지원자 모집 중
+- `2`: **REJECTED** (거절) - 관리자가 요청 거절
+- `3`: **CLOSED** (마감) - 모집 기한 종료
+- `4`: **COMPLETED** (완료) - 병원이 완료/중단 처리
+- `5`: **SUSPENDED** (대기 상태) - 관리자가 모집중 → 대기로 변경
 
-### 긴급도 (Urgency Level)
-- `0`: **일반** - 정기적인 헌혈 요청
-- `1`: **긴급** - 응급 상황으로 즉시 헌혈 필요
+### 긴급도 (Post Type / donation_posts.types)
+백엔드 `constants/enums.py`의 `PostType` 기준. **0과 1의 의미가 직관과 반대이므로 주의**.
+- `0`: **URGENT** (긴급) - 응급 상황으로 즉시 헌혈 필요
+- `1`: **REGULAR** (정기) - 정기적인 헌혈 요청
+
+### 신청 상태 (Applied Donation Status / applied_donation.status)
+백엔드 `constants/enums.py`의 `AppliedDonationStatus` 기준. **값 5~7은 2단계 완료/취소 플로우의 핵심**이므로 UI에서 반드시 구분 표시.
+- `0`: **PENDING** (대기 중) - 신청 직후, 병원 승인 대기
+- `1`: **APPROVED** (승인됨) - 병원이 신청자 승인
+- `2`: **REJECTED** (거절됨) - 병원이 신청 거절
+- `3`: **COMPLETED** (완료, 레거시 호환) - 구 버전 호환용
+- `4`: **CANCELED** (취소됨) - 사용자가 신청 취소
+- `5`: **PENDING_COMPLETION** (완료 대기) - 병원 1차 완료 처리, 관리자 최종 승인 대기
+- `6`: **PENDING_CANCELLATION** (중단 대기) - 병원 1차 중단 처리, 관리자 최종 승인 대기
+- `7`: **FINAL_COMPLETED** (헌혈 완료) - 관리자 최종 승인으로 정식 완료
 
 ### 반려동물 혈액형 (Pet Blood Type)
 **개 혈액형**
 - `DEA1.1+`: DEA 1.1 양성
 - `DEA1.1-`: DEA 1.1 음성
-- `DEA3+`: DEA 3 양성
-- `DEA4+`: DEA 4 양성
-- `DEA7+`: DEA 7 양성
 
 **고양이 혈액형**
 - `A`: A형
@@ -304,3 +347,234 @@ final response = await http.post(
 - `2`: **지원 승인** - 헌혈 지원 승인 알림
 - `3`: **지원 거절** - 헌혈 지원 거절 알림
 - `4`: **시스템** - 시스템 공지사항
+
+## 백엔드 의존 계약 (Backend Contract)
+
+아래 항목들은 백엔드와 프론트가 공동으로 지키는 고정 계약입니다. 백엔드가 변경할 때는 반드시 changelog로 사전 공지하며, 프론트가 임의로 재정의하지 않습니다.
+
+### 로그인 응답 필드 (절대 필드명 변경 금지)
+`POST /api/login` 및 네이버 로그인 응답은 아래 필드를 포함합니다. 프론트의 `lib/auth/login.dart`와 `PreferencesManager`가 이 키에 직접 의존합니다.
+
+| 필드 | 타입 | 설명 |
+|------|------|------|
+| `access_token` | string | JWT 액세스 토큰 (15분) |
+| `refresh_token` | string \| null | 리프레시 토큰 (7일). null이면 저장 스킵 |
+| `account_type` | int (1/2/3) | **라우팅 핵심** — 문자열화 금지 |
+| `account_idx` | int | 계정 PK |
+| `email` | string | 사용자 이메일 |
+| `name` | string | 사용자 이름 |
+| `hospital_code` | string | `account_type == 2`일 때만 (병원 식별자) |
+| `onboarding_completed` | bool | false면 온보딩 화면으로 리다이렉트 |
+| `approved` | bool | false면 "승인 대기 중" 다이얼로그 표시 |
+
+### 에러 응답 `detail` 구조
+`AuthHttpClient`의 `extractErrorMessage()`가 아래 두 형태를 파싱합니다.
+
+- **문자열 형태**: `{"detail": "자격이 맞지 않습니다."}`
+- **Map 형태** (자격 검증 실패 등):
+  ```json
+  {
+    "detail": {
+      "message": "자격 미달",
+      "failed_conditions": [
+        {"message": "체중 부족"},
+        {"message": "건강 상태 이상"}
+      ]
+    }
+  }
+  ```
+
+서버의 `constants/messages.py`에 있는 한국어 메시지는 **클라이언트에 그대로 노출됨** — 메시지 변경은 곧 UI 변경.
+
+### HTTP 상태 코드 의미 (프론트가 분기하는 코드)
+| 코드 | 의미 | 프론트 처리 |
+|------|------|-------------|
+| 401 | 인증 실패 | `AuthHttpClient`가 Refresh Token으로 자동 재시도, 실패 시 강제 로그아웃 |
+| 403 | 승인 대기 / 권한 없음 | 로그인 시 "승인 대기 중" 다이얼로그, 일반 요청은 권한 메시지 |
+| 409 | 중복 가입 | 네이버 로그인 시 "이미 가입된 이메일입니다" |
+| 413 | **이미지 개수(5개) 초과 전용** | "게시글당 최대 5개의 이미지만 업로드" |
+| 429 | Rate Limit | `Retry-After` 헤더의 초 단위 값으로 "N초 후 다시 시도" 안내 |
+
+**413 계약 주의사항**: HTTP 표준상 413은 "Payload Too Large"지만, 백엔드와 합의하여 **이미지 개수 초과 전용**으로 사용 중. **파일 크기 초과(20MB)는 400**으로 반환되며 `detail`에 사유가 포함됨(`IMAGE_FILE_TOO_LARGE_DETAIL`). 지원하지 않는 포맷도 400. 현재 프론트의 "413 = 5개 초과" 해석은 정확.
+
+**429 계약 적용 범위** (현재 백엔드에서 `@limiter.limit(...)` 걸린 엔드포인트만):
+| 엔드포인트 | 제한 |
+|------------|------|
+| `POST /api/login` | 5 req/min/IP |
+| `POST /api/register` | 3 req/min/IP |
+
+- 이미지 업로드 / 헌혈 신청 / 게시글 생성 등에는 **429 안 뜸** (처리 로직 불필요).
+- `Retry-After` 헤더는 slowapi가 항상 자동 첨부 (보증됨). 프론트의 60초 fallback은 안전장치로 유지.
+- 신규 엔드포인트에 429 추가 예정 시 백엔드 changelog **필수**.
+
+### 인증 토큰
+- **로그인 엔드포인트**: **`POST /api/login`** (form-urlencoded, `username` / `password` 필드). `/api/auth/login`은 **존재하지 않음** (호출하면 404). 백엔드 `OAuth2PasswordBearer.tokenUrl`이 `/api/login`을 가리키고 있어 경로 변경은 OAuth2 설정과 함께 움직여야 하므로 GA 이전에는 고정.
+- **Access Token**: `SharedPreferences`의 `auth_token` 키에 저장. 요청 시 `Authorization: Bearer {token}` 헤더로 전송.
+- **Refresh Token 전달 방식** (백엔드는 쿠키/body 둘 다 지원):
+  - 웹: 백엔드가 HttpOnly 쿠키로도 발급하며 브라우저가 `/api/auth/refresh` 호출 시 자동 첨부. 프론트는 **body 방식으로 통일해서 사용 중**.
+  - 모바일: body로 전달/재전송 (`{"refresh_token": "..."}`).
+- **GA 전까지 현재 방식 유지 (합의)**: 동작에 실익이 없고, CORS `credentials: 'include'` / SameSite 설정 실수 시 전체 인증이 막히는 리스크가 큼. 웹 XSS 내성 강화를 위한 쿠키 전용 전환은 **GA 이후 별도 보안 라운드**에서 처리. 전환이 필요해지면 백엔드가 먼저 changelog로 알리기로 약속됨.
+- **토큰 수명**: Access 15분 / Refresh 7일 (백엔드 `.env`의 `ACCESS_TOKEN_EXPIRE_MINUTES=15`, `REFRESH_TOKEN_EXPIRE_DAYS=7`). **GA 전까지 변경 계획 없음**. 변경 시 백엔드가 `Auth: access token lifetime changed 15min → X min` 형식 changelog 필수 (리프레시 빈도 = 네트워크 부하 / UX 영향).
+
+### 실시간 알림 전송 채널
+- **웹 전용 WebSocket**: `wss://<host>/ws?token=<access_token>` (쿼리스트링 인증, 브라우저가 커스텀 헤더 미지원). 5초 자동 재연결, 30초 ping.
+- **모바일 전용 FCM**: 로그인 직후 `POST /api/user/fcm-token` body `{"fcm_token": "..."}`로 디바이스 토큰 등록. `onTokenRefresh` 리스너가 갱신 시 자동 재전송.
+
+### WebSocket 메시지 스키마 (계약 확정)
+백엔드 `services/notification_service.py` 기준. **필드명 변경 금지**, `timestamp`는 **Unix 초(밀리초 아님)**.
+
+```json
+{
+  "type": "string",              // NotificationType 중 하나 (아래 목록)
+  "notification_id": 1234,       // int | null — DB PK, 읽음 처리 API에서 사용
+  "title": "string",
+  "body": "string",
+  "data": { /* object */ },      // 중첩 object 허용 (WebSocket 전용 특성)
+  "timestamp": 1716550800        // int, Unix seconds
+}
+```
+
+- **data 키 추가는 허용** (프론트는 모르는 키 무시). 키 이름 변경/삭제는 changelog 필수.
+- **`data` 필드 타입 보증** (백엔드 확정): **항상 JSON object (Map)**. `null`은 올 수 없음 (백엔드가 송신 시 `{}`로 승격: `services/notification_service.py:112`). array도 올 수 없음 (전 호출 경로에서 dict 리터럴만 사용). 빈 `{}`는 정상 값. 프론트의 "Map일 때만 `relatedData`로 복사" 방어 로직은 유지하되, 실제로 그 분기가 탈 일은 없음.
+- 시스템 메시지 `pong` / `ping` / `connection_established`는 수신 시 NotificationModel로 변환하지 않고 조용히 무시.
+- **Unknown `type` fallback** ([lib/services/websocket_handler.dart](lib/services/websocket_handler.dart)): 프론트 매핑에 없는 타입을 받으면 silent drop하지 않고 로그 + 유저타입별 `systemNotice`로 승격해서 목록에 표시 (최소한 title/body는 전달). 백엔드가 신규 type을 추가했는데 프론트가 아직 못 따라간 경우의 safety-net.
+
+### FCM data 직렬화 규칙 (WebSocket과의 차이)
+- **WebSocket**: `data`가 원본 object 그대로 전달 (중첩 dict/list 사용 가능).
+- **FCM**: Firebase 스펙상 `data`의 모든 값이 **string이어야 함**. 백엔드가 dict는 `json.dumps()`로 직렬화, 나머지는 `str()` 캐스팅. 프론트는 `post_info`, `navigation` 같은 필드를 `jsonDecode`로 재파싱해야 함 — [notification_converter.dart:parseRelatedData](lib/services/notification_converter.dart)에서 이미 처리 중.
+
+### FCM `type` 공식 목록 (계약 확정)
+백엔드 `constants/enums.py::NotificationType`가 **단일 원천**. 총 **31개 고유** (역할 간 중복 포함 시 33개). **신규 추가 시 changelog 필수** — 안 그러면 프론트가 fallback `systemNotice`로 떨어짐. 프론트 쪽 매핑 파일([lib/models/notification_mapping.dart](lib/models/notification_mapping.dart))과 **이중 동기화** 필요.
+
+```
+# 관리자용 (9개)
+admin_alert, new_user_registration, new_post_approval, column_approval,
+new_donation_application, donation_application, donation_completed, pet_review_request,
+new_pet_registration                        # 2026-04 append: services/pets_service.py:90
+
+# 병원용 (12개)
+hospital_alert, donation_post_approved, donation_post_rejected, new_donation_application,
+column_approved, column_rejected, timeslot_filled, all_timeslots_filled,
+hospital_notice, post_suspended, post_resumed, document_request
+
+# 사용자용 (12개)
+broadcast, general, donation_completed, donation_completion_rejected, recruitment_closed,
+account_suspended, account_status_changed, pet_approved, pet_rejected,
+new_donation_post,                          # 2026-04 append: services/admin_post_service.py:154
+donation_application_approved,              # 2026-04 append: services/applied_donation_service.py:648
+donation_application_rejected               # 2026-04 append: services/applied_donation_service.py:656
+```
+
+**2026-04 동기화 배경**: 위 4개 타입은 백엔드가 emit은 하고 있었으나 `constants/enums.py`에 등록되지 않아 알림 **목록 조회 API** (`/api/*/notifications`) 에서 필터링되어 숨겨져 있던 버그 상태였음. enums.py에 append하면서 과거 DB 레코드도 목록에 노출되기 시작 — 별도 데이터 마이그레이션 불필요.
+
+프론트 FCM/WebSocket → client enum 매핑은 [lib/services/notification_converter.dart](lib/services/notification_converter.dart)의 `getAdminNotificationTypeFromFCM` / `getHospitalNotificationTypeFromFCM` / `getUserNotificationTypeFromFCM`에서 관리. 백엔드가 신규 `type`을 통지하면 이 세 함수에 case 추가.
+
+**changelog 포맷 예시** (백엔드 → 프론트):
+```
+New notification type:
+  - name: "pet_deleted"
+  - audience: ["user"]
+  - data keys: { "pet_idx": int, "deleted_by": "admin"|"user" }
+  - navigation: "/pets" (선택)
+  - title/body example: "반려동물이 삭제되었습니다" / "{pet_name} 기록이 제거되었습니다"
+```
+
+### 이미지 URL
+- 백엔드는 **상대 경로**로 반환 (예: `/uploads/posts/abc.jpg`).
+- 프론트는 `DonationPostImageService.getFullImageUrl()`이 `http`로 시작하지 않으면 `Config.serverUrl`을 prefix로 붙임. CDN 전환해서 절대 URL을 반환해도 안전.
+
+## API 경로 정규화 계획
+
+백엔드에 단수/복수 섞인 경로(예: `/api/hospital/post/{id}` vs `/api/hospital/posts/{id}`)가 일부 남아있으며, 장기적으로 정리할 예정입니다. **합의된 변경 절차**:
+
+1. 백엔드가 새 경로를 alias로 추가하면서 옛 경로도 당분간 유지 (dual-route 기간)
+2. 백엔드가 "새 경로로 마이그레이션해 달라" 요청 시 `lib/utils/api_endpoints.dart`만 수정
+3. 한 릴리스 지난 후 백엔드가 옛 경로 제거
+
+**현재**: 프론트 코드 변경 불필요. 백엔드 요청이 오기 전까지 `api_endpoints.dart`의 현재 경로(단수/복수 혼재 상태) 그대로 유지.
+
+## 환경 설정 관리 (.env)
+
+- `.env`는 `.gitignore`에 포함되어 git 추적 대상 아님.
+- 키 구조 참고용으로 `.env.example`을 유지. 실제 값은 placeholder로만 표기.
+- 레포 이관/재구축 시에는 clean 상태로 시작하고 시크릿을 로테이션.
+- 현재 관리 중인 키: `SERVER_URL`, `WEB_SERVER_URL` (웹은 CORS 문제로 분리 가능).
+
+## 모바일 배포 채널
+
+**현재 상태**: 개발 빌드만 운영 중. TestFlight / Google Play Internal Testing 트랙 **미연동**.
+
+- iOS: `flutter build ios` 수동 빌드 → Xcode로 디바이스 설치
+- Android: `flutter build apk --release` 수동 빌드 → APK 직접 배포
+- Fastlane / CI/CD 파이프라인 없음
+- GA 시점에 스토어 배포 채널 구성 예정 (TestFlight 내부 테스트 → App Store 심사, Play Internal → Closed Testing → 프로덕션)
+
+> 이 상태는 백엔드 CLAUDE.md와 동일하게 박제되어 기준이 맞춰져 있음.
+
+## 병원 마스터 데이터 API 계약 (`/api/admin/hospitals/master/*`)
+
+**최근 도입 영역** — 계약이 아직 소폭 바뀔 수 있음. 변경 발생 시 백엔드가 changelog로 재전달 예정.
+
+### 공통
+- **인증**: JWT Bearer, `account_type == 1` (ADMIN)만 접근. 아니면 **403**.
+- **에러 형식**: 기존 `{"detail": "..."}` 규약 그대로.
+- **구현 위치** (프론트):
+  - 서비스: `lib/services/admin_hospital_service.dart` (`AdminHospitalService.getHospitalMasterList / registerHospitalMaster / updateHospitalMaster / deleteHospitalMaster`)
+  - 모델: 같은 파일 하단 `HospitalMaster`, `HospitalMasterListResponse` 클래스 (별도 `lib/models/` 파일 없음)
+  - 화면: `lib/admin/admin_hospital_check.dart`, `lib/admin/admin_signup_management.dart` (가입 승인 시 병원 검색)
+  - 경로 상수: `lib/utils/api_endpoints.dart`의 `adminHospitalsMaster`, `adminHospitalsMasterRegister`, `adminHospitalMaster(hospitalCode)`
+
+### 응답 스키마 `HospitalMasterResponse` (모든 단건 응답 공통)
+```json
+{
+  "hospital_master_idx": 1,
+  "hospital_code": "H0001",
+  "hospital_name": "행복동물병원",
+  "hospital_address": "서울시 ...",
+  "hospital_phone": "02-0000-0000",
+  "created_at": "2026-01-01T00:00:00",
+  "updated_at": "2026-01-01T00:00:00"
+}
+```
+- `hospital_code`는 서버 자동 발급(H0001 순번 포맷). 프론트 입력 **금지**.
+- `hospital_code`는 **immutable** — 수정/삭제 시 path param으로만 쓰며, 다른 테이블(`accounts.hospital_code`)이 참조하므로 DB 레벨로도 변경 금지.
+
+### 엔드포인트
+
+| 메서드 | 경로 | 설명 |
+|--------|------|------|
+| POST | `/api/admin/hospitals/master/register` | 등록. body: `{hospital_name(필수), hospital_address?, hospital_phone?}`. `hospital_code`는 서버 자동 발급 |
+| GET  | `/api/admin/hospitals/master` | 목록. query: `search?`, `page?` (default 1), `page_size?` (default 20, max 100). 응답: `{hospitals: HospitalMasterResponse[], total_count: int}` |
+| PUT  | `/api/admin/hospitals/master/{hospital_code}` | 부분 수정. body 모든 필드 optional (`hospital_name?`, `hospital_address?`, `hospital_phone?`) |
+| DELETE | `/api/admin/hospitals/master/{hospital_code}` | 삭제. 반환 형식 **미정** — 프론트는 200/204만 확인하고 목록 재조회. 참조 계정이 있으면 백엔드가 4xx 반환할 수 있으므로 `detail` 문자열 그대로 노출 |
+
+### GET 목록 응답 불변 계약 (백엔드 런타임 검증 완료)
+| 조건 | 응답 | 비고 |
+|------|------|------|
+| 빈 검색 결과 | `{"hospitals": [], "total_count": 0}` | `hospitals` 빈 배열 (null 불가), `total_count` 정수 0 (null 불가). `services/hospital_master_service.py:108`에서 `count or 0`으로 null 방지 |
+| `page_size` 범위 초과 (0, 101 이상) | **400** | 허용 범위 `1 ~ 100`. 프론트는 기본 20, 다이얼로그 미리보기 50 사용 중이므로 안전 |
+| `page` 오버플로우 (예: 데이터 2건인데 `page=9999`) | `{"hospitals": [], "total_count": <전체건수>}`, **400 아님** | `total_count`는 필터 조건 기반 실제 전체 건수 유지. 프론트는 `_currentPage > totalPages` 또는 `total_count > 0 && hospitals.isEmpty`로 감지 후 1페이지로 자동 폴백 ([admin_hospital_check.dart:_loadMasterHospitals](lib/admin/admin_hospital_check.dart)) |
+
+**계약**: `hospitals` / `total_count` 필드는 **null이 될 수 없음** (빈 배열 / 정수 0으로 보장). 프론트는 `null` 방어 없이 직접 사용 가능.
+
+### 프론트 구현 상태 메모
+- **서버 사이드 페이지네이션 사용 중** (2026-04 전환). `getHospitalMasterList({page, pageSize=20, search})`이 `page` / `page_size` 쿼리를 항상 전송하고 응답 `total_count` 기반으로 `PaginationBar`를 렌더.
+- **검색 디바운스 400ms** 적용 ([admin_hospital_check.dart](lib/admin/admin_hospital_check.dart) 마스터 탭, [admin_signup_management.dart](lib/admin/admin_signup_management.dart) 가입 승인 다이얼로그). `clear` 버튼과 다이얼로그 닫힘은 디바운스 즉시 취소.
+- 마지막 페이지에서 마지막 레코드 삭제 시 `_loadMasterHospitals()`가 자동으로 1페이지로 폴백 후 재조회.
+- DELETE 응답을 200/204 모두 수용하는 방어 코드 이미 반영 ([admin_hospital_service.dart:440](lib/services/admin_hospital_service.dart#L440)).
+
+### hospital_code 부여 플로우 (가입 승인)
+병원 계정의 `hospital_code`는 **가입 승인 시점**에 관리자가 연결합니다.
+
+1. 병원이 일반 이메일 회원가입 → `approved=False` 상태로 대기
+2. 관리자가 `admin_signup_management` 화면에서 마스터 병원 목록(`/api/admin/hospitals/master`)에서 해당 병원 선택 (이미 등록된 마스터여야 함)
+3. 관리자 승인 API가 `hospital_id`(= `hospital_code`) 를 body에 담아 전송
+4. 백엔드가 Hospital 레코드 생성 + hospital_master의 주소/이름을 Account에 자동 복사
+5. 이후 해당 계정은 `account_type=2` (HOSPITAL)로 전환
+
+**마스터에 없는 신규 병원인 경우**:
+- 관리자가 먼저 `POST /api/admin/hospitals/master/register`로 마스터 등록
+- 그 다음 가입 요청 승인
+- **순서가 중요** — 프론트 UI에서 "마스터에 없음" 감지 시 먼저 마스터 등록 모달로 유도하는 것이 안전
+
+**주의 — 백엔드 현재 동작**: 승인 시 `hospital_master` 조회에 매치가 없어도 에러를 내지 않고 조용히 지나감 (`signup_management_service.py:102-107`). 미등록 코드를 보내면 Hospital 레코드는 생성되지만 주소/이름이 비게 됨. **프론트가 마스터 목록에서만 선택하도록 UI를 제한해서 이 상황을 방지할 것** (현재 [lib/admin/admin_signup_management.dart:292-371](lib/admin/admin_signup_management.dart#L292)이 이 패턴을 따름).

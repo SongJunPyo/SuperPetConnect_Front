@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../utils/app_theme.dart';
+import '../utils/config.dart';
 import '../services/dashboard_service.dart';
 import '../models/column_post_model.dart';
 import 'package:intl/intl.dart';
@@ -589,7 +590,7 @@ class _UserColumnListScreenState extends State<UserColumnListScreen> {
                               '${index + 1}',
                               style: AppTheme.bodySmallStyle.copyWith(
                                 color: AppTheme.textTertiary,
-                                fontWeight: FontWeight.w500,
+                                fontWeight: FontWeight.normal,
                                 fontSize: 13,
                               ),
                               textAlign: TextAlign.center,
@@ -635,11 +636,8 @@ class _UserColumnListScreenState extends State<UserColumnListScreen> {
                                             isImportant
                                                 ? AppTheme.error
                                                 : AppTheme.textPrimary,
-                                        fontWeight:
-                                            isImportant
-                                                ? FontWeight.w600
-                                                : FontWeight.w500,
-                                        fontSize: 14,
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 13,
                                       ),
                                       animationDuration: const Duration(
                                         milliseconds: 4000,
@@ -652,17 +650,47 @@ class _UserColumnListScreenState extends State<UserColumnListScreen> {
                                 ],
                               ),
                               const SizedBox(height: 6),
-                              // 두 번째 줄: 작성자 닉네임
-                              Text(
-                                column.authorNickname.length > 15
-                                    ? '${column.authorNickname.substring(0, 15)}..'
-                                    : column.authorNickname,
-                                style: AppTheme.bodySmallStyle.copyWith(
-                                  color: AppTheme.textSecondary,
-                                  fontSize: 12,
-                                ),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
+                              // 두 번째 줄: 프로필 사진 + 작성자 닉네임
+                              Row(
+                                children: [
+                                  Builder(
+                                    builder: (context) {
+                                      final hasImage = column.hospitalProfileImage != null &&
+                                          column.hospitalProfileImage!.isNotEmpty;
+                                      return CircleAvatar(
+                                        radius: 10,
+                                        backgroundColor: AppTheme.veryLightGray,
+                                        foregroundImage: hasImage
+                                            ? NetworkImage(
+                                                column.hospitalProfileImage!.startsWith('http')
+                                                    ? column.hospitalProfileImage!
+                                                    : '${Config.serverUrl}${column.hospitalProfileImage}',
+                                              )
+                                            : null,
+                                        onForegroundImageError: hasImage ? (_, __) {} : null,
+                                        child: Icon(
+                                          Icons.business,
+                                          size: 12,
+                                          color: AppTheme.textTertiary,
+                                        ),
+                                      );
+                                    },
+                                  ),
+                                  const SizedBox(width: 6),
+                                  Flexible(
+                                    child: Text(
+                                      column.authorNickname.length > 15
+                                          ? '${column.authorNickname.substring(0, 15)}..'
+                                          : column.authorNickname,
+                                      style: AppTheme.bodySmallStyle.copyWith(
+                                        color: AppTheme.textSecondary,
+                                        fontSize: 13,
+                                      ),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ),
+                                ],
                               ),
                             ],
                           ),
@@ -680,7 +708,7 @@ class _UserColumnListScreenState extends State<UserColumnListScreen> {
                                   '작성: ${DateFormat('yy.MM.dd').format(column.createdAt)}',
                                   style: AppTheme.bodySmallStyle.copyWith(
                                     color: AppTheme.textTertiary,
-                                    fontSize: 11,
+                                    fontSize: 13,
                                   ),
                                 ),
                                 const SizedBox(height: 2),
@@ -688,7 +716,7 @@ class _UserColumnListScreenState extends State<UserColumnListScreen> {
                                   '수정: ${DateFormat('yy.MM.dd').format(column.updatedAt)}',
                                   style: AppTheme.bodySmallStyle.copyWith(
                                     color: AppTheme.textTertiary,
-                                    fontSize: 11,
+                                    fontSize: 13,
                                   ),
                                 ),
                               ],

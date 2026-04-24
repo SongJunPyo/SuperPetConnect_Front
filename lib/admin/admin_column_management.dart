@@ -4,6 +4,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../services/hospital_column_service.dart';
 import '../models/hospital_column_model.dart';
 import '../utils/app_theme.dart';
+import '../utils/config.dart';
 import '../widgets/app_search_bar.dart';
 import '../widgets/rich_text_viewer.dart';
 import '../hospital/hospital_column_edit.dart';
@@ -689,7 +690,7 @@ class _AdminColumnManagementState extends State<AdminColumnManagement>
                   '${index + 1}',
                   style: AppTheme.bodySmallStyle.copyWith(
                     color: AppTheme.textTertiary,
-                    fontWeight: FontWeight.w500,
+                    fontWeight: FontWeight.normal,
                     fontSize: 13,
                   ),
                   textAlign: TextAlign.center,
@@ -707,24 +708,54 @@ class _AdminColumnManagementState extends State<AdminColumnManagement>
                     column.title,
                     style: AppTheme.bodyMediumStyle.copyWith(
                       color: AppTheme.textPrimary,
-                      fontWeight: FontWeight.w500,
-                      fontSize: 14,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 13,
                     ),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
                   const SizedBox(height: 6),
-                  // 두 번째 줄: 닉네임
-                  Text(
-                    (column.authorNickname ?? column.hospitalName).length > 15
-                        ? '${(column.authorNickname ?? column.hospitalName).substring(0, 15)}..'
-                        : (column.authorNickname ?? column.hospitalName),
-                    style: AppTheme.bodySmallStyle.copyWith(
-                      color: AppTheme.textSecondary,
-                      fontSize: 12,
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
+                  // 두 번째 줄: 프로필 사진 + 닉네임
+                  Row(
+                    children: [
+                      Builder(
+                        builder: (context) {
+                          final hasImage = column.hospitalProfileImage != null &&
+                              column.hospitalProfileImage!.isNotEmpty;
+                          return CircleAvatar(
+                            radius: 10,
+                            backgroundColor: AppTheme.veryLightGray,
+                            foregroundImage: hasImage
+                                ? NetworkImage(
+                                    column.hospitalProfileImage!.startsWith('http')
+                                        ? column.hospitalProfileImage!
+                                        : '${Config.serverUrl}${column.hospitalProfileImage}',
+                                  )
+                                : null,
+                            onForegroundImageError: hasImage ? (_, __) {} : null,
+                            child: Icon(
+                              Icons.business,
+                              size: 12,
+                              color: AppTheme.textTertiary,
+                            ),
+                          );
+                        },
+                      ),
+                      const SizedBox(width: 6),
+                      Flexible(
+                        child: Text(
+                          (column.authorNickname ?? column.hospitalName).length > 15
+                              ? '${(column.authorNickname ?? column.hospitalName).substring(0, 15)}..'
+                              : (column.authorNickname ?? column.hospitalName),
+                          style: AppTheme.bodySmallStyle.copyWith(
+                            color: AppTheme.textSecondary,
+                            fontSize: 13,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
                   ),
                 ],
               ),
@@ -742,7 +773,7 @@ class _AdminColumnManagementState extends State<AdminColumnManagement>
                       '작성: ${DateFormat('yy.MM.dd').format(column.createdAt)}',
                       style: AppTheme.bodySmallStyle.copyWith(
                         color: AppTheme.textTertiary,
-                        fontSize: 11,
+                        fontSize: 13,
                       ),
                     ),
                     const SizedBox(height: 2),
@@ -750,7 +781,7 @@ class _AdminColumnManagementState extends State<AdminColumnManagement>
                       '수정: ${DateFormat('yy.MM.dd').format(column.updatedAt)}',
                       style: AppTheme.bodySmallStyle.copyWith(
                         color: AppTheme.textTertiary,
-                        fontSize: 11,
+                        fontSize: 13,
                       ),
                     ),
                   ],

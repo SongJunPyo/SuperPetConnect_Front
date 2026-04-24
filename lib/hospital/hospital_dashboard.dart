@@ -195,6 +195,7 @@ class _HospitalDashboardState extends State<HospitalDashboard>
               createdAt: column.createdAt,
               updatedAt: column.updatedAt,
               authorNickname: displayNickname,
+              hospitalProfileImage: column.hospitalProfileImage,
               columnUrl: column.columnUrl,
             );
           }).toList();
@@ -237,6 +238,7 @@ class _HospitalDashboardState extends State<HospitalDashboard>
                   authorEmail: notice.authorEmail,
                   authorName: notice.authorName,
                   authorNickname: displayNickname,
+                  authorProfileImage: notice.authorProfileImage,
                   viewCount: notice.viewCount,
                   targetAudience: notice.targetAudience,
                   noticeUrl: notice.noticeUrl,
@@ -558,6 +560,7 @@ class _HospitalDashboardState extends State<HospitalDashboard>
                   enableTextPersonalization: true,
                   userName: hospitalName,
                   userNickname: hospitalNickname,
+                  getProfileImage: (n) => n.authorProfileImage,
                 );
               },
             ),
@@ -631,6 +634,7 @@ class _HospitalDashboardState extends State<HospitalDashboard>
                   enableTextPersonalization: true,
                   userName: hospitalName,
                   userNickname: hospitalNickname,
+                  getProfileImage: (c) => c.hospitalProfileImage,
                 );
               },
             ),
@@ -986,6 +990,7 @@ class _HospitalDashboardState extends State<HospitalDashboard>
             authorEmail: noticeDetail.authorEmail,
             authorName: noticeDetail.authorName,
             authorNickname: displayNickname,
+            authorProfileImage: noticeDetail.authorProfileImage ?? notices[idx].authorProfileImage,
             viewCount: noticeDetail.viewCount,
             targetAudience: noticeDetail.targetAudience,
             noticeUrl: noticeDetail.noticeUrl,

@@ -8,6 +8,7 @@ class NoticePost {
   final String authorEmail;
   final String authorName;
   final String authorNickname;
+  final String? authorProfileImage; // 작성자 프로필 사진
   final int viewCount;
   final DateTime createdAt;
   final DateTime updatedAt;
@@ -22,6 +23,7 @@ class NoticePost {
     required this.authorEmail,
     required this.authorName,
     required this.authorNickname,
+    this.authorProfileImage,
     required this.viewCount,
     required this.createdAt,
     required this.updatedAt,
@@ -48,6 +50,7 @@ class NoticePost {
                   json['author_nickname'].toString().isNotEmpty)
               ? json['author_nickname']
               : '닉네임 없음',
+      authorProfileImage: json['author_profile_image'],
       viewCount: json['view_count'] ?? json['viewCount'] ?? 0,
       createdAt:
           DateTime.tryParse(json['created_at'] ?? json['createdAt'] ?? '') ??

@@ -109,6 +109,13 @@ class WebSocketHandler {
 
       final data = jsonDecode(message.toString()) as Map<String, dynamic>;
 
+      // 시스템 메시지(heartbeat / 연결 확립)는 NotificationConverter와 동일하게 무시
+      const systemTypes = ['pong', 'ping', 'connection_established'];
+      final rawType = data['type']?.toString() ?? '';
+      if (systemTypes.contains(rawType)) {
+        return;
+      }
+
       // 현재 사용자 타입 확인
       final userType = await NotificationConverter.getCurrentUserType();
       if (userType == null) return;
@@ -118,9 +125,38 @@ class WebSocketHandler {
 
       if (notification != null) {
         _notificationController.add(notification);
+        return;
       }
-    } catch (_) {
-      // 메시지 처리 실패 시 무시
+
+      // 알려지지 않은 타입: silent drop 금지. 로그 + systemNotice로 승격 표시
+      // (백엔드가 NotificationType을 추가하고 프론트 매핑이 따라가지 못한 경우 보호)
+      debugPrint(
+        '[WebSocket] 알 수 없는 알림 타입: "$rawType" (userType=$userType). '
+        'fallback으로 systemNotice 표시. constants/enums.py::NotificationType 대조 필요.',
+      );
+      final title = (data['title'] as String?)?.trim();
+      final body = (data['body'] as String?)?.trim();
+      if (title == null || title.isEmpty) {
+        // title도 없으면 표시할 게 없으니 포기 (로그는 남김)
+        return;
+      }
+      final notificationId =
+          (data['notification_id'] as int?) ??
+          (data['timestamp'] as int?) ??
+          DateTime.now().millisecondsSinceEpoch;
+      final relatedData = data['data'] is Map<String, dynamic>
+          ? data['data'] as Map<String, dynamic>
+          : <String, dynamic>{};
+      final fallback = NotificationConverter.createFallbackNotification(
+        userType: userType,
+        notificationId: notificationId,
+        title: title,
+        content: body ?? '',
+        relatedData: relatedData,
+      );
+      _notificationController.add(fallback);
+    } catch (e) {
+      debugPrint('[WebSocket] 메시지 처리 실패: $e');
     }
   }
 

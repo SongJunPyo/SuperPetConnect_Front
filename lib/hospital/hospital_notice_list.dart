@@ -6,6 +6,7 @@ import '../models/notice_model.dart';
 import '../services/dashboard_service.dart';
 import '../models/notice_post_model.dart';
 import '../utils/app_theme.dart';
+import '../utils/config.dart';
 import '../utils/number_format_util.dart';
 import '../widgets/app_app_bar.dart';
 import '../widgets/marquee_text.dart';
@@ -206,6 +207,7 @@ class _HospitalNoticeListScreenState extends State<HospitalNoticeListScreen> {
       authorEmail: noticePost.authorEmail,
       authorName: noticePost.authorName,
       authorNickname: displayNickname,
+      authorProfileImage: noticePost.authorProfileImage,
       viewCount: noticePost.viewCount,
       targetAudience: noticePost.targetAudience,
       noticeUrl: noticePost.noticeUrl,
@@ -676,8 +678,8 @@ class _HospitalNoticeListScreenState extends State<HospitalNoticeListScreen> {
                                   fontWeight:
                                       notice.showBadge
                                           ? FontWeight.w600
-                                          : FontWeight.w500,
-                                  fontSize: 14,
+                                          : FontWeight.bold,
+                                  fontSize: 13,
                                 ),
                                 animationDuration: const Duration(
                                   milliseconds: 4000,
@@ -692,18 +694,48 @@ class _HospitalNoticeListScreenState extends State<HospitalNoticeListScreen> {
                         const SizedBox(height: 6),
                         Padding(
                           padding: const EdgeInsets.only(left: 28),
-                          child: Text(
-                            (notice.authorNickname ?? notice.authorName)
-                                        .length >
-                                    15
-                                ? '${(notice.authorNickname ?? notice.authorName).substring(0, 15)}..'
-                                : (notice.authorNickname ?? notice.authorName),
-                            style: AppTheme.bodySmallStyle.copyWith(
-                              color: AppTheme.textSecondary,
-                              fontSize: 12,
-                            ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
+                          child: Row(
+                            children: [
+                              Builder(
+                                builder: (context) {
+                                  final profileImage = notice.authorProfileImage;
+                                  final hasImage = profileImage != null && profileImage.isNotEmpty;
+                                  return CircleAvatar(
+                                    radius: 10,
+                                    backgroundColor: AppTheme.veryLightGray,
+                                    foregroundImage: hasImage
+                                        ? NetworkImage(
+                                            profileImage.startsWith('http')
+                                                ? profileImage
+                                                : '${Config.serverUrl}$profileImage',
+                                          )
+                                        : null,
+                                    onForegroundImageError: hasImage ? (_, __) {} : null,
+                                    child: Icon(
+                                      Icons.business,
+                                      size: 12,
+                                      color: AppTheme.textTertiary,
+                                    ),
+                                  );
+                                },
+                              ),
+                              const SizedBox(width: 6),
+                              Flexible(
+                                child: Text(
+                                  (notice.authorNickname ?? notice.authorName)
+                                              .length >
+                                          15
+                                      ? '${(notice.authorNickname ?? notice.authorName).substring(0, 15)}..'
+                                      : (notice.authorNickname ?? notice.authorName),
+                                  style: AppTheme.bodySmallStyle.copyWith(
+                                    color: AppTheme.textSecondary,
+                                    fontSize: 13,
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                            ],
                           ),
                         ),
                       ],
@@ -720,7 +752,7 @@ class _HospitalNoticeListScreenState extends State<HospitalNoticeListScreen> {
                             '작성: ${DateFormat('yy.MM.dd').format(notice.createdAt)}',
                             style: AppTheme.bodySmallStyle.copyWith(
                               color: AppTheme.textTertiary,
-                              fontSize: 11,
+                              fontSize: 13,
                             ),
                           ),
                           const SizedBox(height: 2),
@@ -728,7 +760,7 @@ class _HospitalNoticeListScreenState extends State<HospitalNoticeListScreen> {
                             '수정: ${DateFormat('yy.MM.dd').format(notice.updatedAt)}',
                             style: AppTheme.bodySmallStyle.copyWith(
                               color: AppTheme.textTertiary,
-                              fontSize: 11,
+                              fontSize: 13,
                             ),
                           ),
                         ],

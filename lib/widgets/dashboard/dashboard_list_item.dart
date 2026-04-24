@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../../utils/app_theme.dart';
+import '../../utils/config.dart';
 import '../../utils/text_personalization_util.dart';
 import '../marquee_text.dart';
 import 'dashboard_badge.dart';
@@ -69,6 +70,9 @@ class DashboardListItem<T> extends StatelessWidget {
   /// 사용자 닉네임 (텍스트 개인화용)
   final String? userNickname;
 
+  /// 프로필 이미지 경로를 추출하는 콜백 (옵셔널, 있으면 닉네임 앞에 프로필 사진 표시)
+  final String? Function(T)? getProfileImage;
+
   const DashboardListItem({
     super.key,
     required this.item,
@@ -84,6 +88,7 @@ class DashboardListItem<T> extends StatelessWidget {
     this.enableTextPersonalization = false,
     this.userName,
     this.userNickname,
+    this.getProfileImage,
   });
 
   @override
@@ -163,15 +168,47 @@ class DashboardListItem<T> extends StatelessWidget {
                     ],
                   ),
                   const SizedBox(height: 6),
-                  // 두 번째 줄: 작성자 이름
-                  Text(
-                    displayAuthor,
-                    style: AppTheme.bodySmallStyle.copyWith(
-                      color: AppTheme.textSecondary,
-                      fontSize: 12,
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
+                  // 두 번째 줄: (프로필 사진 +) 작성자 이름
+                  Row(
+                    children: [
+                      if (getProfileImage != null) ...[
+                        Builder(
+                          builder: (context) {
+                            final profileImage = getProfileImage!(item);
+                            final hasImage = profileImage != null && profileImage.isNotEmpty;
+                            return CircleAvatar(
+                              radius: 10,
+                              backgroundColor: AppTheme.veryLightGray,
+                              foregroundImage: hasImage
+                                  ? NetworkImage(
+                                      profileImage.startsWith('http')
+                                          ? profileImage
+                                          : '${Config.serverUrl}$profileImage',
+                                    )
+                                  : null,
+                              onForegroundImageError: hasImage ? (_, __) {} : null,
+                              child: Icon(
+                                Icons.business,
+                                size: 12,
+                                color: AppTheme.textTertiary,
+                              ),
+                            );
+                          },
+                        ),
+                        const SizedBox(width: 6),
+                      ],
+                      Flexible(
+                        child: Text(
+                          displayAuthor,
+                          style: AppTheme.bodySmallStyle.copyWith(
+                            color: AppTheme.textSecondary,
+                            fontSize: 12,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
                   ),
                 ],
               ),

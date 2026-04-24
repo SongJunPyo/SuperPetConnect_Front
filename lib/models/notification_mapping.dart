@@ -73,6 +73,13 @@ class ServerNotificationMapping {
       UserType.admin: AdminNotificationType.petReviewRequest,
     },
 
+    // === 신규 반려동물 등록 (관리자 승인 대기용)
+    // 백엔드 emit: services/pets_service.py:90.
+    // 2026-04 enums.py append 시점에 매핑 등록.
+    'new_pet_registration': {
+      UserType.admin: AdminNotificationType.newPetRegistration,
+    },
+
     // === 관리자용 컬럼 승인 요청 ===
     'column_approval': {
       UserType.admin: AdminNotificationType.columnApprovalRequest,

@@ -60,7 +60,14 @@
       "Read(//c/Users/UNIST/.claude/projects/c--work-SuperPetConnect-Front/**)",
       "Bash(git -C c:/work/SuperPetConnect_Front log -5 --pretty=format:\"%h %s\")",
       "Bash(git -C c:/work/SuperPetConnect_Front diff lib/firebase_options.dart)",
-      "Bash(git -C c:/work/SuperPetConnect_Front add -A)"
+      "Bash(git -C c:/work/SuperPetConnect_Front add -A)",
+      "Bash(git -C c:/work/SuperPetConnect_Front commit -m ' *)",
+      "Bash(git -C c:/work/SuperPetConnect_Front status)",
+      "Bash(git -C c:/work/SuperPetConnect_Front log --oneline -3)",
+      "Bash(git -C c:/work/SuperPetConnect_Front push origin main)",
+      "Read(//c/Users/UNIST/.claude/**)",
+      "Bash(git -C c:/work/SuperPetConnect_Front status --short)",
+      "Bash(git -C c:/work/SuperPetConnect_Front add lib/services/notification_navigation_service.dart lib/utils/donation_eligibility.dart)"
     ],
     "deny": [],
     "additionalDirectories": [

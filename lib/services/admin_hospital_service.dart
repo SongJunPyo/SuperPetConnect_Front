@@ -2,168 +2,14 @@ import 'dart:convert';
 import 'auth_http_client.dart';
 import '../utils/config.dart';
 import '../utils/api_endpoints.dart';
+// 모델 클래스들은 lib/models/ 로 분리됨.
+// 기존 `import '../services/admin_hospital_service.dart'` 사용처가 계속 동작하도록
+// 아래 export로 심볼을 재노출. 신규 코드는 직접 모델 파일을 import 권장.
+export '../models/hospital_info_model.dart';
+export '../models/hospital_master_model.dart';
 
-class HospitalInfo {
-  final int accountIdx;
-  final String name;
-  final String? nickname;
-  final String email;
-  final String? address;
-  final String? phoneNumber;
-  final String? hospitalCode;
-  final bool isActive;
-  final bool columnActive;
-  final bool approved;
-  final DateTime createdAt;
-  final String? managerName;
-  final int donationCount;
-
-  HospitalInfo({
-    required this.accountIdx,
-    required this.name,
-    this.nickname,
-    required this.email,
-    this.address,
-    this.phoneNumber,
-    this.hospitalCode,
-    required this.isActive,
-    required this.columnActive,
-    required this.approved,
-    required this.createdAt,
-    this.managerName,
-    required this.donationCount,
-  });
-
-  factory HospitalInfo.fromJson(Map<String, dynamic> json) {
-    return HospitalInfo(
-      accountIdx: json['account_idx'] ?? 0,
-      name: json['name'] ?? '',
-      nickname: json['nickname'],
-      email: json['email'] ?? '',
-      address: json['address'],
-      phoneNumber: json['phone_number'],
-      hospitalCode: json['hospital_code'],
-      isActive: json['is_active'] ?? json['approved'] ?? false,
-      columnActive: json['column_active'] ?? false,
-      approved: json['approved'] ?? false,
-      createdAt:
-          DateTime.tryParse(json['created_time'] ?? json['created_at'] ?? '') ??
-          DateTime.now(),
-      managerName: json['manager_name'],
-      donationCount: json['donation_count'] ?? 0,
-    );
-  }
-
-  Map<String, dynamic> toJson() {
-    return {
-      'account_idx': accountIdx,
-      'name': name,
-      'nickname': nickname,
-      'email': email,
-      'address': address,
-      'phone_number': phoneNumber,
-      'hospital_code': hospitalCode,
-      'is_active': isActive,
-      'column_active': columnActive,
-      'approved': approved,
-      'created_time': createdAt.toIso8601String(),
-      'manager_name': managerName,
-      'donation_count': donationCount,
-    };
-  }
-}
-
-class HospitalListResponse {
-  final List<HospitalInfo> hospitals;
-  final int totalCount;
-  final int page;
-  final int pageSize;
-
-  HospitalListResponse({
-    required this.hospitals,
-    required this.totalCount,
-    required this.page,
-    required this.pageSize,
-  });
-
-  factory HospitalListResponse.fromJson(dynamic jsonData) {
-    // API 응답이 직접 배열인 경우와 객체 안에 배열이 있는 경우 모두 처리
-    List<dynamic> hospitalsData = [];
-    Map<String, dynamic> json = {};
-
-    if (jsonData is List) {
-      // API가 직접 배열을 반환하는 경우
-      hospitalsData = jsonData;
-    } else if (jsonData is Map<String, dynamic>) {
-      json = jsonData;
-      if (json['hospitals'] != null) {
-        // API가 객체 안에 hospitals 배열을 반환하는 경우
-        hospitalsData = json['hospitals'] as List;
-      } else if (json['data'] != null) {
-        // API가 data 필드 안에 배열을 반환하는 경우
-        hospitalsData = json['data'] as List;
-      }
-    }
-
-    final hospitalsList =
-        hospitalsData
-            .map(
-              (hospital) =>
-                  HospitalInfo.fromJson(hospital as Map<String, dynamic>),
-            )
-            .toList();
-
-    return HospitalListResponse(
-      hospitals: hospitalsList,
-      totalCount:
-          json['total_count'] ?? json['totalCount'] ?? hospitalsList.length,
-      page: json['page'] ?? 1,
-      pageSize: json['page_size'] ?? json['pageSize'] ?? hospitalsList.length,
-    );
-  }
-}
-
-class HospitalUpdateRequest {
-  final String? hospitalCode;
-  final bool? isActive;
-  final bool? columnActive;
-
-  HospitalUpdateRequest({this.hospitalCode, this.isActive, this.columnActive});
-
-  Map<String, dynamic> toJson() {
-    final Map<String, dynamic> data = {};
-    if (hospitalCode != null) data['hospital_code'] = hospitalCode;
-    if (isActive != null) data['is_active'] = isActive;
-    if (columnActive != null) data['column_active'] = columnActive;
-    return data;
-  }
-}
-
-class HospitalSearchRequest {
-  final String searchQuery;
-  final bool? isActive;
-  final bool? approved;
-  final int page;
-  final int pageSize;
-
-  HospitalSearchRequest({
-    required this.searchQuery,
-    this.isActive,
-    this.approved,
-    this.page = 1,
-    this.pageSize = 10,
-  });
-
-  Map<String, dynamic> toJson() {
-    return {
-      'search_query': searchQuery,
-      'is_active': isActive,
-      'approved': approved,
-      'page': page,
-      'page_size': pageSize,
-    };
-  }
-}
+import '../models/hospital_info_model.dart';
+import '../models/hospital_master_model.dart';
 
 class AdminHospitalService {
 
@@ -329,23 +175,31 @@ class AdminHospitalService {
 
   // ===== 병원 마스터 데이터 CRUD =====
 
-  /// 병원 마스터 목록 조회 (검색 포함)
+  /// 병원 마스터 목록 조회 (서버 사이드 페이지네이션 + 검색).
+  ///
+  /// - [page]: 1-based 페이지 번호 (기본 1).
+  /// - [pageSize]: 페이지 크기 (기본 20, 서버 max 100).
+  /// - [search]: 코드 / 이름 / 주소 LIKE 검색어. 비어 있으면 전체 조회.
+  ///
+  /// 응답은 `{hospitals: [...], total_count: int}`. `total_count`는 **필터링 이후**
+  /// 매칭된 전체 건수이므로 그대로 페이지 컨트롤 렌더에 사용 가능.
   static Future<HospitalMasterListResponse> getHospitalMasterList({
+    int page = 1,
+    int pageSize = 20,
     String? search,
-    int? pageSize,
   }) async {
     try {
-      final queryParams = <String, String>{};
+      final queryParams = <String, String>{
+        'page': page.toString(),
+        'page_size': pageSize.toString(),
+      };
       if (search != null && search.isNotEmpty) {
         queryParams['search'] = search;
-      }
-      if (pageSize != null) {
-        queryParams['page_size'] = pageSize.toString();
       }
 
       final uri = Uri.parse(
         '${Config.serverUrl}${ApiEndpoints.adminHospitalsMaster}',
-      ).replace(queryParameters: queryParams.isNotEmpty ? queryParams : null);
+      ).replace(queryParameters: queryParams);
 
       final response = await AuthHttpClient.get(uri);
 
@@ -452,67 +306,7 @@ class AdminHospitalService {
   }
 }
 
-// ===== 병원 마스터 데이터 모델 =====
-
-class HospitalMaster {
-  final int hospitalMasterIdx;
-  final String hospitalCode;
-  final String hospitalName;
-  final String? hospitalAddress;
-  final String? hospitalPhone;
-  final DateTime createdAt;
-  final DateTime updatedAt;
-
-  HospitalMaster({
-    required this.hospitalMasterIdx,
-    required this.hospitalCode,
-    required this.hospitalName,
-    this.hospitalAddress,
-    this.hospitalPhone,
-    required this.createdAt,
-    required this.updatedAt,
-  });
-
-  factory HospitalMaster.fromJson(Map<String, dynamic> json) {
-    return HospitalMaster(
-      hospitalMasterIdx: json['hospital_master_idx'] ?? 0,
-      hospitalCode: json['hospital_code'] ?? '',
-      hospitalName: json['hospital_name'] ?? '',
-      hospitalAddress: json['hospital_address'],
-      hospitalPhone: json['hospital_phone'],
-      createdAt: DateTime.tryParse(json['created_at'] ?? '') ?? DateTime.now(),
-      updatedAt: DateTime.tryParse(json['updated_at'] ?? '') ?? DateTime.now(),
-    );
-  }
-}
-
-class HospitalMasterListResponse {
-  final List<HospitalMaster> hospitals;
-  final int totalCount;
-
-  HospitalMasterListResponse({
-    required this.hospitals,
-    required this.totalCount,
-  });
-
-  factory HospitalMasterListResponse.fromJson(dynamic jsonData) {
-    List<dynamic> hospitalsData = [];
-    Map<String, dynamic> json = {};
-
-    if (jsonData is List) {
-      hospitalsData = jsonData;
-    } else if (jsonData is Map<String, dynamic>) {
-      json = jsonData;
-      hospitalsData = json['hospitals'] ?? json['data'] ?? [];
-    }
-
-    final hospitalsList = hospitalsData
-        .map((h) => HospitalMaster.fromJson(h as Map<String, dynamic>))
-        .toList();
-
-    return HospitalMasterListResponse(
-      hospitals: hospitalsList,
-      totalCount: json['total_count'] ?? json['totalCount'] ?? hospitalsList.length,
-    );
-  }
-}
+// NOTE: 이 파일에 있던 모델 클래스 6개 (HospitalInfo, HospitalListResponse,
+// HospitalUpdateRequest, HospitalSearchRequest, HospitalMaster,
+// HospitalMasterListResponse)는 lib/models/ 하위로 이관되었습니다
+// (2026-04 리팩토링). 이 파일 상단의 `export` 선언으로 기존 import는 그대로 동작합니다.

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'dart:async';
 import 'dart:convert';
 import '../utils/app_theme.dart';
 import '../utils/config.dart';
@@ -292,6 +293,7 @@ class _AdminSignupManagementState extends State<AdminSignupManagement> {
     List<HospitalMaster> hospitalSearchResults = [];
     HospitalMaster? selectedHospital;
     bool isHospitalSearching = false;
+    Timer? hospitalSearchDebounce; // 입력 디바운스 (400ms)
 
     showDialog(
       context: context,
@@ -356,28 +358,46 @@ class _AdminSignupManagementState extends State<AdminSignupManagement> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            // 병원 검색 필드
+                            // 병원 검색 필드 (400ms 디바운스)
                             TextField(
                               controller: hospitalSearchController,
-                              onChanged: (value) async {
-                                if (value.trim().isEmpty) {
+                              onChanged: (value) {
+                                hospitalSearchDebounce?.cancel();
+                                final query = value.trim();
+                                if (query.isEmpty) {
                                   setState(() {
                                     hospitalSearchResults = [];
+                                    isHospitalSearching = false;
                                   });
                                   return;
                                 }
                                 setState(() => isHospitalSearching = true);
-                                try {
-                                  final response = await AdminHospitalService.getHospitalMasterList(
-                                    search: value.trim(),
-                                  );
-                                  setState(() {
-                                    hospitalSearchResults = response.hospitals;
-                                    isHospitalSearching = false;
-                                  });
-                                } catch (e) {
-                                  setState(() => isHospitalSearching = false);
-                                }
+                                hospitalSearchDebounce = Timer(
+                                  const Duration(milliseconds: 400),
+                                  () async {
+                                    try {
+                                      final response =
+                                          await AdminHospitalService
+                                              .getHospitalMasterList(
+                                        search: query,
+                                        // 다이얼로그 검색은 첫 페이지만 미리보기
+                                        // 충분한 매치를 위해 50건까지 요청
+                                        pageSize: 50,
+                                      );
+                                      if (!dialogContext.mounted) return;
+                                      setState(() {
+                                        hospitalSearchResults =
+                                            response.hospitals;
+                                        isHospitalSearching = false;
+                                      });
+                                    } catch (e) {
+                                      if (!dialogContext.mounted) return;
+                                      setState(
+                                        () => isHospitalSearching = false,
+                                      );
+                                    }
+                                  },
+                                );
                               },
                               decoration: InputDecoration(
                                 labelText: '병원 검색',
@@ -396,10 +416,12 @@ class _AdminSignupManagementState extends State<AdminSignupManagement> {
                                         ? IconButton(
                                             icon: const Icon(Icons.clear, size: 18),
                                             onPressed: () {
+                                              hospitalSearchDebounce?.cancel();
                                               hospitalSearchController.clear();
                                               setState(() {
                                                 hospitalSearchResults = [];
                                                 selectedHospital = null;
+                                                isHospitalSearching = false;
                                               });
                                             },
                                           )
@@ -520,6 +542,7 @@ class _AdminSignupManagementState extends State<AdminSignupManagement> {
               actions: [
                 TextButton(
                   onPressed: () {
+                    hospitalSearchDebounce?.cancel();
                     Navigator.of(dialogContext).pop();
                   },
                   style: TextButton.styleFrom(
@@ -545,6 +568,7 @@ class _AdminSignupManagementState extends State<AdminSignupManagement> {
                       );
                       return;
                     }
+                    hospitalSearchDebounce?.cancel();
                     Navigator.of(dialogContext).pop();
                     approveUser(
                       user,

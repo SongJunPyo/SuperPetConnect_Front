@@ -9,20 +9,42 @@
 # packages, and plugins designed to encourage good coding practices.
 include: package:flutter_lints/flutter.yaml
 
+# 정적 분석 레벨 — GA 이전 보수적 설정
+# 대량 스타일 변경(prefer_const_constructors, prefer_single_quotes 등)은
+# GA 이후 점진 도입 대상. 지금은 "실수 방지" 목적만 남김.
+#
+# 효과:
+# - dead code / unused 심볼이 info → warning으로 승격되어 CI/pre-commit 차단
+# - authLogin 같은 dead 상수가 축적되기 전에 경고
+# - 릴리스 빌드에 print() 남는 사고 방지
+analyzer:
+  errors:
+    # 사용되지 않는 심볼은 반드시 정리
+    unused_import: warning
+    unused_local_variable: warning
+    unused_element: warning
+    unused_field: warning
+    dead_code: warning
+  exclude:
+    - "**/*.g.dart"
+    - "**/*.freezed.dart"
+    - "build/**"
+
 linter:
-  # The lint rules applied to this project can be customized in the
-  # section below to disable rules from the `package:flutter_lints/flutter.yaml`
-  # included above or to enable additional rules. A list of all available lints
-  # and their documentation is published at https://dart.dev/lints.
-  #
-  # Instead of disabling a lint rule for the entire project in the
-  # section below, it can also be suppressed for a single line of code
-  # or a specific dart file by using the `// ignore: name_of_lint` and
-  # `// ignore_for_file: name_of_lint` syntax on the line or in the file
-  # producing the lint.
   rules:
-    # avoid_print: false  # Uncomment to disable the `avoid_print` rule
-    # prefer_single_quotes: true  # Uncomment to enable the `prefer_single_quotes` rule
+    # release 빌드에 print() 남기지 않도록 — debugPrint() 사용
+    - avoid_print
+
+# ============================================================
+# GA 이후 도입 검토 대상 (지금 켜면 600+ 경고 발생)
+# ============================================================
+# - prefer_const_constructors       : 위젯 트리 성능
+# - prefer_const_declarations       : 상수 일관성
+# - prefer_single_quotes            : 문자열 따옴표 통일
+# - always_declare_return_types     : 함수 시그니처 명시
+# - prefer_null_aware_operators     : null 안전성 문법
+# - prefer_collection_literals      : [] / {} 선호
+# 위 룰들은 모델/서비스 리팩터(freezed 도입) 시점에 함께 활성화.
 
 # Additional information about this file can be found at
 # https://dart.dev/guides/language/analysis-options

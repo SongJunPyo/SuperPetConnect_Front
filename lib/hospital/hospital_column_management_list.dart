@@ -897,7 +897,7 @@ class _HospitalColumnManagementScreenState
                   '${index + 1}',
                   style: AppTheme.bodySmallStyle.copyWith(
                     color: AppTheme.textTertiary,
-                    fontWeight: FontWeight.w500,
+                    fontWeight: FontWeight.normal,
                     fontSize: 13,
                   ),
                   textAlign: TextAlign.center,
@@ -915,8 +915,8 @@ class _HospitalColumnManagementScreenState
                     column.title,
                     style: AppTheme.bodyMediumStyle.copyWith(
                       color: AppTheme.textPrimary,
-                      fontWeight: FontWeight.w500,
-                      fontSize: 14,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 13,
                     ),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
@@ -954,7 +954,7 @@ class _HospitalColumnManagementScreenState
                           })(),
                           style: AppTheme.bodySmallStyle.copyWith(
                             color: AppTheme.textSecondary,
-                            fontSize: 12,
+                            fontSize: 13,
                           ),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
@@ -978,7 +978,7 @@ class _HospitalColumnManagementScreenState
                       '작성: ${DateFormat('yy.MM.dd').format(column.createdAt)}',
                       style: AppTheme.bodySmallStyle.copyWith(
                         color: AppTheme.textTertiary,
-                        fontSize: 11,
+                        fontSize: 13,
                       ),
                     ),
                     const SizedBox(height: 2),
@@ -987,7 +987,7 @@ class _HospitalColumnManagementScreenState
                         '수정: ${DateFormat('yy.MM.dd').format(column.updatedAt)}',
                         style: AppTheme.bodySmallStyle.copyWith(
                           color: AppTheme.textTertiary,
-                          fontSize: 11,
+                          fontSize: 13,
                         ),
                       ),
                   ],

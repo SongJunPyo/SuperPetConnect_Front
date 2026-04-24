@@ -170,6 +170,40 @@ class NotificationConverter {
     return relatedData;
   }
 
+  /// 알려지지 않은 서버 알림 타입에 대한 fallback NotificationModel 생성
+  ///
+  /// 백엔드가 새 NotificationType을 추가했는데 프론트 매핑이 따라가지 못하는 경우,
+  /// title/body만이라도 사용자에게 표시하기 위한 safety-net. 유저타입별 `systemNotice`로
+  /// 승격시켜 UI 목록에 노출합니다. silent drop 방지용.
+  static NotificationModel createFallbackNotification({
+    required UserType userType,
+    required int notificationId,
+    required String title,
+    required String content,
+    Map<String, dynamic>? relatedData,
+  }) {
+    final dynamic clientType;
+    switch (userType) {
+      case UserType.admin:
+        clientType = AdminNotificationType.systemNotice;
+        break;
+      case UserType.hospital:
+        clientType = HospitalNotificationType.systemNotice;
+        break;
+      case UserType.user:
+        clientType = UserNotificationType.systemNotice;
+        break;
+    }
+    return createNotificationByUserType(
+      userType: userType,
+      clientType: clientType,
+      notificationId: notificationId,
+      title: title,
+      content: content,
+      relatedData: relatedData,
+    );
+  }
+
   /// 사용자 타입별 NotificationModel 생성
   static NotificationModel createNotificationByUserType({
     required UserType userType,
@@ -210,89 +244,8 @@ class NotificationConverter {
     }
   }
 
-  /// FCM 타입을 관리자 알림 타입으로 변환
-  static AdminNotificationType? getAdminNotificationTypeFromFCM(
-    String fcmType,
-  ) {
-    switch (fcmType) {
-      case 'new_user_registration':
-        return AdminNotificationType.signupRequest;
-      case 'new_post_approval':
-        return AdminNotificationType.postApprovalRequest;
-      case 'new_donation_application':
-      case 'donation_application':
-        return AdminNotificationType.donationApplicationRequest;
-      case 'column_approval':
-        return AdminNotificationType.columnApprovalRequest;
-      case 'donation_completed':
-        return AdminNotificationType.donationCompleted;
-      case 'pet_review_request':
-        return AdminNotificationType.petReviewRequest;
-      default:
-        return null;
-    }
-  }
-
-  /// FCM 타입을 병원 알림 타입으로 변환
-  static HospitalNotificationType? getHospitalNotificationTypeFromFCM(
-    String fcmType,
-  ) {
-    switch (fcmType) {
-      case 'donation_application':
-      case 'new_donation_application':
-      case 'new_donation_application_hospital':
-        return HospitalNotificationType.donationApplication;
-      case 'timeslot_filled':
-        return HospitalNotificationType.timeslotFilled;
-      case 'all_timeslots_filled':
-        return HospitalNotificationType.allTimeslotsFilled;
-      case 'donation_post_approved':
-        return HospitalNotificationType.postApproved;
-      case 'donation_post_rejected':
-        return HospitalNotificationType.postRejected;
-      case 'column_approved':
-        return HospitalNotificationType.columnApproved;
-      case 'column_rejected':
-        return HospitalNotificationType.columnRejected;
-      case 'post_suspended':
-        return HospitalNotificationType.postRejected;
-      case 'post_resumed':
-        return HospitalNotificationType.postApproved;
-      case 'document_request':
-        return HospitalNotificationType.documentRequest;
-      case 'recruitment_closed':
-        return HospitalNotificationType.recruitmentDeadline;
-      case 'donation_completed':
-        return HospitalNotificationType.donationCompleted;
-      default:
-        return null;
-    }
-  }
-
-  /// FCM 타입을 사용자 알림 타입으로 변환
-  static UserNotificationType? getUserNotificationTypeFromFCM(String fcmType) {
-    switch (fcmType) {
-      case 'account_approved':
-      case 'account_rejected':
-      case 'account_suspended':
-        return UserNotificationType.systemNotice;
-      case 'donation_application_approved':
-        return UserNotificationType.applicationApproved;
-      case 'donation_application_rejected':
-        return UserNotificationType.applicationRejected;
-      case 'recruitment_closed':
-        return UserNotificationType.recruitmentClosed;
-      case 'donation_completed':
-      case 'donation_final_completed':
-        return UserNotificationType.donationCompleted;
-      case 'new_donation_post':
-        return UserNotificationType.newDonationPost;
-      case 'pet_approved':
-        return UserNotificationType.petApproved;
-      case 'pet_rejected':
-        return UserNotificationType.petRejected;
-      default:
-        return null;
-    }
-  }
+  // NOTE: FCM type → 클라이언트 enum 매핑의 단일 원천은 [ServerNotificationMapping]
+  // (lib/models/notification_mapping.dart) 입니다. fromFCM / fromServerData 모두
+  // 이 매핑을 통해 변환하며, 별도 switch 기반 helper는 유지하지 않습니다.
+  // (과거 getAdminNotificationTypeFromFCM 등은 2026-04 리팩토링에서 제거되었습니다.)
 }

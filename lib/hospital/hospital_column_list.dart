@@ -5,6 +5,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../services/dashboard_service.dart';
 import '../models/column_post_model.dart';
 import '../utils/app_theme.dart';
+import '../utils/config.dart';
 import '../utils/number_format_util.dart';
 import '../widgets/app_app_bar.dart';
 import '../widgets/marquee_text.dart';
@@ -460,7 +461,7 @@ class _HospitalColumnListState extends State<HospitalColumnList> {
                               '${index + 1}',
                               style: AppTheme.bodySmallStyle.copyWith(
                                 color: AppTheme.textTertiary,
-                                fontWeight: FontWeight.w500,
+                                fontWeight: FontWeight.normal,
                                 fontSize: 13,
                               ),
                               textAlign: TextAlign.center,
@@ -504,11 +505,8 @@ class _HospitalColumnListState extends State<HospitalColumnList> {
                                             isImportant
                                                 ? AppTheme.error
                                                 : AppTheme.textPrimary,
-                                        fontWeight:
-                                            isImportant
-                                                ? FontWeight.w600
-                                                : FontWeight.w500,
-                                        fontSize: 14,
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 13,
                                       ),
                                       animationDuration: const Duration(
                                         milliseconds: 4000,
@@ -521,16 +519,46 @@ class _HospitalColumnListState extends State<HospitalColumnList> {
                                 ],
                               ),
                               const SizedBox(height: 6),
-                              Text(
-                                displayNickname.length > 15
-                                    ? '${displayNickname.substring(0, 15)}..'
-                                    : displayNickname,
-                                style: AppTheme.bodySmallStyle.copyWith(
-                                  color: AppTheme.textSecondary,
-                                  fontSize: 12,
-                                ),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
+                              Row(
+                                children: [
+                                  Builder(
+                                    builder: (context) {
+                                      final hasImage = column.hospitalProfileImage != null &&
+                                          column.hospitalProfileImage!.isNotEmpty;
+                                      return CircleAvatar(
+                                        radius: 10,
+                                        backgroundColor: AppTheme.veryLightGray,
+                                        foregroundImage: hasImage
+                                            ? NetworkImage(
+                                                column.hospitalProfileImage!.startsWith('http')
+                                                    ? column.hospitalProfileImage!
+                                                    : '${Config.serverUrl}${column.hospitalProfileImage}',
+                                              )
+                                            : null,
+                                        onForegroundImageError: hasImage ? (_, __) {} : null,
+                                        child: Icon(
+                                          Icons.business,
+                                          size: 12,
+                                          color: AppTheme.textTertiary,
+                                        ),
+                                      );
+                                    },
+                                  ),
+                                  const SizedBox(width: 6),
+                                  Flexible(
+                                    child: Text(
+                                      displayNickname.length > 15
+                                          ? '${displayNickname.substring(0, 15)}..'
+                                          : displayNickname,
+                                      style: AppTheme.bodySmallStyle.copyWith(
+                                        color: AppTheme.textSecondary,
+                                        fontSize: 13,
+                                      ),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ),
+                                ],
                               ),
                             ],
                           ),
@@ -546,7 +574,7 @@ class _HospitalColumnListState extends State<HospitalColumnList> {
                                   '작성: ${DateFormat('yy.MM.dd').format(column.createdAt)}',
                                   style: AppTheme.bodySmallStyle.copyWith(
                                     color: AppTheme.textTertiary,
-                                    fontSize: 11,
+                                    fontSize: 13,
                                   ),
                                 ),
                                 const SizedBox(height: 2),
@@ -554,7 +582,7 @@ class _HospitalColumnListState extends State<HospitalColumnList> {
                                   '수정: ${DateFormat('yy.MM.dd').format(column.updatedAt)}',
                                   style: AppTheme.bodySmallStyle.copyWith(
                                     color: AppTheme.textTertiary,
-                                    fontSize: 11,
+                                    fontSize: 13,
                                   ),
                                 ),
                               ],

@@ -3,6 +3,7 @@ class ColumnPost {
   final String title;
   final String authorName;
   final String authorNickname;
+  final String? hospitalProfileImage; // 병원 프로필 사진
   final int viewCount;
   final String contentPreview;
   final String? contentDelta; // Delta JSON 리치 텍스트
@@ -17,6 +18,7 @@ class ColumnPost {
     required this.title,
     required this.authorName,
     required this.authorNickname,
+    this.hospitalProfileImage,
     required this.viewCount,
     required this.contentPreview,
     this.contentDelta,
@@ -38,6 +40,7 @@ class ColumnPost {
                   json['hospital_nickname'].toString().isNotEmpty)
               ? json['hospital_nickname']
               : '닉네임 없음',
+      hospitalProfileImage: json['hospital_profile_image'],
       viewCount: json['view_count'] ?? 0,
       contentPreview: json['content'] ?? '', // content_preview 제거됨, content 사용
       contentDelta: json['content_delta'],

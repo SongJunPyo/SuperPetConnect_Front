@@ -257,6 +257,7 @@ class _AdminDashboardState extends State<AdminDashboard>
               createdAt: column.createdAt,
               updatedAt: column.updatedAt,
               authorNickname: displayNickname,
+              hospitalProfileImage: column.hospitalProfileImage,
               columnUrl: column.columnUrl,
             );
           }).toList();
@@ -292,6 +293,7 @@ class _AdminDashboardState extends State<AdminDashboard>
               authorEmail: notice.authorEmail,
               authorName: notice.authorName,
               authorNickname: displayNickname,
+              authorProfileImage: notice.authorProfileImage,
               viewCount: notice.viewCount,
               targetAudience: notice.targetAudience,
               noticeUrl: notice.noticeUrl,
@@ -814,6 +816,7 @@ class _AdminDashboardState extends State<AdminDashboard>
                   shouldShowBadge: (n) => n.showBadge,
                   getBadgeText: (n) => n.badgeText,
                   enableTextPersonalization: false,
+                  getProfileImage: (n) => n.authorProfileImage,
                 );
               },
             ),
@@ -885,6 +888,7 @@ class _AdminDashboardState extends State<AdminDashboard>
                   shouldShowBadge: (c) => c.title.contains('[중요]') || c.title.contains('[공지]'),
                   getBadgeText: (c) => '중요',
                   enableTextPersonalization: false,
+                  getProfileImage: (c) => c.hospitalProfileImage,
                 );
               },
             ),
@@ -1166,6 +1170,7 @@ class _AdminDashboardState extends State<AdminDashboard>
             authorEmail: fetchedDetail.authorEmail,
             authorName: fetchedDetail.authorName,
             authorNickname: displayNickname,
+            authorProfileImage: fetchedDetail.authorProfileImage ?? notices[idx].authorProfileImage,
             viewCount: fetchedDetail.viewCount,
             targetAudience: fetchedDetail.targetAudience,
             noticeUrl: fetchedDetail.noticeUrl,
