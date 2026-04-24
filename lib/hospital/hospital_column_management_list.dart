@@ -8,6 +8,7 @@ import '../utils/preferences_manager.dart';
 import '../models/hospital_column_model.dart';
 import '../utils/app_theme.dart';
 import '../utils/config.dart';
+import '../utils/error_display.dart';
 import '../widgets/app_app_bar.dart';
 import '../widgets/rich_text_viewer.dart';
 import 'hospital_column_create.dart';
@@ -130,7 +131,7 @@ class _HospitalColumnManagementScreenState
       setState(() {
         isLoading = false;
         hasError = true;
-        errorMessage = e.toString().replaceAll('Exception: ', '');
+        errorMessage = formatErrorMessage(e);
       });
     }
   }

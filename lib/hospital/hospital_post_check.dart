@@ -5,6 +5,7 @@ import '../models/post_time_item_model.dart';
 import '../services/hospital_post_service.dart';
 import '../utils/app_theme.dart';
 import '../utils/app_constants.dart';
+import '../utils/error_display.dart';
 import 'package:intl/intl.dart';
 import '../utils/config.dart';
 import '../widgets/pet_profile_image.dart';
@@ -1924,13 +1925,11 @@ class _PostDetailBottomSheetState extends State<PostDetailBottomSheet> {
         }
       } catch (e) {
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(
-                '삭제 실패: ${e.toString().replaceAll('Exception: ', '')}',
-              ),
-              backgroundColor: AppTheme.error,
-            ),
+          showErrorToast(
+            context,
+            e,
+            prefix: '삭제 실패',
+            backgroundColor: AppTheme.error,
           );
         }
       }

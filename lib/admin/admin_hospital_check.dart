@@ -5,6 +5,7 @@ import 'package:kpostal/kpostal.dart';
 import '../services/admin_hospital_service.dart';
 import '../utils/app_theme.dart';
 import '../utils/app_constants.dart';
+import '../utils/error_display.dart';
 import '../utils/kakao_postcode_stub.dart'
     if (dart.library.html) '../utils/kakao_postcode_web.dart';
 import '../widgets/pagination_bar.dart';
@@ -138,7 +139,7 @@ class _AdminHospitalCheckState extends State<AdminHospitalCheck>
       setState(() {
         _isMasterLoading = false;
         _hasMasterError = true;
-        _masterErrorMessage = e.toString().replaceAll('Exception: ', '');
+        _masterErrorMessage = formatErrorMessage(e);
       });
     }
   }
@@ -323,11 +324,11 @@ class _AdminHospitalCheckState extends State<AdminHospitalCheck>
                           } catch (e) {
                             setDialogState(() => isSubmitting = false);
                             if (mounted) {
-                              ScaffoldMessenger.of(this.context).showSnackBar(
-                                SnackBar(
-                                  content: Text('등록 실패: ${e.toString().replaceAll('Exception: ', '')}'),
-                                  backgroundColor: Colors.red,
-                                ),
+                              showErrorToast(
+                                this.context,
+                                e,
+                                prefix: '등록 실패',
+                                backgroundColor: Colors.red,
                               );
                             }
                           }
@@ -467,9 +468,7 @@ class _AdminHospitalCheckState extends State<AdminHospitalCheck>
                                   } catch (e) {
                                     setSheetState(() => isUpdating = false);
                                     if (mounted) {
-                                      ScaffoldMessenger.of(this.context).showSnackBar(
-                                        SnackBar(content: Text('수정 실패: ${e.toString().replaceAll('Exception: ', '')}')),
-                                      );
+                                      showErrorToast(this.context, e, prefix: '수정 실패');
                                     }
                                   }
                                 },
@@ -517,9 +516,7 @@ class _AdminHospitalCheckState extends State<AdminHospitalCheck>
                                   } catch (e) {
                                     setSheetState(() => isUpdating = false);
                                     if (mounted) {
-                                      ScaffoldMessenger.of(this.context).showSnackBar(
-                                        SnackBar(content: Text('삭제 실패: ${e.toString().replaceAll('Exception: ', '')}')),
-                                      );
+                                      showErrorToast(this.context, e, prefix: '삭제 실패');
                                     }
                                   }
                                 },
@@ -568,7 +565,7 @@ class _AdminHospitalCheckState extends State<AdminHospitalCheck>
       setState(() {
         isLoading = false;
         hasError = true;
-        errorMessage = e.toString().replaceAll('Exception: ', '');
+        errorMessage = formatErrorMessage(e);
       });
     }
   }
@@ -603,7 +600,7 @@ class _AdminHospitalCheckState extends State<AdminHospitalCheck>
       setState(() {
         isSearching = false;
         hasError = true;
-        errorMessage = e.toString().replaceAll('Exception: ', '');
+        errorMessage = formatErrorMessage(e);
       });
     }
   }
@@ -1237,13 +1234,11 @@ class _AdminHospitalDetailScreenState extends State<AdminHospitalDetailScreen> {
       });
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              '업데이트 실패: ${e.toString().replaceAll('Exception: ', '')}',
-            ),
-            backgroundColor: Colors.red,
-          ),
+        showErrorToast(
+          context,
+          e,
+          prefix: '업데이트 실패',
+          backgroundColor: Colors.red,
         );
       }
     }
@@ -1289,13 +1284,11 @@ class _AdminHospitalDetailScreenState extends State<AdminHospitalDetailScreen> {
       });
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              '권한 변경 실패: ${e.toString().replaceAll('Exception: ', '')}',
-            ),
-            backgroundColor: Colors.red,
-          ),
+        showErrorToast(
+          context,
+          e,
+          prefix: '권한 변경 실패',
+          backgroundColor: Colors.red,
         );
       }
     }
@@ -1347,13 +1340,11 @@ class _AdminHospitalDetailScreenState extends State<AdminHospitalDetailScreen> {
       });
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              '삭제 실패: ${e.toString().replaceAll('Exception: ', '')}',
-            ),
-            backgroundColor: Colors.red,
-          ),
+        showErrorToast(
+          context,
+          e,
+          prefix: '삭제 실패',
+          backgroundColor: Colors.red,
         );
       }
     }

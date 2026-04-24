@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../services/hospital_column_service.dart';
 import '../models/hospital_column_model.dart';
 import '../utils/app_theme.dart';
+import '../utils/error_display.dart';
 import '../widgets/app_app_bar.dart';
 import '../widgets/rich_text_editor.dart';
 
@@ -111,7 +112,7 @@ class _HospitalColumnCreateState extends State<HospitalColumnCreate> {
       }
     } catch (e) {
       if (mounted) {
-        String errorMessage = e.toString().replaceAll('Exception: ', '');
+        String errorMessage = formatErrorMessage(e);
 
         // 서버 오류에 대한 더 친화적인 메시지
         if (errorMessage.contains('500') || errorMessage.contains('서버')) {

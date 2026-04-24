@@ -5,6 +5,7 @@ import '../services/hospital_column_service.dart';
 import '../models/hospital_column_model.dart';
 import '../utils/app_theme.dart';
 import '../utils/config.dart';
+import '../utils/error_display.dart';
 import '../widgets/app_search_bar.dart';
 import '../widgets/rich_text_viewer.dart';
 import '../hospital/hospital_column_edit.dart';
@@ -80,7 +81,7 @@ class _AdminColumnManagementState extends State<AdminColumnManagement>
       setState(() {
         isLoading = false;
         hasError = true;
-        errorMessage = e.toString().replaceAll('Exception: ', '');
+        errorMessage = formatErrorMessage(e);
       });
     }
   }

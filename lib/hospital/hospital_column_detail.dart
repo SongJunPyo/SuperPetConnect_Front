@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../services/hospital_column_service.dart';
 import '../models/hospital_column_model.dart';
 import '../utils/app_theme.dart';
+import '../utils/error_display.dart';
 import '../widgets/rich_text_viewer.dart';
 import 'hospital_column_edit.dart';
 import 'package:intl/intl.dart';
@@ -67,7 +68,7 @@ class _HospitalColumnDetailState extends State<HospitalColumnDetail> {
       setState(() {
         isLoading = false;
         hasError = true;
-        errorMessage = e.toString().replaceAll('Exception: ', '');
+        errorMessage = formatErrorMessage(e);
       });
     }
   }
@@ -114,13 +115,11 @@ class _HospitalColumnDetailState extends State<HospitalColumnDetail> {
         }
       } catch (e) {
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(
-                '삭제 실패: ${e.toString().replaceAll('Exception: ', '')}',
-              ),
-              backgroundColor: Colors.red,
-            ),
+          showErrorToast(
+            context,
+            e,
+            prefix: '삭제 실패',
+            backgroundColor: Colors.red,
           );
         }
       }

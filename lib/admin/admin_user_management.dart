@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../utils/app_theme.dart';
+import '../utils/error_display.dart';
 import '../widgets/app_app_bar.dart';
 import '../widgets/app_search_bar.dart';
 import '../models/user_model.dart';
@@ -440,11 +441,11 @@ class _AdminUserManagementScreenState extends State<AdminUserManagementScreen>
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('삭제 실패: ${e.toString().replaceAll('Exception: ', '')}'),
-            backgroundColor: AppTheme.error,
-          ),
+        showErrorToast(
+          context,
+          e,
+          prefix: '삭제 실패',
+          backgroundColor: AppTheme.error,
         );
       }
     }
