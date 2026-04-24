@@ -1,11 +1,9 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
-import '../utils/config.dart';
-import '../utils/preferences_manager.dart';
-import 'package:http/http.dart' as http;
 import 'dart:convert';
 import '../admin/admin_pet_management.dart';
+import 'fcm_handler.dart';
 
 class NotificationService {
   static final GlobalKey<NavigatorState> navigatorKey =
@@ -14,14 +12,10 @@ class NotificationService {
   static Future<void> initialize() async {
     if (kIsWeb) return;
 
-    // FCM 토큰 가져오기 및 서버 전송
-    await _updateFCMToken();
-
-    // FCM 토큰 갱신 리스너 등록 (토큰 만료/갱신 시 자동으로 서버에 전송)
-    setupTokenRefreshListener();
-
-    // 포그라운드 메시지(onMessage) 수신 + 상단 푸시 + 목록 스트림 추가는
-    // 전부 [FCMHandler]가 담당. 이 클래스는 알림 탭 시 네비게이션만 책임.
+    // FCM 토큰 서버 전송 (앱 시작 시점 1회). onTokenRefresh 리스너 등록과
+    // 포그라운드 메시지 수신/스트림 추가/상단 푸시는 전부 [FCMHandler]가 담당.
+    // 이 클래스는 알림 탭 시 네비게이션만 책임.
+    await FCMHandler.instance.updateFCMToken();
 
     // 백그라운드에서 앱을 연 경우
     FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) {
@@ -191,46 +185,6 @@ class NotificationService {
     return parsedData;
   }
 
-  static Future<void> _updateFCMToken() async {
-    // 웹에서는 FCM 토큰 처리 건너뜀 (WebSocket 사용)
-    if (kIsWeb) return;
-
-    try {
-      final token = await FirebaseMessaging.instance.getToken();
-      if (token != null) {
-        await _sendTokenToServer(token);
-      }
-    } catch (e) {
-      // 알림 처리 실패 시 로그 출력
-      debugPrint('Failed to handle notification: $e');
-    }
-  }
-
-  static Future<void> _sendTokenToServer(String token) async {
-    try {
-      final authToken = (await PreferencesManager.getAuthToken()) ?? '';
-
-      if (authToken.isEmpty) {
-        return;
-      }
-
-      final response = await http.post(
-        Uri.parse('${Config.serverUrl}/api/user/fcm-token'),
-        headers: {
-          'Authorization': 'Bearer $authToken',
-          'Content-Type': 'application/json',
-        },
-        body: jsonEncode({'fcm_token': token}),
-      );
-
-      if (response.statusCode == 200) {
-      } else {}
-    } catch (e) {
-      // 알림 처리 실패 시 로그 출력
-      debugPrint('Failed to handle notification: $e');
-    }
-  }
-
   static void _navigateToPostManagement(Map<String, dynamic> data) {
     final context = navigatorKey.currentContext;
     if (context == null) return;
@@ -269,18 +223,10 @@ class NotificationService {
     }
   }
 
-  /// 로그인 시 FCM 토큰 업데이트
+  /// 로그인 직후 FCM 토큰을 서버에 재전송. [FCMHandler]로 위임.
   static Future<void> updateTokenAfterLogin() async {
-    await _updateFCMToken();
-  }
-
-  /// FCM 토큰 새로고침 리스너 등록
-  static void setupTokenRefreshListener() {
     if (kIsWeb) return;
-
-    FirebaseMessaging.instance.onTokenRefresh.listen((String token) {
-      _sendTokenToServer(token);
-    });
+    await FCMHandler.instance.updateFCMToken();
   }
 
   // 헌혈 신청 관리 페이지로 이동 (병원용)
