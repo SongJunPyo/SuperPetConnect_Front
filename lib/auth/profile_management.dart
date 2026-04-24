@@ -337,7 +337,11 @@ class _ProfileManagementState extends State<ProfileManagement> {
       if (token != null) {
         request.headers['Authorization'] = 'Bearer $token';
       }
-      request.files.add(await http.MultipartFile.fromPath('image', pickedFile.path));
+      // 웹/모바일 공통 동작을 위해 fromBytes 사용 (fromPath는 웹에서 동작 안 함)
+      final bytes = await pickedFile.readAsBytes();
+      request.files.add(
+        http.MultipartFile.fromBytes('image', bytes, filename: pickedFile.name),
+      );
 
       final streamedResponse = await request.send();
       final response = await http.Response.fromStream(streamedResponse);
@@ -356,10 +360,12 @@ class _ProfileManagementState extends State<ProfileManagement> {
           );
         }
       }
-    } catch (e) {
+    } catch (e, stackTrace) {
+      debugPrint('[PROFILE UPLOAD ERROR] $e');
+      debugPrint('[STACK] $stackTrace');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('사진 업로드 중 오류가 발생했습니다.'), behavior: SnackBarBehavior.floating),
+          SnackBar(content: Text('사진 업로드 중 오류가 발생했습니다: $e'), behavior: SnackBarBehavior.floating),
         );
       }
     }
