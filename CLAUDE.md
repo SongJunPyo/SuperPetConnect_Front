@@ -467,15 +467,27 @@ donation_application_rejected               # 2026-04 append: services/applied_d
 
 **2026-04 동기화 배경**: 위 4개 타입은 백엔드가 emit은 하고 있었으나 `constants/enums.py`에 등록되지 않아 알림 **목록 조회 API** (`/api/*/notifications`) 에서 필터링되어 숨겨져 있던 버그 상태였음. enums.py에 append하면서 과거 DB 레코드도 목록에 노출되기 시작 — 별도 데이터 마이그레이션 불필요.
 
-프론트 FCM/WebSocket → client enum 매핑은 [lib/services/notification_converter.dart](lib/services/notification_converter.dart)의 `getAdminNotificationTypeFromFCM` / `getHospitalNotificationTypeFromFCM` / `getUserNotificationTypeFromFCM`에서 관리. 백엔드가 신규 `type`을 통지하면 이 세 함수에 case 추가.
+### 알림 타입 추가 시 dual-sync contract (필수 4단계)
+
+백엔드 `constants/enums.py::NotificationType`과 프론트 [lib/models/notification_mapping.dart](lib/models/notification_mapping.dart)는 **독립된 두 개의 단일 원천**이며 **둘 다 유지**해야 합니다. 한쪽만 갱신하면 아래처럼 silent degrade:
+
+| 빠뜨린 단계 | silent degrade 방식 |
+|------------|---------------------|
+| (1) 서비스에서 emit 안 함 | 알림 자체 발송 안 됨 (가장 명확한 실패) |
+| (2) `enums.py`에 append 안 함 | push는 뜨지만 목록 API에서 필터링되어 **누적 기록만 사라짐** (2026-04에 발견된 케이스) |
+| (3) `notification_mapping.dart`에 매핑 추가 안 함 | 프론트가 `systemNotice` fallback으로 표시 (아이콘/제목/priority 불명확, navigation 기본값) |
+| (4) `notification_service.dart`에 `_navigateToXxx` 핸들러 추가 안 함 | 알림 탭 시 기본 대시보드로 이동 (특정 상세 화면으로 점프 불가) |
+
+프론트 FCM/WebSocket → client enum 변환은 [lib/services/notification_converter.dart::fromFCM](lib/services/notification_converter.dart) / `fromServerData`가 **`ServerNotificationMapping`을 단일 원천으로 참조**. 신규 `type` 추가 시 `notification_mapping.dart`의 `serverToClientMapping`에 한 줄 추가하면 변환 완료.
 
 **changelog 포맷 예시** (백엔드 → 프론트):
 ```
 New notification type:
   - name: "pet_deleted"
   - audience: ["user"]
+  - emit: services/pets_service.py:<line>
   - data keys: { "pet_idx": int, "deleted_by": "admin"|"user" }
-  - navigation: "/pets" (선택)
+  - navigation payload: { "page": "pet_history", "pet_idx": int } (선택)
   - title/body example: "반려동물이 삭제되었습니다" / "{pet_name} 기록이 제거되었습니다"
 ```
 
