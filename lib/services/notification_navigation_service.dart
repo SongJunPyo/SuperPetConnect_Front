@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import '../models/notification_model.dart';
 import '../models/notification_types.dart';
+import '../admin/admin_pet_management.dart';
+import '../hospital/hospital_post_check.dart';
 
 /// 알림 타입별 네비게이션 처리 서비스
 ///
@@ -76,6 +78,15 @@ class NotificationNavigationService {
         case AdminNotificationType.systemNotice:
           // 시스템 공지는 특별한 페이지 없음
           break;
+        case AdminNotificationType.newPetRegistration:
+        case AdminNotificationType.petReviewRequest:
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => const AdminPetManagement(),
+            ),
+          );
+          break;
       }
     }
   }
@@ -131,6 +142,12 @@ class NotificationNavigationService {
           break;
         case HospitalNotificationType.systemNotice:
           Navigator.pushReplacementNamed(context, '/hospital/dashboard');
+          break;
+        case HospitalNotificationType.documentRequest:
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (context) => const HospitalPostCheck()),
+          );
           break;
       }
     }

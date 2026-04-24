@@ -376,7 +376,7 @@ class DonationEligibility {
         conditionName: '나이',
         description: '${conditions.minAgeYears}세 ~ ${conditions.maxAgeYears}세',
         status: EligibilityStatus.eligible,
-        message: '현재 $ageMonths개월 (약 ${ageYears}세)',
+        message: '현재 $ageMonths개월 (약 $ageYears세)',
       );
     }
 
@@ -385,7 +385,7 @@ class DonationEligibility {
       description: '${conditions.minAgeYears}세 ~ ${conditions.maxAgeYears}세',
       status: EligibilityStatus.ineligible,
       message:
-          '현재 약 ${ageYears}세 (${ageYears < conditions.minAgeYears ? "너무 어림" : "너무 많음"})',
+          '현재 약 $ageYears세 (${ageYears < conditions.minAgeYears ? "너무 어림" : "너무 많음"})',
     );
   }
 
