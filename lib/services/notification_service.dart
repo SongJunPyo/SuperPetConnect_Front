@@ -6,8 +6,7 @@ import '../utils/preferences_manager.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import '../main.dart' as main_app;
-import 'notification_converter.dart';
-import 'unified_notification_manager.dart';
+import '../admin/admin_pet_management.dart';
 
 class NotificationService {
   static final GlobalKey<NavigatorState> navigatorKey =
@@ -22,30 +21,11 @@ class NotificationService {
     // FCM 토큰 갱신 리스너 등록 (토큰 만료/갱신 시 자동으로 서버에 전송)
     setupTokenRefreshListener();
 
-    // 포그라운드 메시지 리스너
+    // 포그라운드 메시지 리스너: 상단 푸시 표시만 담당.
+    // 알림 목록 스트림 추가는 [FCMHandler]가 단일 원천으로 처리
+    // (UnifiedNotificationManager 구독). 여기서 stream add를 하면 목록에 중복됨.
     FirebaseMessaging.onMessage.listen((RemoteMessage message) {
-      // 포그라운드에서도 상단 알림 표시
       main_app.showGlobalLocalNotification(message);
-
-      if (message.data['type'] == 'donation_application') {
-        _handleDonationApplicationNotification(message);
-      } else if (message.data['type'] == 'new_post_approval') {
-        _handleNewPostApprovalNotification(message);
-      } else if (message.data['type'] == 'donation_post_approved') {
-        _handleDonationPostApprovedNotification(message);
-      } else if (message.data['type'] == 'column_approved') {
-        _handleColumnApprovedNotification(message);
-      } else if (message.data['type'] == 'donation_application_approved') {
-        _handleDonationApprovedNotification(message);
-      } else if (message.data['type'] == 'donation_application_rejected') {
-        _handleDonationRejectedNotification(message);
-      } else if (message.data['type'] == 'recruitment_closed') {
-        _handleRecruitmentClosedNotification(message);
-      } else if (message.data['type'] == 'donation_completed') {
-        _handleDonationCompletedNotification(message);
-      } else if (message.data['type'] == 'new_donation_post') {
-        _handleNewDonationPostNotification(message);
-      }
     });
 
     // 백그라운드에서 앱을 연 경우
@@ -81,6 +61,8 @@ class NotificationService {
           _navigateToDonationHistory(message.data);
         } else if (message.data['type'] == 'new_donation_post') {
           _navigateToNewDonationPost(parsedData);
+        } else if (message.data['type'] == 'new_pet_registration') {
+          _navigateToAdminPetManagement(parsedData);
         }
       } catch (e) {
         // 파싱 실패 시 기본 데이터로 처리
@@ -126,6 +108,8 @@ class NotificationService {
               _navigateToDonationHistory(message.data);
             } else if (message.data['type'] == 'new_donation_post') {
               _navigateToNewDonationPost(parsedData);
+            } else if (message.data['type'] == 'new_pet_registration') {
+              _navigateToAdminPetManagement(parsedData);
             }
           } catch (e) {
             // 파싱 실패 시 기본 데이터로 처리
@@ -175,6 +159,10 @@ class NotificationService {
         case 'new_donation_post':
           final parsedData = _parseNotificationData(data);
           _navigateToNewDonationPost(parsedData);
+          break;
+        case 'new_pet_registration':
+          final parsedData = _parseNotificationData(data);
+          _navigateToAdminPetManagement(parsedData);
           break;
         default:
       }
@@ -248,37 +236,6 @@ class NotificationService {
     }
   }
 
-  static void _handleDonationApplicationNotification(RemoteMessage message) {
-    // 포그라운드에서 받은 알림을 처리 (필요시 추가 로직)
-
-    try {
-      // 서버에서 JSON 문자열로 전송한 데이터 파싱
-      Map<String, dynamic> parsedData = {};
-
-      if (message.data.containsKey('navigation')) {
-        parsedData['navigation'] = jsonDecode(
-          message.data['navigation'] ?? '{}',
-        );
-      }
-      if (message.data.containsKey('post_info')) {
-        parsedData['post_info'] = jsonDecode(message.data['post_info'] ?? '{}');
-      }
-
-      // FCM 알림을 실시간 스트림에 추가
-      _addFCMNotificationToStream(message);
-
-      // 상단 푸시 알림은 포그라운드 리스너에서 이미 표시됨
-    } catch (e) {
-      // 상단 푸시 알림은 포그라운드 리스너에서 이미 표시됨
-    }
-  }
-
-  static void _handleNewPostApprovalNotification(RemoteMessage message) {
-    // 병원 게시글 승인 요청 알림 처리
-
-    // 상단 푸시 알림은 포그라운드 리스너에서 이미 표시됨
-  }
-
   static void _navigateToPostManagement(Map<String, dynamic> data) {
     final context = navigatorKey.currentContext;
     if (context == null) return;
@@ -329,16 +286,6 @@ class NotificationService {
     FirebaseMessaging.instance.onTokenRefresh.listen((String token) {
       _sendTokenToServer(token);
     });
-  }
-
-  // 헌혈 게시글 승인 알림 처리 (병원용)
-  static void _handleDonationPostApprovedNotification(RemoteMessage message) {
-    // 상단 푸시 알림은 포그라운드 리스너에서 이미 표시됨
-  }
-
-  // 칼럼 게시글 승인 알림 처리 (병원용)
-  static void _handleColumnApprovedNotification(RemoteMessage message) {
-    // 상단 푸시 알림은 포그라운드 리스너에서 이미 표시됨
   }
 
   // 헌혈 신청 관리 페이지로 이동 (병원용)
@@ -426,16 +373,6 @@ class NotificationService {
     }
   }
 
-  // 헌혈 신청 승인 알림 처리 (사용자용)
-  static void _handleDonationApprovedNotification(RemoteMessage message) {
-    // 상단 푸시 알림만 표시됨 (다이얼로그 제거)
-  }
-
-  // 헌혈 신청 미승인 알림 처리 (사용자용)
-  static void _handleDonationRejectedNotification(RemoteMessage message) {
-    // 상단 푸시 알림만 표시됨 (다이얼로그 제거)
-  }
-
   // 사용자 대시보드로 이동 (헌혈 신청 승인/거절 알림용)
   static void _navigateToUserDashboard(Map<String, dynamic> data) {
     final context = navigatorKey.currentContext;
@@ -465,60 +402,6 @@ class NotificationService {
     }
   }
 
-  /// FCM 알림을 실시간 스트림에 추가하는 헬퍼 메서드.
-  ///
-  /// 변환은 [NotificationConverter.fromFCM]을 단일 원천으로 사용하며,
-  /// 매핑에 없는 type은 silent drop 대신 유저타입별 `systemNotice`로 fallback 승격
-  /// (WebSocket 핸들러와 동일 패턴).
-  static void _addFCMNotificationToStream(RemoteMessage message) async {
-    try {
-      final userType = await NotificationConverter.getCurrentUserType();
-      if (userType == null) return;
-
-      // 정규 매핑 시도 (ServerNotificationMapping 경유)
-      final notification = await NotificationConverter.fromFCM(message);
-      if (notification != null) {
-        UnifiedNotificationManager.instance.addNotification(notification);
-        return;
-      }
-
-      // Unknown type fallback
-      final rawType = message.data['type']?.toString() ?? '';
-      debugPrint(
-        '[FCM] 알 수 없는 알림 타입: "$rawType" (userType=$userType). '
-        'fallback으로 systemNotice 표시. constants/enums.py::NotificationType 대조 필요.',
-      );
-      final title = message.notification?.title ?? '알림';
-      final body = message.notification?.body ?? '';
-      if (title.isEmpty && body.isEmpty) return;
-      final relatedData = NotificationConverter.parseRelatedData(message.data);
-      final fallback = NotificationConverter.createFallbackNotification(
-        userType: userType,
-        notificationId: DateTime.now().millisecondsSinceEpoch,
-        title: title,
-        content: body,
-        relatedData: relatedData,
-      );
-      UnifiedNotificationManager.instance.addNotification(fallback);
-    } catch (e) {
-      debugPrint('[FCM] 알림 스트림 처리 실패: $e');
-    }
-  }
-
-  // 모집 마감 알림 처리 (사용자/병원용)
-  static void _handleRecruitmentClosedNotification(RemoteMessage message) {
-    debugPrint('[NotificationService] 모집 마감 알림 수신');
-    // FCM 알림을 실시간 스트림에 추가
-    _addFCMNotificationToStream(message);
-  }
-
-  // 헌혈 완료 알림 처리 (사용자/병원용)
-  static void _handleDonationCompletedNotification(RemoteMessage message) {
-    debugPrint('[NotificationService] 헌혈 완료 알림 수신');
-    // FCM 알림을 실시간 스트림에 추가
-    _addFCMNotificationToStream(message);
-  }
-
   // 모집 마감 알림 클릭 시 네비게이션
   static void _navigateForRecruitmentClosed(Map<String, dynamic> data) {
     final context = navigatorKey.currentContext;
@@ -541,11 +424,21 @@ class NotificationService {
     }
   }
 
-  // 새 헌혈 모집 게시글 알림 처리 (사용자용)
-  static void _handleNewDonationPostNotification(RemoteMessage message) {
-    debugPrint('[NotificationService] 새 헌혈 모집 게시글 알림 수신');
-    // FCM 알림을 실시간 스트림에 추가
-    _addFCMNotificationToStream(message);
+  /// 신규 반려동물 등록 알림 클릭 시 네비게이션 (관리자용).
+  /// 서버 FCM payload 예: `navigation: { page: "admin_pet_management", pet_idx: <pk> }`
+  /// 현재는 page 키와 무관하게 `AdminPetManagement` 전체 화면으로 이동 (해당 페이지에
+  /// 이미 승인 대기 탭이 기본 진입 상태).
+  static void _navigateToAdminPetManagement(Map<String, dynamic> data) {
+    final context = navigatorKey.currentContext;
+    if (context == null) return;
+    try {
+      Navigator.push(
+        context,
+        MaterialPageRoute(builder: (_) => const AdminPetManagement()),
+      );
+    } catch (e) {
+      debugPrint('[NotificationService] 반려동물 관리 네비게이션 실패: $e');
+    }
   }
 
   // 새 헌혈 모집 게시글 알림 클릭 시 네비게이션
