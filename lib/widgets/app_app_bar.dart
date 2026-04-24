@@ -95,15 +95,33 @@ class AppDashboardAppBar extends StatelessWidget
       showBackButton: onBackPressed != null,
       actions: [
         // 알림 버튼 (Provider 기반 자동 뱃지 표시)
-        NotificationBadge(onPressed: onNotificationPressed),
+        Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            NotificationBadge(onPressed: onNotificationPressed),
+            GestureDetector(
+              onTap: onNotificationPressed,
+              child: const Text('알림', style: TextStyle(color: Colors.black87, fontSize: 14)),
+            ),
+          ],
+        ),
 
         // 추가 액션 버튼 (있는 경우)
         if (additionalAction != null) additionalAction!,
 
         // 프로필 버튼
-        IconButton(
-          icon: const Icon(Icons.person, color: Colors.black87, size: 24),
-          onPressed: onProfilePressed,
+        Padding(
+          padding: const EdgeInsets.only(right: 4),
+          child: TextButton.icon(
+            style: TextButton.styleFrom(
+              padding: const EdgeInsets.symmetric(horizontal: 4),
+              minimumSize: Size.zero,
+              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+            ),
+            icon: const Icon(Icons.person, color: Colors.black87, size: 20),
+            label: const Text('프로필 관리', style: TextStyle(color: Colors.black87, fontSize: 14)),
+            onPressed: onProfilePressed,
+          ),
         ),
       ],
     );

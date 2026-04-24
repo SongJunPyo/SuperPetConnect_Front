@@ -32,6 +32,23 @@ class ApiEndpoints {
   static const String adminUsers = '$admin/users';
   static const String adminHospitals = '$admin/hospitals';
 
+  /// 게시글 대기상태로 변경: PATCH /api/admin/posts/{postIdx}/suspend
+  static String adminPostSuspend(int postIdx) => '$adminPosts/$postIdx/suspend';
+
+  /// 대기상태 게시글 모집중으로 변경: PATCH /api/admin/posts/{postIdx}/resume
+  static String adminPostResume(int postIdx) => '$adminPosts/$postIdx/resume';
+
+  /// 게시글 삭제: DELETE /api/admin/posts/{postIdx}
+  static String adminPostDelete(int postIdx) => '$adminPosts/$postIdx';
+
+  // ===== Auth (확장) =====
+  static const String notificationSettings =
+      '$api/auth/notification-settings';
+
+  // ===== Settings =====
+  static const String surveyLinks = '$api/settings/survey-links';
+  static const String termsOfService = '$api/settings/terms-of-service';
+
   // ===== Public (인증 불필요) =====
   static const String publicPosts = '$api/posts';
   static const String publicColumns = '$api/public/columns';
@@ -87,8 +104,8 @@ class ApiEndpoints {
   /// 칼럼 상세: /api/public/columns/{columnIdx}
   static String columnDetail(int columnIdx) => '$publicColumns/$columnIdx';
 
-  /// 공개 게시물 상세: /api/public/posts/{postIdx}
-  static String publicPostDetail(int postIdx) => '$publicPosts/$postIdx';
+  /// 헌혈 게시물 상세: /api/public/posts/{postIdx}
+  static String publicPostDetail(int postIdx) => '$api/public/posts/$postIdx';
 
   // ===== Donation Dates =====
   static const String donationDates = '$api/donation-dates';
@@ -198,6 +215,10 @@ class ApiEndpoints {
   /// 헌혈 신청 상세: /api/donation/applications/{applicationId}
   static String donationApplication(int applicationId) =>
       '$api/donation/applications/$applicationId';
+
+  /// 헌혈 자료 요청: POST /api/donation/request-documents
+  static const String donationRequestDocuments =
+      '$api/donation/request-documents';
 
   // ===== Black List =====
   static const String blackList = '$admin/black-list';
@@ -332,6 +353,35 @@ class ApiEndpoints {
   // ===== Pet Detail =====
   /// 반려동물 상세: /api/pets/{petIdx}
   static String petDetail(int petIdx) => '$userPets/$petIdx';
+
+  /// 대표 반려동물 설정: PUT /api/pets/{petIdx}/set-primary
+  static String petSetPrimary(int petIdx) => '$userPets/$petIdx/set-primary';
+
+  /// 반려동물 프로필 사진 업로드: POST /api/pets/{petIdx}/profile-image
+  /// 반려동물 프로필 사진 삭제: DELETE /api/pets/{petIdx}/profile-image
+  static String petProfileImage(int petIdx) =>
+      '$userPets/$petIdx/profile-image';
+
+  /// 병원/관리자 프로필 사진 업로드: POST /api/auth/profile-image
+  /// 병원/관리자 프로필 사진 삭제: DELETE /api/auth/profile-image
+  static const String authProfileImage = '$api/auth/profile-image';
+
+  // ===== Admin Pets (반려동물 승인 관리) =====
+  static const String adminPets = '$admin/pets';
+
+  /// 관리자 반려동물 목록: GET /api/admin/pets?status=0&page=1&page_size=10
+  /// 반려동물 승인: POST /api/admin/pets/{petIdx}/approve
+  static String adminPetApprove(int petIdx) => '$adminPets/$petIdx/approve';
+
+  /// 반려동물 거절: POST /api/admin/pets/{petIdx}/reject
+  static String adminPetReject(int petIdx) => '$adminPets/$petIdx/reject';
+
+  /// 반려동물 승인 대기로 변경: POST /api/admin/pets/{petIdx}/reset-pending
+  static String adminPetResetPending(int petIdx) => '$adminPets/$petIdx/reset-pending';
+
+  /// 관리자 - 사용자별 헌혈 신청내역: GET /api/admin/users/{accountIdx}/applications
+  static String adminUserApplications(int accountIdx) =>
+      '$adminUsers/$accountIdx/applications';
 
   // ===== Admin Hospital (확장) =====
   static const String adminHospitalsList = '$adminHospitals/list';

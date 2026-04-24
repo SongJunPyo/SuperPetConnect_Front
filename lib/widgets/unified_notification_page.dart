@@ -1,17 +1,23 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../services/auth_http_client.dart';
 import '../models/notification_model.dart';
 import '../models/notification_types.dart';
 import '../providers/notification_provider.dart';
 import '../admin/admin_post_check.dart';
 import '../admin/admin_signup_management.dart';
 import '../admin/admin_column_management.dart';
+import '../admin/admin_pet_management.dart';
+import '../user/pet_management.dart';
 import '../hospital/hospital_post_check.dart';
 import '../hospital/hospital_column_management_list.dart';
 import '../user/user_donation_posts_list.dart';
 import '../user/my_applications_screen.dart';
 import '../services/dashboard_service.dart';
+import '../utils/api_endpoints.dart';
 import '../utils/app_theme.dart';
+import '../utils/config.dart';
 import 'package:intl/intl.dart';
 
 /// Provider 기반 통합 알림 페이지
@@ -31,9 +37,14 @@ class _UnifiedNotificationPageState extends State<UnifiedNotificationPage> {
   final Set<int> _selectedIds = {};
   bool _isDeleting = false;
 
+  // 알림 설정 상태
+  bool _notificationEnabled = true;
+  bool _isLoadingSettings = true;
+
   @override
   void initState() {
     super.initState();
+    _loadNotificationSettings();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final provider = context.read<NotificationProvider>();
       if (!provider.isInitialized) {
@@ -43,6 +54,63 @@ class _UnifiedNotificationPageState extends State<UnifiedNotificationPage> {
 
     // 무한 스크롤
     _scrollController.addListener(_onScroll);
+  }
+
+  /// 알림 설정 조회
+  Future<void> _loadNotificationSettings() async {
+    try {
+      final response = await AuthHttpClient.get(
+        Uri.parse(
+            '${Config.serverUrl}${ApiEndpoints.notificationSettings}'),
+      );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        if (mounted) {
+          setState(() {
+            _notificationEnabled = data['notificationEnabled'] ?? true;
+            _isLoadingSettings = false;
+          });
+        }
+      } else {
+        if (mounted) setState(() => _isLoadingSettings = false);
+      }
+    } catch (e) {
+      if (mounted) setState(() => _isLoadingSettings = false);
+    }
+  }
+
+  /// 알림 설정 변경
+  Future<void> _toggleNotificationSettings(bool value) async {
+    final previousValue = _notificationEnabled;
+    setState(() => _notificationEnabled = value);
+
+    try {
+      final response = await AuthHttpClient.patch(
+        Uri.parse(
+            '${Config.serverUrl}${ApiEndpoints.notificationSettings}'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({'notificationEnabled': value}),
+      );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(data['message'] ?? '알림 설정이 변경되었습니다.'),
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+        }
+      } else {
+        // 실패 시 롤백
+        if (mounted) setState(() => _notificationEnabled = previousValue);
+      }
+    } catch (e) {
+      // 에러 시 롤백
+      if (mounted) setState(() => _notificationEnabled = previousValue);
+    }
   }
 
   @override
@@ -309,6 +377,28 @@ class _UnifiedNotificationPageState extends State<UnifiedNotificationPage> {
     );
   }
 
+  /// 전체 알림 삭제
+  Future<void> _deleteAll(NotificationProvider provider) async {
+    if (provider.notifications.isEmpty) return;
+
+    final confirmed = await _showDeleteConfirmDialog(
+        provider.notifications.length);
+    if (!confirmed) return;
+
+    final allIds =
+        provider.notifications.map((n) => n.notificationId).toList();
+    final success = await provider.deleteNotifications(allIds);
+
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(success ? '모든 알림이 삭제되었습니다' : '삭제에 실패했습니다'),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    }
+  }
+
   PreferredSizeWidget _buildAppBar(NotificationProvider provider) {
     return AppBar(
       backgroundColor: Colors.white,
@@ -344,26 +434,116 @@ class _UnifiedNotificationPageState extends State<UnifiedNotificationPage> {
         ],
       ),
       actions: [
-        // 모두 읽음 버튼
-        if (provider.unreadCount > 0)
-          TextButton(
-            onPressed: () => _markAllAsRead(provider),
-            child: Text(
-              '모두 읽음',
-              style: AppTheme.bodySmallStyle.copyWith(
-                color: AppTheme.primaryBlue,
-                fontWeight: FontWeight.w600,
+        // 더보기 메뉴
+        PopupMenuButton<String>(
+          icon: const Icon(Icons.more_vert, color: AppTheme.textPrimary),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+          onSelected: (value) {
+            if (value == 'read_all') {
+              _markAllAsRead(provider);
+            } else if (value == 'select_delete') {
+              _toggleSelectionMode();
+            } else if (value == 'delete_all') {
+              _deleteAll(provider);
+            }
+            // 'notification_toggle'은 onSelected에서 처리하지 않음 (Switch가 직접 처리)
+          },
+          itemBuilder: (context) => [
+            // 알림 받기 토글
+            PopupMenuItem(
+              onTap: () {}, // 탭 시 메뉴 닫히지 않도록
+              child: StatefulBuilder(
+                builder: (context, setMenuState) {
+                  return Row(
+                    children: [
+                      Icon(
+                        _notificationEnabled
+                            ? Icons.notifications_active_outlined
+                            : Icons.notifications_off_outlined,
+                        size: 20,
+                        color: AppTheme.textPrimary,
+                      ),
+                      const SizedBox(width: 12),
+                      const Text('알림'),
+                      const Spacer(),
+                      if (_isLoadingSettings)
+                        const SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      else
+                        SizedBox(
+                          height: 28,
+                          child: Switch(
+                            value: _notificationEnabled,
+                            onChanged: (value) {
+                              _toggleNotificationSettings(value);
+                              setMenuState(() {}); // 메뉴 내부 UI 갱신
+                            },
+                            activeTrackColor:
+                                AppTheme.success.withValues(alpha: 0.5),
+                            activeThumbColor: AppTheme.success,
+                          ),
+                        ),
+                    ],
+                  );
+                },
               ),
             ),
-          ),
-        // 편집(선택) 모드 버튼
-        if (provider.notifications.isNotEmpty)
-          IconButton(
-            icon: const Icon(Icons.checklist, color: AppTheme.textPrimary),
-            tooltip: '편집',
-            onPressed: _toggleSelectionMode,
-          ),
-        const SizedBox(width: 8),
+            // 모두 읽음
+            if (provider.notifications.isNotEmpty)
+              PopupMenuItem(
+                value: 'read_all',
+                child: Row(
+                  children: [
+                    Icon(
+                      Icons.done_all,
+                      size: 20,
+                      color: AppTheme.textPrimary,
+                    ),
+                    const SizedBox(width: 12),
+                    const Text('모두 읽음'),
+                  ],
+                ),
+              ),
+            // 선택 삭제
+            if (provider.notifications.isNotEmpty)
+              PopupMenuItem(
+                value: 'select_delete',
+                child: Row(
+                  children: [
+                    Icon(
+                      Icons.checklist,
+                      size: 20,
+                      color: AppTheme.textPrimary,
+                    ),
+                    const SizedBox(width: 12),
+                    const Text('선택 삭제'),
+                  ],
+                ),
+              ),
+            // 전체 삭제
+            if (provider.notifications.isNotEmpty)
+              PopupMenuItem(
+                value: 'delete_all',
+                child: Row(
+                  children: [
+                    Icon(
+                      Icons.delete_outline,
+                      size: 20,
+                      color: AppTheme.textPrimary,
+                    ),
+                    const SizedBox(width: 12),
+                    const Text('전체 삭제'),
+                  ],
+                ),
+              ),
+          ],
+        ),
+        const SizedBox(width: 4),
       ],
     );
   }
@@ -413,11 +593,11 @@ class _UnifiedNotificationPageState extends State<UnifiedNotificationPage> {
             endIndent: 16,
           ),
       itemBuilder: (context, index) {
-        // 범위 에러 방지: 인덱스가 리스트 크기를 초과하면 로딩 표시
         if (index >= provider.notifications.length) {
           return _buildLoadingMore();
         }
-        return _buildNotificationItem(provider.notifications[index], provider);
+        return _buildNotificationItem(
+            provider.notifications[index], provider);
       },
     );
   }
@@ -683,6 +863,10 @@ class _UnifiedNotificationPageState extends State<UnifiedNotificationPage> {
           return AppTheme.success;
         case AdminNotificationType.systemNotice:
           return const Color(0xFF64748B); // 슬레이트
+        case AdminNotificationType.newPetRegistration:
+          return const Color(0xFFE67E22); // 오렌지
+        case AdminNotificationType.petReviewRequest:
+          return const Color(0xFFF59E0B); // 앰버
       }
     }
     // 병원 알림
@@ -705,6 +889,8 @@ class _UnifiedNotificationPageState extends State<UnifiedNotificationPage> {
           return AppTheme.primaryBlue;
         case HospitalNotificationType.systemNotice:
           return const Color(0xFF64748B); // 슬레이트
+        case HospitalNotificationType.documentRequest:
+          return const Color(0xFF6366F1); // 인디고
       }
     }
     // 사용자 알림
@@ -714,6 +900,7 @@ class _UnifiedNotificationPageState extends State<UnifiedNotificationPage> {
         case UserNotificationType.donationCompleted:
           return AppTheme.success;
         case UserNotificationType.applicationRejected:
+        case UserNotificationType.petRejected:
           return AppTheme.error;
         case UserNotificationType.recruitmentClosed:
           return AppTheme.warning;
@@ -721,6 +908,8 @@ class _UnifiedNotificationPageState extends State<UnifiedNotificationPage> {
           return AppTheme.primaryBlue;
         case UserNotificationType.systemNotice:
           return const Color(0xFF64748B); // 슬레이트
+        case UserNotificationType.petApproved:
+          return AppTheme.success;
       }
     }
     return AppTheme.primaryBlue;
@@ -817,6 +1006,16 @@ class _UnifiedNotificationPageState extends State<UnifiedNotificationPage> {
           break;
         case AdminNotificationType.systemNotice:
           break;
+        case AdminNotificationType.newPetRegistration:
+        case AdminNotificationType.petReviewRequest:
+          // 반려동물 관리 페이지로 이동
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => const AdminPetManagement(),
+            ),
+          );
+          break;
       }
     }
   }
@@ -851,6 +1050,13 @@ class _UnifiedNotificationPageState extends State<UnifiedNotificationPage> {
           // 시스템 공지는 대시보드로 이동
           Navigator.pushReplacementNamed(context, '/hospital/dashboard');
           break;
+        case HospitalNotificationType.documentRequest:
+          // 자료 요청 알림 → 게시글 관리 페이지
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (context) => const HospitalPostCheck()),
+          );
+          break;
       }
     }
   }
@@ -877,6 +1083,16 @@ class _UnifiedNotificationPageState extends State<UnifiedNotificationPage> {
         case UserNotificationType.systemNotice:
           // 시스템 공지는 대시보드로 이동
           Navigator.pushReplacementNamed(context, '/user/dashboard');
+          break;
+        case UserNotificationType.petApproved:
+        case UserNotificationType.petRejected:
+          // 반려동물 관리 페이지로 이동
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => const PetManagementScreen(),
+            ),
+          );
           break;
       }
     }
@@ -974,6 +1190,10 @@ class _UnifiedNotificationPageState extends State<UnifiedNotificationPage> {
         return Icons.check_circle;
       case AdminNotificationType.systemNotice:
         return Icons.campaign;
+      case AdminNotificationType.newPetRegistration:
+        return Icons.pets;
+      case AdminNotificationType.petReviewRequest:
+        return Icons.refresh;
     }
   }
 
@@ -999,6 +1219,8 @@ class _UnifiedNotificationPageState extends State<UnifiedNotificationPage> {
         return Icons.cancel;
       case HospitalNotificationType.systemNotice:
         return Icons.campaign;
+      case HospitalNotificationType.documentRequest:
+        return Icons.description;
     }
   }
 
@@ -1016,6 +1238,10 @@ class _UnifiedNotificationPageState extends State<UnifiedNotificationPage> {
         return Icons.thumb_down;
       case UserNotificationType.newDonationPost:
         return Icons.bloodtype;
+      case UserNotificationType.petApproved:
+        return Icons.pets;
+      case UserNotificationType.petRejected:
+        return Icons.block;
     }
   }
 

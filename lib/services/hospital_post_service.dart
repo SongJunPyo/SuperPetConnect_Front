@@ -197,7 +197,7 @@ class HospitalPostService {
     }
   }
 
-  // 신청자 승인/거절 (수정된 API 사용)
+  // 신청자 상태 업데이트 (승인 등)
   static Future<bool> updateApplicantStatus(
     int appliedDonationIdx,
     int statusCode, {

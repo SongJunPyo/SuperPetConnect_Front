@@ -134,6 +134,9 @@ class NotificationApiService {
               userType,
             );
 
+        if (clientType == null) {
+          debugPrint('[NotificationApiService] 매핑 누락 - type: "${serverNotification.type}", userType: $userType');
+        }
         if (clientType != null) {
           // 읽음 상태와 생성 시간 파싱
           final rawIsRead = notificationData['is_read'];

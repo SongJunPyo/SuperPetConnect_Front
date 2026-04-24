@@ -12,6 +12,7 @@ import '../../utils/time_format_util.dart';
 class PostDetailMetaSection extends StatelessWidget {
   final String hospitalName;
   final String? hospitalNickname;
+  final String? hospitalProfileImage;
   final String location;
   final int animalType; // 0: 강아지, 1: 고양이
   final int applicantCount;
@@ -21,6 +22,7 @@ class PostDetailMetaSection extends StatelessWidget {
     super.key,
     required this.hospitalName,
     this.hospitalNickname,
+    this.hospitalProfileImage,
     required this.location,
     required this.animalType,
     required this.applicantCount,
@@ -43,7 +45,7 @@ class PostDetailMetaSection extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // 1. 병원명/닉네임 + 작성일
+        // 1. 병원명: 닉네임 + 작성일
         Row(
           children: [
             Icon(
@@ -52,6 +54,13 @@ class PostDetailMetaSection extends StatelessWidget {
               color: AppTheme.textSecondary,
             ),
             const SizedBox(width: 8),
+            Text(
+              '병원명: ',
+              style: AppTheme.bodyMediumStyle.copyWith(
+                fontWeight: FontWeight.w500,
+                color: AppTheme.textSecondary,
+              ),
+            ),
             Expanded(
               child: Text(
                 _displayHospitalName,

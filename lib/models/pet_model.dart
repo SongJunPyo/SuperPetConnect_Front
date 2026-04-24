@@ -8,7 +8,7 @@ class Pet {
   final String species;
   final int? animalType; // 0=강아지, 1=고양이
   final String? breed;
-  final int ageNumber; // DB의 age_number 필드
+  final DateTime? birthDate; // 생년월일
   final String? bloodType;
   final double weightKg;
   final bool pregnant;
@@ -19,7 +19,11 @@ class Pet {
   final bool? isNeutered; // 중성화 수술 여부
   final DateTime? neuteredDate; // 중성화 수술 일자
   final bool? hasPreventiveMedication; // 예방약 복용 여부
-  final int? ageMonths; // 나이 (개월 단위)
+  final bool isPrimary; // 대표 반려동물 여부
+  final int approvalStatus; // 0=승인대기, 1=헌혈가능, 2=헌혈불가
+  final String? rejectionReason; // 거절 사유
+  final bool isReview; // 재심사 여부
+  final String? profileImage; // 프로필 사진 경로
 
   Pet({
     this.petIdx,
@@ -29,7 +33,7 @@ class Pet {
     required this.species,
     this.animalType,
     this.breed,
-    required this.ageNumber,
+    this.birthDate,
     this.bloodType,
     required this.weightKg,
     required this.pregnant,
@@ -40,12 +44,45 @@ class Pet {
     this.isNeutered,
     this.neuteredDate,
     this.hasPreventiveMedication,
-    this.ageMonths,
+    this.isPrimary = false,
+    this.approvalStatus = 0,
+    this.rejectionReason,
+    this.isReview = false,
+    this.profileImage,
   });
 
-  // 나이를 문자열로 반환하는 getter
+  // 나이를 문자열로 반환하는 getter (birthDate 기반 계산)
   String get age {
-    return ageNumber <= 0 ? '1살 미만' : '$ageNumber살';
+    if (birthDate == null) return '나이 미상';
+    final now = DateTime.now();
+    final totalMonths = (now.year - birthDate!.year) * 12 + (now.month - birthDate!.month);
+    if (totalMonths < 0) return '나이 미상';
+    if (totalMonths < 12) return '$totalMonths개월';
+    return '${totalMonths ~/ 12}살';
+  }
+
+  // 나이를 개월 수로 반환 (헌혈 자격 검증용)
+  int? get ageInMonths {
+    if (birthDate == null) return null;
+    final now = DateTime.now();
+    return (now.year - birthDate!.year) * 12 + (now.month - birthDate!.month);
+  }
+
+  // 생년월일 + 나이 표시 (예: "2023.03.20 (3살)")
+  String get birthDateWithAge {
+    if (birthDate == null) return '나이 미상';
+    final dateStr = '${birthDate!.year}.${birthDate!.month.toString().padLeft(2, '0')}.${birthDate!.day.toString().padLeft(2, '0')}';
+    return '$dateStr ($age)';
+  }
+
+  // 1줄 요약: 종 • 품종 • 혈액형 • 나이 • 체중
+  String get summaryLine {
+    final parts = <String>[species];
+    if (breed != null && breed!.isNotEmpty) parts.add(breed!);
+    if (bloodType != null) parts.add(bloodType!);
+    parts.add(age);
+    parts.add('${weightKg}kg');
+    return parts.join(' • ');
   }
 
   factory Pet.fromJson(Map<String, dynamic> json) {
@@ -57,15 +94,6 @@ class Pet {
       return 0.0;
     }
 
-    // age_number 안전하게 파싱
-    int parseAge(dynamic value) {
-      if (value == null) return 0;
-      if (value is int) return value;
-      if (value is String) return int.tryParse(value) ?? 0;
-      if (value is double) return value.toInt();
-      return 0;
-    }
-
     return Pet(
       petIdx: json['pet_idx'] ?? json['pet_id'], // 하위 호환성 지원
       accountIdx: json['account_idx'] ?? json['guardian_idx'], // 하위 호환성 지원
@@ -74,7 +102,9 @@ class Pet {
       species: json['species'] ?? '',
       animalType: json['animal_type'], // 0=강아지, 1=고양이
       breed: json['breed'],
-      ageNumber: parseAge(json['age_number']),
+      birthDate: json['birth_date'] != null
+          ? DateTime.tryParse(json['birth_date'])
+          : null,
       bloodType: json['blood_type'],
       weightKg: parseWeight(json['weight_kg']),
       pregnant:
@@ -111,7 +141,11 @@ class Pet {
               ? null
               : (json['has_preventive_medication'] == 1 ||
                   json['has_preventive_medication'] == true),
-      ageMonths: json['age_months'],
+      isPrimary: json['is_primary'] == true || json['is_primary'] == 1,
+      approvalStatus: json['approval_status'] ?? 0,
+      rejectionReason: json['rejection_reason'],
+      isReview: json['is_review'] == true,
+      profileImage: json['profile_image'],
     );
   }
 
@@ -125,7 +159,7 @@ class Pet {
       'species': species,
       'animal_type': animalType, // 0=강아지, 1=고양이
       'breed': breed,
-      'age_number': ageNumber,
+      'birth_date': birthDate?.toIso8601String().split('T')[0],
       'blood_type': bloodType,
       'weight_kg': weightKg,
       'pregnant': pregnant ? 1 : 0,
@@ -135,12 +169,13 @@ class Pet {
           hasBirthExperience == null ? null : (hasBirthExperience! ? 1 : 0),
       'prev_donation_date': prevDonationDate?.toIso8601String(),
       'is_neutered': isNeutered == null ? null : (isNeutered! ? 1 : 0),
-      'neutered_date': neuteredDate?.toIso8601String().split('T')[0], // DATE 형식
+      'neutered_date': neuteredDate?.toIso8601String().split('T')[0],
       'has_preventive_medication':
           hasPreventiveMedication == null
               ? null
               : (hasPreventiveMedication! ? 1 : 0),
-      'age_months': ageMonths,
+      'is_primary': isPrimary ? 1 : 0,
+      'profile_image': profileImage,
     };
   }
 
@@ -176,16 +211,25 @@ class Pet {
     }
   }
 
-  // 반려동물 정보 표시용 getter
+  // 승인 상태 텍스트
+  String get approvalStatusText {
+    switch (approvalStatus) {
+      case 0:
+        return '승인 대기';
+      case 1:
+        return '헌혈 가능';
+      case 2:
+        return '헌혈 불가';
+      default:
+        return '알 수 없음';
+    }
+  }
+
+  // 승인 완료 여부
+  bool get isApproved => approvalStatus == 1;
+
+  // 반려동물 정보 표시용 getter (이름 + 1줄 요약)
   String get displayInfo {
-    final speciesText =
-        species == 'dog'
-            ? '반려견'
-            : species == 'cat'
-            ? '반려묘'
-            : species;
-    final breedText = breed != null ? ' • $breed' : '';
-    final bloodText = bloodType != null ? ' • $bloodType형' : '';
-    return '$name ($speciesText • $age • ${weightKg}kg$breedText$bloodText)';
+    return '$name ($summaryLine)';
   }
 }

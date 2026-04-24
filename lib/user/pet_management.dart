@@ -1,13 +1,20 @@
 // ignore_for_file: use_build_context_synchronously
+import 'dart:convert';
 import 'package:flutter/material.dart';
-import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:http/http.dart' as http;
 import 'package:connect/user/pet_register.dart';
 import 'package:connect/models/pet_model.dart';
 import 'package:connect/models/donation_history_model.dart';
 import 'package:connect/services/manage_pet_info.dart';
 import 'package:connect/services/donation_history_service.dart';
+import 'package:connect/services/auth_http_client.dart';
 import '../utils/app_theme.dart';
+import '../utils/api_endpoints.dart';
+import '../utils/config.dart';
+import '../utils/preferences_manager.dart';
 import '../utils/donation_eligibility.dart';
+import '../widgets/pet_profile_image.dart';
 
 class PetManagementScreen extends StatefulWidget {
   const PetManagementScreen({super.key});
@@ -44,6 +51,19 @@ class _PetManagementScreenState extends State<PetManagementScreen> {
     if (result == true) {
       _refreshPets();
       _showSnackBar('새로운 펫이 등록되었습니다.');
+    }
+  }
+
+  // 대표 반려동물 설정
+  void _setPrimaryPet(Pet pet) async {
+    if (pet.petIdx == null) return;
+
+    try {
+      await PetService.setPrimaryPet(pet.petIdx!);
+      _refreshPets();
+      _showSnackBar("'${pet.name}'을(를) 대표 반려동물로 설정했습니다.");
+    } catch (e) {
+      _showSnackBar('대표 반려동물 설정에 실패했습니다.');
     }
   }
 
@@ -265,7 +285,6 @@ class _PetManagementScreenState extends State<PetManagementScreen> {
   Widget _buildPetCard(Pet pet) {
     // 중앙화된 자격 검증 사용
     final eligibility = DonationEligibility.checkEligibility(pet);
-    final isDog = pet.species == '강아지' || pet.species == '개';
 
     return Card(
       margin: const EdgeInsets.only(bottom: AppTheme.spacing12),
@@ -273,7 +292,10 @@ class _PetManagementScreenState extends State<PetManagementScreen> {
       color: Colors.white,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(AppTheme.radius16),
-        side: const BorderSide(color: Colors.black, width: 1),
+        side: BorderSide(
+          color: pet.isPrimary ? Colors.amber.shade600 : Colors.black,
+          width: pet.isPrimary ? 2 : 1,
+        ),
       ),
       child: InkWell(
         onTap: () => _showPetDetailDialog(pet),
@@ -286,53 +308,67 @@ class _PetManagementScreenState extends State<PetManagementScreen> {
               // 상단: 이름, 상태 배지, 액션 버튼
               Row(
                 children: [
-                  // 아이콘
-                  Container(
-                    padding: const EdgeInsets.all(AppTheme.spacing8),
-                    decoration: BoxDecoration(
-                      color:
-                          isDog ? Colors.orange.shade50 : Colors.purple.shade50,
-                      borderRadius: BorderRadius.circular(AppTheme.radius12),
-                    ),
-                    child: FaIcon(
-                      isDog ? FontAwesomeIcons.dog : FontAwesomeIcons.cat,
-                      color:
-                          isDog
-                              ? Colors.orange.shade600
-                              : Colors.purple.shade600,
-                      size: 20,
-                    ),
+                  // 프로필 사진
+                  PetProfileImage(
+                    profileImage: pet.profileImage,
+                    species: pet.species,
+                    radius: 22,
                   ),
                   const SizedBox(width: AppTheme.spacing12),
-                  // 이름
+                  // 이름 + 대표 배지
                   Expanded(
-                    child: Text(
-                      pet.name,
-                      style: AppTheme.h4Style.copyWith(
-                        fontWeight: FontWeight.w600,
-                      ),
+                    child: Row(
+                      children: [
+                        Flexible(
+                          child: Text(
+                            pet.name,
+                            style: AppTheme.h4Style.copyWith(
+                              fontWeight: FontWeight.w600,
+                            ),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        if (pet.isPrimary) ...[
+                          const SizedBox(width: AppTheme.spacing4),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 6,
+                              vertical: 2,
+                            ),
+                            decoration: BoxDecoration(
+                              color: Colors.amber.shade50,
+                              borderRadius: BorderRadius.circular(AppTheme.radius4),
+                              border: Border.all(color: Colors.amber.shade300),
+                            ),
+                            child: Text(
+                              '대표',
+                              style: AppTheme.captionStyle.copyWith(
+                                color: Colors.amber.shade800,
+                                fontWeight: FontWeight.w600,
+                                fontSize: 11,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ],
                     ),
                   ),
-                  // 임신 배지
-                  if (pet.pregnant)
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: AppTheme.spacing8,
-                        vertical: AppTheme.spacing4,
-                      ),
-                      decoration: BoxDecoration(
-                        color: Colors.pink.shade50,
-                        borderRadius: BorderRadius.circular(AppTheme.radius8),
-                      ),
-                      child: Text(
-                        '임신중',
-                        style: AppTheme.captionStyle.copyWith(
-                          color: Colors.pink.shade700,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ),
                   const SizedBox(width: AppTheme.spacing8),
+                  // 대표 반려동물 설정 버튼
+                  IconButton(
+                    icon: Icon(
+                      pet.isPrimary ? Icons.star : Icons.star_border,
+                      size: 22,
+                    ),
+                    color: pet.isPrimary ? Colors.amber.shade600 : AppTheme.textTertiary,
+                    onPressed: pet.isPrimary ? null : () => _setPrimaryPet(pet),
+                    tooltip: pet.isPrimary ? '대표 반려동물' : '대표로 설정',
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(
+                      minWidth: 32,
+                      minHeight: 32,
+                    ),
+                  ),
                   // 수정 버튼
                   IconButton(
                     icon: const Icon(Icons.edit_outlined, size: 20),
@@ -359,113 +395,117 @@ class _PetManagementScreenState extends State<PetManagementScreen> {
               ),
               const SizedBox(height: AppTheme.spacing12),
               // 중간: 기본 정보 (한 줄로 표시)
-              Row(
-                children: [
-                  Icon(
-                    Icons.pets_outlined,
-                    size: 16,
+              // 1줄 요약: 종 • 품종 • 혈액형 • 나이 • 체중
+              Text(
+                pet.summaryLine,
+                style: AppTheme.bodyMediumStyle.copyWith(
+                  color: AppTheme.textSecondary,
+                ),
+              ),
+              // 생년월일
+              if (pet.birthDate != null) ...[
+                const SizedBox(height: AppTheme.spacing4),
+                Text(
+                  pet.birthDateWithAge,
+                  style: AppTheme.bodySmallStyle.copyWith(
                     color: AppTheme.textTertiary,
                   ),
-                  const SizedBox(width: AppTheme.spacing4),
-                  Text(
-                    '${pet.species} • ${pet.age} • ${pet.weightKg}kg',
-                    style: AppTheme.bodyMediumStyle.copyWith(
-                      color: AppTheme.textSecondary,
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: AppTheme.spacing4),
-              // 품종
-              if (pet.breed != null)
-                Row(
-                  children: [
-                    Icon(
-                      Icons.category_outlined,
-                      size: 16,
-                      color: AppTheme.textTertiary,
-                    ),
-                    const SizedBox(width: AppTheme.spacing4),
-                    Text(
-                      pet.breed!,
-                      style: AppTheme.bodyMediumStyle.copyWith(
-                        color: AppTheme.textSecondary,
-                      ),
-                    ),
-                  ],
                 ),
-              const SizedBox(height: AppTheme.spacing4),
-              // 혈액형
-              if (pet.bloodType != null)
-                Row(
-                  children: [
-                    Icon(
-                      Icons.bloodtype_outlined,
-                      size: 16,
-                      color: AppTheme.textTertiary,
-                    ),
-                    const SizedBox(width: AppTheme.spacing4),
-                    Text(
-                      pet.bloodType!,
-                      style: AppTheme.bodyMediumStyle.copyWith(
-                        color: AppTheme.primaryBlue,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                  ],
-                ),
+              ],
               const SizedBox(height: AppTheme.spacing12),
-              // 하단: 헌혈 상태 (중앙화된 자격 검증 결과 표시)
-              Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: AppTheme.spacing12,
-                  vertical: AppTheme.spacing8,
-                ),
-                decoration: BoxDecoration(
-                  color:
-                      eligibility.isEligible
-                          ? Colors.green.shade50
-                          : eligibility.needsConsultation
-                          ? Colors.orange.shade50
-                          : Colors.red.shade50,
-                  borderRadius: BorderRadius.circular(AppTheme.radius8),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(
-                      eligibility.isEligible
-                          ? Icons.check_circle
-                          : eligibility.needsConsultation
-                          ? Icons.help_outline
-                          : Icons.cancel,
-                      size: 16,
-                      color:
-                          eligibility.isEligible
-                              ? Colors.green.shade700
-                              : eligibility.needsConsultation
-                              ? Colors.orange.shade700
-                              : Colors.red.shade700,
-                    ),
-                    const SizedBox(width: AppTheme.spacing4),
-                    Text(
-                      eligibility.summaryMessage,
-                      style: AppTheme.bodySmallStyle.copyWith(
-                        color:
-                            eligibility.isEligible
-                                ? Colors.green.shade700
-                                : eligibility.needsConsultation
-                                ? Colors.orange.shade700
-                                : Colors.red.shade700,
-                        fontWeight: FontWeight.w600,
+              // 하단: 헌혈 상태 (승인 상태 우선, 이후 자격 검증)
+              _buildDonationStatusBadge(pet, eligibility),
+              // 거절 사유 및 재심사 안내
+              if (pet.approvalStatus == 2) ...[
+                const SizedBox(height: AppTheme.spacing8),
+                Container(
+                  padding: const EdgeInsets.all(AppTheme.spacing8),
+                  decoration: BoxDecoration(
+                    color: AppTheme.error.withValues(alpha: 0.05),
+                    borderRadius: BorderRadius.circular(AppTheme.radius8),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      if (pet.rejectionReason != null)
+                        Row(
+                          children: [
+                            const Icon(Icons.info_outline, size: 14, color: AppTheme.error),
+                            const SizedBox(width: 4),
+                            Expanded(
+                              child: Text(
+                                '사유: ${pet.rejectionReason}',
+                                style: const TextStyle(fontSize: 12, color: AppTheme.error),
+                              ),
+                            ),
+                          ],
+                        ),
+                      const SizedBox(height: 4),
+                      const Text(
+                        '⚠ 정보를 수정하면 재심사를 받을 수 있습니다',
+                        style: TextStyle(fontSize: 11, color: AppTheme.textTertiary),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
-              ),
+              ],
             ],
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _buildDonationStatusBadge(Pet pet, EligibilityResult eligibility) {
+    // 승인 상태에 따라 분기
+    IconData icon;
+    Color color;
+    String message;
+
+    if (pet.approvalStatus == 0) {
+      icon = Icons.hourglass_empty;
+      color = AppTheme.warning;
+      message = '승인 대기';
+    } else if (pet.approvalStatus == 2) {
+      icon = Icons.cancel;
+      color = AppTheme.error;
+      message = '헌혈 불가';
+    } else if (eligibility.isEligible) {
+      icon = Icons.check_circle;
+      color = Colors.green.shade700;
+      message = eligibility.summaryMessage;
+    } else if (eligibility.needsConsultation) {
+      icon = Icons.help_outline;
+      color = Colors.orange.shade700;
+      message = eligibility.summaryMessage;
+    } else {
+      icon = Icons.cancel;
+      color = Colors.red.shade700;
+      message = eligibility.summaryMessage;
+    }
+
+    return Container(
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppTheme.spacing12,
+        vertical: AppTheme.spacing8,
+      ),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(AppTheme.radius8),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 16, color: color),
+          const SizedBox(width: AppTheme.spacing4),
+          Text(
+            message,
+            style: AppTheme.bodySmallStyle.copyWith(
+              color: color,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -484,7 +524,10 @@ class _PetManagementScreenState extends State<PetManagementScreen> {
               _editPet(pet);
             },
           ),
-    );
+    ).then((_) {
+      // 바텀시트 닫힌 후 목록 새로고침 (사진 변경 반영)
+      _refreshPets();
+    });
   }
 }
 
@@ -541,6 +584,131 @@ class _PetDetailBottomSheetState extends State<_PetDetailBottomSheet> {
     }
   }
 
+  /// 사진 옵션 (업로드/삭제) 바텀시트
+  void _showImageOptions(Pet pet) {
+    showModalBottomSheet(
+      context: context,
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.photo_library_outlined),
+              title: const Text('갤러리에서 선택'),
+              onTap: () {
+                Navigator.pop(ctx);
+                _uploadImage(pet);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.camera_alt_outlined),
+              title: const Text('카메라로 촬영'),
+              onTap: () {
+                Navigator.pop(ctx);
+                _uploadImage(pet, fromCamera: true);
+              },
+            ),
+            if (pet.profileImage != null) ...[
+              ListTile(
+                leading: Icon(Icons.delete_outline, color: AppTheme.error),
+                title: Text('사진 삭제', style: TextStyle(color: AppTheme.error)),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  _deleteImage(pet);
+                },
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// 사진 업로드
+  Future<void> _uploadImage(Pet pet, {bool fromCamera = false}) async {
+    if (pet.petIdx == null) return;
+
+    final picker = ImagePicker();
+    final pickedFile = await picker.pickImage(
+      source: fromCamera ? ImageSource.camera : ImageSource.gallery,
+      maxWidth: 1920,
+      maxHeight: 1920,
+      imageQuality: 85,
+    );
+
+    if (pickedFile == null) return;
+
+    try {
+      final uri = Uri.parse(
+        '${Config.serverUrl}${ApiEndpoints.petProfileImage(pet.petIdx!)}',
+      );
+      final request = http.MultipartRequest('POST', uri);
+
+      final token = await PreferencesManager.getAuthToken();
+      if (token != null) {
+        request.headers['Authorization'] = 'Bearer $token';
+      }
+
+      request.files.add(await http.MultipartFile.fromPath('image', pickedFile.path));
+
+      final streamedResponse = await request.send();
+      final response = await http.Response.fromStream(streamedResponse);
+
+      if (mounted) {
+        if (response.statusCode == 200) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('프로필 사진이 등록되었습니다.'), behavior: SnackBarBehavior.floating),
+          );
+          Navigator.pop(context); // 바텀시트 닫기
+        } else {
+          final data = jsonDecode(response.body);
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(data['detail'] ?? '사진 업로드에 실패했습니다.'), behavior: SnackBarBehavior.floating),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('사진 업로드 중 오류가 발생했습니다.'), behavior: SnackBarBehavior.floating),
+        );
+      }
+    }
+  }
+
+  /// 사진 삭제
+  Future<void> _deleteImage(Pet pet) async {
+    if (pet.petIdx == null) return;
+
+    try {
+      final response = await AuthHttpClient.delete(
+        Uri.parse(
+          '${Config.serverUrl}${ApiEndpoints.petProfileImage(pet.petIdx!)}',
+        ),
+      );
+
+      if (mounted) {
+        if (response.statusCode == 200) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('프로필 사진이 삭제되었습니다.'), behavior: SnackBarBehavior.floating),
+          );
+          Navigator.pop(context); // 바텀시트 닫기
+        } else {
+          final data = jsonDecode(response.body);
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(data['detail'] ?? '사진 삭제에 실패했습니다.'), behavior: SnackBarBehavior.floating),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('사진 삭제 중 오류가 발생했습니다.'), behavior: SnackBarBehavior.floating),
+        );
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final pet = widget.pet;
@@ -575,25 +743,30 @@ class _PetDetailBottomSheetState extends State<_PetDetailBottomSheet> {
                   padding: const EdgeInsets.symmetric(horizontal: 20),
                   child: Row(
                     children: [
-                      // 아이콘
-                      Container(
-                        padding: const EdgeInsets.all(AppTheme.spacing12),
-                        decoration: BoxDecoration(
-                          color:
-                              isDog
-                                  ? Colors.orange.shade50
-                                  : Colors.purple.shade50,
-                          borderRadius: BorderRadius.circular(
-                            AppTheme.radius12,
-                          ),
-                        ),
-                        child: FaIcon(
-                          isDog ? FontAwesomeIcons.dog : FontAwesomeIcons.cat,
-                          color:
-                              isDog
-                                  ? Colors.orange.shade600
-                                  : Colors.purple.shade600,
-                          size: 24,
+                      // 프로필 사진 (클릭 시 변경)
+                      GestureDetector(
+                        onTap: () => _showImageOptions(pet),
+                        child: Stack(
+                          children: [
+                            PetProfileImage(
+                              profileImage: pet.profileImage,
+                              species: pet.species,
+                              radius: 30,
+                            ),
+                            Positioned(
+                              right: 0,
+                              bottom: 0,
+                              child: Container(
+                                padding: const EdgeInsets.all(3),
+                                decoration: BoxDecoration(
+                                  color: AppTheme.primaryBlue,
+                                  shape: BoxShape.circle,
+                                  border: Border.all(color: Colors.white, width: 2),
+                                ),
+                                child: const Icon(Icons.camera_alt, size: 12, color: Colors.white),
+                              ),
+                            ),
+                          ],
                         ),
                       ),
                       const SizedBox(width: AppTheme.spacing12),
@@ -610,7 +783,7 @@ class _PetDetailBottomSheetState extends State<_PetDetailBottomSheet> {
                             ),
                             const SizedBox(height: 2),
                             Text(
-                              '${pet.species} • ${pet.age} • ${pet.weightKg}kg',
+                              pet.summaryLine,
                               style: AppTheme.bodyMediumStyle.copyWith(
                                 color: AppTheme.textSecondary,
                               ),
@@ -656,9 +829,9 @@ class _PetDetailBottomSheetState extends State<_PetDetailBottomSheet> {
                           children: [
                             _buildDetailRow('종류', pet.species),
                             _buildDetailRow('품종', pet.breed ?? '정보 없음'),
-                            _buildDetailRow('나이', pet.age),
-                            _buildDetailRow('몸무게', '${pet.weightKg}kg'),
                             _buildDetailRow('혈액형', pet.bloodType ?? '정보 없음'),
+                            _buildDetailRow('생년월일', pet.birthDateWithAge),
+                            _buildDetailRow('몸무게', '${pet.weightKg}kg'),
                           ],
                         ),
                       ),

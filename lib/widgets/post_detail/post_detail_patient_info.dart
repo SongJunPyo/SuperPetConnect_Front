@@ -46,16 +46,16 @@ class PostDetailPatientInfo extends StatelessWidget {
         // 섹션 제목
         Row(
           children: [
-            Icon(
+            const Icon(
               Icons.medical_information,
               size: 18,
-              color: Colors.red.shade700,
+              color: Colors.black,
             ),
             const SizedBox(width: 8),
             Text(
               '수혈 환자 정보',
               style: AppTheme.h4Style.copyWith(
-                color: Colors.red.shade700,
+                color: Colors.black,
                 fontWeight: FontWeight.bold,
               ),
             ),
@@ -71,7 +71,7 @@ class PostDetailPatientInfo extends StatelessWidget {
             color: Colors.white,
             borderRadius: BorderRadius.circular(12),
             border: Border.all(
-              color: Colors.red.shade200,
+              color: Colors.black,
               width: 1,
             ),
           ),

@@ -45,6 +45,23 @@ class PetService {
     }
   }
 
+  // 대표 반려동물 설정
+  static Future<Map<String, dynamic>> setPrimaryPet(int petIdx) async {
+    try {
+      final response = await AuthHttpClient.put(
+        Uri.parse('${Config.serverUrl}${ApiEndpoints.petSetPrimary(petIdx)}'),
+      );
+
+      if (response.statusCode == 200) {
+        return response.parseJson();
+      } else {
+        throw Exception('대표 반려동물 설정 실패: ${response.body}');
+      }
+    } catch (e) {
+      throw Exception('대표 반려동물 설정 중 오류 발생: $e');
+    }
+  }
+
   static Future<void> deletePet(int petIdx) async {
     try {
       final response = await AuthHttpClient.delete(

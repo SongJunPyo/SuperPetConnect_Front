@@ -22,6 +22,10 @@ class UnifiedPostModel {
   final int types; // 0: 긴급, 1: 정기
   final int status; // 0: 대기, 1: 모집중, 2: 거절, 3: 모집마감, 4: 완료
 
+  // ===== 그룹 정보 (날짜별 개별 게시글) =====
+  final String? groupId; // 같은 작성 건 UUID (단일 날짜면 null)
+  final String? donationDateStr; // 해당 게시글의 헌혈 날짜 (YYYY-MM-DD)
+
   // ===== 한글 라벨 (서버에서 제공, 2단계부터) =====
   final String? statusLabel; // status의 한글 표현 (예: "모집중")
   final String? typesLabel; // types의 한글 표현 (예: "긴급")
@@ -62,12 +66,15 @@ class UnifiedPostModel {
   final String? hospitalNickname; // 병원 닉네임
   final String? hospitalCode; // 병원 코드
   final String location; // 병원 주소
+  final String? hospitalProfileImage; // 병원 프로필 사진
 
   UnifiedPostModel({
     required this.id,
     required this.title,
     required this.types,
     required this.status,
+    this.groupId,
+    this.donationDateStr,
     this.statusLabel,
     this.typesLabel,
     required this.animalType,
@@ -90,6 +97,7 @@ class UnifiedPostModel {
     this.hospitalNickname,
     this.hospitalCode,
     required this.location,
+    this.hospitalProfileImage,
   });
 
   /// JSON에서 UnifiedPostModel 생성
@@ -112,6 +120,16 @@ class UnifiedPostModel {
       } else {
         postId = 0;
       }
+
+      // ===== 그룹 정보 파싱 =====
+      final groupIdRaw = json['groupId'] ?? json['group_id'];
+      final String? groupId = (groupIdRaw != null && groupIdRaw.toString() != 'null')
+          ? groupIdRaw.toString()
+          : null;
+      final donationDateStrRaw = json['donationDateStr'] ?? json['donation_date_str'];
+      final String? donationDateStr = (donationDateStrRaw != null && donationDateStrRaw.toString() != 'null')
+          ? donationDateStrRaw.toString()
+          : null;
 
       // ===== status 파싱 (int 또는 String) =====
       int statusValue = _parseStatus(json['status']);
@@ -175,6 +193,10 @@ class UnifiedPostModel {
           ? (json['location']?.toString() ?? '주소 정보 없음')
           : location;
 
+      // ===== 병원 프로필 사진 =====
+      final hospitalProfileImage =
+          json['hospitalProfileImage'] ?? json['hospital_profile_image'];
+
       // ===== 이미지 파싱 =====
       List<PostImage>? imageList;
       if (json['images'] != null && json['images'] is List) {
@@ -220,6 +242,8 @@ class UnifiedPostModel {
         title: json['title']?.toString() ?? '',
         types: typesValue,
         status: statusValue,
+        groupId: groupId,
+        donationDateStr: donationDateStr,
         statusLabel: json['statusLabel']?.toString(),
         typesLabel: json['typesLabel']?.toString(),
         animalType: animalTypeValue,
@@ -251,6 +275,7 @@ class UnifiedPostModel {
         hospitalNickname: hospitalNickname,
         hospitalCode: hospitalCode,
         location: location,
+        hospitalProfileImage: hospitalProfileImage,
       );
     } catch (e) {
       debugPrint('UnifiedPostModel.fromJson error: $e');

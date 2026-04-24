@@ -65,7 +65,7 @@ class _ApplicantListScreenState extends State<ApplicantListScreen> {
     }
   }
 
-  // 신청자 상태 업데이트 (승인/거절)
+  // 신청자 상태 업데이트 (승인)
   Future<void> updateApplicantStatus(int applicantId, int status) async {
     try {
       final url = Uri.parse(
@@ -81,7 +81,7 @@ class _ApplicantListScreenState extends State<ApplicantListScreen> {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text(status == 1 ? "신청자가 승인되었습니다." : "신청자가 거절되었습니다."),
+              content: Text(status == 1 ? "신청자가 승인되었습니다." : "상태가 변경되었습니다."),
             ),
           );
         }

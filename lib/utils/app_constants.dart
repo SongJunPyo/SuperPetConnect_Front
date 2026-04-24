@@ -20,6 +20,7 @@ class AppConstants {
   static const int postStatusCancelled = 2;   // 헌혈취소 (거절)
   static const int postStatusClosed = 3;      // 모집마감
   static const int postStatusCompleted = 4;   // 헌혈완료
+  static const int postStatusSuspended = 5;  // 대기상태 (관리자가 모집중→대기로 변경)
 
   // ===== 신청자 상태 (Applicant Status) =====
   static const int applicantStatusWaiting = 0;
@@ -108,6 +109,8 @@ class AppConstants {
         return '마감';
       case postStatusCompleted:
         return '완료';
+      case postStatusSuspended:
+        return '대기';
       default:
         return '알 수 없음';
     }
@@ -121,7 +124,7 @@ class AppConstants {
       case applicantStatusApproved:
         return '승인';
       case applicantStatusRejected:
-        return '거절';
+        return '미승인';
       case applicantStatusCancelled:
         return '취소';
       default:

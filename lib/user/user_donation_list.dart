@@ -4,8 +4,10 @@ import '../services/dashboard_service.dart';
 import '../models/unified_post_model.dart';
 import 'package:intl/intl.dart';
 import '../widgets/marquee_text.dart';
+import '../widgets/post_type_badge.dart';
 import '../utils/number_format_util.dart';
 import '../widgets/rich_text_viewer.dart';
+import '../widgets/app_search_bar.dart';
 
 class UserDonationListScreen extends StatefulWidget {
   const UserDonationListScreen({super.key});
@@ -310,39 +312,11 @@ class _UserDonationListScreenState extends State<UserDonationListScreen> {
             padding: const EdgeInsets.all(16.0),
             child: Column(
               children: [
-                TextField(
+                AppSearchBar(
                   controller: searchController,
+                  hintText: '제목, 병원명으로 검색...',
                   onChanged: _onSearchChanged,
-                  decoration: InputDecoration(
-                    hintText: '제목, 병원명으로 검색...',
-                    prefixIcon: const Icon(
-                      Icons.search,
-                      color: AppTheme.primaryBlue,
-                    ),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: BorderSide(color: Colors.grey.shade300),
-                    ),
-                    focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: const BorderSide(
-                        color: AppTheme.primaryBlue,
-                        width: 2,
-                      ),
-                    ),
-                    filled: true,
-                    fillColor: Colors.grey.shade50,
-                    suffixIcon:
-                        searchQuery.isNotEmpty
-                            ? IconButton(
-                              icon: const Icon(Icons.clear),
-                              onPressed: () {
-                                searchController.clear();
-                                _onSearchChanged('');
-                              },
-                            )
-                            : null,
-                  ),
+                  onClear: () => _onSearchChanged(''),
                 ),
                 // 날짜 범위 표시
                 if (startDate != null && endDate != null) ...[
@@ -507,27 +481,7 @@ class _UserDonationListScreenState extends State<UserDonationListScreen> {
                               Row(
                                 crossAxisAlignment: CrossAxisAlignment.center,
                                 children: [
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 6,
-                                      vertical: 3,
-                                    ),
-                                    decoration: BoxDecoration(
-                                      color:
-                                          donation.isUrgent
-                                              ? AppTheme.error
-                                              : AppTheme.success,
-                                      borderRadius: BorderRadius.circular(4),
-                                    ),
-                                    child: Text(
-                                      donation.isUrgent ? '긴급' : '정기',
-                                      style: AppTheme.bodySmallStyle.copyWith(
-                                        color: Colors.white,
-                                        fontWeight: FontWeight.bold,
-                                        fontSize: 10,
-                                      ),
-                                    ),
-                                  ),
+                                  PostTypeBadge(type: donation.isUrgent ? '긴급' : '정기'),
                                   const SizedBox(width: 8),
                                   Expanded(
                                     child: MarqueeText(
@@ -736,25 +690,7 @@ class _UserDonationListScreenState extends State<UserDonationListScreen> {
                   const SizedBox(height: 12),
                   Row(
                     children: [
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 8,
-                          vertical: 4,
-                        ),
-                        decoration: BoxDecoration(
-                          color:
-                              isUrgent ? AppTheme.error : AppTheme.primaryBlue,
-                          borderRadius: BorderRadius.circular(6),
-                        ),
-                        child: Text(
-                          isUrgent ? '긴급' : '정기',
-                          style: AppTheme.bodySmallStyle.copyWith(
-                            color: Colors.white,
-                            fontWeight: FontWeight.bold,
-                            fontSize: 10,
-                          ),
-                        ),
-                      ),
+                      PostTypeBadge(type: isUrgent ? '긴급' : '정기'),
                       const SizedBox(width: 8),
                       Expanded(
                         child: Text(

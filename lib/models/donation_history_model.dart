@@ -142,7 +142,7 @@ class DonationHistoryResponse {
 
   /// 총 헌혈량 표시 텍스트
   String get totalBloodVolumeText =>
-      totalBloodVolumeMl != null ? '${totalBloodVolumeMl}ml' : '-';
+      '${totalBloodVolumeMl ?? 0} ml';
 
   /// 첫 헌혈일 표시 텍스트
   String get firstDonationDateText {

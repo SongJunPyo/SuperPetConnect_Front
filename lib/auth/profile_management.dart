@@ -6,6 +6,7 @@ import 'package:kpostal/kpostal.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter_naver_login/flutter_naver_login.dart';
 import '../utils/app_theme.dart';
+import '../utils/api_endpoints.dart';
 import '../utils/config.dart';
 import '../utils/kakao_postcode_stub.dart'
     if (dart.library.html) '../utils/kakao_postcode_web.dart';
@@ -13,6 +14,8 @@ import '../services/auth_http_client.dart';
 import '../utils/preferences_manager.dart';
 import '../utils/app_constants.dart';
 import '../providers/notification_provider.dart';
+import '../widgets/pet_profile_image.dart';
+import 'package:image_picker/image_picker.dart';
 import '../web/web_storage_helper_stub.dart'
     if (dart.library.html) '../web/web_storage_helper.dart';
 
@@ -25,7 +28,8 @@ class ProfileManagement extends StatefulWidget {
 
 class _ProfileManagementState extends State<ProfileManagement> {
   final TextEditingController nameController = TextEditingController();
-  final TextEditingController nicknameController = TextEditingController();
+  final TextEditingController nicknameController = TextEditingController(); // 전체 닉네임 (readOnly)
+  final TextEditingController nicknameInputController = TextEditingController(); // 별명 (수정 가능)
   final TextEditingController addressController = TextEditingController();
 
   // 내부적으로만 사용 (화면에 표시하지 않음)
@@ -35,8 +39,8 @@ class _ProfileManagementState extends State<ProfileManagement> {
   bool isLoading = true;
   int? userType; // 1: 관리자, 2: 병원, 3: 사용자
   String loginType = 'email'; // 가입 방식: "email" 또는 "naver"
-  String? profileImageUrl; // 네이버 사용자 프로필 사진 URL
   String profileTitle = "프로필 관리";
+  String? profileImage; // 대표 반려동물 프로필 사진
 
   @override
   void initState() {
@@ -48,6 +52,7 @@ class _ProfileManagementState extends State<ProfileManagement> {
   void dispose() {
     nameController.dispose();
     nicknameController.dispose();
+    nicknameInputController.dispose();
     addressController.dispose();
     emailController.dispose();
     phoneController.dispose();
@@ -78,19 +83,6 @@ class _ProfileManagementState extends State<ProfileManagement> {
     }
   }
 
-  IconData _getProfileIcon() {
-    switch (userType) {
-      case AppConstants.accountTypeAdmin:
-        return Icons.admin_panel_settings_outlined;
-      case AppConstants.accountTypeHospital:
-        return Icons.local_hospital_outlined;
-      case AppConstants.accountTypeUser:
-        return Icons.person_outline;
-      default:
-        return Icons.person_outline;
-    }
-  }
-
   Future<void> _fetchUserProfile() async {
     try {
       final response = await AuthHttpClient.get(
@@ -102,12 +94,13 @@ class _ProfileManagementState extends State<ProfileManagement> {
         setState(() {
           nameController.text = data['name'] ?? '';
           nicknameController.text = data['nickname'] ?? '';
+          nicknameInputController.text = data['nickname_input'] ?? '';
           addressController.text = data['address'] ?? '';
           // 내부적으로만 저장 (화면에 표시하지 않음)
           emailController.text = data['email'] ?? '';
           phoneController.text = data['phone_number'] ?? '';
           loginType = data['login_type'] ?? 'email';
-          profileImageUrl = data['profile_image_url'];
+          profileImage = data['profile_image'];
           isLoading = false;
         });
       } else {
@@ -225,31 +218,6 @@ class _ProfileManagementState extends State<ProfileManagement> {
     );
   }
 
-  // 닫기 팝업
-  void _showCloseDialog() {
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: const Text('프로필 닫기'),
-          content: const Text('정말 닫으시겠습니까?\n저장하지 않은 변경사항은 사라집니다.'),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: const Text('취소'),
-            ),
-            TextButton(
-              onPressed: () {
-                Navigator.of(context).pop();
-                Navigator.of(context).pop();
-              },
-              child: Text('닫기', style: TextStyle(color: AppTheme.error)),
-            ),
-          ],
-        );
-      },
-    );
-  }
 
   Future<void> _updateUserProfile() async {
     try {
@@ -258,7 +226,12 @@ class _ProfileManagementState extends State<ProfileManagement> {
         'name': nameController.text,
         'phone_number': phoneController.text,
       };
-      if (!isHospitalUser) {
+      if (isRegularUser) {
+        // 일반 사용자: 별명(nickname_input)만 전송, 전체 닉네임은 서버가 자동 조합
+        profileData['nickname_input'] = nicknameInputController.text;
+        profileData['address'] = addressController.text;
+      } else if (!isHospitalUser) {
+        // 관리자: 기존대로 nickname 전송
         profileData['nickname'] = nicknameController.text;
         profileData['address'] = addressController.text;
       }
@@ -285,6 +258,9 @@ class _ProfileManagementState extends State<ProfileManagement> {
             break;
         }
 
+        // 서버에서 자동 생성된 닉네임 등 최신 프로필 반영
+        await _fetchUserProfile();
+
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('프로필이 성공적으로 업데이트되었습니다.')),
@@ -302,8 +278,113 @@ class _ProfileManagementState extends State<ProfileManagement> {
     }
   }
 
+  /// 프로필 사진 옵션 표시 (병원/관리자용)
+  void _showProfileImageOptions() {
+    showModalBottomSheet(
+      context: context,
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.photo_library_outlined),
+              title: const Text('갤러리에서 선택'),
+              onTap: () {
+                Navigator.pop(ctx);
+                _uploadProfileImage();
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.camera_alt_outlined),
+              title: const Text('카메라로 촬영'),
+              onTap: () {
+                Navigator.pop(ctx);
+                _uploadProfileImage(fromCamera: true);
+              },
+            ),
+            if (profileImage != null)
+              ListTile(
+                leading: Icon(Icons.delete_outline, color: AppTheme.error),
+                title: Text('사진 삭제', style: TextStyle(color: AppTheme.error)),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  _deleteProfileImage();
+                },
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// 프로필 사진 업로드 (병원/관리자: /api/auth/profile-image)
+  Future<void> _uploadProfileImage({bool fromCamera = false}) async {
+    final picker = ImagePicker();
+    final pickedFile = await picker.pickImage(
+      source: fromCamera ? ImageSource.camera : ImageSource.gallery,
+      maxWidth: 1920,
+      maxHeight: 1920,
+      imageQuality: 85,
+    );
+    if (pickedFile == null) return;
+
+    try {
+      final uri = Uri.parse(
+        '${Config.serverUrl}${ApiEndpoints.authProfileImage}',
+      );
+      final request = http.MultipartRequest('POST', uri);
+      final token = await PreferencesManager.getAuthToken();
+      if (token != null) {
+        request.headers['Authorization'] = 'Bearer $token';
+      }
+      request.files.add(await http.MultipartFile.fromPath('image', pickedFile.path));
+
+      final streamedResponse = await request.send();
+      final response = await http.Response.fromStream(streamedResponse);
+
+      if (mounted) {
+        if (response.statusCode == 200) {
+          final data = jsonDecode(response.body);
+          setState(() => profileImage = data['profile_image']);
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('프로필 사진이 등록되었습니다.'), behavior: SnackBarBehavior.floating),
+          );
+        } else {
+          final data = jsonDecode(response.body);
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(data['detail'] ?? '사진 업로드에 실패했습니다.'), behavior: SnackBarBehavior.floating),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('사진 업로드 중 오류가 발생했습니다.'), behavior: SnackBarBehavior.floating),
+        );
+      }
+    }
+  }
+
+  /// 프로필 사진 삭제 (병원/관리자)
+  Future<void> _deleteProfileImage() async {
+    try {
+      final response = await AuthHttpClient.delete(
+        Uri.parse('${Config.serverUrl}${ApiEndpoints.authProfileImage}'),
+      );
+      if (mounted) {
+        if (response.statusCode == 200) {
+          setState(() => profileImage = null);
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('프로필 사진이 삭제되었습니다.'), behavior: SnackBarBehavior.floating),
+          );
+        }
+      }
+    } catch (_) {}
+  }
+
   bool get isNaverUser => loginType == 'naver';
   bool get isHospitalUser => userType == AppConstants.accountTypeHospital;
+  bool get isRegularUser => userType == AppConstants.accountTypeUser;
 
   InputDecoration _buildInputDecoration(
     String labelText,
@@ -374,21 +455,18 @@ class _ProfileManagementState extends State<ProfileManagement> {
         elevation: 0,
         iconTheme: IconThemeData(color: AppTheme.textPrimary),
         actions: [
-          // X 버튼 (닫기)
-          IconButton(
-            icon: Icon(Icons.close, color: Colors.black87),
-            onPressed: _showCloseDialog,
-          ),
           // 저장 버튼
-          IconButton(
-            icon: Icon(Icons.save_outlined, color: Colors.black87),
+          TextButton.icon(
+            icon: Icon(Icons.save_outlined, color: Colors.black87, size: 20),
+            label: Text('저장', style: TextStyle(color: Colors.black87, fontSize: 14)),
             onPressed: _showSaveDialog,
           ),
           // 로그아웃 버튼
           Padding(
             padding: const EdgeInsets.only(right: AppTheme.spacing8),
-            child: IconButton(
-              icon: Icon(Icons.logout, color: Colors.black87),
+            child: TextButton.icon(
+              icon: Icon(Icons.logout, color: Colors.black87, size: 20),
+              label: Text('로그아웃', style: TextStyle(color: Colors.black87, fontSize: 14)),
               onPressed: _showLogoutDialog,
             ),
           ),
@@ -399,61 +477,33 @@ class _ProfileManagementState extends State<ProfileManagement> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
-            // 프로필 사진 섹션
-            Stack(
-              alignment: Alignment.bottomRight,
-              children: [
-                CircleAvatar(
-                  radius: 60,
-                  backgroundColor: AppTheme.veryLightGray,
-                  child:
-                      profileImageUrl != null
-                          ? ClipOval(
-                            child: Image.network(
-                              profileImageUrl!,
-                              width: 120,
-                              height: 120,
-                              fit: BoxFit.cover,
-                              errorBuilder: (context, error, stackTrace) {
-                                return Icon(
-                                  _getProfileIcon(),
-                                  size: 50,
-                                  color: AppTheme.textSecondary,
-                                );
-                              },
-                            ),
-                          )
-                          : Icon(
-                            _getProfileIcon(),
-                            size: 50,
-                            color: AppTheme.textSecondary,
-                          ),
-                ),
-                // 네이버 사용자는 사진 수정 불가
-                if (!isNaverUser)
-                  Positioned(
-                    bottom: 0,
-                    right: 0,
-                    child: GestureDetector(
-                      onTap: () {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('사진 변경 기능 (미구현)')),
-                        );
-                      },
-                      child: CircleAvatar(
-                        radius: 22,
-                        backgroundColor: AppTheme.primaryBlue,
-                        child: Icon(
-                          Icons.camera_alt_outlined,
-                          color: Colors.white,
-                          size: 20,
+            // 프로필 이미지
+            GestureDetector(
+              onTap: isRegularUser ? null : _showProfileImageOptions,
+              child: Stack(
+                children: [
+                  PetProfileImage(
+                    profileImage: profileImage,
+                    radius: 48,
+                  ),
+                  if (!isRegularUser)
+                    Positioned(
+                      right: 0,
+                      bottom: 0,
+                      child: Container(
+                        padding: const EdgeInsets.all(4),
+                        decoration: BoxDecoration(
+                          color: AppTheme.primaryBlue,
+                          shape: BoxShape.circle,
+                          border: Border.all(color: Colors.white, width: 2),
                         ),
+                        child: const Icon(Icons.camera_alt, size: 14, color: Colors.white),
                       ),
                     ),
-                  ),
-              ],
+                ],
+              ),
             ),
-            const SizedBox(height: AppTheme.spacing16),
+            const SizedBox(height: AppTheme.spacing12),
             Text(
               nicknameController.text.isNotEmpty
                   ? nicknameController.text
@@ -528,6 +578,43 @@ class _ProfileManagementState extends State<ProfileManagement> {
                             ],
                           ),
                         ),
+                      // 일반 사용자 (비네이버) 안내 문구
+                      if (!isNaverUser && isRegularUser)
+                        Container(
+                          width: double.infinity,
+                          margin: const EdgeInsets.only(
+                            bottom: AppTheme.spacing16,
+                          ),
+                          padding: const EdgeInsets.all(AppTheme.spacing12),
+                          decoration: BoxDecoration(
+                            color: AppTheme.primaryBlue.withValues(alpha: 0.08),
+                            borderRadius: BorderRadius.circular(
+                              AppTheme.radius8,
+                            ),
+                            border: Border.all(
+                              color: AppTheme.primaryBlue.withValues(alpha: 0.3),
+                            ),
+                          ),
+                          child: Row(
+                            children: [
+                              Icon(
+                                Icons.info_outline,
+                                size: 18,
+                                color: AppTheme.primaryBlue,
+                              ),
+                              const SizedBox(width: AppTheme.spacing8),
+                              Expanded(
+                                child: Text(
+                                  '닉네임은 별명, 지역, 반려동물 정보로 자동 생성됩니다.',
+                                  style: AppTheme.bodySmallStyle.copyWith(
+                                    color: AppTheme.primaryBlue,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
                       // 병원 계정 (비네이버) 주소 안내 문구
                       if (!isNaverUser && isHospitalUser)
                         Container(
@@ -568,36 +655,49 @@ class _ProfileManagementState extends State<ProfileManagement> {
                       TextField(
                         controller: nameController,
                         maxLength: 30,
-                        readOnly: isNaverUser,
+                        readOnly: true,
                         decoration: _buildInputDecoration(
                           "이름",
-                          Icons.person_outline,
+                          Icons.lock_outline,
                           30,
                           nameController,
                         ),
-                        onChanged:
-                            isNaverUser ? null : (value) => setState(() {}),
                       ),
                       const SizedBox(height: AppTheme.spacing20),
-                      TextField(
-                        controller: nicknameController,
-                        maxLength: 40,
-                        readOnly: isHospitalUser,
-                        decoration: _buildInputDecoration(
-                          isHospitalUser
-                              ? "닉네임 (소속 병원 기준 자동 관리)"
-                              : "닉네임",
-                          isHospitalUser
-                              ? Icons.lock_outline
-                              : Icons.badge_outlined,
-                          40,
-                          nicknameController,
+                      // 일반 사용자: 별명만 수정 가능
+                      if (isRegularUser) ...[
+                        TextField(
+                          controller: nicknameInputController,
+                          maxLength: 30,
+                          decoration: _buildInputDecoration(
+                            "별명",
+                            Icons.badge_outlined,
+                            30,
+                            nicknameInputController,
+                          ),
+                          onChanged: (value) => setState(() {}),
                         ),
-                        onChanged:
+                      ] else ...[
+                        TextField(
+                          controller: nicknameController,
+                          maxLength: 40,
+                          readOnly: isHospitalUser,
+                          decoration: _buildInputDecoration(
                             isHospitalUser
-                                ? null
-                                : (value) => setState(() {}),
-                      ),
+                                ? "닉네임 (소속 병원 기준 자동 관리)"
+                                : "닉네임",
+                            isHospitalUser
+                                ? Icons.lock_outline
+                                : Icons.badge_outlined,
+                            40,
+                            nicknameController,
+                          ),
+                          onChanged:
+                              isHospitalUser
+                                  ? null
+                                  : (value) => setState(() {}),
+                        ),
+                      ],
                       const SizedBox(height: AppTheme.spacing20),
                       TextField(
                         controller: addressController,

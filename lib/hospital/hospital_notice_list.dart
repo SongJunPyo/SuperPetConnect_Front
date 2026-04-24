@@ -11,6 +11,7 @@ import '../widgets/app_app_bar.dart';
 import '../widgets/marquee_text.dart';
 import '../utils/app_constants.dart';
 import '../widgets/pagination_bar.dart';
+import '../widgets/app_search_bar.dart';
 
 class HospitalNoticeListScreen extends StatefulWidget {
   const HospitalNoticeListScreen({super.key});
@@ -474,36 +475,13 @@ class _HospitalNoticeListScreenState extends State<HospitalNoticeListScreen> {
             padding: const EdgeInsets.all(16.0),
             child: Column(
               children: [
-                TextField(
+                AppSearchBar(
                   controller: searchController,
+                  hintText: '제목, 닉네임으로 검색...',
                   onChanged: _onSearchChanged,
-                  decoration: InputDecoration(
-                    hintText: '제목, 작성자로 검색...',
-                    prefixIcon: const Icon(Icons.search, color: Colors.black87),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: BorderSide(color: Colors.grey.shade300),
-                    ),
-                    focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: const BorderSide(
-                        color: AppTheme.primaryBlue,
-                        width: 2,
-                      ),
-                    ),
-                    filled: true,
-                    fillColor: Colors.grey.shade50,
-                    suffixIcon:
-                        searchQuery.isNotEmpty
-                            ? IconButton(
-                              icon: const Icon(Icons.clear),
-                              onPressed: () {
-                                searchController.clear();
-                                _onSearchChanged('');
-                              },
-                            )
-                            : null,
-                  ),
+                  onClear: () {
+                    _onSearchChanged('');
+                  },
                 ),
                 if (startDate != null && endDate != null) ...[
                   const SizedBox(height: 8),

@@ -2,10 +2,15 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'dart:convert';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../utils/app_theme.dart';
 import '../utils/config.dart';
+import '../utils/api_endpoints.dart';
 import '../widgets/app_app_bar.dart';
+import '../widgets/app_search_bar.dart';
 import '../services/auth_http_client.dart';
+import 'package:http/http.dart' as http;
 
 class DonationHistoryScreen extends StatefulWidget {
   const DonationHistoryScreen({super.key});
@@ -33,6 +38,14 @@ class _DonationHistoryScreenState extends State<DonationHistoryScreen>
   List<DonationApplication> filteredApplications = [];
   List<DonationApplication> filteredCompleted = [];
 
+  // 구글폼 URL
+  String? _satisfactionSurveyUrl;
+  String? _giftApplicationUrl;
+
+  // 클릭 상태 (SharedPreferences)
+  Set<String> _surveyClicked = {};
+  Set<String> _giftClicked = {};
+
   final TextEditingController _searchController = TextEditingController();
 
   @override
@@ -40,6 +53,8 @@ class _DonationHistoryScreenState extends State<DonationHistoryScreen>
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
     _loadDonationHistory();
+    _loadSurveyLinks();
+    _loadClickStatus();
   }
 
   @override
@@ -47,6 +62,116 @@ class _DonationHistoryScreenState extends State<DonationHistoryScreen>
     _tabController.dispose();
     _searchController.dispose();
     super.dispose();
+  }
+
+  /// 구글폼 URL 조회 (인증 불필요)
+  Future<void> _loadSurveyLinks() async {
+    try {
+      final response = await http.get(
+        Uri.parse('${Config.serverUrl}${ApiEndpoints.surveyLinks}'),
+      );
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        setState(() {
+          _satisfactionSurveyUrl = data['satisfaction_survey_url'];
+          _giftApplicationUrl = data['gift_application_url'];
+        });
+      }
+    } catch (e) {
+      debugPrint('구글폼 URL 로딩 실패: $e');
+    }
+  }
+
+  /// SharedPreferences에서 클릭 상태 로드
+  Future<void> _loadClickStatus() async {
+    final prefs = await SharedPreferences.getInstance();
+    final surveyKeys = prefs.getKeys().where((k) => k.startsWith('survey_clicked_'));
+    final giftKeys = prefs.getKeys().where((k) => k.startsWith('gift_clicked_'));
+    setState(() {
+      _surveyClicked = surveyKeys.toSet();
+      _giftClicked = giftKeys.toSet();
+    });
+  }
+
+  /// 클릭 상태 저장
+  Future<void> _markClicked(String key) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(key, true);
+    setState(() {
+      if (key.startsWith('survey_clicked_')) {
+        _surveyClicked.add(key);
+      } else {
+        _giftClicked.add(key);
+      }
+    });
+  }
+
+  /// 외부 URL 열기
+  Future<void> _openUrl(String url) async {
+    final uri = Uri.parse(url);
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    }
+  }
+
+  /// 헌혈 자료 요청
+  Future<void> _requestDocuments(int applicationId) async {
+    try {
+      final response = await AuthHttpClient.post(
+        Uri.parse(
+            '${Config.serverUrl}${ApiEndpoints.donationRequestDocuments}'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({'applicationId': applicationId}),
+      );
+
+      if (!mounted) return;
+
+      String title;
+      String message;
+      if (response.statusCode == 200) {
+        title = '자료 요청 완료';
+        message = '자료 요청이 전송되었습니다.';
+      } else if (response.statusCode == 409) {
+        title = '자료 요청 안내';
+        message = '이미 오늘 자료 요청을 보냈습니다.\n내일 다시 요청할 수 있습니다.';
+      } else {
+        final data = jsonDecode(response.body);
+        title = '자료 요청 실패';
+        message = data['detail'] ?? '자료 요청에 실패했습니다.';
+      }
+
+      showDialog(
+        context: context,
+        builder: (context) => AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: Text(title),
+          content: Text(message),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('확인'),
+            ),
+          ],
+        ),
+      );
+    } catch (e) {
+      if (mounted) {
+        showDialog(
+          context: context,
+          builder: (context) => AlertDialog(
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            title: const Text('오류'),
+            content: const Text('자료 요청 중 오류가 발생했습니다.'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('확인'),
+              ),
+            ],
+          ),
+        );
+      }
+    }
   }
 
   Future<void> _loadDonationHistory() async {
@@ -75,7 +200,7 @@ class _DonationHistoryScreenState extends State<DonationHistoryScreen>
                 .toList();
 
         // 신청 중인 것과 완료된 것 분리
-        // status_code: 0=대기중, 1=승인됨, 2=거절됨, 4=취소됨, 7=헌혈완료
+        // status_code: 0=대기중, 1=승인됨, 2=미승인, 4=취소됨, 7=헌혈완료
         applications =
             allApplications.where((app) => app.statusCode != 7).toList();
         completed =
@@ -272,33 +397,13 @@ class _DonationHistoryScreenState extends State<DonationHistoryScreen>
           // 검색창
           Container(
             padding: const EdgeInsets.all(16.0),
-            child: TextField(
+            child: AppSearchBar(
               controller: _searchController,
+              hintText: '게시글 제목, 반려동물 이름으로 검색...',
               onChanged: _onSearchChanged,
-              decoration: InputDecoration(
-                hintText: '게시글 제목, 반려동물 이름으로 검색...',
-                prefixIcon: const Icon(Icons.search, color: Colors.black),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide(color: Colors.grey.shade300),
-                ),
-                focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: const BorderSide(color: Colors.black, width: 2),
-                ),
-                filled: true,
-                fillColor: Colors.grey.shade50,
-                suffixIcon:
-                    searchQuery.isNotEmpty
-                        ? IconButton(
-                          icon: const Icon(Icons.clear),
-                          onPressed: () {
-                            _searchController.clear();
-                            _onSearchChanged('');
-                          },
-                        )
-                        : null,
-              ),
+              onClear: () {
+                _onSearchChanged('');
+              },
             ),
           ),
 
@@ -330,8 +435,8 @@ class _DonationHistoryScreenState extends State<DonationHistoryScreen>
             child: TabBarView(
               controller: _tabController,
               children: [
-                _buildApplicationsList(filteredApplications),
-                _buildApplicationsList(filteredCompleted),
+                _buildApplicationsList(filteredApplications, isCompleted: false),
+                _buildApplicationsList(filteredCompleted, isCompleted: true),
               ],
             ),
           ),
@@ -404,7 +509,7 @@ class _DonationHistoryScreenState extends State<DonationHistoryScreen>
     );
   }
 
-  Widget _buildApplicationsList(List<DonationApplication> applications) {
+  Widget _buildApplicationsList(List<DonationApplication> applications, {bool isCompleted = false}) {
     if (isLoading) {
       return const Center(
         child: CircularProgressIndicator(
@@ -437,13 +542,57 @@ class _DonationHistoryScreenState extends State<DonationHistoryScreen>
         itemCount: applications.length,
         itemBuilder: (context, index) {
           final application = applications[index];
-          return _buildApplicationCard(application);
+          return _buildApplicationCard(application, isCompleted: isCompleted);
         },
       ),
     );
   }
 
-  Widget _buildApplicationCard(DonationApplication application) {
+  Widget _buildSurveyButton({
+    required String label,
+    required IconData icon,
+    required bool isClicked,
+    required VoidCallback onPressed,
+  }) {
+    return Expanded(
+      child: OutlinedButton(
+        onPressed: onPressed,
+        style: OutlinedButton.styleFrom(
+          foregroundColor: isClicked ? Colors.grey : AppTheme.primaryBlue,
+          side: BorderSide(
+            color: isClicked ? Colors.grey.shade300 : AppTheme.primaryBlue,
+          ),
+          backgroundColor: isClicked ? Colors.grey.shade50 : AppTheme.primaryBlue.withAlpha(13),
+          padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 8),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(8),
+          ),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(icon, size: 16),
+            const SizedBox(width: 6),
+            Flexible(
+              child: Text(
+                label,
+                style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+            const SizedBox(width: 6),
+            Icon(
+              isClicked ? Icons.check_circle : Icons.check_circle_outline,
+              size: 18,
+              color: isClicked ? Colors.green : Colors.grey.shade400,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildApplicationCard(DonationApplication application, {bool isCompleted = false}) {
     Color statusColor;
     Color statusBackgroundColor;
 
@@ -565,6 +714,59 @@ class _DonationHistoryScreenState extends State<DonationHistoryScreen>
                 ),
               ],
             ),
+            // 헌혈 완료 카드에만 구글폼 버튼 표시
+            if (isCompleted) ...[
+              const SizedBox(height: 12),
+              const Divider(height: 1),
+              const SizedBox(height: 12),
+              // 구글폼 버튼
+              if (_satisfactionSurveyUrl != null || _giftApplicationUrl != null) ...[
+                Row(
+                  children: [
+                    if (_satisfactionSurveyUrl != null)
+                      _buildSurveyButton(
+                        label: '만족도 조사',
+                        icon: Icons.rate_review_outlined,
+                        isClicked: _surveyClicked.contains('survey_clicked_${application.applicationId}'),
+                        onPressed: () async {
+                          await _markClicked('survey_clicked_${application.applicationId}');
+                          await _openUrl(_satisfactionSurveyUrl!);
+                        },
+                      ),
+                    if (_satisfactionSurveyUrl != null && _giftApplicationUrl != null)
+                      const SizedBox(width: 8),
+                    if (_giftApplicationUrl != null)
+                      _buildSurveyButton(
+                        label: '후원선물 신청',
+                        icon: Icons.card_giftcard_outlined,
+                        isClicked: _giftClicked.contains('gift_clicked_${application.applicationId}'),
+                        onPressed: () async {
+                          await _markClicked('gift_clicked_${application.applicationId}');
+                          await _openUrl(_giftApplicationUrl!);
+                        },
+                      ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+              ],
+              // 자료 요청 버튼
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton.icon(
+                  onPressed: () => _requestDocuments(application.applicationId),
+                  icon: const Icon(Icons.description_outlined, size: 18),
+                  label: const Text('헌혈 자료 요청'),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: AppTheme.textPrimary,
+                    side: BorderSide(color: AppTheme.mediumGray),
+                    padding: const EdgeInsets.symmetric(vertical: 10),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                  ),
+                ),
+              ),
+            ],
           ],
         ),
       ),
@@ -597,7 +799,7 @@ class DonationApplication {
 
   factory DonationApplication.fromJson(Map<String, dynamic> json) {
     return DonationApplication(
-      applicationId: json['application_id'] ?? 0,
+      applicationId: json['applied_donation_idx'] ?? json['application_id'] ?? 0,
       postId: json['post_id'] ?? 0,
       postTitle: json['post_title'] ?? '',
       petName: json['pet_name'] ?? '',

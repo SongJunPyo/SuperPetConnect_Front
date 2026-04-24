@@ -13,7 +13,9 @@ class ApplicantInfo {
   final String dogInfo; // pet_info에서 조합: "품종 / 나이세 / 혈액형"
   final String lastDonationDate;
   final int? petIdx; // 헌혈 이력 조회용
-  int status; // 0: 대기, 1: 승인, 2: 거절, 3: 취소
+  final String? petProfileImage; // 반려동물 프로필 사진
+  final String? petSpecies; // 반려동물 종류 (아이콘 fallback용)
+  int status; // 0: 대기, 1: 승인, 2: 미승인, 3: 취소
 
   ApplicantInfo({
     required this.id,
@@ -24,6 +26,8 @@ class ApplicantInfo {
     required this.dogInfo,
     required this.lastDonationDate,
     this.petIdx,
+    this.petProfileImage,
+    this.petSpecies,
     required this.status,
   });
 
@@ -58,6 +62,8 @@ class ApplicantInfo {
       dogInfo: dogInfoStr,
       lastDonationDate: lastDonation,
       petIdx: json['pet_idx'],
+      petProfileImage: petInfo?['profile_image'],
+      petSpecies: petInfo?['species'],
       status: json['status'] ?? 0,
     );
   }
@@ -85,7 +91,7 @@ class ApplicantInfo {
   /// 승인 상태인지 확인
   bool get isApproved => status == 1;
 
-  /// 거절 상태인지 확인
+  /// 미승인 상태인지 확인
   bool get isRejected => status == 2;
 
   /// 취소 상태인지 확인

@@ -5,6 +5,7 @@ import 'package:connect/admin/admin_post_check.dart';
 import 'package:connect/admin/admin_user_check.dart';
 import 'package:connect/admin/admin_hospital_check.dart';
 import 'package:connect/admin/admin_signup_management.dart';
+import 'package:connect/admin/admin_pet_management.dart';
 import 'package:connect/admin/admin_notice_list.dart';
 import 'package:connect/admin/admin_column_management.dart';
 import '../utils/app_theme.dart';
@@ -16,6 +17,7 @@ import 'dart:convert';
 import 'package:intl/intl.dart';
 import 'dart:async';
 import '../utils/config.dart';
+import '../utils/api_endpoints.dart';
 import '../services/auth_http_client.dart';
 import '../providers/notification_provider.dart';
 import '../services/dashboard_service.dart';
@@ -30,6 +32,7 @@ import '../widgets/dashboard/dashboard_more_button.dart';
 import '../widgets/dashboard/dashboard_list_item.dart';
 import '../services/hospital_column_service.dart';
 import '../widgets/rich_text_viewer.dart';
+import '../widgets/association_footer.dart';
 
 class AdminDashboard extends StatefulWidget {
   // StatelessWidget -> StatefulWidget으로 변경 (향후 상태관리 유연성 위해)
@@ -48,6 +51,7 @@ class _AdminDashboardState extends State<AdminDashboard>
   Timer? _timer;
   int pendingPostsCount = 0;
   int pendingSignupsCount = 0;
+  int pendingPetsCount = 0;
   bool isLoadingData = true;
 
   // 서버 데이터
@@ -89,15 +93,41 @@ class _AdminDashboardState extends State<AdminDashboard>
   }
 
   Future<void> _loadAdminName() async {
-    // 로컬에 저장된 이름과 닉네임 확인
+    // 먼저 로컬에 저장된 이름과 닉네임 확인
     final savedName = await PreferencesManager.getAdminName();
     final savedNickname = await PreferencesManager.getAdminNickname();
+    if (savedName != null && savedName.isNotEmpty) {
+      if (!mounted) return;
+      setState(() {
+        adminName = savedName;
+        adminNickname = savedNickname ?? savedName;
+      });
+    }
 
-    if (!mounted) return;
-    setState(() {
-      adminName = savedName ?? '관리자';
-      adminNickname = savedNickname ?? adminName;
-    });
+    // 서버에서 최신 프로필 가져오기
+    try {
+      final response = await AuthHttpClient.get(
+        Uri.parse('${Config.serverUrl}/api/auth/profile'),
+      );
+
+      if (response.statusCode == 200) {
+        final data = json.decode(utf8.decode(response.bodyBytes));
+        final serverName = data['name'] ?? '관리자';
+        final serverNickname = data['nickname'] ?? serverName;
+
+        if (!mounted) return;
+        setState(() {
+          adminName = serverName;
+          adminNickname = serverNickname;
+        });
+
+        // 로컬 저장소에도 업데이트
+        await PreferencesManager.setAdminName(serverName);
+        await PreferencesManager.setAdminNickname(serverNickname);
+      }
+    } catch (_) {
+      // 서버 실패 시 로컬 데이터 유지
+    }
   }
 
   void _updateDateTime() {
@@ -119,7 +149,7 @@ class _AdminDashboardState extends State<AdminDashboard>
   Future<void> _fetchPendingCounts() async {
     try {
       // 동시에 두 API 호출
-      await Future.wait([_fetchPendingPosts(), _fetchPendingSignups()]);
+      await Future.wait([_fetchPendingPosts(), _fetchPendingSignups(), _fetchPendingPets()]);
 
       if (!mounted) return;
       setState(() {
@@ -166,6 +196,24 @@ class _AdminDashboardState extends State<AdminDashboard>
       }
     } catch (e) {
       // 에러 무시 (UI에 영향주지 않음)
+    }
+  }
+
+  Future<void> _fetchPendingPets() async {
+    try {
+      final response = await AuthHttpClient.get(
+        Uri.parse('${Config.serverUrl}${ApiEndpoints.adminPets}?status=0&page=1&page_size=1'),
+      );
+
+      if (response.statusCode == 200) {
+        final data = json.decode(utf8.decode(response.bodyBytes));
+        if (!mounted) return;
+        setState(() {
+          pendingPetsCount = data['total_count'] ?? 0;
+        });
+      }
+    } catch (e) {
+      // 에러 무시
     }
   }
 
@@ -318,7 +366,8 @@ class _AdminDashboardState extends State<AdminDashboard>
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text('안녕하세요, $adminNickname 님!', style: AppTheme.h2Style),
+                      Text('안녕하세요,', style: AppTheme.h2Style),
+                      Text('$adminNickname 님!', style: AppTheme.h2Style),
                       const SizedBox(height: AppTheme.spacing8),
                       Text(
                         currentDateTime,
@@ -362,8 +411,8 @@ class _AdminDashboardState extends State<AdminDashboard>
                             icon: Icons.list_alt_outlined,
                             title: "공지글 목록",
                             subtitle: "작성된 공지사항 조회 및 관리",
-                            iconColor: Colors.orange,
-                            backgroundColor: Colors.orange.withValues(
+                            iconColor: Colors.green,
+                            backgroundColor: Colors.green.withValues(
                               alpha: 0.1,
                             ),
                             onTap: () {
@@ -422,6 +471,22 @@ class _AdminDashboardState extends State<AdminDashboard>
                           ),
                           const SizedBox(height: AppTheme.spacing16),
                           _buildPremiumFeatureCard(
+                            icon: Icons.pets_outlined,
+                            title: "반려동물 관리",
+                            subtitle: "반려동물 승인 및 현황 관리",
+                            iconColor: const Color(0xFFC49000),
+                            backgroundColor: const Color(0xFFFFF8E1),
+                            onTap: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) => const AdminPetManagement(),
+                                ),
+                              );
+                            },
+                          ),
+                          const SizedBox(height: AppTheme.spacing16),
+                          _buildPremiumFeatureCard(
                             icon: Icons.local_hospital_outlined,
                             title: "병원 관리",
                             subtitle: "병원 계정 승인 및 현황 관리",
@@ -444,8 +509,8 @@ class _AdminDashboardState extends State<AdminDashboard>
                             icon: Icons.how_to_reg_outlined,
                             title: "회원 가입 관리",
                             subtitle: "신규 회원 가입 승인 관리",
-                            iconColor: AppTheme.warning,
-                            backgroundColor: AppTheme.warning.withValues(
+                            iconColor: Colors.pink,
+                            backgroundColor: Colors.pink.withValues(
                               alpha: 0.1,
                             ),
                             onTap: () {
@@ -526,6 +591,7 @@ class _AdminDashboardState extends State<AdminDashboard>
                     ],
                   ),
                 ),
+                const AssociationFooter(),
               ],
             ),
           ),
@@ -538,48 +604,75 @@ class _AdminDashboardState extends State<AdminDashboard>
     List<Widget> notifications = [];
 
     // 회원가입 승인 요청 (하늘색)
-    notifications.add(
-      SizedBox(
-        width: double.infinity,
-        child: AppInfoCard(
-          icon: Icons.person_add_outlined,
-          title: '새로운 회원가입 승인 요청 $pendingSignupsCount건이 있습니다.',
-          description: '승인 관리로 이동',
-          iconColor: Colors.blue,
-          backgroundColor: Colors.blue.withValues(alpha: 0.08),
-          onTap: () {
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) => const AdminSignupManagement(),
-              ),
-            );
-          },
+    if (pendingSignupsCount > 0) {
+      notifications.add(
+        SizedBox(
+          width: double.infinity,
+          child: AppInfoCard(
+            icon: Icons.person_add_outlined,
+            title: '새로운 회원가입 승인 요청 $pendingSignupsCount건이 있습니다.',
+            description: '승인 관리로 이동',
+            iconColor: Colors.blue,
+            backgroundColor: Colors.blue.withValues(alpha: 0.08),
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const AdminSignupManagement(),
+                ),
+              );
+            },
+          ),
         ),
-      ),
-    );
-    notifications.add(const SizedBox(height: AppTheme.spacing12));
+      );
+      notifications.add(const SizedBox(height: AppTheme.spacing12));
+    }
 
     // 게시글 승인 요청 (연두색)
-    notifications.add(
-      SizedBox(
-        width: double.infinity,
-        child: AppInfoCard(
-          icon: Icons.post_add_outlined,
-          title: '새로운 게시글 승인 요청 $pendingPostsCount건이 있습니다.',
-          description: '게시글 관리로 이동',
-          iconColor: Colors.green,
-          backgroundColor: Colors.green.withValues(alpha: 0.08),
-          onTap: () {
-            Navigator.push(
-              context,
-              MaterialPageRoute(builder: (context) => const AdminPostCheck()),
-            );
-          },
+    if (pendingPostsCount > 0) {
+      notifications.add(
+        SizedBox(
+          width: double.infinity,
+          child: AppInfoCard(
+            icon: Icons.post_add_outlined,
+            title: '새로운 게시글 승인 요청 $pendingPostsCount건이 있습니다.',
+            description: '게시글 관리로 이동',
+            iconColor: Colors.green,
+            backgroundColor: Colors.green.withValues(alpha: 0.08),
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const AdminPostCheck()),
+              );
+            },
+          ),
         ),
-      ),
-    );
-    notifications.add(const SizedBox(height: AppTheme.spacing12));
+      );
+      notifications.add(const SizedBox(height: AppTheme.spacing12));
+    }
+
+    // 반려동물 승인 요청 (노란색)
+    if (pendingPetsCount > 0) {
+      notifications.add(
+        SizedBox(
+          width: double.infinity,
+          child: AppInfoCard(
+            icon: Icons.pets_outlined,
+            title: '새로운 반려동물 승인 요청 $pendingPetsCount건이 있습니다.',
+            description: '반려동물 관리로 이동',
+            iconColor: const Color(0xFFC49000),
+            backgroundColor: const Color(0xFFC49000).withValues(alpha: 0.08),
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const AdminPetManagement()),
+              );
+            },
+          ),
+        ),
+      );
+      notifications.add(const SizedBox(height: AppTheme.spacing12));
+    }
 
     return notifications;
   }

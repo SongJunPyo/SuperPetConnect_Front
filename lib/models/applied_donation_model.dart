@@ -174,7 +174,7 @@ class AppliedDonation {
 class AppliedDonationStatus {
   static const int pending = 0; // 대기중
   static const int approved = 1; // 승인됨
-  static const int rejected = 2; // 거절됨
+  static const int rejected = 2; // 미승인
   static const int completed = 3; // 완료됨 (기존 호환용)
   static const int cancelled = 4; // 취소됨
   static const int pendingCompletion = 5; // 완료대기 (병원이 헌혈 완료 처리)
@@ -188,7 +188,7 @@ class AppliedDonationStatus {
       case approved:
         return '승인됨';
       case rejected:
-        return '거절됨';
+        return '미승인';
       case completed:
         return '완료됨';
       case cancelled:
@@ -260,9 +260,9 @@ class AppliedDonationStatus {
   static String getCancelBlockMessage(int status) {
     switch (status) {
       case approved:
-        return '승인된 신청은 취소할 수 없습니다.';
+        return '승인된 신청은 취소할 수 없습니다. 취소가 필요하시면 관리자에게 문의해주세요.';
       case rejected:
-        return '이미 거절된 신청입니다.';
+        return '미승인된 신청입니다.';
       case completed:
         return '이미 완료된 신청은 취소할 수 없습니다.';
       case cancelled:
@@ -279,7 +279,7 @@ class AppliedDonationStatus {
   }
 
   /// 시간대에 빨간 테두리를 표시해야 하는 상태인지 확인
-  /// (거절/취소는 다시 신청 가능하므로 제외)
+  /// (미승인/취소는 다시 신청 가능하므로 제외)
   static bool shouldShowAppliedBorder(int status) {
     return status == pending ||
         status == approved ||
@@ -354,9 +354,10 @@ class Pet {
   final String? bloodType;
   final double? weightKg;
   final String? animalType;
-  final int? age;
+  final DateTime? birthDate;
   final String? species;
   final String? breed;
+  final String? profileImage;
 
   Pet({
     this.petIdx,
@@ -364,9 +365,10 @@ class Pet {
     this.bloodType,
     this.weightKg,
     this.animalType,
-    this.age,
+    this.birthDate,
     this.species,
     this.breed,
+    this.profileImage,
   });
 
   factory Pet.fromJson(Map<String, dynamic> json) {
@@ -376,9 +378,12 @@ class Pet {
       bloodType: json['blood_type'],
       weightKg: json['weight_kg']?.toDouble(),
       animalType: json['animal_type'],
-      age: json['age'] ?? json['age_number'], // age 또는 age_number 필드 사용
-      species: json['species'], // 이제 서버에서 "dog"/"cat"으로 제공
-      breed: json['breed'], // 실제 품종 정보 (예: "골든 리트리버")
+      birthDate: json['birth_date'] != null
+          ? DateTime.tryParse(json['birth_date'])
+          : null,
+      species: json['species'],
+      breed: json['breed'],
+      profileImage: json['profile_image'],
     );
   }
 
@@ -389,23 +394,40 @@ class Pet {
       'blood_type': bloodType,
       'weight_kg': weightKg,
       'animal_type': animalType,
-      'age': age,
+      'birth_date': birthDate?.toIso8601String().split('T')[0],
       'species': species,
       'breed': breed,
     };
   }
 
-  // 표시용 정보
+  String get age {
+    if (birthDate == null) return '나이 미상';
+    final now = DateTime.now();
+    final totalMonths = (now.year - birthDate!.year) * 12 + (now.month - birthDate!.month);
+    if (totalMonths < 12) return '$totalMonths개월';
+    return '${totalMonths ~/ 12}살';
+  }
+
+  String get birthDateWithAge {
+    if (birthDate == null) return '나이 미상';
+    final dateStr = '${birthDate!.year}.${birthDate!.month.toString().padLeft(2, '0')}.${birthDate!.day.toString().padLeft(2, '0')}';
+    return '$dateStr ($age)';
+  }
+
+  // 1줄 요약: 종 • 품종 • 혈액형 • 나이 • 체중
+  String get summaryLine {
+    final speciesText = animalTypeKr;
+    final parts = <String>[speciesText];
+    if (breed != null && breed!.isNotEmpty) parts.add(breed!);
+    if (bloodType != null) parts.add(bloodType!);
+    parts.add(age);
+    if (weightKg != null) parts.add('${weightKg}kg');
+    return parts.join(' • ');
+  }
+
+  // 표시용 정보 (이름 + 1줄 요약)
   String get displayInfo {
-    List<String> info = [name];
-    if (animalType != null) {
-      String animalTypeKr = animalType == 'dog' ? '강아지' : '고양이';
-      info.add(animalTypeKr);
-    }
-    if (bloodType != null) info.add(bloodType!);
-    if (weightKg != null) info.add('${weightKg}kg');
-    if (age != null) info.add('$age세');
-    return info.join(' · ');
+    return '$name ($summaryLine)';
   }
 
   String get animalTypeKr {

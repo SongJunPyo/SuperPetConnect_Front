@@ -1,4 +1,5 @@
 import '../utils/app_constants.dart';
+import 'pet_model.dart';
 
 class User {
   final int accountIdx;
@@ -15,6 +16,7 @@ class User {
   final DateTime? updatedAt;
   final String? blacklistReason;
   final int? remainingDays;
+  final List<Pet> pets; // 반려동물 목록
 
   User({
     required this.accountIdx,
@@ -31,6 +33,7 @@ class User {
     this.updatedAt,
     this.blacklistReason,
     this.remainingDays,
+    this.pets = const [],
   });
 
   factory User.fromJson(Map<String, dynamic> json) {
@@ -55,6 +58,10 @@ class User {
               : null,
       blacklistReason: json['blacklist_reason'],
       remainingDays: json['remaining_days'],
+      pets: (json['pets'] as List<dynamic>?)
+              ?.map((p) => Pet.fromJson(p as Map<String, dynamic>))
+              .toList() ??
+          [],
     );
   }
 

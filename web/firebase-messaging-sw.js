@@ -2,12 +2,12 @@ importScripts('https://www.gstatic.com/firebasejs/9.0.0/firebase-app-compat.js')
 importScripts('https://www.gstatic.com/firebasejs/9.0.0/firebase-messaging-compat.js');
 
 firebase.initializeApp({
-  apiKey: "AIzaSyA123-your-api-key",
-  authDomain: "your-project.firebaseapp.com",
-  projectId: "your-project-id",
-  storageBucket: "your-project.appspot.com",
-  messagingSenderId: "123456789",
-  appId: "1:123456789:web:abcdef123456"
+  apiKey: "AIzaSyBdO-LjFNK3TDE0C0UfivNCe4_Xs-CVGj8",
+  authDomain: "super-pet-connect.firebaseapp.com",
+  projectId: "super-pet-connect",
+  storageBucket: "super-pet-connect.firebasestorage.app",
+  messagingSenderId: "74105196603",
+  appId: "1:74105196603:web:0f7d19c56f42229d4e0c1e"
 });
 
 const messaging = firebase.messaging();

@@ -7,6 +7,7 @@ import '../models/applied_donation_model.dart';
 import '../models/donation_history_model.dart';
 import '../services/donation_history_service.dart';
 import '../utils/app_theme.dart';
+import 'pet_profile_image.dart';
 
 /// 신청자 카드 위젯
 class ApplicantCard extends StatelessWidget {
@@ -53,6 +54,12 @@ class ApplicantCard extends StatelessWidget {
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  PetProfileImage(
+                    profileImage: applicant.petProfileImage,
+                    species: applicant.petSpecies,
+                    radius: 20,
+                  ),
+                  const SizedBox(width: 10),
                   Expanded(
                     child: Text(
                       applicant.name,
@@ -94,47 +101,23 @@ class ApplicantCard extends StatelessWidget {
                 applicant.formattedLastDonationDate,
               ),
 
-              // 승인/거절 버튼 (대기 상태일 때만)
+              // 승인 버튼 (대기 상태일 때만)
               if (showActionButtons && applicant.isPending) ...[
                 const SizedBox(height: 16),
-                Row(
-                  children: [
-                    Expanded(
-                      child: SizedBox(
-                        height: 40,
-                        child: OutlinedButton(
-                          onPressed: onReject,
-                          style: OutlinedButton.styleFrom(
-                            side: const BorderSide(color: Colors.red),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(10),
-                            ),
-                          ),
-                          child: const Text(
-                            '거절',
-                            style: TextStyle(color: Colors.red),
-                          ),
-                        ),
+                SizedBox(
+                  width: double.infinity,
+                  height: 40,
+                  child: ElevatedButton(
+                    onPressed: onApprove,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.green,
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
                       ),
                     ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: SizedBox(
-                        height: 40,
-                        child: ElevatedButton(
-                          onPressed: onApprove,
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.green,
-                            foregroundColor: Colors.white,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(10),
-                            ),
-                          ),
-                          child: const Text('승인'),
-                        ),
-                      ),
-                    ),
-                  ],
+                    child: const Text('승인'),
+                  ),
                 ),
               ],
             ],
@@ -271,16 +254,9 @@ class _ApplicantDetailSheetState extends State<_ApplicantDetailSheet> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              widget.applicant.name,
+                              '신청자 정보',
                               style: AppTheme.h3Style.copyWith(
                                 fontWeight: FontWeight.w700,
-                              ),
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              widget.applicant.dogInfo,
-                              style: AppTheme.bodyMediumStyle.copyWith(
-                                color: AppTheme.textSecondary,
                               ),
                             ),
                           ],
@@ -322,12 +298,14 @@ class _ApplicantDetailSheetState extends State<_ApplicantDetailSheet> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          '신청자 정보',
-          style: AppTheme.bodyLargeStyle.copyWith(fontWeight: FontWeight.w600),
-        ),
-        const SizedBox(height: 12),
+        // 사용자 정보
+        if (widget.applicant.name.isNotEmpty)
+          _buildInfoRow('이름', widget.applicant.name),
+        if (widget.applicant.nickname != null && widget.applicant.nickname!.isNotEmpty)
+          _buildInfoRow('닉네임', widget.applicant.nickname!),
         _buildInfoRow('연락처', widget.applicant.contact),
+        const Divider(height: 24),
+        // 반려동물 정보
         _buildInfoRow('반려동물', widget.applicant.dogInfo),
         _buildInfoRow('직전 헌혈일', widget.applicant.formattedLastDonationDate),
         _buildInfoRow('상태', widget.applicant.statusText),

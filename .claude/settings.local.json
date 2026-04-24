@@ -32,8 +32,39 @@
       "Bash(fi)",
       "Bash(done)",
       "Bash(git commit:*)",
-      "Bash(xargs -I {} sh -c 'echo \"\"=== {} ===\"\" && head -20 {}')"
+      "Bash(xargs -I {} sh -c 'echo \"\"=== {} ===\"\" && head -20 {}')",
+      "Bash(pandoc:*)",
+      "Bash(where:*)",
+      "Bash(explorer.exe \"c:\\\\work\\\\SuperPetConnect_Front\\\\docs\\\\pdf\")",
+      "Bash(git reset:*)",
+      "Bash(wc:*)",
+      "Bash(pip show:*)",
+      "Bash(py:*)",
+      "Bash(magick:*)",
+      "Bash(convert:*)",
+      "Bash(node --version:*)",
+      "Bash(npm --version:*)",
+      "Bash(winget install:*)",
+      "Bash(export PATH=\"/c/Users/UNIST/AppData/Local/Programs/Python/Python312:$PATH\")",
+      "Bash(export PATH=\"/c/Users/UNIST/AppData/Local/Programs/Python/Python312:/c/Users/UNIST/AppData/Local/Programs/Python/Python312/Scripts:$PATH\")",
+      "Bash(pip install:*)",
+      "Bash(python scripts/annotate_image.py:*)",
+      "Bash(python scripts/create_all_annotations.py:*)",
+      "Bash(netstat:*)",
+      "Bash(du:*)",
+      "Bash(start docs/service_flow_overview.html)",
+      "Bash(chmod +x /c/work/SuperPetConnect_Front/build_web.sh)",
+      "Read(//c/Users/UNIST/.claude/projects/c--work-SuperPetConnect-Front/d02df987-d0b0-4974-a4a0-1c36dc00b326/tool-results/**)",
+      "Bash(flutterfire configure:*)",
+      "Bash(\"C:\\\\Users\\\\UNIST\\\\AppData\\\\Local\\\\Pub\\\\Cache\\\\bin\\\\flutterfire.bat\" configure:*)",
+      "Read(//c/Users/UNIST/.claude/projects/c--work-SuperPetConnect-Front/**)",
+      "Bash(git -C c:/work/SuperPetConnect_Front log -5 --pretty=format:\"%h %s\")",
+      "Bash(git -C c:/work/SuperPetConnect_Front diff lib/firebase_options.dart)",
+      "Bash(git -C c:/work/SuperPetConnect_Front add -A)"
     ],
-    "deny": []
+    "deny": [],
+    "additionalDirectories": [
+      "C:\\Users\\UNIST\\Downloads"
+    ]
   }
 }

@@ -29,11 +29,11 @@ class _PetRegisterScreenState extends State<PetRegisterScreen> {
   final _nameController = TextEditingController();
   final _breedController = TextEditingController();
   final _weightController = TextEditingController();
-  final _ageController = TextEditingController();
 
   String? _selectedSpecies; // 강아지 또는 고양이 (UI 표시용)
   int? _selectedAnimalType; // 0=강아지, 1=고양이 (서버 전송용)
   String? _selectedBloodType;
+  DateTime? _birthDate; // 생년월일
   bool _isPregnant = false;
   bool _isVaccinated = false;
   bool _hasDisease = false;
@@ -41,7 +41,6 @@ class _PetRegisterScreenState extends State<PetRegisterScreen> {
   bool _isNeutered = false; // 중성화 수술 여부
   DateTime? _neuteredDate; // 중성화 수술 일자
   bool _hasPreventiveMedication = false; // 예방약 복용 여부
-  final _ageMonthsController = TextEditingController(); // 나이 (개월 단위)
   DateTime? _prevDonationDate; // 직전 헌혈 일자
 
   bool get _isEditMode => widget.petToEdit != null;
@@ -58,7 +57,7 @@ class _PetRegisterScreenState extends State<PetRegisterScreen> {
       _selectedAnimalType = pet.species == '강아지' ? 0 : 1;
       _breedController.text = pet.breed ?? ''; // null일 경우 빈 문자열
       _weightController.text = pet.weightKg.toString();
-      _ageController.text = pet.ageNumber.toString();
+      _birthDate = pet.birthDate;
 
       // 혈액형 유효성 검사
       _selectedBloodType = _validateBloodType(pet.species, pet.bloodType);
@@ -70,7 +69,6 @@ class _PetRegisterScreenState extends State<PetRegisterScreen> {
       _isNeutered = pet.isNeutered ?? false;
       _neuteredDate = pet.neuteredDate;
       _hasPreventiveMedication = pet.hasPreventiveMedication ?? false;
-      _ageMonthsController.text = pet.ageMonths?.toString() ?? '';
       _prevDonationDate = pet.prevDonationDate;
     }
   }
@@ -88,8 +86,6 @@ class _PetRegisterScreenState extends State<PetRegisterScreen> {
     _nameController.dispose();
     _breedController.dispose();
     _weightController.dispose();
-    _ageController.dispose();
-    _ageMonthsController.dispose();
     super.dispose();
   }
 
@@ -118,18 +114,12 @@ class _PetRegisterScreenState extends State<PetRegisterScreen> {
       return;
     }
 
-    // 나이(개월) 파싱
-    int? ageMonths;
-    if (_ageMonthsController.text.trim().isNotEmpty) {
-      ageMonths = int.tryParse(_ageMonthsController.text.trim());
-    }
-
     final Map<String, dynamic> petData = {
       'name': _nameController.text.trim(),
       'species': _selectedSpecies!,
       'animal_type': _selectedAnimalType!, // 0=강아지, 1=고양이
       'breed': _breedController.text.trim(),
-      'age_number': int.parse(_ageController.text.trim()),
+      'birth_date': _birthDate?.toIso8601String().split('T')[0],
       'weight_kg': double.parse(_weightController.text.trim()),
       'pregnant': _isPregnant ? 1 : 0,
       'blood_type': _selectedBloodType!,
@@ -140,7 +130,6 @@ class _PetRegisterScreenState extends State<PetRegisterScreen> {
       'is_neutered': _isNeutered ? 1 : 0,
       'neutered_date': _neuteredDate?.toIso8601String().split('T')[0],
       'has_preventive_medication': _hasPreventiveMedication ? 1 : 0,
-      'age_months': ageMonths,
     };
 
     // 등록 모드일 때만 account_idx 추가
@@ -184,12 +173,19 @@ class _PetRegisterScreenState extends State<PetRegisterScreen> {
         }
       } else {
         final responseBody = jsonDecode(utf8.decode(response.bodyBytes));
+        final errorMessage = responseBody['detail'] ?? '처리에 실패했습니다.';
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(
-                '처리 실패: ${responseBody['detail'] ?? response.statusCode}',
-              ),
+          showDialog(
+            context: context,
+            builder: (context) => AlertDialog(
+              title: const Text('알림'),
+              content: Text(errorMessage.toString()),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text('확인'),
+                ),
+              ],
             ),
           );
         }
@@ -233,15 +229,7 @@ class _PetRegisterScreenState extends State<PetRegisterScreen> {
                 hint: '예: 푸들, 코리안 숏헤어',
                 // 품종은 선택 입력이므로 validator 없음
               ),
-              _buildTextField(
-                controller: _ageController,
-                label: '나이',
-                hint: '숫자만 입력해주세요 (예: 5)',
-                keyboardType: TextInputType.number,
-                inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                validator:
-                    (value) => value!.isEmpty ? '나이는 필수 입력 항목입니다.' : null,
-              ),
+              _buildBirthDatePicker(),
               _buildTextField(
                 controller: _weightController,
                 label: '몸무게 (kg)',
@@ -256,6 +244,7 @@ class _PetRegisterScreenState extends State<PetRegisterScreen> {
                     (value) => value!.isEmpty ? '몸무게는 필수 입력 항목입니다.' : null,
               ),
               _buildBloodTypeDropdown(context), // context 전달
+              _buildPrevDonationDatePicker(context),
               const SizedBox(height: AppTheme.spacing20),
               Text('헌혈 관련 정보', style: AppTheme.h4Style),
               const SizedBox(height: AppTheme.spacing12),
@@ -311,23 +300,89 @@ class _PetRegisterScreenState extends State<PetRegisterScreen> {
                 },
               ),
               if (_isNeutered) _buildNeuteredDatePicker(context),
-              const SizedBox(height: AppTheme.spacing16),
-              _buildPrevDonationDatePicker(context),
-              const SizedBox(height: AppTheme.spacing16),
-              _buildTextField(
-                controller: _ageMonthsController,
-                label: '나이 (선택)',
-                hint: '예: 24 (개월 단위)',
-                keyboardType: TextInputType.number,
-                inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                validator: (value) => null, // 선택사항
-                required: false,
-              ),
               const SizedBox(height: 24),
               _buildSaveButton(context), // context 전달
             ],
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _buildBirthDatePicker() {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: AppTheme.spacing16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            '생년월일 (선택)',
+            style: AppTheme.bodyMediumStyle.copyWith(fontWeight: FontWeight.w600),
+          ),
+          const SizedBox(height: AppTheme.spacing8),
+          InkWell(
+            onTap: () async {
+              final picked = await showDatePicker(
+                context: context,
+                initialDate: _birthDate ?? DateTime.now().subtract(const Duration(days: 365 * 2)),
+                firstDate: DateTime(2000),
+                lastDate: DateTime.now(),
+                helpText: '생년월일 선택',
+                cancelText: '취소',
+                confirmText: '선택',
+              );
+              if (picked != null) setState(() => _birthDate = picked);
+            },
+            child: Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: AppTheme.veryLightGray,
+                borderRadius: BorderRadius.circular(AppTheme.radius12),
+              ),
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.cake_outlined,
+                    size: 20,
+                    color: _birthDate != null ? AppTheme.primaryBlue : AppTheme.textTertiary,
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      _birthDate != null
+                          ? '${_birthDate!.year}년 ${_birthDate!.month}월 ${_birthDate!.day}일'
+                          : '생년월일을 선택하세요',
+                      style: AppTheme.bodyLargeStyle.copyWith(
+                        color: _birthDate != null ? AppTheme.textPrimary : AppTheme.textTertiary,
+                      ),
+                    ),
+                  ),
+                  if (_birthDate != null)
+                    IconButton(
+                      icon: Icon(Icons.close, color: AppTheme.textTertiary, size: 20),
+                      onPressed: () => setState(() => _birthDate = null),
+                      padding: EdgeInsets.zero,
+                      constraints: const BoxConstraints(),
+                    )
+                  else
+                    Icon(Icons.calendar_today, color: AppTheme.textTertiary, size: 20),
+                ],
+              ),
+            ),
+          ),
+          if (_birthDate != null) ...[
+            const SizedBox(height: AppTheme.spacing8),
+            Builder(builder: (context) {
+              final now = DateTime.now();
+              final totalMonths = (now.year - _birthDate!.year) * 12 + (now.month - _birthDate!.month);
+              final ageText = totalMonths < 12 ? '$totalMonths개월' : '${totalMonths ~/ 12}살 ${totalMonths % 12}개월';
+              return Text(
+                '현재 나이: $ageText',
+                style: AppTheme.bodySmallStyle.copyWith(color: AppTheme.primaryBlue),
+              );
+            }),
+          ],
+        ],
       ),
     );
   }

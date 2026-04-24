@@ -7,10 +7,12 @@ import '../services/hospital_column_service.dart';
 import '../utils/preferences_manager.dart';
 import '../models/hospital_column_model.dart';
 import '../utils/app_theme.dart';
+import '../utils/config.dart';
 import '../widgets/app_app_bar.dart';
 import '../widgets/rich_text_viewer.dart';
 import 'hospital_column_create.dart';
 import 'hospital_column_edit.dart';
+import '../widgets/app_search_bar.dart';
 
 class HospitalColumnManagementScreen extends StatefulWidget {
   const HospitalColumnManagementScreen({super.key});
@@ -27,7 +29,7 @@ class _HospitalColumnManagementScreenState
   bool isLoading = true;
   bool hasError = false;
   String errorMessage = '';
-  bool? publishedFilter; // null = 전체, true = 공개, false = 공개안함
+  bool? publishedFilter = false; // true = 공개, false = 숨김
   String searchQuery = '';
   TextEditingController searchController = TextEditingController();
   late TabController _tabController;
@@ -37,10 +39,10 @@ class _HospitalColumnManagementScreenState
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 3, vsync: this);
+    _tabController = TabController(length: 2, vsync: this);
     _tabController.addListener(_onTabChanged);
     // 초기 필터 설정: 0번 탭 = 전체 (null)
-    publishedFilter = null;
+    publishedFilter = false;
     _loadMyColumns();
   }
 
@@ -53,10 +55,8 @@ class _HospitalColumnManagementScreenState
 
   void _onTabChanged() {
     setState(() {
-      // 0: 전체 (null), 1: 공개안함 (false), 2: 공개 (true)
+      // 0: 숨김 (false), 1: 공개 (true)
       if (_tabController.index == 0) {
-        publishedFilter = null;
-      } else if (_tabController.index == 1) {
         publishedFilter = false;
       } else {
         publishedFilter = true;
@@ -325,27 +325,23 @@ class _HospitalColumnManagementScreenState
                       const SizedBox(height: 8),
                       Row(
                         children: [
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 8,
-                              vertical: 4,
-                            ),
-                            decoration: BoxDecoration(
-                              color:
-                                  detailColumn.isPublished
-                                      ? AppTheme.success
-                                      : AppTheme.warning,
-                              borderRadius: BorderRadius.circular(4),
-                            ),
-                            child: Text(
-                              detailColumn.isPublished ? '공개' : '대기중',
-                              style: AppTheme.bodySmallStyle.copyWith(
-                                color: Colors.white,
-                                fontSize: 10,
-                                fontWeight: FontWeight.bold,
+                          if (detailColumn.hospitalProfileImage != null)
+                            CircleAvatar(
+                              radius: 16,
+                              backgroundImage: NetworkImage(
+                                detailColumn.hospitalProfileImage!.startsWith('http')
+                                    ? detailColumn.hospitalProfileImage!
+                                    : '${Config.serverUrl}${detailColumn.hospitalProfileImage}',
                               ),
+                              backgroundColor: AppTheme.veryLightGray,
+                              onBackgroundImageError: (_, __) {},
+                            )
+                          else
+                            CircleAvatar(
+                              radius: 16,
+                              backgroundColor: AppTheme.veryLightGray,
+                              child: Icon(Icons.business, size: 16, color: AppTheme.textTertiary),
                             ),
-                          ),
                           const SizedBox(width: 8),
                           Expanded(
                             child: Text(
@@ -668,36 +664,18 @@ class _HospitalColumnManagementScreenState
             labelColor: AppTheme.black,
             unselectedLabelColor: AppTheme.textSecondary,
             indicatorColor: AppTheme.black,
-            tabs: const [Tab(text: '전체'), Tab(text: '공개안함'), Tab(text: '공개')],
+            tabs: const [Tab(text: '승인 대기'), Tab(text: '승인 완료')],
           ),
           // 검색창
           Container(
             padding: const EdgeInsets.all(16.0),
-            child: TextField(
+            child: AppSearchBar(
               controller: searchController,
+              hintText: '칼럼 제목, 내용으로 검색...',
               onChanged: _onSearchChanged,
-              decoration: InputDecoration(
-                hintText: '칼럼 제목, 내용으로 검색...',
-                prefixIcon: const Icon(Icons.search),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide(color: AppTheme.lightGray),
-                ),
-                focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide(color: AppTheme.primaryBlue),
-                ),
-                suffixIcon:
-                    searchQuery.isNotEmpty
-                        ? IconButton(
-                          icon: const Icon(Icons.clear),
-                          onPressed: () {
-                            searchController.clear();
-                            _onSearchChanged('');
-                          },
-                        )
-                        : null,
-              ),
+              onClear: () {
+                _onSearchChanged('');
+              },
             ),
           ),
 
@@ -807,17 +785,14 @@ class _HospitalColumnManagementScreenState
 
     if (columns.isEmpty) {
       String emptyMessage;
-      if (publishedFilter == null) {
+      if (publishedFilter == true) {
         emptyMessage =
-            searchQuery.isNotEmpty ? '검색 결과가 없습니다.' : '작성한 칼럼이 없습니다.';
-      } else if (publishedFilter == true) {
-        emptyMessage =
-            searchQuery.isNotEmpty ? '공개된 칼럼 중 검색 결과가 없습니다.' : '공개된 칼럼이 없습니다.';
+            searchQuery.isNotEmpty ? '승인 완료 칼럼 중 검색 결과가 없습니다.' : '승인 완료된 칼럼이 없습니다.';
       } else {
         emptyMessage =
             searchQuery.isNotEmpty
-                ? '공개 대기 중인 칼럼 중 검색 결과가 없습니다.'
-                : '공개 대기 중인 칼럼이 없습니다.';
+                ? '승인 대기 칼럼 중 검색 결과가 없습니다.'
+                : '승인 대기 중인 칼럼이 없습니다.';
       }
 
       return Center(
@@ -835,7 +810,7 @@ class _HospitalColumnManagementScreenState
                 ).textTheme.titleLarge?.copyWith(color: Colors.grey[500]),
                 textAlign: TextAlign.center,
               ),
-              if (publishedFilter == null && searchQuery.isEmpty) ...[
+              if (publishedFilter == false && searchQuery.isEmpty) ...[
                 const SizedBox(height: 8),
                 Text(
                   '첫 번째 칼럼을 작성해보세요!',
@@ -947,25 +922,45 @@ class _HospitalColumnManagementScreenState
                     overflow: TextOverflow.ellipsis,
                   ),
                   const SizedBox(height: 6),
-                  // 두 번째 줄: 작성자 닉네임
-                  Text(
-                    (() {
-                      final nickname =
-                          column.authorNickname ?? column.hospitalName;
-                      final displayNickname =
-                          nickname.toLowerCase() == '닉네임 없음'
-                              ? column.hospitalName
-                              : nickname;
-                      return displayNickname.length > 15
-                          ? '${displayNickname.substring(0, 15)}..'
-                          : displayNickname;
-                    })(),
-                    style: AppTheme.bodySmallStyle.copyWith(
-                      color: AppTheme.textSecondary,
-                      fontSize: 12,
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
+                  const SizedBox(height: 6),
+                  // 두 번째 줄: 프로필 사진 + 작성자 닉네임
+                  Row(
+                    children: [
+                      if (column.hospitalProfileImage != null) ...[
+                        CircleAvatar(
+                          radius: 7,
+                          backgroundImage: NetworkImage(
+                            column.hospitalProfileImage!.startsWith('http')
+                                ? column.hospitalProfileImage!
+                                : '${Config.serverUrl}${column.hospitalProfileImage}',
+                          ),
+                          backgroundColor: AppTheme.veryLightGray,
+                          onBackgroundImageError: (_, __) {},
+                        ),
+                        const SizedBox(width: 4),
+                      ],
+                      Expanded(
+                        child: Text(
+                          (() {
+                            final nickname =
+                                column.authorNickname ?? column.hospitalName;
+                            final displayNickname =
+                                nickname.toLowerCase() == '닉네임 없음'
+                                    ? column.hospitalName
+                                    : nickname;
+                            return displayNickname.length > 15
+                                ? '${displayNickname.substring(0, 15)}..'
+                                : displayNickname;
+                          })(),
+                          style: AppTheme.bodySmallStyle.copyWith(
+                            color: AppTheme.textSecondary,
+                            fontSize: 12,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
                   ),
                 ],
               ),
@@ -996,12 +991,6 @@ class _HospitalColumnManagementScreenState
                         ),
                       ),
                   ],
-                ),
-                const SizedBox(width: 8),
-                // 상태 표시 (공개/대기)
-                Text(
-                  column.isPublished ? '🟢' : '🟡',
-                  style: const TextStyle(fontSize: 16),
                 ),
               ],
             ),

@@ -22,7 +22,8 @@ class HospitalPost extends StatefulWidget {
 }
 
 class _HospitalPostState extends State<HospitalPost> {
-  final TextEditingController _titleController = TextEditingController();
+  final TextEditingController _titleController = TextEditingController(); // fallback 제목
+  final Map<String, TextEditingController> _titleControllers = {}; // 날짜별 제목 컨트롤러
   final TextEditingController _locationController =
       TextEditingController(); // 지역을 위한 컨트롤러 추가
   // 수혈환자 정보 컨트롤러 (긴급일 때만 사용)
@@ -35,6 +36,7 @@ class _HospitalPostState extends State<HospitalPost> {
       []; // 헌혈 날짜+시간 목록
   DateTime selectedDate = DateTime.now();
   String selectedType = "정기"; // 초기값을 정기로 변경
+  final Map<String, bool> _recruitTypeMap = {}; // 날짜별 신규모집(true)/재모집(false)
   String selectedAnimalType = "dog"; // 동물 종류 (dog/cat)
   String selectedBlood = "전체"; // 기본값을 전체로 변경
   String additionalDescription = ""; // nullable 제거, 빈 문자열로 초기화
@@ -85,9 +87,12 @@ class _HospitalPostState extends State<HospitalPost> {
       return;
     }
 
-    if (_titleController.text.isEmpty) {
-      _showAlertDialog('알림', '게시글 제목을 입력해주세요.');
-      return;
+    // 날짜별 제목 비어있는지 검증
+    for (final entry in _titleControllers.entries) {
+      if (entry.value.text.trim().isEmpty) {
+        _showAlertDialog('알림', '모든 날짜의 게시글 제목을 입력해주세요.');
+        return;
+      }
     }
 
     if (_locationController.text.trim().isEmpty) {
@@ -127,6 +132,12 @@ class _HospitalPostState extends State<HospitalPost> {
       final contentDelta = editorState?.contentDelta ?? "";
       final embeddedImageIds = editorState?.embeddedImageIds ?? <int>[];
 
+      // 날짜별 제목 매핑 생성
+      final Map<String, String> titlesMap = {};
+      for (final entry in _titleControllers.entries) {
+        titlesMap[entry.key] = entry.value.text.trim();
+      }
+
       // 서버로 보낼 데이터를 Map 형태로 만듭니다.
       final Map<String, dynamic> postData = {
         "date":
@@ -136,7 +147,8 @@ class _HospitalPostState extends State<HospitalPost> {
         "timeRanges": [], // 기존 호환성을 위해 유지
         "dateTimeSlots": dateTimeData, // 새로운 날짜+시간 데이터
         "types": selectedType == "긴급" ? 0 : 1,
-        "title": _titleController.text,
+        "title": _titleController.text, // fallback 제목
+        "titles": titlesMap, // 날짜별 개별 제목
         "descriptions": additionalDescription, // plain text (검색/미리보기용)
         "content_delta": contentDelta, // Delta JSON (리치 텍스트)
         "location": _locationController.text, // 지역 정보를 텍스트 필드에서 가져오기
@@ -252,33 +264,141 @@ class _HospitalPostState extends State<HospitalPost> {
 
   @override
   void dispose() {
-    _titleController.dispose(); // 컨트롤러 메모리 해제
-    _locationController.dispose(); // 지역 컨트롤러 메모리 해제
+    _titleController.dispose();
+    for (final controller in _titleControllers.values) {
+      controller.dispose();
+    }
+    _locationController.dispose();
     super.dispose();
   }
 
-  void _updateTitleText() {
-    // 동물 종류 변환
-    String animalTypeKorean = selectedAnimalType == "dog" ? "강아지" : "고양이";
-    String title = '[$hospitalNickname] ';
+  /// 날짜별 제목 기본 텍스트 생성
+  String _generateTitleForDate(String dateStr) {
+    // dateStr: "YYYY-MM-DD" → "YY.MM.DD"
+    String formattedDate = dateStr;
+    try {
+      final date = DateTime.parse(dateStr);
+      formattedDate = '${date.year.toString().substring(2)}.${date.month.toString().padLeft(2, '0')}.${date.day.toString().padLeft(2, '0')}';
+    } catch (_) {}
 
-    // 긴급이고 환자 이름이 있는 경우: [병원] 환자이름(강아지) 혈액형 긴급헌혈
-    if (selectedType == "긴급" && _patientNameController.text.trim().isNotEmpty) {
-      title += '${_patientNameController.text.trim()}($animalTypeKorean)';
-      if (selectedBlood != "전체") {
-        title += ' $selectedBlood';
-      }
-      title += ' 긴급헌혈';
+    final isNew = _recruitTypeMap[dateStr] ?? true;
+    final recruitType = isNew ? '신규모집' : '재모집';
+
+    if (selectedType == "긴급") {
+      final bloodText = selectedBlood == "전체" ? '혈액형 상관없음' : selectedBlood;
+      return '[$hospitalNickname] $bloodText/$formattedDate/$recruitType';
     } else {
-      // 기본 형식: [병원] 강아지 긴급헌혈 또는 [병원] 강아지 정기헌혈
-      title += '$animalTypeKorean $selectedType 헌혈';
-      // 긴급이고 혈액형이 전체가 아닌 경우 혈액형 추가
-      if (selectedType == "긴급" && selectedBlood != "전체") {
-        title += ' ($selectedBlood)';
+      return '[$hospitalNickname] $formattedDate/$recruitType';
+    }
+  }
+
+  void _updateTitleText() {
+    // 날짜별 제목 컨트롤러 동기화
+    _syncTitleControllers();
+
+    // fallback 제목 (날짜 없을 때 표시용)
+    String title;
+    if (selectedType == "긴급") {
+      final bloodText = selectedBlood == "전체" ? '혈액형 상관없음' : selectedBlood;
+      title = '[$hospitalNickname] $bloodText';
+    } else {
+      title = '[$hospitalNickname]';
+    }
+    _titleController.text = title;
+  }
+
+  /// 선택된 날짜 목록과 제목 컨트롤러를 동기화
+  void _syncTitleControllers() {
+    // 현재 선택된 날짜 키 목록 생성
+    final currentDateKeys = <String>{};
+    for (final dateWithTimes in selectedDonationDatesWithTimes) {
+      final dateStr = _dateToKey(dateWithTimes.donationDate);
+      currentDateKeys.add(dateStr);
+
+      // 새 날짜면 컨트롤러 생성 + 기본 제목 설정
+      if (!_titleControllers.containsKey(dateStr)) {
+        _titleControllers[dateStr] = TextEditingController(
+          text: _generateTitleForDate(dateStr),
+        );
       }
     }
 
-    _titleController.text = title;
+    // 삭제된 날짜의 컨트롤러 및 모집 구분 정리
+    final keysToRemove = _titleControllers.keys
+        .where((key) => !currentDateKeys.contains(key))
+        .toList();
+    for (final key in keysToRemove) {
+      _titleControllers[key]?.dispose();
+      _titleControllers.remove(key);
+      _recruitTypeMap.remove(key);
+    }
+  }
+
+  /// 날짜별 신규모집/재모집 토글 버튼
+  Widget _buildRecruitToggle(String dateKey, TextEditingController? controller) {
+    final isNew = _recruitTypeMap[dateKey] ?? true;
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        GestureDetector(
+          onTap: () {
+            setState(() {
+              _recruitTypeMap[dateKey] = true;
+              controller?.text = _generateTitleForDate(dateKey);
+            });
+          },
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+            decoration: BoxDecoration(
+              color: isNew ? AppTheme.success.withValues(alpha: 0.15) : Colors.transparent,
+              borderRadius: const BorderRadius.horizontal(left: Radius.circular(6)),
+              border: Border.all(
+                color: isNew ? AppTheme.success : AppTheme.lightGray,
+              ),
+            ),
+            child: Text(
+              '신규모집',
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                color: isNew ? AppTheme.success : AppTheme.textTertiary,
+              ),
+            ),
+          ),
+        ),
+        GestureDetector(
+          onTap: () {
+            setState(() {
+              _recruitTypeMap[dateKey] = false;
+              controller?.text = _generateTitleForDate(dateKey);
+            });
+          },
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+            decoration: BoxDecoration(
+              color: !isNew ? AppTheme.info.withValues(alpha: 0.15) : Colors.transparent,
+              borderRadius: const BorderRadius.horizontal(right: Radius.circular(6)),
+              border: Border.all(
+                color: !isNew ? AppTheme.info : AppTheme.lightGray,
+              ),
+            ),
+            child: Text(
+              '재모집',
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                color: !isNew ? AppTheme.info : AppTheme.textTertiary,
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  /// DateTime → "YYYY-MM-DD" 키 변환
+  String _dateToKey(DateTime date) {
+    return '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
   }
 
   // 동물 종류에 따른 혈액형 목록 반환
@@ -296,7 +416,7 @@ class _HospitalPostState extends State<HospitalPost> {
     // BloodTypeConstants에서 혈액형 목록 가져오기
     final bloodTypes = BloodTypeConstants.getBloodTypes(species: species);
 
-    // '전체' 옵션을 맨 앞에 추가
+    // '혈액형 상관없음' 옵션을 맨 앞에 추가
     return ['전체', ...bloodTypes];
   }
 
@@ -387,6 +507,9 @@ class _HospitalPostState extends State<HospitalPost> {
                         selectedDonationDatesWithTimes.sort(
                           (a, b) => a.donationDate.compareTo(b.donationDate),
                         );
+
+                        // 날짜별 제목 컨트롤러 동기화
+                        _updateTitleText();
                       });
                     },
                     scrollController: scrollController,
@@ -400,10 +523,15 @@ class _HospitalPostState extends State<HospitalPost> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
+        title: Text(
+          '헌혈 게시글 작성',
+          style: AppTheme.h3Style.copyWith(fontWeight: FontWeight.w700),
+        ),
+        centerTitle: false,
         backgroundColor: Colors.white,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios, size: 20),
+          icon: const Icon(Icons.arrow_back_ios, size: 20, color: Colors.black),
           onPressed: () => Navigator.pop(context),
         ),
       ),
@@ -519,6 +647,7 @@ class _HospitalPostState extends State<HospitalPost> {
                                         setState(() {
                                           selectedDonationDatesWithTimes
                                               .removeAt(index);
+                                          _updateTitleText();
                                         });
                                       }
                                     },
@@ -697,7 +826,7 @@ class _HospitalPostState extends State<HospitalPost> {
                                   .map(
                                     (type) => DropdownMenuItem(
                                       value: type,
-                                      child: Text(type),
+                                      child: Text(type == '전체' ? '혈액형 상관없음' : type),
                                     ),
                                   )
                                   .toList(),
@@ -715,9 +844,9 @@ class _HospitalPostState extends State<HospitalPost> {
                         ),
                         const SizedBox(height: 20),
 
-                        // 수혈환자 정보 섹션 (긴급일 때만 표시, 모두 선택사항)
+                        // 환자 정보 섹션 (긴급일 때만 표시)
                         Text(
-                          "수혈환자 정보 (선택사항)",
+                          "환자 정보",
                           style: AppTheme.bodyLargeStyle.copyWith(
                             fontWeight: FontWeight.w600,
                             color: AppTheme.textPrimary,
@@ -768,18 +897,115 @@ class _HospitalPostState extends State<HospitalPost> {
                         const SizedBox(height: 20),
                       ],
 
-                      TextField(
-                        controller: _titleController,
-                        decoration: _buildInputDecoration(
-                          context,
-                          "게시글 제목",
-                          Icons.title,
-                        ),
-                      ),
+                      // 날짜 추가 후 날짜별 제목이 생성됨 (날짜 없으면 제목 미표시)
                     ],
                   ),
                 ),
               ),
+
+              // 날짜별 제목 미리보기 섹션
+              if (selectedDonationDatesWithTimes.isNotEmpty) ...[
+                const SizedBox(height: 32),
+                Text("날짜별 게시글 제목", style: AppTheme.h3Style),
+                const SizedBox(height: 8),
+                Text(
+                  '각 날짜별로 제목을 수정할 수 있습니다.',
+                  style: AppTheme.bodySmallStyle.copyWith(
+                    color: AppTheme.textSecondary,
+                  ),
+                ),
+                const SizedBox(height: 16),
+                ListView.builder(
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  itemCount: selectedDonationDatesWithTimes.length,
+                  itemBuilder: (context, index) {
+                    final dateWithTimes = selectedDonationDatesWithTimes[index];
+                    final dateKey = _dateToKey(dateWithTimes.donationDate);
+                    final controller = _titleControllers[dateKey];
+
+                    if (controller == null) return const SizedBox.shrink();
+
+                    return Container(
+                      margin: const EdgeInsets.only(bottom: 12),
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(AppTheme.radius12),
+                        border: Border.all(
+                          color: AppTheme.lightGray.withValues(alpha: 0.5),
+                        ),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Icon(
+                                Icons.calendar_today,
+                                size: 16,
+                                color: AppTheme.primaryBlue,
+                              ),
+                              const SizedBox(width: 8),
+                              Text(
+                                dateWithTimes.dateOnly,
+                                style: AppTheme.bodyMediumStyle.copyWith(
+                                  fontWeight: FontWeight.w600,
+                                  color: AppTheme.primaryBlue,
+                                ),
+                              ),
+                              const SizedBox(width: 6),
+                              Text(
+                                '(${dateWithTimes.times.length}개 시간대)',
+                                style: AppTheme.bodySmallStyle.copyWith(
+                                  color: AppTheme.textSecondary,
+                                ),
+                              ),
+                              const Spacer(),
+                              // 신규모집/재모집 토글
+                              _buildRecruitToggle(dateKey, controller),
+                            ],
+                          ),
+                          const SizedBox(height: 12),
+                          TextField(
+                            controller: controller,
+                            decoration: InputDecoration(
+                              prefixIcon: Icon(Icons.edit_outlined, size: 20, color: Colors.grey[600]),
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(10),
+                                borderSide: BorderSide(color: Colors.grey.shade300),
+                              ),
+                              focusedBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(10),
+                                borderSide: BorderSide(
+                                  color: Theme.of(context).colorScheme.primary,
+                                  width: 2,
+                                ),
+                              ),
+                              enabledBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(10),
+                                borderSide: BorderSide(color: Colors.grey.shade300),
+                              ),
+                              contentPadding: const EdgeInsets.symmetric(
+                                horizontal: 16,
+                                vertical: 12,
+                              ),
+                              suffixIcon: IconButton(
+                                icon: Icon(Icons.refresh, size: 20, color: Colors.grey[500]),
+                                tooltip: '기본 제목으로 초기화',
+                                onPressed: () {
+                                  controller.text = _generateTitleForDate(dateKey);
+                                },
+                              ),
+                            ),
+                            style: AppTheme.bodyMediumStyle,
+                          ),
+                        ],
+                      ),
+                    );
+                  },
+                ),
+              ],
 
               const SizedBox(height: 32),
 

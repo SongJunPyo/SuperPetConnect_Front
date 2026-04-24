@@ -36,6 +36,8 @@ enum AdminNotificationType {
   columnApprovalRequest, // 칼럼 게시글 승인 요청
   donationCompleted, // 헌혈 완료 보고
   systemNotice, // 시스템 공지 알림
+  newPetRegistration, // 신규 반려동물 등록
+  petReviewRequest, // 반려동물 재심사 요청
 }
 
 // 병원 알림 타입
@@ -50,6 +52,7 @@ enum HospitalNotificationType {
   columnApproved, // 칼럼 게시글 승인
   columnRejected, // 칼럼 게시글 거절
   systemNotice, // 시스템 공지
+  documentRequest, // 헌혈 자료 요청
 }
 
 // 사용자 알림 타입
@@ -58,8 +61,10 @@ enum UserNotificationType {
   recruitmentClosed, // 모집 마감 알림
   donationCompleted, // 헌혈 완료 알림
   applicationApproved, // 헌혈 신청 승인
-  applicationRejected, // 헌혈 신청 거절
+  applicationRejected, // 헌혈 신청 미승인
   newDonationPost, // 새 헌혈 모집 게시글 알림
+  petApproved, // 반려동물 승인
+  petRejected, // 반려동물 거절
 }
 
 // 알림 타입 한국어 이름 매핑
@@ -72,6 +77,8 @@ class NotificationTypeNames {
     AdminNotificationType.columnApprovalRequest: '칼럼 게시글 승인 요청',
     AdminNotificationType.donationCompleted: '헌혈 완료 보고',
     AdminNotificationType.systemNotice: '시스템 공지',
+    AdminNotificationType.newPetRegistration: '신규 반려동물 등록',
+    AdminNotificationType.petReviewRequest: '반려동물 재심사 요청',
   };
 
   // 병원 알림 이름
@@ -86,6 +93,7 @@ class NotificationTypeNames {
     HospitalNotificationType.columnApproved: '칼럼 게시글 승인',
     HospitalNotificationType.columnRejected: '칼럼 게시글 거절',
     HospitalNotificationType.systemNotice: '시스템 공지',
+    HospitalNotificationType.documentRequest: '헌혈 자료 요청',
   };
 
   // 사용자 알림 이름
@@ -94,8 +102,10 @@ class NotificationTypeNames {
     UserNotificationType.recruitmentClosed: '모집 마감',
     UserNotificationType.donationCompleted: '헌혈 완료',
     UserNotificationType.applicationApproved: '신청 승인',
-    UserNotificationType.applicationRejected: '신청 거절',
+    UserNotificationType.applicationRejected: '신청 미승인',
     UserNotificationType.newDonationPost: '새 헌혈 모집',
+    UserNotificationType.petApproved: '반려동물 승인',
+    UserNotificationType.petRejected: '반려동물 거절',
   };
 }
 
@@ -109,6 +119,8 @@ class NotificationTypeIcons {
     AdminNotificationType.columnApprovalRequest: '📄',
     AdminNotificationType.donationCompleted: '✅',
     AdminNotificationType.systemNotice: '🔔',
+    AdminNotificationType.newPetRegistration: '🐾',
+    AdminNotificationType.petReviewRequest: '🔄',
   };
 
   // 병원 알림 아이콘
@@ -123,6 +135,7 @@ class NotificationTypeIcons {
     HospitalNotificationType.columnApproved: '✅',
     HospitalNotificationType.columnRejected: '❌',
     HospitalNotificationType.systemNotice: '🔔',
+    HospitalNotificationType.documentRequest: '📋',
   };
 
   // 사용자 알림 아이콘
@@ -133,6 +146,8 @@ class NotificationTypeIcons {
     UserNotificationType.applicationApproved: '✅',
     UserNotificationType.applicationRejected: '❌',
     UserNotificationType.newDonationPost: '🩸',
+    UserNotificationType.petApproved: '🐾',
+    UserNotificationType.petRejected: '🚫',
   };
 }
 
@@ -151,6 +166,8 @@ class NotificationPriority {
     AdminNotificationType.columnApprovalRequest: normal,
     AdminNotificationType.donationCompleted: normal,
     AdminNotificationType.systemNotice: urgent,
+    AdminNotificationType.newPetRegistration: normal,
+    AdminNotificationType.petReviewRequest: normal,
   };
 
   // 병원 알림 우선순위
@@ -165,6 +182,7 @@ class NotificationPriority {
     HospitalNotificationType.columnApproved: normal,
     HospitalNotificationType.columnRejected: normal,
     HospitalNotificationType.systemNotice: urgent,
+    HospitalNotificationType.documentRequest: high,
   };
 
   // 사용자 알림 우선순위
@@ -175,6 +193,8 @@ class NotificationPriority {
     UserNotificationType.applicationApproved: high,
     UserNotificationType.applicationRejected: high,
     UserNotificationType.newDonationPost: high,
+    UserNotificationType.petApproved: high,
+    UserNotificationType.petRejected: high,
   };
 }
 
@@ -188,6 +208,8 @@ class NotificationTypeIds {
     AdminNotificationType.columnApprovalRequest: 104,
     AdminNotificationType.donationCompleted: 105,
     AdminNotificationType.systemNotice: 106,
+    AdminNotificationType.newPetRegistration: 107,
+    AdminNotificationType.petReviewRequest: 108,
   };
 
   // 병원 알림 ID
@@ -202,6 +224,7 @@ class NotificationTypeIds {
     HospitalNotificationType.columnApproved: 207,
     HospitalNotificationType.columnRejected: 208,
     HospitalNotificationType.systemNotice: 209,
+    HospitalNotificationType.documentRequest: 211,
   };
 
   // 사용자 알림 ID
@@ -212,6 +235,8 @@ class NotificationTypeIds {
     UserNotificationType.applicationApproved: 304,
     UserNotificationType.applicationRejected: 305,
     UserNotificationType.newDonationPost: 306,
+    UserNotificationType.petApproved: 307,
+    UserNotificationType.petRejected: 308,
   };
 
   // ID에서 타입으로 역매핑

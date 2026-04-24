@@ -233,9 +233,11 @@ class _DonationApplicationDialogState extends State<DonationApplicationDialog> {
                       final eligibility = DonationEligibility.checkEligibility(
                         pet,
                       );
+                      final isApproved = pet.isApproved;
                       final isSelectable =
-                          eligibility.isEligible ||
-                          eligibility.needsConsultation;
+                          isApproved &&
+                          (eligibility.isEligible ||
+                          eligibility.needsConsultation);
                       final isSelected = selectedPet?.petIdx == pet.petIdx;
 
                       // 디버그: 각 반려동물의 eligibility 결과 출력
@@ -328,7 +330,29 @@ class _DonationApplicationDialogState extends State<DonationApplicationDialog> {
                                         ),
                                       ),
                                     ),
-                                  if (!isSelectable)
+                                  if (!isApproved)
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 8,
+                                        vertical: 2,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color: pet.approvalStatus == 0
+                                            ? Colors.orange.shade100
+                                            : Colors.red.shade100,
+                                        borderRadius: BorderRadius.circular(4),
+                                      ),
+                                      child: Text(
+                                        pet.approvalStatusText,
+                                        style: AppTheme.bodySmallStyle.copyWith(
+                                          color: pet.approvalStatus == 0
+                                              ? Colors.orange.shade800
+                                              : Colors.red.shade800,
+                                          fontSize: 10,
+                                        ),
+                                      ),
+                                    )
+                                  else if (!isSelectable)
                                     Container(
                                       padding: const EdgeInsets.symmetric(
                                         horizontal: 8,
@@ -350,7 +374,7 @@ class _DonationApplicationDialogState extends State<DonationApplicationDialog> {
                               ),
                               const SizedBox(height: 4),
                               Text(
-                                '${pet.age} • ${pet.weightKg}kg${pet.bloodType != null ? ' • ${pet.bloodType}' : ''}',
+                                pet.summaryLine,
                                 style: AppTheme.bodySmallStyle.copyWith(
                                   color: AppTheme.textSecondary,
                                 ),

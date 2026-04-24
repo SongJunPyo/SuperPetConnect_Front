@@ -18,6 +18,7 @@ import '../utils/app_constants.dart';
 import '../widgets/dashboard/dashboard_list_item.dart';
 import '../widgets/dashboard/dashboard_more_button.dart';
 import '../widgets/dashboard/dashboard_empty_state.dart';
+import '../widgets/association_footer.dart';
 
 class WelcomeScreen extends StatefulWidget {
   const WelcomeScreen({super.key});
@@ -444,11 +445,13 @@ class _WelcomeScreenState extends State<WelcomeScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      bottomNavigationBar: const AssociationFooter(),
       appBar: AppAppBar(
         showBackButton: false,
         actions: [
-          IconButton(
+          TextButton.icon(
             icon: const Icon(Icons.key, color: Colors.black87, size: 24),
+            label: const Text('로그인', style: TextStyle(color: Colors.black87, fontSize: 14)),
             onPressed: () {
               Navigator.push(
                 context,

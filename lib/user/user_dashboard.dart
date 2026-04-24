@@ -23,12 +23,12 @@ import 'dart:async';
 import '../utils/number_format_util.dart';
 import '../utils/config.dart';
 import '../widgets/marquee_text.dart';
+import '../widgets/post_type_badge.dart';
 import '../widgets/dashboard/dashboard_empty_state.dart';
 import '../widgets/dashboard/dashboard_more_button.dart';
 import '../widgets/dashboard/dashboard_list_item.dart';
 import '../services/auth_http_client.dart';
 import '../widgets/region_selection_sheet.dart';
-import '../widgets/blinking_icon.dart';
 import '../models/region_model.dart';
 import '../utils/text_personalization_util.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -42,6 +42,7 @@ import '../widgets/post_detail/post_detail_header.dart';
 import '../widgets/post_detail/post_detail_meta_section.dart';
 import '../widgets/post_detail/post_detail_blood_type.dart';
 import '../widgets/post_detail/post_detail_description.dart';
+import '../widgets/association_footer.dart';
 
 class UserDashboard extends StatefulWidget {
   const UserDashboard({super.key});
@@ -137,7 +138,7 @@ class _UserDashboardState extends State<UserDashboard>
   Future<void> _initializeDashboard() async {
     await _loadUserProfile();
     await _loadPreferredRegions();
-    _loadDashboardData();
+    await _loadDashboardData();
   }
 
   Future<void> _loadUserProfile() async {
@@ -316,11 +317,12 @@ class _UserDashboardState extends State<UserDashboard>
         final posts = await DashboardService.getPublicPosts(limit: 10);
         allUnifiedPostModels.addAll(posts);
       } else {
-        // 선택된 시/도에서 데이터 가져오기 (초기 로딩이므로 제한적으로)
-        for (final largeRegion in selectedLargeRegions.take(3)) {
+        // 선택된 시/도에서 데이터 가져오기
+        for (final largeRegion in selectedLargeRegions) {
+          final regionName = _getSimpleRegionName(largeRegion.name);
           final posts = await DashboardService.getPublicPosts(
-            limit: 5,
-            region: _getSimpleRegionName(largeRegion.name),
+            limit: 10,
+            region: regionName,
           );
           allUnifiedPostModels.addAll(posts);
         }
@@ -466,38 +468,17 @@ class _UserDashboardState extends State<UserDashboard>
           .map((r) => _getSimpleRegionName(r.name))
           .join(',');
 
-      // 캐시된 프로필 데이터가 없으면 서버에서 최신 데이터 가져오기
-      if (_cachedProfileData == null) {
-        final response = await AuthHttpClient.get(
-          Uri.parse('${Config.serverUrl}/api/auth/profile'),
-        );
-        if (response.statusCode == 200) {
-          _cachedProfileData = json.decode(utf8.decode(response.bodyBytes));
-        } else {
-          debugPrint('프로필 조회 실패, 선호 지역 동기화 중단');
-          return;
-        }
-      }
-
-      // 기존 프로필 데이터에 preferred_location만 업데이트하여 전송
-      final profileData = {
-        'name': _cachedProfileData!['name'],
-        'nickname': _cachedProfileData!['nickname'],
-        'phone_number': _cachedProfileData!['phone_number'],
-        'address': _cachedProfileData!['address'],
-        'latitude': _cachedProfileData!['latitude'],
-        'longitude': _cachedProfileData!['longitude'],
-        'preferred_location': regionNames.isEmpty ? null : regionNames,
-      };
+      final preferredLocation = regionNames.isEmpty ? '전체' : regionNames;
 
       await AuthHttpClient.put(
         Uri.parse('${Config.serverUrl}/api/auth/profile'),
-        body: jsonEncode(profileData),
+        body: jsonEncode({'preferred_location': preferredLocation}),
       );
 
       // 캐시도 업데이트
-      _cachedProfileData!['preferred_location'] =
-          regionNames.isEmpty ? null : regionNames;
+      if (_cachedProfileData != null) {
+        _cachedProfileData!['preferred_location'] = preferredLocation;
+      }
     } catch (e) {
       debugPrint('선호 지역 서버 동기화 실패: $e');
     }
@@ -505,7 +486,7 @@ class _UserDashboardState extends State<UserDashboard>
 
   // SharedPreferences에서 선호 지역 불러오기
   Future<void> _loadPreferredRegions() async {
-    final isRegionInitialized = await PreferencesManager.isRegionInitialized();
+    var isRegionInitialized = await PreferencesManager.isRegionInitialized();
 
     // 시/도 코드 목록 불러오기
     final largeRegionCodes =
@@ -523,9 +504,11 @@ class _UserDashboardState extends State<UserDashboard>
     }
 
     // 서버에 지역이 있고 로컬이 비어있으면 → 서버 데이터로 로컬 초기화 (다른 기기 지원)
+    // "전체"이면 빈 리스트 유지 (전체 지역 = 선택 없음)
     if (loadedLargeRegions.isEmpty &&
         serverPreferredLocation != null &&
-        serverPreferredLocation!.isNotEmpty) {
+        serverPreferredLocation!.isNotEmpty &&
+        serverPreferredLocation != '전체') {
       final serverRegions = _parseServerPreferredLocation(serverPreferredLocation!);
       if (serverRegions.isNotEmpty) {
         loadedLargeRegions.addAll(serverRegions);
@@ -533,6 +516,11 @@ class _UserDashboardState extends State<UserDashboard>
         await PreferencesManager.setPreferredLargeRegions(codes);
         await PreferencesManager.setRegionInitialized(true);
       }
+    }
+    // "전체"인 경우에도 초기화 완료로 표시 (주소 기반 자동 설정 방지)
+    if (serverPreferredLocation == '전체' && !isRegionInitialized) {
+      await PreferencesManager.setRegionInitialized(true);
+      isRegionInitialized = true;
     }
 
     if (mounted) {
@@ -705,8 +693,14 @@ class _UserDashboardState extends State<UserDashboard>
               ),
             );
           },
-          additionalAction: IconButton(
-            icon: const Icon(Icons.pets, color: AppTheme.textPrimary),
+          additionalAction: TextButton.icon(
+            style: TextButton.styleFrom(
+              padding: const EdgeInsets.symmetric(horizontal: 4),
+              minimumSize: Size.zero,
+              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+            ),
+            icon: const Icon(Icons.pets, color: AppTheme.textPrimary, size: 20),
+            label: const Text('반려동물 관리', style: TextStyle(color: AppTheme.textPrimary, fontSize: 14)),
             onPressed: () {
               Navigator.push(
                 context,
@@ -722,6 +716,7 @@ class _UserDashboardState extends State<UserDashboard>
           color: AppTheme.primaryBlue,
           child: _buildDashboardContent(),
         ),
+        bottomNavigationBar: const AssociationFooter(),
       ),
     );
   }
@@ -737,7 +732,8 @@ class _UserDashboardState extends State<UserDashboard>
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('안녕하세요, $userNickname 님!', style: AppTheme.h2Style),
+              Text('안녕하세요,', style: AppTheme.h2Style),
+              Text('$userNickname 님!', style: AppTheme.h2Style),
               const SizedBox(height: AppTheme.spacing8),
               Text(
                 currentDateTime,
@@ -902,7 +898,9 @@ class _UserDashboardState extends State<UserDashboard>
           // 헌혈 모집 목록
           Expanded(
             child:
-                donations.isEmpty
+                isLoadingDonations
+                    ? const Center(child: CircularProgressIndicator())
+                    : donations.isEmpty
                     ? Center(
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
@@ -921,8 +919,8 @@ class _UserDashboardState extends State<UserDashboard>
                           ),
                           const SizedBox(height: 8),
                           TextButton(
-                            onPressed: () {
-                              Navigator.push(
+                            onPressed: () async {
+                              await Navigator.push(
                                 context,
                                 MaterialPageRoute(
                                   builder:
@@ -930,6 +928,9 @@ class _UserDashboardState extends State<UserDashboard>
                                           const UserDonationPostsListScreen(),
                                 ),
                               );
+                              // 헌혈 모집 페이지에서 지역 변경 시 대시보드 동기화
+                              await _loadPreferredRegions();
+                              _refreshUnifiedPostModels();
                             },
                             child: Text(
                               '전체 헌혈 모집 보기',
@@ -955,8 +956,8 @@ class _UserDashboardState extends State<UserDashboard>
                         // 마지막 아이템은 ... 버튼
                         if (index == donations.length) {
                           return InkWell(
-                            onTap: () {
-                              Navigator.push(
+                            onTap: () async {
+                              await Navigator.push(
                                 context,
                                 MaterialPageRoute(
                                   builder:
@@ -964,6 +965,9 @@ class _UserDashboardState extends State<UserDashboard>
                                           const UserDonationPostsListScreen(),
                                 ),
                               );
+                              // 헌혈 모집 페이지에서 지역 변경 시 대시보드 동기화
+                              await _loadPreferredRegions();
+                              _refreshUnifiedPostModels();
                             },
                             child: Container(
                               padding: const EdgeInsets.symmetric(
@@ -1020,29 +1024,7 @@ class _UserDashboardState extends State<UserDashboard>
                                         crossAxisAlignment:
                                             CrossAxisAlignment.center,
                                         children: [
-                                          Container(
-                                            padding: const EdgeInsets.symmetric(
-                                              horizontal: 6,
-                                              vertical: 3,
-                                            ),
-                                            decoration: BoxDecoration(
-                                              color:
-                                                  donation.isUrgent
-                                                      ? AppTheme.error
-                                                      : AppTheme.success,
-                                              borderRadius:
-                                                  BorderRadius.circular(4),
-                                            ),
-                                            child: Text(
-                                              donation.isUrgent ? '긴급' : '정기',
-                                              style: AppTheme.bodySmallStyle
-                                                  .copyWith(
-                                                    color: Colors.white,
-                                                    fontWeight: FontWeight.bold,
-                                                    fontSize: 10,
-                                                  ),
-                                            ),
-                                          ),
+                                          PostTypeBadge(type: donation.isUrgent ? '긴급' : '정기'),
                                           const SizedBox(width: 8),
                                           Expanded(
                                             child: MarqueeText(
@@ -1865,6 +1847,7 @@ class _UserDashboardState extends State<UserDashboard>
                     title: displayPost.title,
                     isUrgent: displayPost.isUrgent,
                     typeText: displayPost.typeText,
+                    profileImage: displayPost.hospitalProfileImage,
                     onClose: () => Navigator.pop(context),
                   ),
 
@@ -1882,6 +1865,7 @@ class _UserDashboardState extends State<UserDashboard>
                           PostDetailMetaSection(
                             hospitalName: displayPost.hospitalName,
                             hospitalNickname: displayPost.hospitalNickname,
+                            hospitalProfileImage: displayPost.hospitalProfileImage,
                             location: displayPost.location,
                             animalType: displayPost.animalType,
                             applicantCount: displayPost.applicantCount,
@@ -2132,37 +2116,35 @@ class _UserDashboardState extends State<UserDashboard>
                 borderRadius: BorderRadius.circular(12),
                 border: Border.all(color: Colors.grey.shade200, width: 1.5),
               ),
-              child: Theme(
-                data: Theme.of(
-                  context,
-                ).copyWith(dividerColor: Colors.transparent),
-                child: ExpansionTile(
-                  tilePadding: const EdgeInsets.symmetric(
-                    horizontal: 20,
-                    vertical: 8,
-                  ),
-                  childrenPadding: const EdgeInsets.only(bottom: 12),
-                  leading: Icon(
-                    Icons.calendar_month,
-                    color: Colors.black,
-                    size: 24,
-                  ),
-                  title: Text(
-                    _formatDateWithWeekday(dateStr),
-                    style: AppTheme.h4Style.copyWith(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                      color: AppTheme.textPrimary,
+              child: Column(
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 20,
+                      vertical: 8,
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(
+                          Icons.calendar_month,
+                          color: Colors.black,
+                          size: 24,
+                        ),
+                        const SizedBox(width: 16),
+                        Expanded(
+                          child: Text(
+                            _formatDateWithWeekday(dateStr),
+                            style: AppTheme.h4Style.copyWith(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w600,
+                              color: AppTheme.textPrimary,
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
-                  trailing: BlinkingIcon(
-                    icon: Icons.keyboard_arrow_down,
-                    color: Colors.black,
-                    size: 24,
-                    duration: Duration(milliseconds: 1500),
-                  ),
-                  children:
-                      timeSlots.map<Widget>((timeSlot) {
+                  ...timeSlots.map<Widget>((timeSlot) {
                         // 내가 이미 신청한 시간대인지 확인
                         final postTimesIdx = timeSlot['post_times_idx'] ?? 0;
                         final myApplication = myApplicationsMap[postTimesIdx];
@@ -2266,8 +2248,9 @@ class _UserDashboardState extends State<UserDashboard>
                             ),
                           ),
                         );
-                      }).toList(),
-                ),
+                      }),
+                  const SizedBox(height: 12),
+                ],
               ),
             );
           }).toList(),

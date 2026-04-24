@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:app_badge_plus/app_badge_plus.dart';
 import '../models/notification_model.dart';
 import '../models/notification_types.dart';
 import '../services/notification_api_service.dart';
@@ -185,7 +186,9 @@ class NotificationProvider extends ChangeNotifier {
       }
 
       _unreadCount = response.unreadCount;
-      _hasMore = response.hasMore;
+      _updateAppBadge(_unreadCount);
+      // 서버가 has_more=true인데 실제 데이터가 0개이면 무한 로딩 방지
+      _hasMore = response.hasMore && response.notifications.isNotEmpty;
       _currentPage++;
 
       _clearError();
@@ -243,6 +246,7 @@ class NotificationProvider extends ChangeNotifier {
       // 목록 맨 앞에 추가
       _notifications.insert(0, notification);
       _unreadCount++;
+      _updateAppBadge(_unreadCount);
       notifyListeners();
 
       // 웹에서 알림 표시
@@ -438,6 +442,7 @@ class NotificationProvider extends ChangeNotifier {
         if (index != -1 && !_notifications[index].isRead) {
           _notifications[index] = _notifications[index].markAsRead();
           _unreadCount = _unreadCount > 0 ? _unreadCount - 1 : 0;
+          _updateAppBadge(_unreadCount);
           notifyListeners();
         }
       }
@@ -456,6 +461,7 @@ class NotificationProvider extends ChangeNotifier {
       if (success) {
         _notifications = _notifications.map((n) => n.markAsRead()).toList();
         _unreadCount = 0;
+        _updateAppBadge(_unreadCount);
         notifyListeners();
       }
 
@@ -484,6 +490,7 @@ class NotificationProvider extends ChangeNotifier {
           _notifications.removeAt(index);
           if (!notification.isRead) {
             _unreadCount = _unreadCount > 0 ? _unreadCount - 1 : 0;
+            _updateAppBadge(_unreadCount);
           }
           notifyListeners();
         }
@@ -532,6 +539,7 @@ class NotificationProvider extends ChangeNotifier {
           0,
           _unreadCount,
         );
+        _updateAppBadge(_unreadCount);
         notifyListeners();
       }
 
@@ -549,6 +557,7 @@ class NotificationProvider extends ChangeNotifier {
       if (success) {
         _notifications.clear();
         _unreadCount = 0;
+        _updateAppBadge(_unreadCount);
         notifyListeners();
       }
 
@@ -566,12 +575,20 @@ class NotificationProvider extends ChangeNotifier {
       final count = await NotificationApiService.getUnreadCount();
       if (_unreadCount != count) {
         _unreadCount = count;
+        _updateAppBadge(_unreadCount);
         notifyListeners();
       }
     } catch (_) {}
   }
 
   // === 유틸리티 ===
+
+  /// 앱 아이콘 배지 업데이트
+  void _updateAppBadge(int count) {
+    if (!kIsWeb) {
+      AppBadgePlus.updateBadge(count);
+    }
+  }
 
   void _setLoading(bool value) {
     if (_isLoading != value) {

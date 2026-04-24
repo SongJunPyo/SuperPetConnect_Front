@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'dart:ui' as ui;
 import '../models/unified_post_model.dart';
 import '../models/donation_application_model.dart';
 import '../models/post_time_item_model.dart';
@@ -7,17 +6,20 @@ import '../services/hospital_post_service.dart';
 import '../utils/app_theme.dart';
 import '../utils/app_constants.dart';
 import 'package:intl/intl.dart';
-import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+import '../utils/config.dart';
+import '../widgets/pet_profile_image.dart';
 import '../models/applied_donation_model.dart';
 import 'donation_completion_sheet.dart';
 import 'donation_cancellation_sheet.dart';
 import '../widgets/rich_text_viewer.dart';
+import '../widgets/app_search_bar.dart';
 import '../widgets/post_detail/post_detail_handle_bar.dart';
 import '../widgets/post_detail/post_detail_meta_section.dart';
 import '../widgets/post_detail/post_detail_blood_type.dart';
 import '../widgets/post_detail/post_detail_description.dart';
 import '../widgets/post_detail/post_detail_patient_info.dart';
-import '../widgets/blinking_icon.dart';
+import '../widgets/post_type_badge.dart';
+import '../widgets/marquee_text.dart';
 import '../widgets/pagination_bar.dart';
 
 class HospitalPostCheck extends StatefulWidget {
@@ -38,7 +40,8 @@ class _HospitalPostCheckState extends State<HospitalPostCheck>
   bool isLoading = true;
   String? errorMessage;
   final TextEditingController _searchController = TextEditingController();
-  DateTime? selectedDate;
+  DateTime? startDate;
+  DateTime? endDate;
 
   // 클라이언트 측 페이지네이션 (탭 0, 1에서 사용)
   final ScrollController _scrollController = ScrollController();
@@ -110,10 +113,10 @@ class _HospitalPostCheckState extends State<HospitalPostCheck>
           .toList();
     }
 
-    // 3. 날짜 필터링
-    if (selectedDate != null) {
+    // 3. 날짜 범위 필터링
+    if (startDate != null && endDate != null) {
       statusFiltered = statusFiltered
-          .where((post) => _isSameDay(post.createdDate, selectedDate!))
+          .where((post) => _isInDateRange(post.createdDate))
           .toList();
     }
 
@@ -152,9 +155,9 @@ class _HospitalPostCheckState extends State<HospitalPostCheck>
 
     switch (_currentTabIndex) {
       case 2:
-        // 모집마감: applicant_status=1(승인) 필터링
+        // 모집마감: 승인(1) + 완료대기(5) + 중단대기(6)
         var allItems = postTimeItems
-            .where((item) => item.applicantStatus == 1)
+            .where((item) => [1, 5, 6].contains(item.applicantStatus))
             .toList();
 
         // 검색어 필터링
@@ -166,11 +169,10 @@ class _HospitalPostCheckState extends State<HospitalPostCheck>
               .toList();
         }
 
-        // 날짜 필터링
-        if (selectedDate != null) {
+        // 날짜 범위 필터링
+        if (startDate != null && endDate != null) {
           allItems = allItems
-              .where((item) =>
-                  _isSameDay(DateTime.parse(item.date), selectedDate!))
+              .where((item) => _isInDateRange(DateTime.parse(item.date)))
               .toList();
         }
 
@@ -201,11 +203,10 @@ class _HospitalPostCheckState extends State<HospitalPostCheck>
               .toList();
         }
 
-        // 날짜 필터링
-        if (selectedDate != null) {
+        // 날짜 범위 필터링
+        if (startDate != null && endDate != null) {
           allItems = allItems
-              .where((item) =>
-                  _isSameDay(DateTime.parse(item.date), selectedDate!))
+              .where((item) => _isInDateRange(DateTime.parse(item.date)))
               .toList();
         }
 
@@ -240,15 +241,14 @@ class _HospitalPostCheckState extends State<HospitalPostCheck>
               .toList();
         }
 
-        // 날짜 필터링
-        if (selectedDate != null) {
+        // 날짜 범위 필터링
+        if (startDate != null && endDate != null) {
           allRejected = allRejected
-              .where((post) => _isSameDay(
-                  DateTime.parse(post.createdDate), selectedDate!))
+              .where((post) =>
+                  _isInDateRange(DateTime.parse(post.createdDate)))
               .toList();
           allTimeItems = allTimeItems
-              .where((item) =>
-                  _isSameDay(DateTime.parse(item.date), selectedDate!))
+              .where((item) => _isInDateRange(DateTime.parse(item.date)))
               .toList();
         }
 
@@ -284,10 +284,12 @@ class _HospitalPostCheckState extends State<HospitalPostCheck>
     }
   }
 
-  bool _isSameDay(DateTime date1, DateTime date2) {
-    return date1.year == date2.year &&
-        date1.month == date2.month &&
-        date1.day == date2.day;
+  bool _isInDateRange(DateTime date) {
+    if (startDate == null || endDate == null) return true;
+    final dateOnly = DateTime(date.year, date.month, date.day);
+    final start = DateTime(startDate!.year, startDate!.month, startDate!.day);
+    final end = DateTime(endDate!.year, endDate!.month, endDate!.day);
+    return !dateOnly.isBefore(start) && !dateOnly.isAfter(end);
   }
 
   Future<void> _loadPosts({int? page}) async {
@@ -317,13 +319,23 @@ class _HospitalPostCheckState extends State<HospitalPostCheck>
           break;
 
         case 2:
-          // 모집마감: 승인된 신청자(applicant_status=1)만 조회
-          final approvedClosedItems = await HospitalPostService.getPostTimes(
+          // 모집마감: 승인(1) + 완료대기(5) + 중단대기(6) 조회
+          final approvedItems = await HospitalPostService.getPostTimes(
             applicantStatus: 1,
+          );
+          final pendingCompleteItems = await HospitalPostService.getPostTimes(
+            applicantStatus: 5,
+          );
+          final pendingCancelItems = await HospitalPostService.getPostTimes(
+            applicantStatus: 6,
           );
           if (mounted) {
             setState(() {
-              postTimeItems = approvedClosedItems;
+              postTimeItems = [
+                ...approvedItems,
+                ...pendingCompleteItems,
+                ...pendingCancelItems,
+              ];
               isLoading = false;
             });
           }
@@ -386,17 +398,31 @@ class _HospitalPostCheckState extends State<HospitalPostCheck>
     }
   }
 
-  // 날짜 선택 함수
-  Future<void> _selectDate(BuildContext context) async {
-    final DateTime? picked = await showDatePicker(
+  // 날짜 범위 선택 함수
+  Future<void> _selectDateRange(BuildContext context) async {
+    final DateTimeRange? picked = await showDateRangePicker(
       context: context,
-      initialDate: selectedDate ?? DateTime.now(),
       firstDate: DateTime(2020),
       lastDate: DateTime.now().add(const Duration(days: 365)),
+      initialDateRange:
+          startDate != null && endDate != null
+              ? DateTimeRange(start: startDate!, end: endDate!)
+              : null,
+      builder: (context, child) {
+        return Theme(
+          data: Theme.of(context).copyWith(
+            colorScheme: Theme.of(context).colorScheme.copyWith(
+              primary: AppTheme.primaryBlue,
+            ),
+          ),
+          child: child!,
+        );
+      },
     );
-    if (picked != null && picked != selectedDate) {
+    if (picked != null) {
       setState(() {
-        selectedDate = picked;
+        startDate = picked.start;
+        endDate = picked.end;
       });
       _filterPosts(resetPage: true);
     }
@@ -430,14 +456,15 @@ class _HospitalPostCheckState extends State<HospitalPostCheck>
         actions: [
           IconButton(
             icon: const Icon(Icons.calendar_today, color: Colors.black),
-            onPressed: () => _selectDate(context),
+            onPressed: () => _selectDateRange(context),
           ),
-          if (selectedDate != null)
+          if (startDate != null && endDate != null)
             IconButton(
               icon: const Icon(Icons.clear, color: Colors.black),
               onPressed: () {
                 setState(() {
-                  selectedDate = null;
+                  startDate = null;
+                  endDate = null;
                 });
                 _filterPosts(resetPage: true);
               },
@@ -456,38 +483,12 @@ class _HospitalPostCheckState extends State<HospitalPostCheck>
                   // 검색창
                   Container(
                     padding: const EdgeInsets.all(16.0),
-                    child: TextField(
+                    child: AppSearchBar(
                       controller: _searchController,
-                      decoration: InputDecoration(
-                        hintText: '게시글 제목으로 검색...',
-                        prefixIcon: const Icon(
-                          Icons.search,
-                          color: Colors.black,
-                        ),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          borderSide: BorderSide(color: Colors.grey.shade300),
-                        ),
-                        focusedBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          borderSide: const BorderSide(
-                            color: Colors.black,
-                            width: 2,
-                          ),
-                        ),
-                        filled: true,
-                        fillColor: Colors.grey.shade50,
-                        suffixIcon:
-                            _searchController.text.isNotEmpty
-                                ? IconButton(
-                                  icon: const Icon(Icons.clear),
-                                  onPressed: () {
-                                    _searchController.clear();
-                                    _onSearchChanged();
-                                  },
-                                )
-                                : null,
-                      ),
+                      hintText: '게시글 제목으로 검색...',
+                      onClear: () {
+                        _onSearchChanged();
+                      },
                     ),
                   ),
 
@@ -732,35 +733,14 @@ class _HospitalPostCheckState extends State<HospitalPostCheck>
             Container(
               width: 70,
               alignment: Alignment.centerLeft,
-              child: Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 8.0,
-                  vertical: 4.0,
-                ),
-                decoration: BoxDecoration(
-                  color:
-                      post.isUrgent
-                          ? Colors.red.withAlpha(38)
-                          : AppTheme.primaryBlue.withAlpha(38),
-                  borderRadius: BorderRadius.circular(6.0),
-                ),
-                child: Text(
-                  post.isUrgent ? '긴급' : '정기',
-                  style: AppTheme.bodySmallStyle.copyWith(
-                    fontWeight: FontWeight.w600,
-                    color: post.isUrgent ? Colors.red : AppTheme.primaryBlue,
-                    fontSize: 11,
-                  ),
-                  textAlign: TextAlign.center,
-                ),
-              ),
+              child: PostTypeBadge(type: post.isUrgent ? '긴급' : '정기'),
             ),
             // 제목
             Expanded(
               child: Container(
                 padding: const EdgeInsets.only(left: 8.0, right: 8.0),
                 alignment: Alignment.centerLeft,
-                child: _buildMarqueeText(post.title),
+                child: _buildMarqueeText(post.title, profileImage: post.hospitalProfileImage),
               ),
             ),
             // 작성일
@@ -933,36 +913,28 @@ class _HospitalPostCheckState extends State<HospitalPostCheck>
   }
 
   Widget _buildPostTimeListItem(PostTimeItem item) {
-    // 헌혈취소 탭에서는 상태에 따라 뱃지 표시
+    // 뱃지 타입 결정
     final bool isCancellationTab = _currentTabIndex == 4;
-    String badgeText;
-    Color badgeColor;
-    Color badgeBgColor;
+    String badgeType;
 
     if (isCancellationTab) {
-      // 헌혈취소 탭: applicant_status에 따라 뱃지 표시
       if (item.applicantStatus == 4) {
-        badgeText = '취소';
-        badgeColor = Colors.grey;
-        badgeBgColor = Colors.grey.withAlpha(51);
+        badgeType = '중단';
       } else if (item.applicantStatus == 2) {
-        badgeText = '거절';
-        badgeColor = Colors.red;
-        badgeBgColor = Colors.red.withAlpha(51);
+        badgeType = '거절';
       } else {
-        badgeText = item.typeText;
-        badgeColor = item.isUrgent ? Colors.red : AppTheme.primaryBlue;
-        badgeBgColor =
-            item.isUrgent
-                ? Colors.red.withAlpha(38)
-                : AppTheme.primaryBlue.withAlpha(38);
+        badgeType = item.isUrgent ? '긴급' : '정기';
+      }
+    } else if (_currentTabIndex == 2) {
+      if (item.applicantStatus == 5) {
+        badgeType = '완료대기';
+      } else if (item.applicantStatus == 6) {
+        badgeType = '중단대기';
+      } else {
+        badgeType = '마감';
       }
     } else {
-      // 다른 탭: 긴급/정기 표시
-      badgeText = item.typeText;
-      badgeColor = item.isUrgent ? Colors.red : AppTheme.primaryBlue;
-      badgeBgColor =
-          item.isUrgent ? Colors.red.withAlpha(38) : AppTheme.primaryBlue.withAlpha(38);
+      badgeType = item.isUrgent ? '긴급' : '정기';
     }
 
     // 헌혈취소 탭에서는 작성일, 다른 탭에서는 시간대
@@ -993,32 +965,14 @@ class _HospitalPostCheckState extends State<HospitalPostCheck>
                 Container(
                   width: 70,
                   alignment: Alignment.centerLeft,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 8.0,
-                      vertical: 4.0,
-                    ),
-                    decoration: BoxDecoration(
-                      color: badgeBgColor,
-                      borderRadius: BorderRadius.circular(6.0),
-                    ),
-                    child: Text(
-                      badgeText,
-                      style: AppTheme.bodySmallStyle.copyWith(
-                        fontWeight: FontWeight.w600,
-                        color: badgeColor,
-                        fontSize: 11,
-                      ),
-                      textAlign: TextAlign.center,
-                    ),
-                  ),
+                  child: PostTypeBadge(type: badgeType),
                 ),
                 // 제목
                 Expanded(
                   child: Container(
                     padding: const EdgeInsets.only(left: 8.0, right: 8.0),
                     alignment: Alignment.centerLeft,
-                    child: _buildMarqueeText(item.postTitle),
+                    child: _buildMarqueeText(item.postTitle, profileImage: item.hospitalProfileImage),
                   ),
                 ),
                 // 시간대 또는 작성일
@@ -1134,35 +1088,27 @@ class _HospitalPostCheckState extends State<HospitalPostCheck>
     );
   }
 
-  Widget _buildMarqueeText(String text) {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final textStyle = AppTheme.bodyMediumStyle.copyWith(
-          fontWeight: FontWeight.w500,
-        );
-
-        final textSpan = TextSpan(text: text, style: textStyle);
-        final textPainter = TextPainter(
-          text: textSpan,
-          maxLines: 1,
-          textDirection: ui.TextDirection.ltr,
-        );
-        textPainter.layout();
-
-        if (textPainter.size.width <= constraints.maxWidth) {
-          return Text(
-            text,
-            style: textStyle,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-          );
-        } else {
-          return SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: Text(text, style: textStyle, maxLines: 1),
-          );
-        }
-      },
+  Widget _buildMarqueeText(String text, {String? profileImage}) {
+    final fontSize = AppTheme.bodyMedium;
+    return MarqueeText(
+      text: text,
+      style: AppTheme.bodyMediumStyle.copyWith(
+        fontWeight: FontWeight.w500,
+      ),
+      leading: profileImage != null
+          ? CircleAvatar(
+              radius: fontSize * 0.55,
+              backgroundImage: NetworkImage(
+                profileImage.startsWith('http')
+                    ? profileImage
+                    : '${Config.serverUrl}$profileImage',
+              ),
+              backgroundColor: AppTheme.veryLightGray,
+              onBackgroundImageError: (_, __) {},
+            )
+          : null,
+      animationDuration: const Duration(milliseconds: 5000),
+      pauseDuration: const Duration(milliseconds: 2000),
     );
   }
 
@@ -1179,6 +1125,7 @@ class _HospitalPostCheckState extends State<HospitalPostCheck>
             onDeleted: () {
               _loadPosts(); // 삭제 후 목록 새로고침
             },
+            tabIndex: _currentTabIndex,
           ),
     );
   }
@@ -1197,6 +1144,8 @@ class _HospitalPostCheckState extends State<HospitalPostCheck>
             maxChildSize: 0.95,
             expand: false,
             builder: (context, scrollController) {
+              // 승인(1) 상태일 때만 헌혈 완료/중단 버튼 표시
+              // 완료대기(5)/중단대기(6)는 이미 처리된 상태이므로 버튼 숨김
               final bool canPerformActions =
                   _currentTabIndex == 2 &&
                   item.applicantStatus == 1 &&
@@ -1225,28 +1174,14 @@ class _HospitalPostCheckState extends State<HospitalPostCheck>
                       padding: const EdgeInsets.fromLTRB(20, 8, 20, 16),
                       child: Row(
                         children: [
-                          // 긴급/정기 뱃지
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 8,
-                              vertical: 4,
+                          // 병원 프로필 사진
+                          if (item.hospitalProfileImage != null) ...[
+                            PetProfileImage(
+                              profileImage: item.hospitalProfileImage,
+                              radius: 20,
                             ),
-                            decoration: BoxDecoration(
-                              color:
-                                  item.isUrgent
-                                      ? Colors.red.withAlpha(38)
-                                      : AppTheme.primaryBlue.withAlpha(38),
-                              borderRadius: BorderRadius.circular(6),
-                            ),
-                            child: Text(
-                              item.typeText,
-                              style: AppTheme.bodySmallStyle.copyWith(
-                                color: item.isUrgent ? Colors.red : AppTheme.primaryBlue,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 12),
+                            const SizedBox(width: 12),
+                          ],
                           Expanded(
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
@@ -1446,18 +1381,70 @@ class _HospitalPostCheckState extends State<HospitalPostCheck>
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    _buildInfoRow(
-                                      Icons.person,
-                                      '신청자',
-                                      item.applicantNickname!,
-                                    ),
-                                    if (item.petName != null) ...[
-                                      const SizedBox(height: 12),
-                                      _buildInfoRow(
-                                        Icons.pets,
-                                        '반려동물',
-                                        '${item.petName} (${item.animalTypeText ?? "정보없음"})',
+                                    // 신청자 정보 + 프로필 사진
+                                    if (item.applicantNickname != null && item.applicantNickname!.isNotEmpty) ...[
+                                      Row(
+                                        children: [
+                                          PetProfileImage(
+                                            profileImage: item.applicantProfileImage,
+                                            radius: 16,
+                                          ),
+                                          const SizedBox(width: 8),
+                                          Icon(Icons.badge, size: 16, color: AppTheme.textSecondary),
+                                          const SizedBox(width: 8),
+                                          Expanded(
+                                            child: Text(
+                                              item.applicantNickname!,
+                                              style: AppTheme.bodyMediumStyle,
+                                              overflow: TextOverflow.ellipsis,
+                                            ),
+                                          ),
+                                        ],
                                       ),
+                                    ],
+                                    if (item.applicantName != null && item.applicantName!.isNotEmpty) ...[
+                                      const SizedBox(height: 8),
+                                      _buildInfoRow(
+                                        Icons.person,
+                                        '이름',
+                                        item.applicantName!,
+                                      ),
+                                    ],
+                                    const Divider(height: 24),
+                                    // 반려동물 정보 + 프로필 사진
+                                    if (item.petName != null) ...[
+                                      Row(
+                                        children: [
+                                          PetProfileImage(
+                                            profileImage: item.petProfileImage,
+                                            species: item.animalTypeText,
+                                            radius: 16,
+                                          ),
+                                          const SizedBox(width: 8),
+                                          Icon(Icons.pets, size: 16, color: AppTheme.textSecondary),
+                                          const SizedBox(width: 8),
+                                          Expanded(
+                                            child: Text(
+                                              '${item.petName} (${item.animalTypeText ?? "정보없음"})',
+                                              style: AppTheme.bodyMediumStyle,
+                                              overflow: TextOverflow.ellipsis,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ],
+                                    if (item.petBirthDate != null && item.petBirthDate!.isNotEmpty) ...[
+                                      const SizedBox(height: 12),
+                                      () {
+                                        final birthDate = DateTime.tryParse(item.petBirthDate!);
+                                        String birthText = item.petBirthDate!.split('T')[0].replaceAll('-', '.');
+                                        if (birthDate != null) {
+                                          final months = (DateTime.now().year - birthDate.year) * 12 + (DateTime.now().month - birthDate.month);
+                                          final ageText = months < 12 ? '$months개월' : '${months ~/ 12}살';
+                                          birthText = '$birthText ($ageText)';
+                                        }
+                                        return _buildInfoRow(Icons.cake, '생년월일', birthText);
+                                      }(),
                                     ],
                                     if (item.bloodType != null) ...[
                                       const SizedBox(height: 12),
@@ -1476,7 +1463,8 @@ class _HospitalPostCheckState extends State<HospitalPostCheck>
                                         '${item.bloodVolumeMl!.toStringAsFixed(item.bloodVolumeMl! == item.bloodVolumeMl!.roundToDouble() ? 0 : 1)} mL',
                                       ),
                                     ],
-                                    if (item.applicantStatus != null) ...[
+                                    // 상태 뱃지 (헌혈모집 탭에서는 숨김)
+                                    if (_currentTabIndex != 1 && item.applicantStatus != null) ...[
                                       const SizedBox(height: 12),
                                       Row(
                                         children: [
@@ -1856,11 +1844,13 @@ class _HospitalPostCheckState extends State<HospitalPostCheck>
 class PostDetailBottomSheet extends StatefulWidget {
   final UnifiedPostModel post;
   final VoidCallback onDeleted;
+  final int tabIndex; // 현재 탭 인덱스 (1: 헌혈모집, 2: 모집마감 등)
 
   const PostDetailBottomSheet({
     super.key,
     required this.post,
     required this.onDeleted,
+    required this.tabIndex,
   });
 
   @override
@@ -1961,7 +1951,7 @@ class _PostDetailBottomSheetState extends State<PostDetailBottomSheet> {
         name: applicant.pet.name,
         bloodType: applicant.pet.bloodType,
         weightKg: applicant.pet.weightKg,
-        age: applicant.pet.ageNumber,
+        birthDate: applicant.pet.birthDate,
         species: applicant.pet.species,
         animalType: applicant.pet.species,
         breed: applicant.pet.breed,
@@ -2014,7 +2004,7 @@ class _PostDetailBottomSheetState extends State<PostDetailBottomSheet> {
         name: applicant.pet.name,
         bloodType: applicant.pet.bloodType,
         weightKg: applicant.pet.weightKg,
-        age: applicant.pet.ageNumber,
+        birthDate: applicant.pet.birthDate,
         species: applicant.pet.species,
         animalType: applicant.pet.species,
         breed: applicant.pet.breed,
@@ -2076,61 +2066,34 @@ class _PostDetailBottomSheetState extends State<PostDetailBottomSheet> {
                 padding: const EdgeInsets.fromLTRB(20, 8, 20, 16),
                 child: Row(
                   children: [
-                    // 긴급/정기 뱃지
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 8,
-                        vertical: 4,
+                    if (widget.post.hospitalProfileImage != null) ...[
+                      PetProfileImage(
+                        profileImage: widget.post.hospitalProfileImage,
+                        radius: 20,
                       ),
-                      decoration: BoxDecoration(
-                        color:
-                            widget.post.isUrgent
-                                ? Colors.red.withValues(alpha: 0.15)
-                                : AppTheme.primaryBlue.withValues(alpha: 0.15),
-                        borderRadius: BorderRadius.circular(6),
-                      ),
+                      const SizedBox(width: 12),
+                    ],
+                    Expanded(
                       child: Text(
-                        widget.post.isUrgent ? '긴급' : '정기',
-                        style: AppTheme.bodySmallStyle.copyWith(
-                          color:
-                              widget.post.isUrgent ? Colors.red : AppTheme.primaryBlue,
+                        widget.post.title,
+                        style: AppTheme.h3Style.copyWith(
+                          color: widget.post.isUrgent
+                              ? Colors.red
+                              : AppTheme.textPrimary,
                           fontWeight: FontWeight.bold,
                         ),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
                       ),
                     ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            widget.post.title,
-                            style: AppTheme.h3Style.copyWith(
-                              color:
-                                  widget.post.isUrgent
-                                      ? Colors.red
-                                      : AppTheme.textPrimary,
-                              fontWeight: FontWeight.bold,
-                            ),
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ],
-                      ),
-                    ),
-                    // X 버튼
                     IconButton(
                       icon: const Icon(Icons.close, color: Colors.black),
                       onPressed: () => Navigator.pop(context),
                       tooltip: '닫기',
                     ),
-                    // 휴지통 버튼 (대기 상태일 때만 표시)
                     if (widget.post.status == 0)
                       IconButton(
-                        icon: const Icon(
-                          Icons.delete_outline,
-                          color: Colors.red,
-                        ),
+                        icon: const Icon(Icons.delete_outline, color: Colors.red),
                         onPressed: _deletePost,
                         tooltip: '게시글 삭제',
                       ),
@@ -2152,6 +2115,7 @@ class _PostDetailBottomSheetState extends State<PostDetailBottomSheet> {
                       PostDetailMetaSection(
                         hospitalName: widget.post.hospitalName,
                         hospitalNickname: widget.post.hospitalNickname,
+                        hospitalProfileImage: widget.post.hospitalProfileImage,
                         location: widget.post.location,
                         animalType: widget.post.animalType,
                         applicantCount: applicants.length,
@@ -2225,94 +2189,83 @@ class _PostDetailBottomSheetState extends State<PostDetailBottomSheet> {
     );
   }
 
-  Widget _buildApplicantCard(DonationApplication applicant) {
+  Widget _buildApplicantCard(DonationApplication applicant, {bool showActions = true}) {
+    final bool isApproved = applicant.status == 1;
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: isApproved
+            ? AppTheme.success.withValues(alpha: 0.08)
+            : AppTheme.veryLightGray,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.grey.shade200),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.04),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
-        ],
+        border: Border.all(
+          color: isApproved ? AppTheme.success.withValues(alpha: 0.4) : Colors.grey.shade200,
+        ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // 상단: 반려동물 정보와 상태
+          // 신청자 정보 + 프로필
           Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // 반려동물 아이콘
-              Container(
-                width: 48,
-                height: 48,
-                decoration: BoxDecoration(
-                  color: Colors.grey[200],
-                  borderRadius: BorderRadius.circular(24),
-                ),
-                child: Icon(
-                  applicant.pet.species == '강아지' || applicant.pet.species == '개'
-                      ? FontAwesomeIcons.dog
-                      : FontAwesomeIcons.cat,
-                  color: Colors.black,
-                  size: 24,
+              PetProfileImage(
+                profileImage: applicant.userProfileImage,
+                radius: 16,
+              ),
+              const SizedBox(width: 8),
+              Icon(Icons.badge, size: 16, color: AppTheme.textSecondary),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  applicant.userNickname ?? '닉네임 없음',
+                  style: AppTheme.bodyMediumStyle,
+                  overflow: TextOverflow.ellipsis,
                 ),
               ),
-              const SizedBox(width: 12),
-
-              // 반려동물 정보
+              // 상태 칩
+              if (showActions && applicant.status >= 0 && applicant.status <= 6)
+                _buildStatusChip(applicant.status),
+            ],
+          ),
+          if (applicant.userName != null) ...[
+            const SizedBox(height: 4),
+            Padding(
+              padding: const EdgeInsets.only(left: 40),
+              child: Text(
+                '이름: ${applicant.userName}',
+                style: AppTheme.bodySmallStyle.copyWith(color: AppTheme.textSecondary),
+              ),
+            ),
+          ],
+          const Divider(height: 20),
+          // 반려동물 정보 + 프로필
+          Row(
+            children: [
+              PetProfileImage(
+                profileImage: applicant.pet.profileImage,
+                species: applicant.pet.species,
+                radius: 16,
+              ),
+              const SizedBox(width: 8),
+              Icon(Icons.pets, size: 16, color: AppTheme.textSecondary),
+              const SizedBox(width: 8),
               Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              // 신청자 닉네임
-                              Text(
-                                '신청자: ${applicant.userNickname ?? "정보 없음"}',
-                                style: AppTheme.bodyMediumStyle.copyWith(
-                                  fontWeight: FontWeight.w600,
-                                  color: AppTheme.textPrimary,
-                                ),
-                              ),
-                              const SizedBox(height: 4),
-                              // 반려동물 이름
-                              Text(
-                                '반려동물: ${applicant.pet.name}',
-                                style: AppTheme.bodyMediumStyle.copyWith(
-                                  color: AppTheme.textSecondary,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        // status가 유효한 경우에만 칩 표시 (0-6)
-                        if (applicant.status >= 0 && applicant.status <= 6)
-                          _buildStatusChip(applicant.status),
-                      ],
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      '${applicant.pet.breed ?? applicant.pet.speciesKorean} • ${applicant.pet.bloodType ?? "미등록"} • ${applicant.pet.weightKg}kg',
-                      style: AppTheme.bodyMediumStyle.copyWith(
-                        color: AppTheme.textSecondary,
-                      ),
-                    ),
-                  ],
+                child: Text(
+                  '${applicant.pet.name} (${applicant.pet.species})',
+                  style: AppTheme.bodyMediumStyle,
+                  overflow: TextOverflow.ellipsis,
                 ),
               ),
             ],
+          ),
+          const SizedBox(height: 4),
+          Padding(
+            padding: const EdgeInsets.only(left: 40),
+            child: Text(
+              applicant.pet.summaryLine,
+              style: AppTheme.bodySmallStyle.copyWith(color: AppTheme.textSecondary),
+            ),
           ),
 
           // 신청 시간대 정보 (간소화)
@@ -2345,8 +2298,8 @@ class _PostDetailBottomSheetState extends State<PostDetailBottomSheet> {
             ),
           ],
 
-          // 액션 버튼 또는 상태 메시지
-          if (applicant.status == 1) ...[
+          // 액션 버튼 또는 상태 메시지 (showActions가 true일 때만)
+          if (showActions && applicant.status == 1) ...[
             const SizedBox(height: 16),
             Row(
               children: [
@@ -2360,9 +2313,8 @@ class _PostDetailBottomSheetState extends State<PostDetailBottomSheet> {
                     ),
                     label: const Text('헌혈 중단'),
                     style: OutlinedButton.styleFrom(
-                      foregroundColor: Colors.red.shade700,
-                      side: BorderSide(color: Colors.red.shade400),
-                      backgroundColor: Colors.red.shade50,
+                      foregroundColor: Colors.red,
+                      side: const BorderSide(color: Colors.red),
                       padding: const EdgeInsets.symmetric(vertical: 12),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(8),
@@ -2381,9 +2333,8 @@ class _PostDetailBottomSheetState extends State<PostDetailBottomSheet> {
                     ),
                     label: const Text('헌혈 완료'),
                     style: OutlinedButton.styleFrom(
-                      foregroundColor: Colors.green.shade700,
-                      side: BorderSide(color: Colors.green.shade400),
-                      backgroundColor: Colors.green.shade50,
+                      foregroundColor: Colors.green,
+                      side: const BorderSide(color: Colors.green),
                       padding: const EdgeInsets.symmetric(vertical: 12),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(8),
@@ -2427,7 +2378,7 @@ class _PostDetailBottomSheetState extends State<PostDetailBottomSheet> {
       case 1:
         return '승인';
       case 2:
-        return '거절';
+        return '미승인';
       case 3:
         return '완료';
       case 4:
@@ -2551,49 +2502,34 @@ class _PostDetailBottomSheetState extends State<PostDetailBottomSheet> {
                 borderRadius: BorderRadius.circular(12),
                 border: Border.all(color: Colors.grey.shade200, width: 1.5),
               ),
-              child: Theme(
-                data: Theme.of(
-                  context,
-                ).copyWith(dividerColor: Colors.transparent),
-                child: ExpansionTile(
-                  tilePadding: const EdgeInsets.symmetric(
-                    horizontal: 20,
-                    vertical: 8,
-                  ),
-                  childrenPadding: const EdgeInsets.only(bottom: 12),
-                  leading: Icon(
-                    Icons.calendar_today,
-                    color: Colors.black,
-                    size: 20,
-                  ),
-                  title: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        '헌혈 날짜',
-                        style: AppTheme.bodySmallStyle.copyWith(
-                          color: Colors.grey[600],
-                          fontSize: 12,
+              child: Column(
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 20,
+                      vertical: 8,
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(
+                          Icons.calendar_today,
+                          color: Colors.black,
+                          size: 20,
                         ),
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        _formatDateWithWeekday(dateStr),
-                        style: AppTheme.bodyLargeStyle.copyWith(
-                          fontWeight: FontWeight.w600,
-                          color: AppTheme.textPrimary,
+                        const SizedBox(width: 16),
+                        Expanded(
+                          child: Text(
+                            _formatDateWithWeekday(dateStr),
+                            style: AppTheme.bodyLargeStyle.copyWith(
+                              fontWeight: FontWeight.w600,
+                              color: AppTheme.textPrimary,
+                            ),
+                          ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
-                  trailing: BlinkingIcon(
-                    icon: Icons.keyboard_arrow_down,
-                    color: Colors.black,
-                    size: 24,
-                    duration: Duration(milliseconds: 1500),
-                  ),
-                  children:
-                      timeSlots.map<Widget>((timeSlot) {
+                  ...timeSlots.map<Widget>((timeSlot) {
                         return Container(
                           margin: const EdgeInsets.symmetric(
                             horizontal: 20,
@@ -2604,11 +2540,9 @@ class _PostDetailBottomSheetState extends State<PostDetailBottomSheet> {
                             borderRadius: BorderRadius.circular(8),
                             child: InkWell(
                               borderRadius: BorderRadius.circular(8),
-                              onTap:
-                                  () => _showApplicantsBottomSheet(
-                                    dateStr,
-                                    timeSlot,
-                                  ),
+                              onTap: widget.tabIndex == 0
+                                  ? null
+                                  : () => _showApplicantsBottomSheet(dateStr, timeSlot),
                               child: Container(
                                 padding: const EdgeInsets.all(12),
                                 decoration: BoxDecoration(
@@ -2619,57 +2553,48 @@ class _PostDetailBottomSheetState extends State<PostDetailBottomSheet> {
                                 ),
                                 child: Row(
                                   children: [
-                                    Icon(
+                                    const Icon(
                                       Icons.access_time,
                                       size: 16,
                                       color: Colors.black,
                                     ),
                                     const SizedBox(width: 12),
                                     Expanded(
-                                      child: Column(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.start,
-                                        children: [
-                                          Text(
-                                            '헌혈 시간',
-                                            style: AppTheme.bodySmallStyle
-                                                .copyWith(
-                                                  color: Colors.grey[600],
-                                                  fontSize: 12,
-                                                ),
-                                          ),
-                                          const SizedBox(height: 2),
-                                          Text(
-                                            '${_formatTime(timeSlot.time)} (${_getApplicantCountForTimeSlot(dateStr, timeSlot)}명 신청)',
-                                            style: AppTheme.bodyMediumStyle
-                                                .copyWith(
-                                                  fontWeight: FontWeight.w600,
-                                                  color: AppTheme.textPrimary,
-                                                ),
-                                          ),
-                                        ],
+                                      child: Text(
+                                        _formatTime(timeSlot.time),
+                                        style: AppTheme.bodyMediumStyle.copyWith(
+                                          fontWeight: FontWeight.w600,
+                                          color: AppTheme.textPrimary,
+                                        ),
                                       ),
                                     ),
-                                    const SizedBox(width: 12),
-                                    Icon(
-                                      Icons.people_outline,
-                                      size: 20,
-                                      color: Colors.grey[600],
-                                    ),
-                                    const SizedBox(width: 4),
-                                    Icon(
-                                      Icons.arrow_forward_ios,
-                                      size: 14,
-                                      color: Colors.grey[400],
-                                    ),
+                                    if (widget.tabIndex != 0) ...[
+                                      Text(
+                                        '${_getApplicantCountForTimeSlot(dateStr, timeSlot)}명 신청',
+                                        style: AppTheme.bodySmallStyle.copyWith(color: AppTheme.textTertiary),
+                                      ),
+                                      const SizedBox(width: 8),
+                                      Icon(
+                                        Icons.people_outline,
+                                        size: 20,
+                                        color: Colors.grey[600],
+                                      ),
+                                      const SizedBox(width: 4),
+                                      Icon(
+                                        Icons.arrow_forward_ios,
+                                        size: 14,
+                                        color: Colors.grey[400],
+                                      ),
+                                    ],
                                   ],
                                 ),
                               ),
                             ),
                           ),
                         );
-                      }).toList(),
-                ),
+                      }),
+                  const SizedBox(height: 12),
+                ],
               ),
             );
           }).toList(),
@@ -2803,6 +2728,8 @@ class _PostDetailBottomSheetState extends State<PostDetailBottomSheet> {
                                 itemBuilder: (context, index) {
                                   return _buildApplicantCard(
                                     filteredApplicants[index],
+                                    // 헌혈모집 탭(1)에서는 액션 버튼/뱃지 숨김
+                                    showActions: widget.tabIndex != 1,
                                   );
                                 },
                               ),

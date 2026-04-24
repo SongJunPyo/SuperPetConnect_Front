@@ -432,7 +432,7 @@ class NotificationService {
     // 상단 푸시 알림만 표시됨 (다이얼로그 제거)
   }
 
-  // 헌혈 신청 거절 알림 처리 (사용자용)
+  // 헌혈 신청 미승인 알림 처리 (사용자용)
   static void _handleDonationRejectedNotification(RemoteMessage message) {
     // 상단 푸시 알림만 표시됨 (다이얼로그 제거)
   }
@@ -594,10 +594,16 @@ class NotificationService {
       case 'new_user_registration':
         return AdminNotificationType.signupRequest;
       case 'new_post_approval':
-      case 'donation_application':
         return AdminNotificationType.postApprovalRequest;
+      case 'new_donation_application':
+      case 'donation_application':
+        return AdminNotificationType.donationApplicationRequest;
       case 'column_approval':
         return AdminNotificationType.columnApprovalRequest;
+      case 'donation_completed':
+        return AdminNotificationType.donationCompleted;
+      case 'pet_review_request':
+        return AdminNotificationType.petReviewRequest;
       default:
         return null;
     }
@@ -609,6 +615,8 @@ class NotificationService {
   ) {
     switch (fcmType) {
       case 'donation_application':
+      case 'new_donation_application':
+      case 'new_donation_application_hospital':
         return HospitalNotificationType.donationApplication;
       case 'donation_post_approved':
         return HospitalNotificationType.postApproved;
@@ -618,10 +626,20 @@ class NotificationService {
         return HospitalNotificationType.columnApproved;
       case 'column_rejected':
         return HospitalNotificationType.columnRejected;
+      case 'timeslot_filled':
+        return HospitalNotificationType.timeslotFilled;
+      case 'all_timeslots_filled':
+        return HospitalNotificationType.allTimeslotsFilled;
       case 'recruitment_closed':
         return HospitalNotificationType.recruitmentDeadline;
       case 'donation_completed':
-        return HospitalNotificationType.allTimeslotsFilled;
+        return HospitalNotificationType.donationCompleted;
+      case 'document_request':
+        return HospitalNotificationType.documentRequest;
+      case 'post_suspended':
+        return HospitalNotificationType.postRejected;
+      case 'post_resumed':
+        return HospitalNotificationType.postApproved;
       default:
         return null;
     }
@@ -632,6 +650,9 @@ class NotificationService {
     switch (fcmType) {
       case 'account_approved':
       case 'account_rejected':
+      case 'account_suspended':
+      case 'application_approved':
+      case 'application_rejected':
         return UserNotificationType.systemNotice;
       case 'donation_application_approved':
         return UserNotificationType.applicationApproved;
@@ -643,6 +664,12 @@ class NotificationService {
         return UserNotificationType.donationCompleted;
       case 'new_donation_post':
         return UserNotificationType.newDonationPost;
+      case 'pet_approved':
+        return UserNotificationType.petApproved;
+      case 'pet_rejected':
+        return UserNotificationType.petRejected;
+      case 'donation_final_completed':
+        return UserNotificationType.donationCompleted;
       default:
         return null;
     }

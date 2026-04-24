@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../utils/app_theme.dart';
 import '../widgets/app_app_bar.dart';
+import '../widgets/app_search_bar.dart';
 import '../models/user_model.dart';
 import '../services/user_management_service.dart';
 import 'package:intl/intl.dart';
@@ -179,33 +180,13 @@ class _AdminUserManagementScreenState extends State<AdminUserManagementScreen>
   }
 
   Widget _buildSearchBar() {
-    return Container(
+    return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      child: TextField(
+      child: AppSearchBar(
         controller: searchController,
+        hintText: '이름, 이메일, 전화번호로 검색...',
         onChanged: _onSearchChanged,
-        decoration: InputDecoration(
-          hintText: '이름, 이메일, 전화번호로 검색...',
-          prefixIcon: const Icon(Icons.search),
-          suffixIcon:
-              searchQuery.isNotEmpty
-                  ? IconButton(
-                    icon: const Icon(Icons.clear),
-                    onPressed: () {
-                      searchController.clear();
-                      _onSearchChanged('');
-                    },
-                  )
-                  : null,
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(12),
-            borderSide: BorderSide(color: AppTheme.lightGray),
-          ),
-          focusedBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(12),
-            borderSide: BorderSide(color: AppTheme.primaryBlue),
-          ),
-        ),
+        onClear: () => _onSearchChanged(''),
       ),
     );
   }

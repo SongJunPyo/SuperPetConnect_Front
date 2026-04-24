@@ -18,6 +18,8 @@ class ServerNotificationMapping {
     'new_donation_application': {
       UserType.admin:
           AdminNotificationType.donationApplicationRequest, // 관리자는 헌혈 신청 승인 요청
+      UserType.hospital:
+          HospitalNotificationType.donationApplication, // 병원도 수신 가능
     },
 
     // === 병원이 받는 알림들 ===
@@ -60,8 +62,15 @@ class ServerNotificationMapping {
     },
 
     'donation_application': {
+      UserType.admin:
+          AdminNotificationType.donationApplicationRequest, // 관리자 헌혈 신청 요청
       UserType.hospital:
-          HospitalNotificationType.donationApplication, // 새 헌혈 신청 접수
+          HospitalNotificationType.donationApplication, // 병원 새 헌혈 신청 접수
+    },
+
+    // === 반려동물 재심사 요청 ===
+    'pet_review_request': {
+      UserType.admin: AdminNotificationType.petReviewRequest,
     },
 
     // === 관리자용 컬럼 승인 요청 ===
@@ -73,6 +82,8 @@ class ServerNotificationMapping {
     'account_approved': {UserType.user: UserNotificationType.systemNotice},
 
     'account_rejected': {UserType.user: UserNotificationType.systemNotice},
+
+    'account_suspended': {UserType.user: UserNotificationType.systemNotice},
 
     'application_approved': {UserType.user: UserNotificationType.systemNotice},
 
@@ -95,6 +106,34 @@ class ServerNotificationMapping {
     // === 새 헌혈 모집 게시글 알림 (사용자에게 발송) ===
     'new_donation_post': {
       UserType.user: UserNotificationType.newDonationPost,
+    },
+
+    // === 반려동물 승인/거절 알림 (사용자에게 발송) ===
+    'pet_approved': {
+      UserType.user: UserNotificationType.petApproved,
+    },
+
+    'pet_rejected': {
+      UserType.user: UserNotificationType.petRejected,
+    },
+
+    // === 헌혈 최종 완료 알림 (사용자에게 발송) ===
+    'donation_final_completed': {
+      UserType.user: UserNotificationType.donationCompleted,
+    },
+
+    // === 게시글 대기/재개 알림 (병원에게 발송) ===
+    'post_suspended': {
+      UserType.hospital: HospitalNotificationType.postRejected,
+    },
+
+    'post_resumed': {
+      UserType.hospital: HospitalNotificationType.postApproved,
+    },
+
+    // === 헌혈 자료 요청 알림 (병원에게 발송) ===
+    'document_request': {
+      UserType.hospital: HospitalNotificationType.documentRequest,
     },
   };
 

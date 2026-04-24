@@ -5,13 +5,15 @@ class MarqueeText extends StatefulWidget {
   final TextStyle? style;
   final Duration animationDuration;
   final Duration pauseDuration;
+  final Widget? leading; // 텍스트 앞에 표시할 위젯 (프로필 사진 등)
 
   const MarqueeText({
     super.key,
     required this.text,
     this.style,
-    this.animationDuration = const Duration(milliseconds: 4000), // 더 빠르게
-    this.pauseDuration = const Duration(milliseconds: 1000), // 더 짧은 대기
+    this.animationDuration = const Duration(milliseconds: 4000),
+    this.pauseDuration = const Duration(milliseconds: 1000),
+    this.leading,
   });
 
   @override
@@ -24,7 +26,7 @@ class _MarqueeTextState extends State<MarqueeText>
   late AnimationController _animationController;
   late Animation<double> _animation;
   bool _needsScrolling = false;
-  double _textWidth = 0;
+  double _contentWidth = 0;
   double _containerWidth = 0;
 
   @override
@@ -36,7 +38,6 @@ class _MarqueeTextState extends State<MarqueeText>
       vsync: this,
     );
 
-    // 위젯이 렌더링된 후 크기 계산
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _calculateSizes();
     });
@@ -45,7 +46,6 @@ class _MarqueeTextState extends State<MarqueeText>
   void _calculateSizes() {
     if (!mounted) return;
 
-    // TextPainter를 사용하여 텍스트 크기 계산
     final TextPainter textPainter = TextPainter(
       text: TextSpan(text: widget.text, style: widget.style),
       textDirection: TextDirection.ltr,
@@ -53,14 +53,18 @@ class _MarqueeTextState extends State<MarqueeText>
     );
     textPainter.layout();
 
-    // 컨테이너 크기 가져오기
+    // leading 위젯 크기 추정 (있으면 fontSize + 간격)
+    final double leadingWidth = widget.leading != null
+        ? (widget.style?.fontSize ?? 14) + 6
+        : 0;
+
     final RenderBox? renderBox = context.findRenderObject() as RenderBox?;
 
     if (renderBox != null && renderBox.hasSize) {
       setState(() {
-        _textWidth = textPainter.width;
+        _contentWidth = textPainter.width + leadingWidth;
         _containerWidth = renderBox.size.width;
-        _needsScrolling = _textWidth > _containerWidth;
+        _needsScrolling = _contentWidth > _containerWidth;
       });
 
       if (_needsScrolling) {
@@ -71,9 +75,8 @@ class _MarqueeTextState extends State<MarqueeText>
   }
 
   void _setupAnimation() {
-    // 스크롤 거리: 텍스트 폭에서 컨테이너 폭을 뺀 만큼 + 추가 공백
-    final double extraSpace = 32.0; // 2개 정도의 공백 (16px * 2)
-    final double scrollDistance = _textWidth - _containerWidth + extraSpace;
+    final double extraSpace = 32.0;
+    final double scrollDistance = _contentWidth - _containerWidth + extraSpace;
 
     _animation = Tween<double>(
       begin: 0.0,
@@ -81,7 +84,7 @@ class _MarqueeTextState extends State<MarqueeText>
     ).animate(
       CurvedAnimation(
         parent: _animationController,
-        curve: Curves.linear, // 일정한 속도로 변경
+        curve: Curves.linear,
       ),
     );
 
@@ -96,19 +99,15 @@ class _MarqueeTextState extends State<MarqueeText>
     if (!mounted || !_needsScrolling) return;
 
     while (mounted && _needsScrolling) {
-      // 처음 위치에서 잠시 대기
       await Future.delayed(widget.pauseDuration);
       if (!mounted) break;
 
-      // 스크롤 시작
       await _animationController.forward();
       if (!mounted) break;
 
-      // 끝에서 잠시 대기 (텍스트 끝 부분이 보이는 상태)
       await Future.delayed(widget.pauseDuration);
       if (!mounted) break;
 
-      // 처음으로 돌아가기
       _animationController.reset();
     }
   }
@@ -120,20 +119,50 @@ class _MarqueeTextState extends State<MarqueeText>
     super.dispose();
   }
 
+  Widget _buildContent() {
+    if (widget.leading != null) {
+      return Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          widget.leading!,
+          const SizedBox(width: 4),
+          Text(widget.text, style: widget.style, maxLines: 1),
+        ],
+      );
+    }
+    return Text(widget.text, style: widget.style, maxLines: 1);
+  }
+
   @override
   Widget build(BuildContext context) {
     return _needsScrolling
         ? SingleChildScrollView(
           controller: _scrollController,
           scrollDirection: Axis.horizontal,
-          physics: const NeverScrollableScrollPhysics(), // 사용자 스크롤 비활성화
-          child: Text(widget.text, style: widget.style, maxLines: 1),
+          physics: const NeverScrollableScrollPhysics(),
+          child: _buildContent(),
         )
-        : Text(
-          widget.text,
-          style: widget.style,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-        );
+        : widget.leading != null
+            ? Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  widget.leading!,
+                  const SizedBox(width: 4),
+                  Flexible(
+                    child: Text(
+                      widget.text,
+                      style: widget.style,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ],
+              )
+            : Text(
+                widget.text,
+                style: widget.style,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              );
   }
 }

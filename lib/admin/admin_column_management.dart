@@ -4,6 +4,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../services/hospital_column_service.dart';
 import '../models/hospital_column_model.dart';
 import '../utils/app_theme.dart';
+import '../widgets/app_search_bar.dart';
 import '../widgets/rich_text_viewer.dart';
 import '../hospital/hospital_column_edit.dart';
 import 'package:intl/intl.dart';
@@ -482,38 +483,13 @@ class _AdminColumnManagementState extends State<AdminColumnManagement>
       body: Column(
         children: [
           // 검색창
-          Container(
+          Padding(
             padding: const EdgeInsets.all(16.0),
-            child: TextField(
+            child: AppSearchBar(
               controller: searchController,
+              hintText: '제목, 닉네임으로 검색...',
               onChanged: _onSearchChanged,
-              decoration: InputDecoration(
-                hintText: '제목, 닉네임으로 검색...',
-                prefixIcon: const Icon(Icons.search, color: Colors.black87),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide(color: Colors.grey.shade300),
-                ),
-                focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: const BorderSide(
-                    color: AppTheme.primaryBlue,
-                    width: 2,
-                  ),
-                ),
-                filled: true,
-                fillColor: Colors.grey.shade50,
-                suffixIcon:
-                    searchQuery.isNotEmpty
-                        ? IconButton(
-                          icon: const Icon(Icons.clear),
-                          onPressed: () {
-                            searchController.clear();
-                            _onSearchChanged('');
-                          },
-                        )
-                        : null,
-              ),
+              onClear: () => _onSearchChanged(''),
             ),
           ),
 

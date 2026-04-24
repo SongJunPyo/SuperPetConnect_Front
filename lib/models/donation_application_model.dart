@@ -4,7 +4,7 @@ class DonationApplication {
   final int appliedDonationIdx; // applied_donation_idx
   final int petIdx; // pet_idx
   final int postTimesIdx; // post_times_idx
-  final int status; // status (0=대기, 1=승인, 2=거절)
+  final int status; // status (0=대기, 1=승인, 2=미승인)
   final DonationPet pet;
   final DateTime donationTime; // donation_time
   final String donationDate; // donation_date
@@ -15,7 +15,9 @@ class DonationApplication {
   final String? selectedTime; // selected_time
   final String? selectedTeam; // selected_team
   final String? appliedDate; // applied_date
+  final String? userName; // user_name - 신청자 이름
   final String? userNickname; // user_nickname - 신청자 닉네임
+  final String? userProfileImage; // 신청자 프로필 (대표 반려동물 사진)
 
   DonationApplication({
     required this.appliedDonationIdx,
@@ -31,7 +33,9 @@ class DonationApplication {
     this.selectedTime,
     this.selectedTeam,
     this.appliedDate,
+    this.userName,
     this.userNickname,
+    this.userProfileImage,
   });
 
   factory DonationApplication.fromJson(Map<String, dynamic> json) {
@@ -51,7 +55,9 @@ class DonationApplication {
       selectedTime: json['selected_time'],
       selectedTeam: json['selected_team'],
       appliedDate: json['applied_date'],
+      userName: json['user_name'] ?? json['name'],
       userNickname: json['user_nickname'] ?? json['nickname'],
+      userProfileImage: json['user_profile_image'] ?? json['applicant_profile_image'],
     );
   }
 
@@ -70,6 +76,7 @@ class DonationApplication {
       'selected_time': selectedTime,
       'selected_team': selectedTeam,
       'applied_date': appliedDate,
+      'user_name': userName,
       'user_nickname': userNickname,
     };
   }
@@ -82,7 +89,8 @@ class DonationPet {
   final String? breed;
   final String? bloodType;
   final double weightKg;
-  final int ageNumber;
+  final DateTime? birthDate;
+  final String? profileImage;
 
   DonationPet({
     required this.petIdx,
@@ -91,7 +99,8 @@ class DonationPet {
     this.breed,
     this.bloodType,
     required this.weightKg,
-    required this.ageNumber,
+    this.birthDate,
+    this.profileImage,
   });
 
   factory DonationPet.fromJson(Map<String, dynamic> json) {
@@ -102,32 +111,56 @@ class DonationPet {
       breed: json['breed'],
       bloodType: json['blood_type'],
       weightKg: double.tryParse((json['weight_kg'] ?? 0.0).toString()) ?? 0.0,
-      ageNumber: int.tryParse((json['age_number'] ?? 0).toString()) ?? 0,
+      birthDate: json['birth_date'] != null
+          ? DateTime.tryParse(json['birth_date'])
+          : null,
+      profileImage: json['profile_image'],
     );
   }
 
   Map<String, dynamic> toJson() {
     return {
-      'pet_idx': petIdx, // pet_idx로 변경
+      'pet_idx': petIdx,
       'name': name,
       'species': species,
       'breed': breed,
       'blood_type': bloodType,
       'weight_kg': weightKg,
-      'age_number': ageNumber,
+      'birth_date': birthDate?.toIso8601String().split('T')[0],
     };
   }
 
   String get displayText => '$name ($bloodType)';
   String get speciesKorean =>
       (species == 'dog' || species == '강아지' || species == '개') ? '반려견' : '반려묘';
-  String get age => ageNumber <= 0 ? '1살 미만' : '$ageNumber살';
+  String get age {
+    if (birthDate == null) return '나이 미상';
+    final now = DateTime.now();
+    final totalMonths = (now.year - birthDate!.year) * 12 + (now.month - birthDate!.month);
+    if (totalMonths < 12) return '$totalMonths개월';
+    return '${totalMonths ~/ 12}살';
+  }
+
+  String get birthDateWithAge {
+    if (birthDate == null) return '나이 미상';
+    final dateStr = '${birthDate!.year}.${birthDate!.month.toString().padLeft(2, '0')}.${birthDate!.day.toString().padLeft(2, '0')}';
+    return '$dateStr ($age)';
+  }
+
+  String get summaryLine {
+    final parts = <String>[species];
+    if (breed != null && breed!.isNotEmpty) parts.add(breed!);
+    if (bloodType != null) parts.add(bloodType!);
+    parts.add(age);
+    parts.add('${weightKg}kg');
+    return parts.join(' • ');
+  }
 }
 
 enum ApplicationStatus {
   pending('pending', '대기'),
   approved('approved', '승인'),
-  rejected('rejected', '거절'),
+  rejected('rejected', '미승인'),
   completed('completed', '완료');
 
   const ApplicationStatus(this.value, this.displayName);

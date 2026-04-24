@@ -41,48 +41,48 @@ class DefaultFirebaseOptions {
   }
 
   static const FirebaseOptions web = FirebaseOptions(
-    apiKey: 'AIzaSyDk2QQsumZYhF79NRoDWBUrC760uupe88I',
-    appId: '1:492440933290:web:1315c9df46bd7e948411d3',
-    messagingSenderId: '492440933290',
-    projectId: 'super-pet-connect-ibdp',
-    authDomain: 'super-pet-connect-ibdp.firebaseapp.com',
-    storageBucket: 'super-pet-connect-ibdp.firebasestorage.app',
-    measurementId: 'G-Q58BSQWSXC',
+    apiKey: 'AIzaSyBdO-LjFNK3TDE0C0UfivNCe4_Xs-CVGj8',
+    appId: '1:74105196603:web:0f7d19c56f42229d4e0c1e',
+    messagingSenderId: '74105196603',
+    projectId: 'super-pet-connect',
+    authDomain: 'super-pet-connect.firebaseapp.com',
+    storageBucket: 'super-pet-connect.firebasestorage.app',
+    measurementId: 'G-EJQFMRXRDF',
   );
 
   static const FirebaseOptions android = FirebaseOptions(
-    apiKey: 'AIzaSyAoAtZCRQBE5PQYJfe6-4QzVng7afbhXnM',
-    appId: '1:492440933290:android:dba4e1ca3949ec3b8411d3',
-    messagingSenderId: '492440933290',
-    projectId: 'super-pet-connect-ibdp',
-    storageBucket: 'super-pet-connect-ibdp.firebasestorage.app',
+    apiKey: 'AIzaSyA5syzViSsPEWnqp8u-FluqR8m8fTWhSAg',
+    appId: '1:74105196603:android:6d48db6846a48a9e4e0c1e',
+    messagingSenderId: '74105196603',
+    projectId: 'super-pet-connect',
+    storageBucket: 'super-pet-connect.firebasestorage.app',
   );
 
   static const FirebaseOptions ios = FirebaseOptions(
-    apiKey: 'AIzaSyDmdXPM4JGHiIInkj3-gJ503dh8csByFDI',
-    appId: '1:492440933290:ios:cc6fd8836020ca2c8411d3',
-    messagingSenderId: '492440933290',
-    projectId: 'super-pet-connect-ibdp',
-    storageBucket: 'super-pet-connect-ibdp.firebasestorage.app',
-    iosBundleId: 'com.example.superpet',
+    apiKey: 'AIzaSyCj49_O8O91PpJENOpCAxmo00qP0BCxra4',
+    appId: '1:74105196603:ios:23bb64068915e8f74e0c1e',
+    messagingSenderId: '74105196603',
+    projectId: 'super-pet-connect',
+    storageBucket: 'super-pet-connect.firebasestorage.app',
+    iosBundleId: 'com.choonok.superpetconnect',
   );
 
   static const FirebaseOptions macos = FirebaseOptions(
-    apiKey: 'AIzaSyDmdXPM4JGHiIInkj3-gJ503dh8csByFDI',
-    appId: '1:492440933290:ios:cc6fd8836020ca2c8411d3',
-    messagingSenderId: '492440933290',
-    projectId: 'super-pet-connect-ibdp',
-    storageBucket: 'super-pet-connect-ibdp.firebasestorage.app',
-    iosBundleId: 'com.example.superpet',
+    apiKey: 'AIzaSyCj49_O8O91PpJENOpCAxmo00qP0BCxra4',
+    appId: '1:74105196603:ios:23bb64068915e8f74e0c1e',
+    messagingSenderId: '74105196603',
+    projectId: 'super-pet-connect',
+    storageBucket: 'super-pet-connect.firebasestorage.app',
+    iosBundleId: 'com.choonok.superpetconnect',
   );
 
   static const FirebaseOptions windows = FirebaseOptions(
-    apiKey: 'AIzaSyDk2QQsumZYhF79NRoDWBUrC760uupe88I',
-    appId: '1:492440933290:web:0335733df0bdcedb8411d3',
-    messagingSenderId: '492440933290',
-    projectId: 'super-pet-connect-ibdp',
-    authDomain: 'super-pet-connect-ibdp.firebaseapp.com',
-    storageBucket: 'super-pet-connect-ibdp.firebasestorage.app',
-    measurementId: 'G-S9EKPM82DQ',
+    apiKey: 'AIzaSyBdO-LjFNK3TDE0C0UfivNCe4_Xs-CVGj8',
+    appId: '1:74105196603:web:0f7d19c56f42229d4e0c1e',
+    messagingSenderId: '74105196603',
+    projectId: 'super-pet-connect',
+    authDomain: 'super-pet-connect.firebaseapp.com',
+    storageBucket: 'super-pet-connect.firebasestorage.app',
+    measurementId: 'G-EJQFMRXRDF',
   );
 }

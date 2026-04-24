@@ -10,6 +10,7 @@ class HospitalColumn {
   final int hospitalIdx;
   final String hospitalName;
   final String? authorNickname; // 작성자 닉네임
+  final String? hospitalProfileImage; // 병원 프로필 사진
   final int viewCount;
   final int targetAudience; // 0: 전체, 1: 관리자, 2: 병원, 3: 사용자
   final List<ColumnImage> images; // 칼럼 이미지 목록
@@ -25,6 +26,7 @@ class HospitalColumn {
     required this.hospitalIdx,
     required this.hospitalName,
     this.authorNickname,
+    this.hospitalProfileImage,
     this.columnUrl,
     this.viewCount = 0,
     this.targetAudience = 0,
@@ -59,6 +61,7 @@ class HospitalColumn {
       ),
       hospitalIdx: json['hospital_idx'] ?? 0,
       hospitalName: json['hospital_name'] ?? '',
+      hospitalProfileImage: json['hospital_profile_image'],
       authorNickname:
           (json['hospital_nickname'] != null &&
                   json['hospital_nickname'].toString() != 'null' &&

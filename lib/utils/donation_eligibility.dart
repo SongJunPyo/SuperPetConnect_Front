@@ -2,7 +2,6 @@
 // 헌혈 자격 조건 설정 및 검증 로직
 // 유지보수 시 이 파일의 조건 값만 수정하면 전체 앱에 적용됩니다.
 
-import 'package:flutter/foundation.dart';
 import '../models/pet_model.dart';
 
 /// 헌혈 자격 상태
@@ -10,6 +9,7 @@ enum EligibilityStatus {
   eligible, // 헌혈 가능
   needsConsultation, // 협의 필요 (체중 등)
   ineligible, // 헌혈 불가
+  unknown, // 정보 부족 (생년월일 미입력 등)
 }
 
 /// 개별 조건 검증 결과
@@ -198,23 +198,8 @@ class DonationEligibility {
     final conditions = dogConditions;
     final results = <ConditionResult>[];
 
-    // 디버그 로그: Pet 데이터 확인
-    debugPrint('[DonationEligibility] 강아지 헌혈 자격 검증 시작: ${pet.name}');
-    debugPrint(
-      '[DonationEligibility] - 나이: ${pet.ageNumber}세 (${pet.ageMonths}개월)',
-    );
-    debugPrint('[DonationEligibility] - 체중: ${pet.weightKg}kg');
-    debugPrint('[DonationEligibility] - 백신접종: ${pet.vaccinated}');
-    debugPrint('[DonationEligibility] - 예방약: ${pet.hasPreventiveMedication}');
-    debugPrint('[DonationEligibility] - 질병이력: ${pet.hasDisease}');
-    debugPrint('[DonationEligibility] - 출산경험: ${pet.hasBirthExperience}');
-    debugPrint('[DonationEligibility] - 임신여부: ${pet.pregnant}');
-    debugPrint(
-      '[DonationEligibility] - 중성화: ${pet.isNeutered} (${pet.neuteredDate})',
-    );
-
-    // 1. 나이 검증 (월 단위 우선, 없으면 년 단위 사용)
-    final ageResult = _checkDogAge(pet.ageNumber, pet.ageMonths, conditions);
+    // 1. 나이 검증 (birthDate 기반)
+    final ageResult = _checkDogAge(pet.ageInMonths, conditions);
     results.add(ageResult);
 
     // 2. 체중 검증
@@ -261,16 +246,6 @@ class DonationEligibility {
     // 전체 결과 판정
     final result = _calculateOverallResult(results, '강아지');
 
-    // 디버그 로그: 검증 결과
-    debugPrint(
-      '[DonationEligibility] 검증 결과: ${result.overallStatus} - ${result.summaryMessage}',
-    );
-    for (final condition in result.failedConditions) {
-      debugPrint(
-        '[DonationEligibility] ❌ 실패: ${condition.conditionName} - ${condition.message}',
-      );
-    }
-
     return result;
   }
 
@@ -279,8 +254,8 @@ class DonationEligibility {
     final conditions = catConditions;
     final results = <ConditionResult>[];
 
-    // 1. 나이 검증
-    final ageResult = _checkCatAge(pet.ageNumber, conditions);
+    // 1. 나이 검증 (birthDate 기반)
+    final ageResult = _checkCatAge(pet.ageInMonths, conditions);
     results.add(ageResult);
 
     // 2. 체중 검증
@@ -312,54 +287,38 @@ class DonationEligibility {
 
   // ========== 개별 조건 검증 메서드 ==========
 
-  /// 강아지 나이 검증 (월 단위가 있으면 우선 사용)
+  /// 강아지 나이 검증 (birthDate 기반 개월 수)
   static ConditionResult _checkDogAge(
-    int ageYears,
     int? ageMonths,
     DogEligibilityConditions conditions,
   ) {
-    // 월 단위 나이가 있으면 더 정밀한 검증
-    if (ageMonths != null) {
-      final maxAgeMonths = conditions.maxAgeYears * 12;
-
-      if (ageMonths >= conditions.minAgeMonths && ageMonths <= maxAgeMonths) {
-        return ConditionResult(
-          conditionName: '나이',
-          description:
-              '${conditions.minAgeMonths}개월 ~ ${conditions.maxAgeYears}세',
-          status: EligibilityStatus.eligible,
-          message:
-              '현재 $ageMonths개월 (약 ${ageMonths ~/ 12}세 ${ageMonths % 12}개월)',
-        );
-      }
-
+    // 생년월일 미입력 시 검증 스킵
+    if (ageMonths == null) {
       return ConditionResult(
         conditionName: '나이',
-        description:
-            '${conditions.minAgeMonths}개월 ~ ${conditions.maxAgeYears}세',
-        status: EligibilityStatus.ineligible,
-        message:
-            '현재 $ageMonths개월 (${ageMonths < conditions.minAgeMonths ? "최소 ${conditions.minAgeMonths}개월 이상 필요" : "최대 ${conditions.maxAgeYears}세 이하"})',
+        description: '${conditions.minAgeMonths}개월 ~ ${conditions.maxAgeYears}세',
+        status: EligibilityStatus.unknown,
+        message: '생년월일 미입력 (나이 검증 불가)',
       );
     }
 
-    // 월 단위 없으면 년 단위로 검증
-    if (ageYears >= conditions.minAgeYears &&
-        ageYears <= conditions.maxAgeYears) {
+    final maxAgeMonths = conditions.maxAgeYears * 12;
+
+    if (ageMonths >= conditions.minAgeMonths && ageMonths <= maxAgeMonths) {
       return ConditionResult(
         conditionName: '나이',
-        description: '${conditions.minAgeYears}세 ~ ${conditions.maxAgeYears}세',
+        description: '${conditions.minAgeMonths}개월 ~ ${conditions.maxAgeYears}세',
         status: EligibilityStatus.eligible,
-        message: '현재 $ageYears세',
+        message: '현재 $ageMonths개월 (약 ${ageMonths ~/ 12}세 ${ageMonths % 12}개월)',
       );
     }
 
     return ConditionResult(
       conditionName: '나이',
-      description: '${conditions.minAgeYears}세 ~ ${conditions.maxAgeYears}세',
+      description: '${conditions.minAgeMonths}개월 ~ ${conditions.maxAgeYears}세',
       status: EligibilityStatus.ineligible,
       message:
-          '현재 $ageYears세 (${ageYears < conditions.minAgeYears ? "너무 어림" : "너무 많음"})',
+          '현재 $ageMonths개월 (${ageMonths < conditions.minAgeMonths ? "최소 ${conditions.minAgeMonths}개월 이상 필요" : "최대 ${conditions.maxAgeYears}세 이하"})',
     );
   }
 
@@ -396,18 +355,28 @@ class DonationEligibility {
     );
   }
 
-  /// 고양이 나이 검증
+  /// 고양이 나이 검증 (birthDate 기반 개월 수)
   static ConditionResult _checkCatAge(
-    int ageYears,
+    int? ageMonths,
     CatEligibilityConditions conditions,
   ) {
+    if (ageMonths == null) {
+      return ConditionResult(
+        conditionName: '나이',
+        description: '${conditions.minAgeYears}세 ~ ${conditions.maxAgeYears}세',
+        status: EligibilityStatus.unknown,
+        message: '생년월일 미입력 (나이 검증 불가)',
+      );
+    }
+
+    final ageYears = ageMonths ~/ 12;
     if (ageYears >= conditions.minAgeYears &&
         ageYears <= conditions.maxAgeYears) {
       return ConditionResult(
         conditionName: '나이',
         description: '${conditions.minAgeYears}세 ~ ${conditions.maxAgeYears}세',
         status: EligibilityStatus.eligible,
-        message: '현재 $ageYears세',
+        message: '현재 $ageMonths개월 (약 ${ageYears}세)',
       );
     }
 
@@ -416,7 +385,7 @@ class DonationEligibility {
       description: '${conditions.minAgeYears}세 ~ ${conditions.maxAgeYears}세',
       status: EligibilityStatus.ineligible,
       message:
-          '현재 $ageYears세 (${ageYears < conditions.minAgeYears ? "너무 어림" : "너무 많음"})',
+          '현재 약 ${ageYears}세 (${ageYears < conditions.minAgeYears ? "너무 어림" : "너무 많음"})',
     );
   }
 

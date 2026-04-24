@@ -19,14 +19,19 @@ class PostTimeItem {
   final int? applicantIdx;
   final int? applicantStatus;
   final String? applicantNickname;
+  final String? applicantName;
   final int? petIdx;
   final String? petName;
+  final String? petBirthDate;
   final String? bloodType;
   final int? animalType;
   final String location;
   final String hospitalNickname;
   final String hospitalName;
   final double? bloodVolumeMl; // 헌혈량 (mL) - 헌혈완료 시간대에서만 사용
+  final String? hospitalProfileImage;
+  final String? petProfileImage;
+  final String? applicantProfileImage; // 신청자 프로필 (대표 반려동물 사진)
   final String createdDate;
   final String updatedDate;
 
@@ -44,14 +49,19 @@ class PostTimeItem {
     this.applicantIdx,
     this.applicantStatus,
     this.applicantNickname,
+    this.applicantName,
     this.petIdx,
     this.petName,
+    this.petBirthDate,
     this.bloodType,
     this.animalType,
     this.bloodVolumeMl,
     required this.location,
     required this.hospitalNickname,
     required this.hospitalName,
+    this.hospitalProfileImage,
+    this.petProfileImage,
+    this.applicantProfileImage,
     required this.createdDate,
     required this.updatedDate,
   });
@@ -71,14 +81,19 @@ class PostTimeItem {
       applicantIdx: json['applicant_idx'] as int?,
       applicantStatus: json['applicant_status'] as int?,
       applicantNickname: json['applicant_nickname'] as String?,
+      applicantName: json['applicant_name'] as String?,
       petIdx: json['pet_idx'] as int?,
       petName: json['pet_name'] as String?,
+      petBirthDate: json['pet_birth_date'] as String?,
       bloodType: json['blood_type'] as String?,
       animalType: json['animal_type'] as int?,
       bloodVolumeMl: (json['blood_volume_ml'] ?? json['blood_volume'])?.toDouble(),
       location: json['location'] as String,
       hospitalNickname: json['hospital_nickname'] as String,
       hospitalName: json['hospital_name'] as String,
+      hospitalProfileImage: json['hospital_profile_image'] as String?,
+      petProfileImage: json['pet_profile_image'] as String?,
+      applicantProfileImage: json['applicant_profile_image'] as String?,
       createdDate: json['created_date'] as String,
       updatedDate: json['updated_date'] as String,
     );

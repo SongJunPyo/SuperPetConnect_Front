@@ -7,6 +7,7 @@ import '../utils/app_theme.dart';
 import '../models/applied_donation_model.dart';
 import '../models/completed_donation_model.dart';
 import '../services/completed_donation_service.dart';
+import '../widgets/pet_profile_image.dart';
 
 class DonationCompletionSheet extends StatefulWidget {
   final AppliedDonation appliedDonation;
@@ -203,18 +204,10 @@ class _DonationCompletionSheetState extends State<DonationCompletionSheet> {
                     mainAxisAlignment: MainAxisAlignment.start,
                     crossAxisAlignment: CrossAxisAlignment.center,
                     children: [
-                      SizedBox(
-                        width: 20,
-                        height: 20,
-                        child: Center(
-                          child: FaIcon(
-                            (widget.appliedDonation.pet?.animalTypeKr == '강아지')
-                                ? FontAwesomeIcons.dog
-                                : FontAwesomeIcons.cat,
-                            size: 16,
-                            color: Colors.black,
-                          ),
-                        ),
+                      PetProfileImage(
+                        profileImage: widget.appliedDonation.pet?.profileImage,
+                        species: widget.appliedDonation.pet?.animalTypeKr,
+                        radius: 12,
                       ),
                       const SizedBox(width: 8),
                       Expanded(

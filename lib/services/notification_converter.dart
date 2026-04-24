@@ -220,11 +220,14 @@ class NotificationConverter {
       case 'new_post_approval':
         return AdminNotificationType.postApprovalRequest;
       case 'new_donation_application':
+      case 'donation_application':
         return AdminNotificationType.donationApplicationRequest;
       case 'column_approval':
         return AdminNotificationType.columnApprovalRequest;
       case 'donation_completed':
         return AdminNotificationType.donationCompleted;
+      case 'pet_review_request':
+        return AdminNotificationType.petReviewRequest;
       default:
         return null;
     }
@@ -236,6 +239,7 @@ class NotificationConverter {
   ) {
     switch (fcmType) {
       case 'donation_application':
+      case 'new_donation_application':
       case 'new_donation_application_hospital':
         return HospitalNotificationType.donationApplication;
       case 'timeslot_filled':
@@ -250,6 +254,16 @@ class NotificationConverter {
         return HospitalNotificationType.columnApproved;
       case 'column_rejected':
         return HospitalNotificationType.columnRejected;
+      case 'post_suspended':
+        return HospitalNotificationType.postRejected;
+      case 'post_resumed':
+        return HospitalNotificationType.postApproved;
+      case 'document_request':
+        return HospitalNotificationType.documentRequest;
+      case 'recruitment_closed':
+        return HospitalNotificationType.recruitmentDeadline;
+      case 'donation_completed':
+        return HospitalNotificationType.donationCompleted;
       default:
         return null;
     }
@@ -260,9 +274,23 @@ class NotificationConverter {
     switch (fcmType) {
       case 'account_approved':
       case 'account_rejected':
-      case 'donation_application_approved':
-      case 'donation_application_rejected':
+      case 'account_suspended':
         return UserNotificationType.systemNotice;
+      case 'donation_application_approved':
+        return UserNotificationType.applicationApproved;
+      case 'donation_application_rejected':
+        return UserNotificationType.applicationRejected;
+      case 'recruitment_closed':
+        return UserNotificationType.recruitmentClosed;
+      case 'donation_completed':
+      case 'donation_final_completed':
+        return UserNotificationType.donationCompleted;
+      case 'new_donation_post':
+        return UserNotificationType.newDonationPost;
+      case 'pet_approved':
+        return UserNotificationType.petApproved;
+      case 'pet_rejected':
+        return UserNotificationType.petRejected;
       default:
         return null;
     }

@@ -6,6 +6,7 @@ import '../widgets/app_app_bar.dart';
 import '../models/black_list_model.dart';
 import '../services/black_list_service.dart';
 import 'package:intl/intl.dart';
+import '../widgets/app_search_bar.dart';
 
 class AdminBlackListManagementScreen extends StatefulWidget {
   const AdminBlackListManagementScreen({super.key});
@@ -315,31 +316,11 @@ class _AdminBlackListManagementScreenState
   Widget _buildSearchBar() {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      child: TextField(
+      child: AppSearchBar(
         controller: searchController,
+        hintText: '이름, 이메일, 전화번호로 검색...',
         onChanged: _onSearchChanged,
-        decoration: InputDecoration(
-          hintText: '이름, 이메일, 전화번호로 검색...',
-          prefixIcon: const Icon(Icons.search),
-          suffixIcon:
-              searchQuery.isNotEmpty
-                  ? IconButton(
-                    icon: const Icon(Icons.clear),
-                    onPressed: () {
-                      searchController.clear();
-                      _onSearchChanged('');
-                    },
-                  )
-                  : null,
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(12),
-            borderSide: BorderSide(color: AppTheme.lightGray),
-          ),
-          focusedBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(12),
-            borderSide: BorderSide(color: AppTheme.primaryBlue),
-          ),
-        ),
+        onClear: () => _onSearchChanged(''),
       ),
     );
   }

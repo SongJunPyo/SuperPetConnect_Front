@@ -285,6 +285,17 @@ class NotificationNavigationService {
           },
         );
         break;
+      case 'donation_completed':
+      case 'donation_final_completed':
+        // 헌혈 완료 알림 → 헌혈 이력 페이지로 이동
+        Navigator.pushReplacementNamed(
+          context,
+          '/user/dashboard',
+          arguments: {
+            'initialTab': 'donation_history',
+          },
+        );
+        break;
       default:
         Navigator.pushReplacementNamed(context, '/user/dashboard');
     }

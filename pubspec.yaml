@@ -66,6 +66,7 @@ dependencies:
   flutter_naver_login: ^2.1.1
   # 웹 플랫폼 지원 (dart:html 대체)
   web: ^1.1.0
+  app_badge_plus: ^1.2.7
 
 dev_dependencies:
   flutter_test:

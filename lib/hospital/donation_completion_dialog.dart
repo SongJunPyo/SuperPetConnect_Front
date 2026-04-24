@@ -6,6 +6,7 @@ import '../utils/app_theme.dart';
 import '../models/applied_donation_model.dart';
 import '../models/completed_donation_model.dart';
 import '../services/completed_donation_service.dart';
+import '../widgets/pet_profile_image.dart';
 
 class DonationCompletionDialog extends StatefulWidget {
   final AppliedDonation appliedDonation;
@@ -150,7 +151,11 @@ class _DonationCompletionDialogState extends State<DonationCompletionDialog> {
                     const SizedBox(height: AppTheme.spacing8),
                     Row(
                       children: [
-                        Icon(Icons.pets, size: 20, color: AppTheme.primaryBlue),
+                        PetProfileImage(
+                          profileImage: widget.appliedDonation.pet?.profileImage,
+                          species: widget.appliedDonation.pet?.animalTypeKr,
+                          radius: 12,
+                        ),
                         const SizedBox(width: AppTheme.spacing8),
                         Expanded(
                           child: Text(

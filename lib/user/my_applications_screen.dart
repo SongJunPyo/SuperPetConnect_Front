@@ -68,7 +68,7 @@ class _MyApplicationsScreenState extends State<MyApplicationsScreen> {
                   title: const Text('전체'),
                   value: null,
                 ),
-                ...['대기중', '승인됨', '거절됨', '완료됨'].map(
+                ...['대기중', '승인됨', '미승인', '완료됨'].map(
                   (status) => RadioListTile<String?>(
                     title: Text(status),
                     value: status,
@@ -116,7 +116,7 @@ class _MyApplicationsScreenState extends State<MyApplicationsScreen> {
     try {
       final success = await HospitalPostService.updateApplicantStatus(
         application.appliedDonationIdx,
-        2, // 2=거절/취소
+        2, // 2=미승인/취소
       );
 
       if (success) {
@@ -161,10 +161,12 @@ class _MyApplicationsScreenState extends State<MyApplicationsScreen> {
                 ),
                 const SizedBox(height: 8),
                 Text('종류: ${application.pet.species}'),
-                Text('나이: ${application.pet.ageNumber}살'),
-                Text('체중: ${application.pet.weightKg}kg'),
+                if (application.pet.breed != null)
+                  Text('품종: ${application.pet.breed}'),
                 if (application.pet.bloodType != null)
                   Text('혈액형: ${application.pet.bloodType}'),
+                Text('생년월일: ${application.pet.birthDateWithAge}'),
+                Text('체중: ${application.pet.weightKg}kg'),
                 const SizedBox(height: 16),
                 Text(
                   '상태: ${application.statusKr}',
@@ -206,9 +208,8 @@ class _MyApplicationsScreenState extends State<MyApplicationsScreen> {
       case '승인됨':
       case '승인':
         return AppTheme.success;
-      case '거절됨':
-      case '거절':
-        return AppTheme.error;
+      case '미승인':
+        return AppTheme.mediumGray;
       case '완료됨':
       case '완료':
         return AppTheme.primaryBlue;
@@ -415,22 +416,13 @@ class _MyApplicationsScreenState extends State<MyApplicationsScreen> {
                                           color: AppTheme.textTertiary,
                                         ),
                                         const SizedBox(width: 4),
-                                        Text(
-                                          '${application.pet.species} • ${application.pet.ageNumber}살',
-                                          style: AppTheme.bodyMediumStyle,
-                                        ),
-                                        if (application.pet.bloodType !=
-                                            null) ...[
-                                          const SizedBox(width: 8),
-                                          Text(
-                                            application.pet.bloodType!,
-                                            style: AppTheme.bodyMediumStyle
-                                                .copyWith(
-                                                  color: AppTheme.primaryBlue,
-                                                  fontWeight: FontWeight.w500,
-                                                ),
+                                        Expanded(
+                                          child: Text(
+                                            application.pet.summaryLine,
+                                            style: AppTheme.bodyMediumStyle,
+                                            overflow: TextOverflow.ellipsis,
                                           ),
-                                        ],
+                                        ),
                                       ],
                                     ),
                                     const SizedBox(height: 4),

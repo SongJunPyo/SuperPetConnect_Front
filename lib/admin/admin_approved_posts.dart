@@ -6,7 +6,10 @@ import '../utils/app_constants.dart';
 import '../services/auth_http_client.dart';
 import '../services/dashboard_service.dart';
 import '../widgets/marquee_text.dart';
+import '../widgets/post_type_badge.dart';
 import '../widgets/rich_text_viewer.dart';
+import '../widgets/pet_profile_image.dart';
+import '../widgets/app_search_bar.dart';
 import '../widgets/pagination_bar.dart';
 import 'package:intl/intl.dart';
 
@@ -309,16 +312,10 @@ class _AdminApprovedPostsScreenState extends State<AdminApprovedPostsScreen>
                                 return Card(
                                   margin: const EdgeInsets.only(bottom: 8.0),
                                   child: ListTile(
-                                    leading: CircleAvatar(
-                                      backgroundColor: AppTheme.primaryBlue
-                                          .withValues(alpha: 0.1),
-                                      child: Text(
-                                        '${index + 1}',
-                                        style: TextStyle(
-                                          color: AppTheme.primaryBlue,
-                                          fontWeight: FontWeight.bold,
-                                        ),
-                                      ),
+                                    leading: PetProfileImage(
+                                      profileImage: applicant['pet_profile_image'],
+                                      species: applicant['pet_species'],
+                                      radius: 20,
                                     ),
                                     title: Text(
                                       applicant['user_name'] ?? '이름 없음',
@@ -476,41 +473,13 @@ class _AdminApprovedPostsScreenState extends State<AdminApprovedPostsScreen>
               : Column(
                 children: [
                   // 검색창
-                  Container(
+                  Padding(
                     padding: const EdgeInsets.all(16.0),
-                    child: TextField(
+                    child: AppSearchBar(
                       controller: searchController,
+                      hintText: '게시글 제목, 병원명, 내용으로 검색...',
                       onChanged: _onSearchChanged,
-                      decoration: InputDecoration(
-                        hintText: '게시글 제목, 병원명, 내용으로 검색...',
-                        prefixIcon: const Icon(
-                          Icons.search,
-                          color: Colors.black,
-                        ),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          borderSide: BorderSide(color: Colors.grey.shade300),
-                        ),
-                        focusedBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          borderSide: const BorderSide(
-                            color: Colors.black,
-                            width: 2,
-                          ),
-                        ),
-                        filled: true,
-                        fillColor: Colors.grey.shade50,
-                        suffixIcon:
-                            searchQuery.isNotEmpty
-                                ? IconButton(
-                                  icon: const Icon(Icons.clear),
-                                  onPressed: () {
-                                    searchController.clear();
-                                    _onSearchChanged('');
-                                  },
-                                )
-                                : null,
-                      ),
+                      onClear: () => _onSearchChanged(''),
                     ),
                   ),
 
@@ -781,28 +750,7 @@ class _AdminApprovedPostsScreenState extends State<AdminApprovedPostsScreen>
             Container(
               width: 60,
               alignment: Alignment.centerLeft,
-              child: Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 6.0,
-                  vertical: 3.0,
-                ),
-                decoration: BoxDecoration(
-                  color:
-                      postType == '긴급'
-                          ? Colors.red.withAlpha(38)
-                          : AppTheme.primaryBlue.withAlpha(38),
-                  borderRadius: BorderRadius.circular(4.0),
-                ),
-                child: Text(
-                  postType,
-                  style: AppTheme.bodySmallStyle.copyWith(
-                    fontWeight: FontWeight.w600,
-                    color: postType == '긴급' ? Colors.red : AppTheme.primaryBlue,
-                    fontSize: 10,
-                  ),
-                  textAlign: TextAlign.center,
-                ),
-              ),
+              child: PostTypeBadge(type: postType),
             ),
             // 제목 - 왼쪽 정렬
             Expanded(

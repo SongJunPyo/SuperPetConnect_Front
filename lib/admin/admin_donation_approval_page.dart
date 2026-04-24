@@ -3,6 +3,7 @@
 import 'package:flutter/material.dart';
 import '../services/admin_donation_approval_service.dart';
 import '../utils/app_theme.dart';
+import '../widgets/pet_profile_image.dart';
 import 'package:intl/intl.dart';
 
 class AdminDonationApprovalPage extends StatefulWidget {
@@ -329,13 +330,10 @@ class _AdminDonationApprovalPageState extends State<AdminDonationApprovalPage> {
                   final bloodVolume = app['blood_volume'];
 
                   return ListTile(
-                    leading: CircleAvatar(
-                      backgroundColor:
-                          status == 5 ? AppTheme.primaryBlue : Colors.orange,
-                      child: Icon(
-                        status == 5 ? Icons.check : Icons.cancel,
-                        color: Colors.white,
-                      ),
+                    leading: PetProfileImage(
+                      profileImage: app['pet_profile_image'],
+                      species: app['pet_species'],
+                      radius: 20,
                     ),
                     title: Text(petName),
                     subtitle: Text(

@@ -9,6 +9,7 @@ import '../utils/number_format_util.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../utils/app_constants.dart';
 import '../widgets/pagination_bar.dart';
+import '../widgets/app_search_bar.dart';
 
 class UserColumnListScreen extends StatefulWidget {
   const UserColumnListScreen({super.key});
@@ -387,36 +388,13 @@ class _UserColumnListScreenState extends State<UserColumnListScreen> {
             padding: const EdgeInsets.all(16.0),
             child: Column(
               children: [
-                TextField(
+                AppSearchBar(
                   controller: searchController,
+                  hintText: '칼럼 제목, 닉네임으로 검색...',
                   onChanged: _onSearchChanged,
-                  decoration: InputDecoration(
-                    hintText: '칼럼 제목, 작성자로 검색...',
-                    prefixIcon: const Icon(Icons.search, color: Colors.black87),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: BorderSide(color: Colors.grey.shade300),
-                    ),
-                    focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: const BorderSide(
-                        color: AppTheme.primaryBlue,
-                        width: 2,
-                      ),
-                    ),
-                    filled: true,
-                    fillColor: Colors.grey.shade50,
-                    suffixIcon:
-                        searchQuery.isNotEmpty
-                            ? IconButton(
-                              icon: const Icon(Icons.clear),
-                              onPressed: () {
-                                searchController.clear();
-                                _onSearchChanged('');
-                              },
-                            )
-                            : null,
-                  ),
+                  onClear: () {
+                    _onSearchChanged('');
+                  },
                 ),
                 // 날짜 범위 표시
                 if (startDate != null && endDate != null) ...[

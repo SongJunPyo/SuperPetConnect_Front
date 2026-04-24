@@ -31,6 +31,7 @@ import 'hospital_notice_list.dart';
 import '../providers/notification_provider.dart';
 import '../utils/app_constants.dart';
 import '../widgets/rich_text_viewer.dart';
+import '../widgets/association_footer.dart';
 
 class HospitalDashboard extends StatefulWidget {
   final String? highlightPostId;
@@ -306,7 +307,11 @@ class _HospitalDashboardState extends State<HospitalDashboard>
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        '안녕하세요, $hospitalNickname 님!',
+                        '안녕하세요,',
+                        style: AppTheme.h2Style,
+                      ),
+                      Text(
+                        '$hospitalNickname 님!',
                         style: AppTheme.h2Style,
                       ),
                       const SizedBox(height: AppTheme.spacing8),
@@ -351,8 +356,8 @@ class _HospitalDashboardState extends State<HospitalDashboard>
                             icon: Icons.edit_note_outlined,
                             title: "헌혈 게시판 작성",
                             subtitle: "새로운 헌혈 요청 게시글 작성",
-                            iconColor: AppTheme.primaryBlue,
-                            backgroundColor: AppTheme.lightBlue,
+                            iconColor: const Color(0xFF4A90E2),
+                            backgroundColor: const Color(0xFFF3F8FF),
                             onTap: () {
                               Navigator.push(
                                 context,
@@ -481,6 +486,7 @@ class _HospitalDashboardState extends State<HospitalDashboard>
                     ],
                   ),
                 ),
+                const AssociationFooter(),
               ],
             ),
           ),
