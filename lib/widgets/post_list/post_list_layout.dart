@@ -6,8 +6,9 @@ class PostListLayout {
   PostListLayout._();
 
   /// 구분(뱃지) 컬럼 너비.
-  /// PostTypeBadge 최대 폭(약 40-50px)에 시각적 여유를 둔 값.
-  static const double typeWidth = 70;
+  /// PostTypeBadge 최대 폭(약 40-50px) + 좌우 약간의 여유를 둔 값.
+  /// 작성일 컬럼의 우측 여백(약 31px)과 비슷한 좌측 여백이 되도록 조정.
+  static const double typeWidth = 60;
 
   /// 작성일 컬럼 너비. "MM.dd"(예: "12.25") 표시용.
   static const double dateWidth = 70;
