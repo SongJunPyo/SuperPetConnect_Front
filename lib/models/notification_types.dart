@@ -38,6 +38,7 @@ enum AdminNotificationType {
   systemNotice, // 시스템 공지 알림
   newPetRegistration, // 신규 반려동물 등록
   petReviewRequest, // 반려동물 재심사 요청
+  petPhotoReviewRequest, // 반려동물 프로필 사진 변경 검토 요청
 }
 
 // 병원 알림 타입
@@ -65,6 +66,8 @@ enum UserNotificationType {
   newDonationPost, // 새 헌혈 모집 게시글 알림
   petApproved, // 반려동물 승인
   petRejected, // 반려동물 거절
+  petPhotoApproved, // 반려동물 프로필 사진 승인
+  petPhotoRejected, // 반려동물 프로필 사진 거절
 }
 
 // 알림 타입 한국어 이름 매핑
@@ -79,6 +82,7 @@ class NotificationTypeNames {
     AdminNotificationType.systemNotice: '시스템 공지',
     AdminNotificationType.newPetRegistration: '신규 반려동물 등록',
     AdminNotificationType.petReviewRequest: '반려동물 재심사 요청',
+    AdminNotificationType.petPhotoReviewRequest: '반려동물 사진 변경 검토',
   };
 
   // 병원 알림 이름
@@ -106,6 +110,8 @@ class NotificationTypeNames {
     UserNotificationType.newDonationPost: '새 헌혈 모집',
     UserNotificationType.petApproved: '반려동물 승인',
     UserNotificationType.petRejected: '반려동물 거절',
+    UserNotificationType.petPhotoApproved: '반려동물 사진 승인',
+    UserNotificationType.petPhotoRejected: '반려동물 사진 거절',
   };
 }
 
@@ -121,6 +127,7 @@ class NotificationTypeIcons {
     AdminNotificationType.systemNotice: '🔔',
     AdminNotificationType.newPetRegistration: '🐾',
     AdminNotificationType.petReviewRequest: '🔄',
+    AdminNotificationType.petPhotoReviewRequest: '📸',
   };
 
   // 병원 알림 아이콘
@@ -148,6 +155,8 @@ class NotificationTypeIcons {
     UserNotificationType.newDonationPost: '🩸',
     UserNotificationType.petApproved: '🐾',
     UserNotificationType.petRejected: '🚫',
+    UserNotificationType.petPhotoApproved: '📸',
+    UserNotificationType.petPhotoRejected: '🚫',
   };
 }
 
@@ -168,6 +177,7 @@ class NotificationPriority {
     AdminNotificationType.systemNotice: urgent,
     AdminNotificationType.newPetRegistration: normal,
     AdminNotificationType.petReviewRequest: normal,
+    AdminNotificationType.petPhotoReviewRequest: normal,
   };
 
   // 병원 알림 우선순위
@@ -195,6 +205,8 @@ class NotificationPriority {
     UserNotificationType.newDonationPost: high,
     UserNotificationType.petApproved: high,
     UserNotificationType.petRejected: high,
+    UserNotificationType.petPhotoApproved: normal,
+    UserNotificationType.petPhotoRejected: high,
   };
 }
 
@@ -210,6 +222,7 @@ class NotificationTypeIds {
     AdminNotificationType.systemNotice: 106,
     AdminNotificationType.newPetRegistration: 107,
     AdminNotificationType.petReviewRequest: 108,
+    AdminNotificationType.petPhotoReviewRequest: 109,
   };
 
   // 병원 알림 ID
@@ -237,6 +250,8 @@ class NotificationTypeIds {
     UserNotificationType.newDonationPost: 306,
     UserNotificationType.petApproved: 307,
     UserNotificationType.petRejected: 308,
+    UserNotificationType.petPhotoApproved: 309,
+    UserNotificationType.petPhotoRejected: 310,
   };
 
   // ID에서 타입으로 역매핑

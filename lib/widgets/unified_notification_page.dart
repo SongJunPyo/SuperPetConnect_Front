@@ -867,6 +867,8 @@ class _UnifiedNotificationPageState extends State<UnifiedNotificationPage> {
           return const Color(0xFFE67E22); // 오렌지
         case AdminNotificationType.petReviewRequest:
           return const Color(0xFFF59E0B); // 앰버
+        case AdminNotificationType.petPhotoReviewRequest:
+          return const Color(0xFF14B8A6); // 틸
       }
     }
     // 병원 알림
@@ -901,6 +903,7 @@ class _UnifiedNotificationPageState extends State<UnifiedNotificationPage> {
           return AppTheme.success;
         case UserNotificationType.applicationRejected:
         case UserNotificationType.petRejected:
+        case UserNotificationType.petPhotoRejected:
           return AppTheme.error;
         case UserNotificationType.recruitmentClosed:
           return AppTheme.warning;
@@ -909,6 +912,7 @@ class _UnifiedNotificationPageState extends State<UnifiedNotificationPage> {
         case UserNotificationType.systemNotice:
           return const Color(0xFF64748B); // 슬레이트
         case UserNotificationType.petApproved:
+        case UserNotificationType.petPhotoApproved:
           return AppTheme.success;
       }
     }
@@ -1008,7 +1012,8 @@ class _UnifiedNotificationPageState extends State<UnifiedNotificationPage> {
           break;
         case AdminNotificationType.newPetRegistration:
         case AdminNotificationType.petReviewRequest:
-          // 반려동물 관리 페이지로 이동
+        case AdminNotificationType.petPhotoReviewRequest:
+          // 반려동물 관리 페이지로 이동 (사진 검토는 승인 대기 탭에서 함께 처리)
           Navigator.push(
             context,
             MaterialPageRoute(
@@ -1086,7 +1091,9 @@ class _UnifiedNotificationPageState extends State<UnifiedNotificationPage> {
           break;
         case UserNotificationType.petApproved:
         case UserNotificationType.petRejected:
-          // 반려동물 관리 페이지로 이동
+        case UserNotificationType.petPhotoApproved:
+        case UserNotificationType.petPhotoRejected:
+          // 반려동물 관리 페이지로 이동 (사진 거절 시 사용자가 펫 카드 → 정보 수정으로 재업로드)
           Navigator.push(
             context,
             MaterialPageRoute(
@@ -1194,6 +1201,8 @@ class _UnifiedNotificationPageState extends State<UnifiedNotificationPage> {
         return Icons.pets;
       case AdminNotificationType.petReviewRequest:
         return Icons.refresh;
+      case AdminNotificationType.petPhotoReviewRequest:
+        return Icons.photo_camera;
     }
   }
 
@@ -1242,6 +1251,10 @@ class _UnifiedNotificationPageState extends State<UnifiedNotificationPage> {
         return Icons.pets;
       case UserNotificationType.petRejected:
         return Icons.block;
+      case UserNotificationType.petPhotoApproved:
+        return Icons.photo_camera;
+      case UserNotificationType.petPhotoRejected:
+        return Icons.no_photography;
     }
   }
 

@@ -68,6 +68,21 @@ class ServerNotificationMapping {
       UserType.admin: AdminNotificationType.newPetRegistration,
     },
 
+    // === 반려동물 프로필 사진 검토 워크플로우 (2026-04 신규)
+    // 백엔드: 사진 변경 시 APPROVED 펫만 검토 대상. data: { "pet_idx": "..." }
+    // 거절 사유는 알림 body에 "...사유: {reason}" 형태로 자동 append.
+    'pet_profile_image_review_request': {
+      UserType.admin: AdminNotificationType.petPhotoReviewRequest,
+    },
+
+    'pet_profile_image_approved': {
+      UserType.user: UserNotificationType.petPhotoApproved,
+    },
+
+    'pet_profile_image_rejected': {
+      UserType.user: UserNotificationType.petPhotoRejected,
+    },
+
     // === 관리자용 컬럼 승인 요청 ===
     'column_approval': {
       UserType.admin: AdminNotificationType.columnApprovalRequest,

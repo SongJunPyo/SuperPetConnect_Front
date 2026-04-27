@@ -23,7 +23,13 @@ class Pet {
   final int approvalStatus; // 0=승인대기, 1=헌혈가능, 2=헌혈불가
   final String? rejectionReason; // 거절 사유
   final bool isReview; // 재심사 여부
-  final String? profileImage; // 프로필 사진 경로
+  final String? profileImage; // 프로필 사진 경로 (검토 통과한 사진)
+
+  // 프로필 사진 검토 워크플로우 (2026-04 신규)
+  // APPROVED 펫의 사진 변경 시에만 사용. PENDING/REJECTED 펫은 즉시 반영되어 사용 안 함.
+  final String? pendingProfileImage; // 검토 대기 중인 신규 사진 경로
+  final int? pendingImageStatus; // null=없음, 0=대기. 거절 시 즉시 정리되어 2는 거의 안 옴
+  final String? pendingImageRejectionReason; // 거절 시 즉시 NULL로 정리되어 거의 안 옴 (사유는 푸시 body)
 
   Pet({
     this.petIdx,
@@ -49,6 +55,9 @@ class Pet {
     this.rejectionReason,
     this.isReview = false,
     this.profileImage,
+    this.pendingProfileImage,
+    this.pendingImageStatus,
+    this.pendingImageRejectionReason,
   });
 
   // 나이를 문자열로 반환하는 getter (birthDate 기반 계산)
@@ -146,8 +155,15 @@ class Pet {
       rejectionReason: json['rejection_reason'],
       isReview: json['is_review'] == true,
       profileImage: json['profile_image'],
+      pendingProfileImage: json['pending_profile_image'],
+      pendingImageStatus: json['pending_image_status'],
+      pendingImageRejectionReason: json['pending_image_rejection_reason'],
     );
   }
+
+  // 프로필 사진이 관리자 검토 대기 중인지 여부
+  bool get hasPendingProfileImage =>
+      pendingProfileImage != null && pendingImageStatus == 0;
 
   // API 통신을 위한 Map 변환
   Map<String, dynamic> toMap() {

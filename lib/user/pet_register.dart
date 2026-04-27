@@ -47,7 +47,9 @@ class _PetRegisterScreenState extends State<PetRegisterScreen> {
   DateTime? _prevDonationDate; // 직전 헌혈 일자
 
   // 프로필 사진 (수정 모드 전용). _imageRefreshKey 는 업로드 직후 NetworkImage 캐시를 무효화하는 cache buster.
+  // _pendingProfileImage 는 관리자 검토 대기 중인 신규 사진 (APPROVED 펫 사진 변경 시).
   String? _profileImage;
+  String? _pendingProfileImage;
   int _imageRefreshKey = 0;
 
   bool get _isEditMode => widget.petToEdit != null;
@@ -78,6 +80,8 @@ class _PetRegisterScreenState extends State<PetRegisterScreen> {
       _hasPreventiveMedication = pet.hasPreventiveMedication ?? false;
       _prevDonationDate = pet.prevDonationDate;
       _profileImage = pet.profileImage;
+      _pendingProfileImage =
+          pet.hasPendingProfileImage ? pet.pendingProfileImage : null;
     }
   }
 
@@ -208,12 +212,17 @@ class _PetRegisterScreenState extends State<PetRegisterScreen> {
   }
 
   // cache buster: 같은 path에 새 사진을 덮어쓰는 백엔드 동작 대비. 0이면 그대로, 0보다 크면 ?v=N 부착.
-  String? get _displayProfileImage {
-    if (_profileImage == null) return null;
-    if (_imageRefreshKey == 0) return _profileImage;
-    final separator = _profileImage!.contains('?') ? '&' : '?';
-    return '$_profileImage${separator}v=$_imageRefreshKey';
+  String? _withCacheBuster(String? path) {
+    if (path == null) return null;
+    if (_imageRefreshKey == 0) return path;
+    final separator = path.contains('?') ? '&' : '?';
+    return '$path${separator}v=$_imageRefreshKey';
   }
+
+  String? get _displayProfileImage => _withCacheBuster(_profileImage);
+  String? get _displayPendingProfileImage =>
+      _withCacheBuster(_pendingProfileImage);
+  bool get _hasPendingImage => _pendingProfileImage != null;
 
   void _showImageOptions() {
     final petIdx = widget.petToEdit?.petIdx;
@@ -285,20 +294,36 @@ class _PetRegisterScreenState extends State<PetRegisterScreen> {
       final response = await http.Response.fromStream(streamedResponse);
 
       if (!mounted) return;
-      if (response.statusCode == 200) {
-        // 응답 본문에 새 path가 있으면 갱신, 없어도 cache buster 증가만으로 강제 reload.
-        String? newPath;
+      // 200: 즉시 반영 (PENDING/REJECTED 펫). 202: 검토 대기 (APPROVED 펫).
+      if (response.statusCode == 200 || response.statusCode == 202) {
+        Map<String, dynamic> data = const {};
         try {
-          final data = jsonDecode(response.body);
-          newPath = data['profile_image'] as String?;
+          data = jsonDecode(response.body) as Map<String, dynamic>;
         } catch (_) {}
+        final newProfileImage = data['profile_image'] as String?;
+        final newPendingImage = data['pending_profile_image'] as String?;
+        final serverMessage = data['message'] as String?;
+
         setState(() {
-          if (newPath != null) _profileImage = newPath;
+          if (response.statusCode == 202) {
+            // 검토 대기: profile_image는 그대로, pending_profile_image에 신규 사진.
+            if (newProfileImage != null) _profileImage = newProfileImage;
+            _pendingProfileImage = newPendingImage;
+          } else {
+            // 즉시 반영: pending 정리, profile_image 갱신.
+            if (newProfileImage != null) _profileImage = newProfileImage;
+            _pendingProfileImage = null;
+          }
           _imageRefreshKey++;
         });
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('프로필 사진이 등록되었습니다.'),
+          SnackBar(
+            content: Text(
+              serverMessage ??
+                  (response.statusCode == 202
+                      ? '프로필 사진 검토 요청이 등록되었습니다. 관리자 검토 후 적용됩니다.'
+                      : '프로필 사진이 등록되었습니다.'),
+            ),
             behavior: SnackBarBehavior.floating,
           ),
         );
@@ -335,8 +360,10 @@ class _PetRegisterScreenState extends State<PetRegisterScreen> {
       );
       if (!mounted) return;
       if (response.statusCode == 200) {
+        // 백엔드 정책: profile_image와 pending 둘 다 즉시 정리. 검토 대상 아님.
         setState(() {
           _profileImage = null;
+          _pendingProfileImage = null;
           _imageRefreshKey++;
         });
         ScaffoldMessenger.of(context).showSnackBar(
@@ -373,42 +400,123 @@ class _PetRegisterScreenState extends State<PetRegisterScreen> {
           top: AppTheme.spacing8,
           bottom: AppTheme.spacing24,
         ),
-        child: GestureDetector(
-          onTap: _showImageOptions,
-          behavior: HitTestBehavior.opaque,
-          child: Stack(
-            children: [
-              // IgnorePointer로 PetProfileImage 내부 GestureDetector(풀스크린)를 무력화하여
-              // 전체 영역(카메라 오버레이 포함)이 _showImageOptions만 호출하도록 통일.
-              IgnorePointer(
-                child: PetProfileImage(
-                  key: ValueKey('avatar_$_imageRefreshKey'),
-                  profileImage: _displayProfileImage,
-                  species: _selectedSpecies,
-                  radius: 48,
-                ),
+        child: _hasPendingImage ? _buildPendingPair() : _buildSingleAvatar(),
+      ),
+    );
+  }
+
+  // 검토 중: [현재 사진] → [신규 사진]. 신규 쪽만 탭으로 재업로드 가능.
+  Widget _buildPendingPair() {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            _buildAvatarFigure(
+              imagePath: _displayProfileImage,
+              label: '현재',
+              onTap: null, // 현재 사진은 탭 비활성 (검토 중에는 재업로드만 가능)
+            ),
+            const Padding(
+              padding: EdgeInsets.symmetric(horizontal: AppTheme.spacing12),
+              child: Icon(
+                Icons.arrow_forward,
+                size: 28,
+                color: AppTheme.textTertiary,
               ),
-              Positioned(
-                right: 0,
-                bottom: 0,
-                child: Container(
-                  padding: const EdgeInsets.all(6),
-                  decoration: BoxDecoration(
-                    color: AppTheme.primaryBlue,
-                    shape: BoxShape.circle,
-                    border: Border.all(color: Colors.white, width: 2),
-                  ),
-                  child: const Icon(
-                    Icons.camera_alt,
-                    size: 14,
-                    color: Colors.white,
-                  ),
-                ),
-              ),
-            ],
+            ),
+            _buildAvatarFigure(
+              imagePath: _displayPendingProfileImage,
+              label: '검토 중',
+              onTap: _showImageOptions,
+              showCameraOverlay: true,
+              labelColor: AppTheme.primaryBlue,
+            ),
+          ],
+        ),
+        const SizedBox(height: AppTheme.spacing8),
+        Text(
+          '관리자 검토 후 적용됩니다',
+          style: AppTheme.captionStyle.copyWith(color: AppTheme.textTertiary),
+        ),
+      ],
+    );
+  }
+
+  // 평상시: 가운데 1개 서클.
+  Widget _buildSingleAvatar() {
+    return _buildAvatarFigure(
+      imagePath: _displayProfileImage,
+      onTap: _showImageOptions,
+      showCameraOverlay: true,
+      radius: 48,
+    );
+  }
+
+  Widget _buildAvatarFigure({
+    required String? imagePath,
+    String? label,
+    Color? labelColor,
+    VoidCallback? onTap,
+    bool showCameraOverlay = false,
+    double radius = 40,
+  }) {
+    final avatar = Stack(
+      children: [
+        // IgnorePointer로 PetProfileImage 내부 GestureDetector(풀스크린)를 무력화하여
+        // 외부 GestureDetector(_showImageOptions)만 동작하게 통일.
+        IgnorePointer(
+          child: PetProfileImage(
+            key: ValueKey('avatar_${label ?? "single"}_$_imageRefreshKey'),
+            profileImage: imagePath,
+            species: _selectedSpecies,
+            radius: radius,
           ),
         ),
-      ),
+        if (showCameraOverlay)
+          Positioned(
+            right: 0,
+            bottom: 0,
+            child: Container(
+              padding: const EdgeInsets.all(6),
+              decoration: BoxDecoration(
+                color: AppTheme.primaryBlue,
+                shape: BoxShape.circle,
+                border: Border.all(color: Colors.white, width: 2),
+              ),
+              child: const Icon(
+                Icons.camera_alt,
+                size: 14,
+                color: Colors.white,
+              ),
+            ),
+          ),
+      ],
+    );
+
+    final wrapped = onTap != null
+        ? GestureDetector(
+            onTap: onTap,
+            behavior: HitTestBehavior.opaque,
+            child: avatar,
+          )
+        : avatar;
+
+    if (label == null) return wrapped;
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        wrapped,
+        const SizedBox(height: AppTheme.spacing4),
+        Text(
+          label,
+          style: AppTheme.captionStyle.copyWith(
+            color: labelColor ?? AppTheme.textTertiary,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+      ],
     );
   }
 
