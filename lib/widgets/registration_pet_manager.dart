@@ -376,7 +376,10 @@ class _RegistrationPetManagerState extends State<RegistrationPetManager> {
                 pet.isPrimary ? Icons.star : Icons.star_border,
                 size: 22,
               ),
-              color: pet.isPrimary ? Colors.amber.shade600 : AppTheme.textTertiary,
+              style: IconButton.styleFrom(
+                foregroundColor: AppTheme.textTertiary,
+                disabledForegroundColor: Colors.amber.shade600,
+              ),
               onPressed: pet.isPrimary ? null : () => _setPrimary(index),
               tooltip: pet.isPrimary ? '대표 반려동물' : '대표로 설정',
               padding: EdgeInsets.zero,
