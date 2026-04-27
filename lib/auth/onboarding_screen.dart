@@ -4,13 +4,13 @@
 // Step 2: 반려동물 관리 (추가/삭제/대표 선택)
 // 최종 완료 시 POST /api/auth/onboarding 1회 호출
 
-import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:kpostal/kpostal.dart';
 import '../utils/app_theme.dart';
 import '../utils/config.dart';
+import '../utils/debouncer.dart';
 import '../utils/preferences_manager.dart';
 import '../utils/kakao_postcode_stub.dart'
     if (dart.library.html) '../utils/kakao_postcode_web.dart';
@@ -37,7 +37,9 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   bool _isNicknameAvailable = true;
   bool _isCheckingNickname = false;
   String? _nicknameError;
-  Timer? _nicknameDebounce;
+  final Debouncer _nicknameDebouncer = Debouncer(
+    delay: const Duration(milliseconds: 500),
+  );
 
   // === Step 2: 반려동물 ===
   final List<RegistrationPetData> _pets = [];
@@ -47,15 +49,14 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     _pageController.dispose();
     _nicknameController.dispose();
     _addressController.dispose();
-    _nicknameDebounce?.cancel();
+    _nicknameDebouncer.dispose();
     super.dispose();
   }
 
   // 닉네임 중복 체크 (debounce 적용)
   void _onNicknameChanged(String value) {
-    _nicknameDebounce?.cancel();
-
     if (value.trim().isEmpty) {
+      _nicknameDebouncer.cancel();
       setState(() {
         _nicknameError = null;
         _isNicknameAvailable = true;
@@ -65,6 +66,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     }
 
     if (value.trim().length < 2) {
+      _nicknameDebouncer.cancel();
       setState(() {
         _nicknameError = '별명은 2자 이상 입력해주세요.';
         _isNicknameAvailable = false;
@@ -78,7 +80,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
       _nicknameError = null;
     });
 
-    _nicknameDebounce = Timer(const Duration(milliseconds: 500), () {
+    _nicknameDebouncer(() {
       _checkNicknameAvailability(value.trim());
     });
   }

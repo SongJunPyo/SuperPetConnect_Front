@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import 'dart:async';
 import 'dart:convert';
 import '../utils/app_theme.dart';
+import '../utils/debouncer.dart';
 import '../utils/config.dart';
 import '../utils/api_endpoints.dart';
 import '../services/auth_http_client.dart';
@@ -293,7 +293,7 @@ class _AdminSignupManagementState extends State<AdminSignupManagement> {
     List<HospitalMaster> hospitalSearchResults = [];
     HospitalMaster? selectedHospital;
     bool isHospitalSearching = false;
-    Timer? hospitalSearchDebounce; // 입력 디바운스 (400ms)
+    final hospitalSearchDebouncer = Debouncer(); // 입력 디바운스 (기본 400ms)
 
     showDialog(
       context: context,
@@ -362,9 +362,9 @@ class _AdminSignupManagementState extends State<AdminSignupManagement> {
                             TextField(
                               controller: hospitalSearchController,
                               onChanged: (value) {
-                                hospitalSearchDebounce?.cancel();
                                 final query = value.trim();
                                 if (query.isEmpty) {
+                                  hospitalSearchDebouncer.cancel();
                                   setState(() {
                                     hospitalSearchResults = [];
                                     isHospitalSearching = false;
@@ -372,8 +372,7 @@ class _AdminSignupManagementState extends State<AdminSignupManagement> {
                                   return;
                                 }
                                 setState(() => isHospitalSearching = true);
-                                hospitalSearchDebounce = Timer(
-                                  const Duration(milliseconds: 400),
+                                hospitalSearchDebouncer(
                                   () async {
                                     try {
                                       final response =
@@ -416,7 +415,7 @@ class _AdminSignupManagementState extends State<AdminSignupManagement> {
                                         ? IconButton(
                                             icon: const Icon(Icons.clear, size: 18),
                                             onPressed: () {
-                                              hospitalSearchDebounce?.cancel();
+                                              hospitalSearchDebouncer.cancel();
                                               hospitalSearchController.clear();
                                               setState(() {
                                                 hospitalSearchResults = [];
@@ -542,7 +541,7 @@ class _AdminSignupManagementState extends State<AdminSignupManagement> {
               actions: [
                 TextButton(
                   onPressed: () {
-                    hospitalSearchDebounce?.cancel();
+                    hospitalSearchDebouncer.cancel();
                     Navigator.of(dialogContext).pop();
                   },
                   style: TextButton.styleFrom(
@@ -568,7 +567,7 @@ class _AdminSignupManagementState extends State<AdminSignupManagement> {
                       );
                       return;
                     }
-                    hospitalSearchDebounce?.cancel();
+                    hospitalSearchDebouncer.cancel();
                     Navigator.of(dialogContext).pop();
                     approveUser(
                       user,

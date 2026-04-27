@@ -1,10 +1,10 @@
-import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:kpostal/kpostal.dart';
 import '../services/admin_hospital_service.dart';
 import '../utils/app_theme.dart';
 import '../utils/app_constants.dart';
+import '../utils/debouncer.dart';
 import '../utils/error_display.dart';
 import '../utils/kakao_postcode_stub.dart'
     if (dart.library.html) '../utils/kakao_postcode_web.dart';
@@ -39,8 +39,7 @@ class _AdminHospitalCheckState extends State<AdminHospitalCheck>
   String _masterErrorMessage = '';
   String _masterSearchQuery = '';
   final TextEditingController _masterSearchController = TextEditingController();
-  Timer? _masterSearchDebounce; // 검색 입력 디바운스 타이머
-  static const Duration _masterSearchDelay = Duration(milliseconds: 400);
+  final Debouncer _masterSearchDebouncer = Debouncer(); // 기본 400ms
   static const int _masterPageSize = 20; // 서버 max 100, 기본 20
 
   // 페이지네이션 (모든 탭 공유) — 마스터 탭은 서버, 계정 탭은 클라이언트
@@ -90,7 +89,7 @@ class _AdminHospitalCheckState extends State<AdminHospitalCheck>
     _tabController?.dispose();
     searchController.dispose();
     _masterSearchController.dispose();
-    _masterSearchDebounce?.cancel();
+    _masterSearchDebouncer.dispose();
     super.dispose();
   }
 
@@ -162,8 +161,7 @@ class _AdminHospitalCheckState extends State<AdminHospitalCheck>
   /// 검색 입력 변경: 400ms 디바운스 후 서버 호출.
   /// 키 입력마다 API가 호출되는 것을 방지 — 백엔드 부담 + UX(깜빡임) 완화.
   void _onMasterSearchChanged(String value) {
-    _masterSearchDebounce?.cancel();
-    _masterSearchDebounce = Timer(_masterSearchDelay, () {
+    _masterSearchDebouncer(() {
       if (!mounted) return;
       setState(() {
         _masterSearchQuery = value.trim();
@@ -724,7 +722,7 @@ class _AdminHospitalCheckState extends State<AdminHospitalCheck>
                       icon: const Icon(Icons.clear),
                       onPressed: () {
                         // clear는 디바운스 없이 즉시 반영
-                        _masterSearchDebounce?.cancel();
+                        _masterSearchDebouncer.cancel();
                         _masterSearchController.clear();
                         setState(() {
                           _masterSearchQuery = '';
