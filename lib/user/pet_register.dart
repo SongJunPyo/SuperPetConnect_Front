@@ -11,8 +11,11 @@ import '../utils/blood_type_constants.dart';
 import '../widgets/app_button.dart';
 import '../widgets/app_input_field.dart';
 import '../widgets/app_app_bar.dart';
+import '../widgets/pet_profile_image.dart';
 import 'package:http/http.dart' as http;
+import 'package:image_picker/image_picker.dart';
 import '../services/auth_http_client.dart';
+import '../utils/api_endpoints.dart';
 
 class PetRegisterScreen extends StatefulWidget {
   // 수정 모드를 위해 Pet 객체를 선택적으로 받음
@@ -43,6 +46,10 @@ class _PetRegisterScreenState extends State<PetRegisterScreen> {
   bool _hasPreventiveMedication = false; // 예방약 복용 여부
   DateTime? _prevDonationDate; // 직전 헌혈 일자
 
+  // 프로필 사진 (수정 모드 전용). _imageRefreshKey 는 업로드 직후 NetworkImage 캐시를 무효화하는 cache buster.
+  String? _profileImage;
+  int _imageRefreshKey = 0;
+
   bool get _isEditMode => widget.petToEdit != null;
 
   @override
@@ -70,6 +77,7 @@ class _PetRegisterScreenState extends State<PetRegisterScreen> {
       _neuteredDate = pet.neuteredDate;
       _hasPreventiveMedication = pet.hasPreventiveMedication ?? false;
       _prevDonationDate = pet.prevDonationDate;
+      _profileImage = pet.profileImage;
     }
   }
 
@@ -199,6 +207,211 @@ class _PetRegisterScreenState extends State<PetRegisterScreen> {
     }
   }
 
+  // cache buster: 같은 path에 새 사진을 덮어쓰는 백엔드 동작 대비. 0이면 그대로, 0보다 크면 ?v=N 부착.
+  String? get _displayProfileImage {
+    if (_profileImage == null) return null;
+    if (_imageRefreshKey == 0) return _profileImage;
+    final separator = _profileImage!.contains('?') ? '&' : '?';
+    return '$_profileImage${separator}v=$_imageRefreshKey';
+  }
+
+  void _showImageOptions() {
+    final petIdx = widget.petToEdit?.petIdx;
+    if (petIdx == null) return;
+    showModalBottomSheet(
+      context: context,
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.photo_library_outlined),
+              title: const Text('갤러리에서 선택'),
+              onTap: () {
+                Navigator.pop(ctx);
+                _uploadImage();
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.camera_alt_outlined),
+              title: const Text('카메라로 촬영'),
+              onTap: () {
+                Navigator.pop(ctx);
+                _uploadImage(fromCamera: true);
+              },
+            ),
+            if (_profileImage != null)
+              ListTile(
+                leading: Icon(Icons.delete_outline, color: AppTheme.error),
+                title: Text('사진 삭제', style: TextStyle(color: AppTheme.error)),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  _deleteImage();
+                },
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _uploadImage({bool fromCamera = false}) async {
+    final petIdx = widget.petToEdit?.petIdx;
+    if (petIdx == null) return;
+
+    final picker = ImagePicker();
+    final pickedFile = await picker.pickImage(
+      source: fromCamera ? ImageSource.camera : ImageSource.gallery,
+      maxWidth: 1920,
+      maxHeight: 1920,
+      imageQuality: 85,
+    );
+    if (pickedFile == null) return;
+
+    try {
+      final uri = Uri.parse(
+        '${Config.serverUrl}${ApiEndpoints.petProfileImage(petIdx)}',
+      );
+      final request = http.MultipartRequest('POST', uri);
+      final token = await PreferencesManager.getAuthToken();
+      if (token != null) {
+        request.headers['Authorization'] = 'Bearer $token';
+      }
+      final bytes = await pickedFile.readAsBytes();
+      request.files.add(
+        http.MultipartFile.fromBytes('image', bytes, filename: pickedFile.name),
+      );
+      final streamedResponse = await request.send();
+      final response = await http.Response.fromStream(streamedResponse);
+
+      if (!mounted) return;
+      if (response.statusCode == 200) {
+        // 응답 본문에 새 path가 있으면 갱신, 없어도 cache buster 증가만으로 강제 reload.
+        String? newPath;
+        try {
+          final data = jsonDecode(response.body);
+          newPath = data['profile_image'] as String?;
+        } catch (_) {}
+        setState(() {
+          if (newPath != null) _profileImage = newPath;
+          _imageRefreshKey++;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('프로필 사진이 등록되었습니다.'),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      } else {
+        final data = jsonDecode(response.body);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(data['detail'] ?? '사진 업로드에 실패했습니다.'),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('사진 업로드 중 오류가 발생했습니다: $e'),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _deleteImage() async {
+    final petIdx = widget.petToEdit?.petIdx;
+    if (petIdx == null) return;
+
+    try {
+      final response = await AuthHttpClient.delete(
+        Uri.parse(
+          '${Config.serverUrl}${ApiEndpoints.petProfileImage(petIdx)}',
+        ),
+      );
+      if (!mounted) return;
+      if (response.statusCode == 200) {
+        setState(() {
+          _profileImage = null;
+          _imageRefreshKey++;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('프로필 사진이 삭제되었습니다.'),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      } else {
+        final data = jsonDecode(response.body);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(data['detail'] ?? '사진 삭제에 실패했습니다.'),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('사진 삭제 중 오류가 발생했습니다.'),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    }
+  }
+
+  Widget _buildAvatarSection() {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.only(
+          top: AppTheme.spacing8,
+          bottom: AppTheme.spacing24,
+        ),
+        child: GestureDetector(
+          onTap: _showImageOptions,
+          behavior: HitTestBehavior.opaque,
+          child: Stack(
+            children: [
+              // IgnorePointer로 PetProfileImage 내부 GestureDetector(풀스크린)를 무력화하여
+              // 전체 영역(카메라 오버레이 포함)이 _showImageOptions만 호출하도록 통일.
+              IgnorePointer(
+                child: PetProfileImage(
+                  key: ValueKey('avatar_$_imageRefreshKey'),
+                  profileImage: _displayProfileImage,
+                  species: _selectedSpecies,
+                  radius: 48,
+                ),
+              ),
+              Positioned(
+                right: 0,
+                bottom: 0,
+                child: Container(
+                  padding: const EdgeInsets.all(6),
+                  decoration: BoxDecoration(
+                    color: AppTheme.primaryBlue,
+                    shape: BoxShape.circle,
+                    border: Border.all(color: Colors.white, width: 2),
+                  ),
+                  child: const Icon(
+                    Icons.camera_alt,
+                    size: 14,
+                    color: Colors.white,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     // ... (기존 build 메서드 내용은 동일) ...
@@ -215,6 +428,7 @@ class _PetRegisterScreenState extends State<PetRegisterScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              if (_isEditMode) _buildAvatarSection(),
               _buildTextField(
                 controller: _nameController,
                 label: '이름',

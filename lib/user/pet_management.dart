@@ -1,18 +1,11 @@
 // ignore_for_file: use_build_context_synchronously
-import 'dart:convert';
 import 'package:flutter/material.dart';
-import 'package:image_picker/image_picker.dart';
-import 'package:http/http.dart' as http;
 import 'package:connect/user/pet_register.dart';
 import 'package:connect/models/pet_model.dart';
 import 'package:connect/models/donation_history_model.dart';
 import 'package:connect/services/manage_pet_info.dart';
 import 'package:connect/services/donation_history_service.dart';
-import 'package:connect/services/auth_http_client.dart';
 import '../utils/app_theme.dart';
-import '../utils/api_endpoints.dart';
-import '../utils/config.dart';
-import '../utils/preferences_manager.dart';
 import '../utils/donation_eligibility.dart';
 import '../widgets/pet_profile_image.dart';
 
@@ -587,136 +580,6 @@ class _PetDetailBottomSheetState extends State<_PetDetailBottomSheet> {
     }
   }
 
-  /// 사진 옵션 (업로드/삭제) 바텀시트
-  void _showImageOptions(Pet pet) {
-    showModalBottomSheet(
-      context: context,
-      builder: (ctx) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            ListTile(
-              leading: const Icon(Icons.photo_library_outlined),
-              title: const Text('갤러리에서 선택'),
-              onTap: () {
-                Navigator.pop(ctx);
-                _uploadImage(pet);
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.camera_alt_outlined),
-              title: const Text('카메라로 촬영'),
-              onTap: () {
-                Navigator.pop(ctx);
-                _uploadImage(pet, fromCamera: true);
-              },
-            ),
-            if (pet.profileImage != null) ...[
-              ListTile(
-                leading: Icon(Icons.delete_outline, color: AppTheme.error),
-                title: Text('사진 삭제', style: TextStyle(color: AppTheme.error)),
-                onTap: () {
-                  Navigator.pop(ctx);
-                  _deleteImage(pet);
-                },
-              ),
-            ],
-          ],
-        ),
-      ),
-    );
-  }
-
-  /// 사진 업로드
-  Future<void> _uploadImage(Pet pet, {bool fromCamera = false}) async {
-    if (pet.petIdx == null) return;
-
-    final picker = ImagePicker();
-    final pickedFile = await picker.pickImage(
-      source: fromCamera ? ImageSource.camera : ImageSource.gallery,
-      maxWidth: 1920,
-      maxHeight: 1920,
-      imageQuality: 85,
-    );
-
-    if (pickedFile == null) return;
-
-    try {
-      final uri = Uri.parse(
-        '${Config.serverUrl}${ApiEndpoints.petProfileImage(pet.petIdx!)}',
-      );
-      final request = http.MultipartRequest('POST', uri);
-
-      final token = await PreferencesManager.getAuthToken();
-      if (token != null) {
-        request.headers['Authorization'] = 'Bearer $token';
-      }
-
-      // 웹/모바일 공통 동작을 위해 fromBytes 사용 (fromPath는 웹에서 동작 안 함)
-      final bytes = await pickedFile.readAsBytes();
-      request.files.add(
-        http.MultipartFile.fromBytes('image', bytes, filename: pickedFile.name),
-      );
-
-      final streamedResponse = await request.send();
-      final response = await http.Response.fromStream(streamedResponse);
-
-      if (mounted) {
-        if (response.statusCode == 200) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('프로필 사진이 등록되었습니다.'), behavior: SnackBarBehavior.floating),
-          );
-          Navigator.pop(context); // 바텀시트 닫기
-        } else {
-          final data = jsonDecode(response.body);
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(data['detail'] ?? '사진 업로드에 실패했습니다.'), behavior: SnackBarBehavior.floating),
-          );
-        }
-      }
-    } catch (e, stackTrace) {
-      debugPrint('[PET UPLOAD ERROR] $e');
-      debugPrint('[STACK] $stackTrace');
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('사진 업로드 중 오류가 발생했습니다: $e'), behavior: SnackBarBehavior.floating),
-        );
-      }
-    }
-  }
-
-  /// 사진 삭제
-  Future<void> _deleteImage(Pet pet) async {
-    if (pet.petIdx == null) return;
-
-    try {
-      final response = await AuthHttpClient.delete(
-        Uri.parse(
-          '${Config.serverUrl}${ApiEndpoints.petProfileImage(pet.petIdx!)}',
-        ),
-      );
-
-      if (mounted) {
-        if (response.statusCode == 200) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('프로필 사진이 삭제되었습니다.'), behavior: SnackBarBehavior.floating),
-          );
-          Navigator.pop(context); // 바텀시트 닫기
-        } else {
-          final data = jsonDecode(response.body);
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(data['detail'] ?? '사진 삭제에 실패했습니다.'), behavior: SnackBarBehavior.floating),
-          );
-        }
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('사진 삭제 중 오류가 발생했습니다.'), behavior: SnackBarBehavior.floating),
-        );
-      }
-    }
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -752,31 +615,11 @@ class _PetDetailBottomSheetState extends State<_PetDetailBottomSheet> {
                   padding: const EdgeInsets.symmetric(horizontal: 20),
                   child: Row(
                     children: [
-                      // 프로필 사진 (클릭 시 변경)
-                      GestureDetector(
-                        onTap: () => _showImageOptions(pet),
-                        child: Stack(
-                          children: [
-                            PetProfileImage(
-                              profileImage: pet.profileImage,
-                              species: pet.species,
-                              radius: 30,
-                            ),
-                            Positioned(
-                              right: 0,
-                              bottom: 0,
-                              child: Container(
-                                padding: const EdgeInsets.all(3),
-                                decoration: BoxDecoration(
-                                  color: AppTheme.primaryBlue,
-                                  shape: BoxShape.circle,
-                                  border: Border.all(color: Colors.white, width: 2),
-                                ),
-                                child: const Icon(Icons.camera_alt, size: 12, color: Colors.white),
-                              ),
-                            ),
-                          ],
-                        ),
+                      // 프로필 사진 (수정은 정보 수정 화면에서)
+                      PetProfileImage(
+                        profileImage: pet.profileImage,
+                        species: pet.species,
+                        radius: 30,
                       ),
                       const SizedBox(width: AppTheme.spacing12),
                       // 이름과 정보
