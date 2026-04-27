@@ -738,9 +738,8 @@ class _HospitalPostCheckState extends State<HospitalPostCheck>
               width: _columnDateWidth,
               alignment: Alignment.center,
               child: Text(
-                TimeFormatUtils.formatPostDate(post.createdDate),
-                style: AppTheme.bodySmallStyle.copyWith(
-                  fontSize: 11,
+                TimeFormatUtils.formatShortDate(post.createdDate),
+                style: AppTheme.bodyMediumStyle.copyWith(
                   color: Colors.grey[600],
                 ),
                 textAlign: TextAlign.center,
@@ -914,11 +913,18 @@ class _HospitalPostCheckState extends State<HospitalPostCheck>
       badgeType = item.isUrgent ? '긴급' : '정기';
     }
 
-    // 헌혈취소 탭에서는 작성일, 다른 탭에서는 시간대
+    // 헌혈취소 탭은 작성일(MM.dd, 제목과 같은 크기), 탭 2,3은 시간대(작은 글씨로 그대로 유지)
     final String dateDisplay =
         isCancellationTab
-            ? TimeFormatUtils.formatFlexibleDate(item.createdDate)
+            ? TimeFormatUtils.formatFlexibleShortDate(item.createdDate)
             : '${TimeFormatUtils.formatFlexibleDate(item.date)} ${TimeFormatUtils.formatTime(item.time)}';
+    final TextStyle dateStyle =
+        isCancellationTab
+            ? AppTheme.bodyMediumStyle.copyWith(color: Colors.grey[600])
+            : AppTheme.bodySmallStyle.copyWith(
+              fontSize: 11,
+              color: Colors.grey[600],
+            );
 
     return InkWell(
       onTap: () => _showPostTimeBottomSheet(item),
@@ -957,10 +963,7 @@ class _HospitalPostCheckState extends State<HospitalPostCheck>
                   alignment: Alignment.center,
                   child: Text(
                     dateDisplay,
-                    style: AppTheme.bodySmallStyle.copyWith(
-                      fontSize: 11,
-                      color: Colors.grey[600],
-                    ),
+                    style: dateStyle,
                     textAlign: TextAlign.center,
                   ),
                 ),
@@ -1024,9 +1027,8 @@ class _HospitalPostCheckState extends State<HospitalPostCheck>
               width: _columnDateWidth,
               alignment: Alignment.center,
               child: Text(
-                TimeFormatUtils.formatFlexibleDate(post.createdDate),
-                style: AppTheme.bodySmallStyle.copyWith(
-                  fontSize: 11,
+                TimeFormatUtils.formatFlexibleShortDate(post.createdDate),
+                style: AppTheme.bodyMediumStyle.copyWith(
                   color: Colors.grey[600],
                 ),
                 textAlign: TextAlign.center,

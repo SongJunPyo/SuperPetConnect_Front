@@ -2132,11 +2132,10 @@ class _AdminPostCheckState extends State<AdminPostCheck>
               width: _columnDateWidth,
               alignment: Alignment.center,
               child: Text(
-                TimeFormatUtils.formatFlexibleDate(
+                TimeFormatUtils.formatFlexibleShortDate(
                   post['createdDate'] ?? post['created_date'] ?? post['created_at'],
                 ),
-                style: AppTheme.bodySmallStyle.copyWith(
-                  fontSize: 11,
+                style: AppTheme.bodyMediumStyle.copyWith(
                   color: Colors.grey[600],
                 ),
                 textAlign: TextAlign.center,

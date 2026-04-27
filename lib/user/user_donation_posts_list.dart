@@ -1848,9 +1848,8 @@ class _UserDonationPostsListScreenState
               width: _columnDateWidth,
               alignment: Alignment.center,
               child: Text(
-                TimeFormatUtils.formatPostDate(post.createdAt),
-                style: AppTheme.bodySmallStyle.copyWith(
-                  fontSize: 11,
+                TimeFormatUtils.formatShortDate(post.createdAt),
+                style: AppTheme.bodyMediumStyle.copyWith(
                   color: Colors.grey[600],
                 ),
                 textAlign: TextAlign.center,

@@ -139,4 +139,15 @@ class TimeFormatUtils {
     if (parsed == null) return defaultValue;
     return formatPostDateTime(parsed);
   }
+
+  /// 유연한 날짜 파싱 후 짧은 포맷 (MM.dd)
+  /// 파싱 실패 시 기본값 반환
+  static String formatFlexibleShortDate(
+    dynamic dateValue, {
+    String defaultValue = '-',
+  }) {
+    final parsed = parseFlexibleDate(dateValue);
+    if (parsed == null) return defaultValue;
+    return formatShortDate(parsed);
+  }
 }
