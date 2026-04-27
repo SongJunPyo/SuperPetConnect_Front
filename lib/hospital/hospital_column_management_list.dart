@@ -12,6 +12,7 @@ import '../utils/error_display.dart';
 import '../widgets/app_app_bar.dart';
 import '../widgets/rich_text_viewer.dart';
 import '../widgets/post_list/board_list_row.dart';
+import '../widgets/post_list/board_list_header.dart';
 import 'hospital_column_create.dart';
 import 'hospital_column_edit.dart';
 import '../widgets/app_search_bar.dart';
@@ -823,7 +824,11 @@ class _HospitalColumnManagementScreenState
 
     return Container(
       decoration: BoxDecoration(color: Colors.white),
-      child: ListView.separated(
+      child: Column(
+        children: [
+          const BoardListHeader(),
+          Expanded(
+            child: ListView.separated(
         padding: EdgeInsets.zero,
         itemCount: columns.length,
         separatorBuilder:
@@ -836,6 +841,9 @@ class _HospitalColumnManagementScreenState
           final column = columns[index];
           return _buildColumnItem(column, index);
         },
+            ),
+          ),
+        ],
       ),
     );
   }

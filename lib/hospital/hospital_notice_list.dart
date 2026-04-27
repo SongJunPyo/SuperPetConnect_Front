@@ -12,6 +12,7 @@ import '../utils/app_constants.dart';
 import '../widgets/pagination_bar.dart';
 import '../widgets/app_search_bar.dart';
 import '../widgets/post_list/board_list_row.dart';
+import '../widgets/post_list/board_list_header.dart';
 import '../widgets/post_list/notice_styling.dart';
 
 class HospitalNoticeListScreen extends StatefulWidget {
@@ -605,7 +606,11 @@ class _HospitalNoticeListScreenState extends State<HospitalNoticeListScreen> {
 
     return Container(
       decoration: const BoxDecoration(color: Colors.white),
-      child: ListView.separated(
+      child: Column(
+        children: [
+          const BoardListHeader(),
+          Expanded(
+            child: ListView.separated(
         controller: _scrollController,
         padding: EdgeInsets.zero,
         itemCount: notices.length + paginationBarCount,
@@ -639,6 +644,9 @@ class _HospitalNoticeListScreenState extends State<HospitalNoticeListScreen> {
             onTap: () => _showNoticeDetail(notice),
           );
         },
+            ),
+          ),
+        ],
       ),
     );
   }

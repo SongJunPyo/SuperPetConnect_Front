@@ -12,6 +12,7 @@ import '../utils/app_constants.dart';
 import '../widgets/pagination_bar.dart';
 import '../widgets/app_search_bar.dart';
 import '../widgets/post_list/board_list_row.dart';
+import '../widgets/post_list/board_list_header.dart';
 
 class HospitalColumnList extends StatefulWidget {
   const HospitalColumnList({super.key});
@@ -387,6 +388,7 @@ class _HospitalColumnListState extends State<HospitalColumnList> {
       ),
       child: Column(
         children: [
+          const BoardListHeader(),
           Expanded(
             child: ListView.separated(
               controller: _scrollController,

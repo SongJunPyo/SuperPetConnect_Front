@@ -10,6 +10,7 @@ import '../utils/app_constants.dart';
 import '../widgets/pagination_bar.dart';
 import '../widgets/app_search_bar.dart';
 import '../widgets/post_list/board_list_row.dart';
+import '../widgets/post_list/board_list_header.dart';
 
 class UserColumnListScreen extends StatefulWidget {
   const UserColumnListScreen({super.key});
@@ -518,6 +519,7 @@ class _UserColumnListScreenState extends State<UserColumnListScreen> {
       ),
       child: Column(
         children: [
+          const BoardListHeader(),
           // 목록
           Expanded(
             child: ListView.separated(

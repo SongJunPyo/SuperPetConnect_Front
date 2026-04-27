@@ -7,6 +7,7 @@ import 'package:intl/intl.dart';
 import '../widgets/app_search_bar.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../widgets/post_list/board_list_row.dart';
+import '../widgets/post_list/board_list_header.dart';
 import '../widgets/post_list/notice_styling.dart';
 
 class AdminNoticeListScreen extends StatefulWidget {
@@ -708,7 +709,11 @@ class _AdminNoticeListScreenState extends State<AdminNoticeListScreen> {
 
     return Container(
       decoration: BoxDecoration(color: Colors.white),
-      child: ListView.separated(
+      child: Column(
+        children: [
+          const BoardListHeader(),
+          Expanded(
+            child: ListView.separated(
         padding: EdgeInsets.zero,
         itemCount: filteredNotices.length,
         separatorBuilder:
@@ -766,6 +771,9 @@ class _AdminNoticeListScreenState extends State<AdminNoticeListScreen> {
             ),
           );
         },
+            ),
+          ),
+        ],
       ),
     );
   }

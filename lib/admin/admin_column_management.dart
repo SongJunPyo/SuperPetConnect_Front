@@ -8,6 +8,7 @@ import '../utils/error_display.dart';
 import '../widgets/app_search_bar.dart';
 import '../widgets/rich_text_viewer.dart';
 import '../widgets/post_list/board_list_row.dart';
+import '../widgets/post_list/board_list_header.dart';
 import '../hospital/hospital_column_edit.dart';
 import 'package:intl/intl.dart';
 
@@ -559,7 +560,11 @@ class _AdminColumnManagementState extends State<AdminColumnManagement> {
 
     return Container(
       decoration: BoxDecoration(color: Colors.white),
-      child: ListView.separated(
+      child: Column(
+        children: [
+          const BoardListHeader(),
+          Expanded(
+            child: ListView.separated(
         padding: EdgeInsets.zero,
         itemCount: columns.length,
         separatorBuilder:
@@ -572,6 +577,9 @@ class _AdminColumnManagementState extends State<AdminColumnManagement> {
           final column = columns[index];
           return _buildColumnItem(column, index);
         },
+            ),
+          ),
+        ],
       ),
     );
   }

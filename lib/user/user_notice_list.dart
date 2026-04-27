@@ -10,6 +10,7 @@ import '../utils/number_format_util.dart';
 import '../widgets/app_search_bar.dart';
 import '../widgets/pagination_bar.dart';
 import '../widgets/post_list/board_list_row.dart';
+import '../widgets/post_list/board_list_header.dart';
 import '../widgets/post_list/notice_styling.dart';
 
 class UserNoticeListScreen extends StatefulWidget {
@@ -626,7 +627,11 @@ class _UserNoticeListScreenState extends State<UserNoticeListScreen> {
 
     return Container(
       decoration: BoxDecoration(color: Colors.white),
-      child: ListView.separated(
+      child: Column(
+        children: [
+          const BoardListHeader(),
+          Expanded(
+            child: ListView.separated(
         controller: _scrollController,
         padding: EdgeInsets.zero,
         itemCount: notices.length + paginationBarCount,
@@ -660,6 +665,9 @@ class _UserNoticeListScreenState extends State<UserNoticeListScreen> {
             onTap: () => _showNoticeDetail(notice),
           );
         },
+            ),
+          ),
+        ],
       ),
     );
   }
