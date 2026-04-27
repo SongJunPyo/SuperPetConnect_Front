@@ -26,7 +26,6 @@ import '../widgets/marquee_text.dart';
 import '../widgets/post_type_badge.dart';
 import '../widgets/dashboard/dashboard_empty_state.dart';
 import '../widgets/dashboard/dashboard_more_button.dart';
-import '../widgets/dashboard/dashboard_list_item.dart';
 import '../widgets/post_list/board_list_row.dart';
 import '../widgets/post_list/notice_styling.dart';
 import '../services/auth_http_client.dart';
@@ -379,13 +378,7 @@ class _UserDashboardState extends State<UserDashboard>
             );
           }).toList();
 
-      sortedColumns.sort((a, b) {
-        final aImportant = a.title.contains('[중요]') || a.title.contains('[공지]');
-        final bImportant = b.title.contains('[중요]') || b.title.contains('[공지]');
-        if (aImportant && !bImportant) return -1;
-        if (!aImportant && bImportant) return 1;
-        return b.createdAt.compareTo(a.createdAt);
-      });
+      sortedColumns.sort((a, b) => b.createdAt.compareTo(a.createdAt));
 
       final topColumns =
           sortedColumns.take(DashboardService.dashboardColumnLimit).toList();
@@ -1224,21 +1217,13 @@ class _UserDashboardState extends State<UserDashboard>
 
                 final column = columns[index];
 
-                return DashboardListItem<HospitalColumn>(
-                  item: column,
+                return BoardListRow(
                   index: index + 1,
+                  title: column.title,
+                  authorName: column.authorNickname ?? column.hospitalName,
+                  authorProfileImage: column.hospitalProfileImage,
+                  createdAt: column.createdAt,
                   onTap: () => _showColumnBottomSheet(column),
-                  getTitle: (c) => c.title,
-                  getAuthor: (c) => c.authorNickname ?? c.hospitalName,
-                  getCreatedAt: (c) => c.createdAt,
-                  getUpdatedAt: (c) => c.updatedAt,
-                  getViewCount: (c) => c.viewCount,
-                  shouldShowBadge: (c) => c.title.contains('[중요]') || c.title.contains('[공지]'),
-                  getBadgeText: (c) => '중요',
-                  enableTextPersonalization: true,
-                  userName: userName,
-                  userNickname: userNickname,
-                  getProfileImage: (c) => c.hospitalProfileImage,
                 );
               },
             ),
@@ -1305,32 +1290,6 @@ class _UserDashboardState extends State<UserDashboard>
                   const SizedBox(height: 12),
                   Row(
                     children: [
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 8,
-                          vertical: 4,
-                        ),
-                        decoration: BoxDecoration(
-                          color:
-                              column.title.contains('[중요]') ||
-                                      column.title.contains('[공지]')
-                                  ? AppTheme.error
-                                  : AppTheme.warning,
-                          borderRadius: BorderRadius.circular(6),
-                        ),
-                        child: Text(
-                          column.title.contains('[중요]') ||
-                                  column.title.contains('[공지]')
-                              ? '중요'
-                              : '칼럼',
-                          style: AppTheme.bodySmallStyle.copyWith(
-                            color: Colors.white,
-                            fontWeight: FontWeight.bold,
-                            fontSize: 10,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 8),
                       Expanded(
                         child: Text(
                           column.authorNickname ?? column.hospitalName,

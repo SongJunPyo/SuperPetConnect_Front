@@ -15,7 +15,6 @@ import '../utils/number_format_util.dart';
 import '../services/hospital_column_service.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../utils/app_constants.dart';
-import '../widgets/dashboard/dashboard_list_item.dart';
 import '../widgets/dashboard/dashboard_more_button.dart';
 import '../widgets/dashboard/dashboard_empty_state.dart';
 import '../widgets/post_list/board_list_row.dart';
@@ -353,19 +352,12 @@ class _WelcomeScreenState extends State<WelcomeScreen>
                   authorNickname: displayNickname,
                   hospitalProfileImage: column.hospitalProfileImage,
                   columnUrl: column.columnUrl,
-                  targetAudience: column.targetAudience,
                 );
               })
               .toList();
 
-      // 중요도 우선 정렬
-      sortedColumns.sort((a, b) {
-        final aImportant = a.title.contains('[중요]') || a.title.contains('[공지]');
-        final bImportant = b.title.contains('[중요]') || b.title.contains('[공지]');
-        if (aImportant && !bImportant) return -1;
-        if (!aImportant && bImportant) return 1;
-        return b.createdAt.compareTo(a.createdAt);
-      });
+      // 작성일 역순
+      sortedColumns.sort((a, b) => b.createdAt.compareTo(a.createdAt));
 
       final topColumns =
           sortedColumns.take(DashboardService.dashboardColumnLimit).toList();
@@ -727,19 +719,13 @@ class _WelcomeScreenState extends State<WelcomeScreen>
 
                 final column = columns[index];
 
-                return DashboardListItem<HospitalColumn>(
-                  item: column,
+                return BoardListRow(
                   index: index + 1,
+                  title: column.title,
+                  authorName: column.authorNickname ?? column.hospitalName,
+                  authorProfileImage: column.hospitalProfileImage,
+                  createdAt: column.createdAt,
                   onTap: () => _showColumnBottomSheet(column),
-                  getTitle: (c) => c.title,
-                  getAuthor: (c) => c.authorNickname ?? c.hospitalName,
-                  getCreatedAt: (c) => c.createdAt,
-                  getUpdatedAt: (c) => c.updatedAt,
-                  getViewCount: (c) => c.viewCount,
-                  shouldShowBadge: (c) => c.title.contains('[중요]') || c.title.contains('[공지]'),
-                  getBadgeText: (c) => '중요',
-                  enableTextPersonalization: false,
-                  getProfileImage: (c) => c.hospitalProfileImage,
                 );
               },
             ),

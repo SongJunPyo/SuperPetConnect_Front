@@ -12,7 +12,6 @@ class HospitalColumn {
   final String? authorNickname; // 작성자 닉네임
   final String? hospitalProfileImage; // 병원 프로필 사진
   final int viewCount;
-  final int targetAudience; // 0: 전체, 1: 관리자, 2: 병원, 3: 사용자
   final List<ColumnImage> images; // 칼럼 이미지 목록
 
   HospitalColumn({
@@ -29,7 +28,6 @@ class HospitalColumn {
     this.hospitalProfileImage,
     this.columnUrl,
     this.viewCount = 0,
-    this.targetAudience = 0,
     this.images = const [],
   });
 
@@ -74,7 +72,6 @@ class HospitalColumn {
               ? json['column_url']
               : null,
       viewCount: json['view_count'] ?? 0,
-      targetAudience: json['target_audience'] ?? json['targetAudience'] ?? 0,
       images: imagesList,
     );
   }
@@ -93,7 +90,6 @@ class HospitalColumn {
       'author_nickname': authorNickname ?? '',
       'column_url': columnUrl,
       'view_count': viewCount,
-      'target_audience': targetAudience,
       'images': images.map((img) => img.toJson()).toList(),
     };
   }

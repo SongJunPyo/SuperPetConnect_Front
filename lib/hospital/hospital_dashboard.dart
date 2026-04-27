@@ -26,7 +26,6 @@ import '../utils/number_format_util.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../widgets/dashboard/dashboard_empty_state.dart';
 import '../widgets/dashboard/dashboard_more_button.dart';
-import '../widgets/dashboard/dashboard_list_item.dart';
 import '../widgets/post_list/board_list_row.dart';
 import '../widgets/post_list/notice_styling.dart';
 import 'hospital_notice_list.dart';
@@ -202,13 +201,7 @@ class _HospitalDashboardState extends State<HospitalDashboard>
             );
           }).toList();
 
-      sortedColumns.sort((a, b) {
-        final aImportant = a.title.contains('[중요]') || a.title.contains('[공지]');
-        final bImportant = b.title.contains('[중요]') || b.title.contains('[공지]');
-        if (aImportant && !bImportant) return -1;
-        if (!aImportant && bImportant) return 1;
-        return b.createdAt.compareTo(a.createdAt);
-      });
+      sortedColumns.sort((a, b) => b.createdAt.compareTo(a.createdAt));
 
       final topColumns =
           sortedColumns.take(DashboardService.dashboardColumnLimit).toList();
@@ -622,24 +615,19 @@ class _HospitalDashboardState extends State<HospitalDashboard>
                 }
 
                 final column = columns[index];
+                final nickname =
+                    (column.authorNickname != null &&
+                            column.authorNickname!.toLowerCase() != '닉네임 없음')
+                        ? column.authorNickname!
+                        : column.hospitalName;
 
-                return DashboardListItem<HospitalColumn>(
-                  item: column,
+                return BoardListRow(
                   index: index + 1,
+                  title: column.title,
+                  authorName: nickname,
+                  authorProfileImage: column.hospitalProfileImage,
+                  createdAt: column.createdAt,
                   onTap: () => _showColumnBottomSheet(column),
-                  getTitle: (c) => c.title,
-                  getAuthor: (c) => (c.authorNickname != null && c.authorNickname!.toLowerCase() != '닉네임 없음')
-                      ? c.authorNickname!
-                      : c.hospitalName,
-                  getCreatedAt: (c) => c.createdAt,
-                  getUpdatedAt: (c) => c.updatedAt,
-                  getViewCount: (c) => c.viewCount,
-                  shouldShowBadge: (c) => c.title.contains('[중요]') || c.title.contains('[공지]'),
-                  getBadgeText: (c) => '중요',
-                  enableTextPersonalization: true,
-                  userName: hospitalName,
-                  userNickname: hospitalNickname,
-                  getProfileImage: (c) => c.hospitalProfileImage,
                 );
               },
             ),

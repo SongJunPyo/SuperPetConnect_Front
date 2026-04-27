@@ -1,3 +1,8 @@
+/// 칼럼 미리보기/요약 모델 (목록·대시보드용).
+///
+/// 백엔드 응답(`HospitalColumnResponse` 시리즈)에 `target_audience` 와
+/// `is_important` 필드는 처음부터 존재하지 않음. 칼럼은 모든 사용자에게
+/// 동일하게 노출되며 중요도 구분도 없음 (운영 정책 2026-04-28).
 class ColumnPost {
   final int columnIdx;
   final String title;
@@ -8,8 +13,6 @@ class ColumnPost {
   final String contentPreview;
   final String? contentDelta; // Delta JSON 리치 텍스트
   final String? columnUrl;
-  final bool isImportant;
-  final int targetAudience; // 0: 전체, 1: 관리자, 2: 병원, 3: 사용자
   final DateTime createdAt;
   final DateTime updatedAt;
 
@@ -23,8 +26,6 @@ class ColumnPost {
     required this.contentPreview,
     this.contentDelta,
     this.columnUrl,
-    required this.isImportant,
-    required this.targetAudience,
     required this.createdAt,
     required this.updatedAt,
   });
@@ -42,11 +43,9 @@ class ColumnPost {
               : '닉네임 없음',
       hospitalProfileImage: json['hospital_profile_image'],
       viewCount: json['view_count'] ?? 0,
-      contentPreview: json['content'] ?? '', // content_preview 제거됨, content 사용
+      contentPreview: json['content'] ?? '',
       contentDelta: json['content_delta'],
       columnUrl: json['column_url'] ?? json['columnUrl'],
-      isImportant: json['is_important'] ?? false,
-      targetAudience: json['target_audience'] ?? json['targetAudience'] ?? 0,
       createdAt: DateTime.tryParse(json['created_at'] ?? '') ?? DateTime.now(),
       updatedAt: DateTime.tryParse(json['updated_at'] ?? '') ?? DateTime.now(),
     );

@@ -11,6 +11,7 @@ import '../utils/config.dart';
 import '../utils/error_display.dart';
 import '../widgets/app_app_bar.dart';
 import '../widgets/rich_text_viewer.dart';
+import '../widgets/post_list/board_list_row.dart';
 import 'hospital_column_create.dart';
 import 'hospital_column_edit.dart';
 import '../widgets/app_search_bar.dart';
@@ -24,46 +25,26 @@ class HospitalColumnManagementScreen extends StatefulWidget {
 }
 
 class _HospitalColumnManagementScreenState
-    extends State<HospitalColumnManagementScreen>
-    with TickerProviderStateMixin {
+    extends State<HospitalColumnManagementScreen> {
   List<HospitalColumn> columns = [];
   bool isLoading = true;
   bool hasError = false;
   String errorMessage = '';
-  bool? publishedFilter = false; // true = 공개, false = 숨김
   String searchQuery = '';
   TextEditingController searchController = TextEditingController();
-  late TabController _tabController;
   DateTime? startDate;
   DateTime? endDate;
 
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 2, vsync: this);
-    _tabController.addListener(_onTabChanged);
-    // 초기 필터 설정: 0번 탭 = 전체 (null)
-    publishedFilter = false;
     _loadMyColumns();
   }
 
   @override
   void dispose() {
     searchController.dispose();
-    _tabController.dispose();
     super.dispose();
-  }
-
-  void _onTabChanged() {
-    setState(() {
-      // 0: 숨김 (false), 1: 공개 (true)
-      if (_tabController.index == 0) {
-        publishedFilter = false;
-      } else {
-        publishedFilter = true;
-      }
-    });
-    _loadMyColumns();
   }
 
   Future<void> _loadMyColumns() async {
@@ -79,14 +60,6 @@ class _HospitalColumnManagementScreenState
       );
 
       var filteredColumns = allColumns.columns;
-
-      // 발행 상태 필터링
-      if (publishedFilter != null) {
-        filteredColumns =
-            filteredColumns
-                .where((column) => column.isPublished == publishedFilter)
-                .toList();
-      }
 
       // 검색 필터링
       if (searchQuery.isNotEmpty) {
@@ -660,13 +633,6 @@ class _HospitalColumnManagementScreenState
       ),
       body: Column(
         children: [
-          TabBar(
-            controller: _tabController,
-            labelColor: AppTheme.black,
-            unselectedLabelColor: AppTheme.textSecondary,
-            indicatorColor: AppTheme.black,
-            tabs: const [Tab(text: '승인 대기'), Tab(text: '승인 완료')],
-          ),
           // 검색창
           Container(
             padding: const EdgeInsets.all(16.0),
@@ -785,16 +751,9 @@ class _HospitalColumnManagementScreenState
     }
 
     if (columns.isEmpty) {
-      String emptyMessage;
-      if (publishedFilter == true) {
-        emptyMessage =
-            searchQuery.isNotEmpty ? '승인 완료 칼럼 중 검색 결과가 없습니다.' : '승인 완료된 칼럼이 없습니다.';
-      } else {
-        emptyMessage =
-            searchQuery.isNotEmpty
-                ? '승인 대기 칼럼 중 검색 결과가 없습니다.'
-                : '승인 대기 중인 칼럼이 없습니다.';
-      }
+      final String emptyMessage = searchQuery.isNotEmpty
+          ? '검색 결과가 없습니다.'
+          : '작성한 칼럼이 없습니다.';
 
       return Center(
         child: Padding(
@@ -811,7 +770,7 @@ class _HospitalColumnManagementScreenState
                 ).textTheme.titleLarge?.copyWith(color: Colors.grey[500]),
                 textAlign: TextAlign.center,
               ),
-              if (publishedFilter == false && searchQuery.isEmpty) ...[
+              if (searchQuery.isEmpty) ...[
                 const SizedBox(height: 8),
                 Text(
                   '첫 번째 칼럼을 작성해보세요!',
@@ -882,122 +841,19 @@ class _HospitalColumnManagementScreenState
   }
 
   Widget _buildColumnItem(HospitalColumn column, int index) {
-    return InkWell(
+    final nickname = column.authorNickname ?? column.hospitalName;
+    final displayNickname =
+        nickname.toLowerCase() == '닉네임 없음' ? column.hospitalName : nickname;
+
+    return BoardListRow(
+      index: index + 1,
+      title: column.title,
+      // 미공개 칼럼은 회색으로 구분
+      titleColor: column.isPublished ? null : AppTheme.textTertiary,
+      authorName: displayNickname,
+      authorProfileImage: column.hospitalProfileImage,
+      createdAt: column.createdAt,
       onTap: () => _showColumnDetail(column),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // 왼쪽: 순서 번호
-            SizedBox(
-              width: 20,
-              height: 50,
-              child: Center(
-                child: Text(
-                  '${index + 1}',
-                  style: AppTheme.bodySmallStyle.copyWith(
-                    color: AppTheme.textTertiary,
-                    fontWeight: FontWeight.normal,
-                    fontSize: 13,
-                  ),
-                  textAlign: TextAlign.center,
-                ),
-              ),
-            ),
-            const SizedBox(width: 8),
-            // 중앙: 메인 콘텐츠
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // 첫 번째 줄: 제목
-                  Text(
-                    column.title,
-                    style: AppTheme.bodyMediumStyle.copyWith(
-                      color: AppTheme.textPrimary,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 13,
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  const SizedBox(height: 6),
-                  const SizedBox(height: 6),
-                  // 두 번째 줄: 프로필 사진 + 작성자 닉네임
-                  Row(
-                    children: [
-                      if (column.hospitalProfileImage != null) ...[
-                        CircleAvatar(
-                          radius: 7,
-                          backgroundImage: NetworkImage(
-                            column.hospitalProfileImage!.startsWith('http')
-                                ? column.hospitalProfileImage!
-                                : '${Config.serverUrl}${column.hospitalProfileImage}',
-                          ),
-                          backgroundColor: AppTheme.veryLightGray,
-                          onBackgroundImageError: (_, __) {},
-                        ),
-                        const SizedBox(width: 4),
-                      ],
-                      Expanded(
-                        child: Text(
-                          (() {
-                            final nickname =
-                                column.authorNickname ?? column.hospitalName;
-                            final displayNickname =
-                                nickname.toLowerCase() == '닉네임 없음'
-                                    ? column.hospitalName
-                                    : nickname;
-                            return displayNickname.length > 15
-                                ? '${displayNickname.substring(0, 15)}..'
-                                : displayNickname;
-                          })(),
-                          style: AppTheme.bodySmallStyle.copyWith(
-                            color: AppTheme.textSecondary,
-                            fontSize: 13,
-                          ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(width: 12),
-            // 오른쪽: 날짜들 + 상태 표시
-            Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                // 날짜 컬럼 (작성/수정일 세로 배치)
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  children: [
-                    Text(
-                      '작성: ${DateFormat('yy.MM.dd').format(column.createdAt)}',
-                      style: AppTheme.bodySmallStyle.copyWith(
-                        color: AppTheme.textTertiary,
-                        fontSize: 13,
-                      ),
-                    ),
-                    const SizedBox(height: 2),
-                    if (!column.updatedAt.isAtSameMomentAs(column.createdAt))
-                      Text(
-                        '수정: ${DateFormat('yy.MM.dd').format(column.updatedAt)}',
-                        style: AppTheme.bodySmallStyle.copyWith(
-                          color: AppTheme.textTertiary,
-                          fontSize: 13,
-                        ),
-                      ),
-                  ],
-                ),
-              ],
-            ),
-          ],
-        ),
-      ),
     );
   }
 }
