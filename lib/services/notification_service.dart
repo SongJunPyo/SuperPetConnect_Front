@@ -5,7 +5,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_naver_login/flutter_naver_login.dart';
 import 'package:http/http.dart' as http;
 import 'package:provider/provider.dart';
+import '../admin/admin_column_management.dart';
 import '../admin/admin_pet_management.dart';
+import '../admin/admin_signup_management.dart';
 import '../providers/notification_provider.dart';
 import '../utils/config.dart';
 import '../utils/preferences_manager.dart';
@@ -57,8 +59,19 @@ class NotificationService {
           _navigateToDonationHistory(message.data);
         } else if (message.data['type'] == 'new_donation_post') {
           _navigateToNewDonationPost(parsedData);
-        } else if (message.data['type'] == 'new_pet_registration') {
+        } else if (message.data['type'] == 'new_pet_registration' ||
+            message.data['type'] == 'pet_review_request') {
           _navigateToAdminPetManagement(parsedData);
+        } else if (message.data['type'] == 'new_user_registration') {
+          _navigateToSignupManagement(parsedData);
+        } else if (message.data['type'] == 'column_approval') {
+          _navigateToAdminColumnManagement(parsedData);
+        } else if (message.data['type'] == 'column_rejected') {
+          _navigateToHospitalColumns(parsedData);
+        } else if (message.data['type'] == 'all_timeslots_filled' ||
+            message.data['type'] == 'post_suspended' ||
+            message.data['type'] == 'post_resumed') {
+          _navigateToHospitalPosts(parsedData);
         } else if (message.data['type'] == 'account_suspended' ||
             message.data['type'] == 'account_status_changed') {
           _navigateForAccountStatus(message.data);
@@ -107,8 +120,19 @@ class NotificationService {
               _navigateToDonationHistory(message.data);
             } else if (message.data['type'] == 'new_donation_post') {
               _navigateToNewDonationPost(parsedData);
-            } else if (message.data['type'] == 'new_pet_registration') {
+            } else if (message.data['type'] == 'new_pet_registration' ||
+                message.data['type'] == 'pet_review_request') {
               _navigateToAdminPetManagement(parsedData);
+            } else if (message.data['type'] == 'new_user_registration') {
+              _navigateToSignupManagement(parsedData);
+            } else if (message.data['type'] == 'column_approval') {
+              _navigateToAdminColumnManagement(parsedData);
+            } else if (message.data['type'] == 'column_rejected') {
+              _navigateToHospitalColumns(parsedData);
+            } else if (message.data['type'] == 'all_timeslots_filled' ||
+                message.data['type'] == 'post_suspended' ||
+                message.data['type'] == 'post_resumed') {
+              _navigateToHospitalPosts(parsedData);
             } else if (message.data['type'] == 'account_suspended' ||
                 message.data['type'] == 'account_status_changed') {
               _navigateForAccountStatus(message.data);
@@ -163,8 +187,27 @@ class NotificationService {
           _navigateToNewDonationPost(parsedData);
           break;
         case 'new_pet_registration':
+        case 'pet_review_request':
           final parsedData = _parseNotificationData(data);
           _navigateToAdminPetManagement(parsedData);
+          break;
+        case 'new_user_registration':
+          final parsedData = _parseNotificationData(data);
+          _navigateToSignupManagement(parsedData);
+          break;
+        case 'column_approval':
+          final parsedData = _parseNotificationData(data);
+          _navigateToAdminColumnManagement(parsedData);
+          break;
+        case 'column_rejected':
+          final parsedData = _parseNotificationData(data);
+          _navigateToHospitalColumns(parsedData);
+          break;
+        case 'all_timeslots_filled':
+        case 'post_suspended':
+        case 'post_resumed':
+          final parsedData = _parseNotificationData(data);
+          _navigateToHospitalPosts(parsedData);
           break;
         case 'account_suspended':
         case 'account_status_changed':
@@ -385,7 +428,7 @@ class NotificationService {
   /// 신규 반려동물 등록 알림 클릭 시 네비게이션 (관리자용).
   /// 서버 FCM payload 예: `navigation: { page: "admin_pet_management", pet_idx: <pk> }`
   /// 현재는 page 키와 무관하게 `AdminPetManagement` 전체 화면으로 이동 (해당 페이지에
-  /// 이미 승인 대기 탭이 기본 진입 상태).
+  /// 이미 승인 대기 탭이 기본 진입 상태). pet_review_request도 같은 화면 사용.
   static void _navigateToAdminPetManagement(Map<String, dynamic> data) {
     final context = navigatorKey.currentContext;
     if (context == null) return;
@@ -396,6 +439,36 @@ class NotificationService {
       );
     } catch (e) {
       debugPrint('[NotificationService] 반려동물 관리 네비게이션 실패: $e');
+    }
+  }
+
+  /// 신규 가입 요청 알림(new_user_registration) 클릭 시 가입 관리 화면 진입.
+  /// 라우트 미등록이라 직접 push.
+  static void _navigateToSignupManagement(Map<String, dynamic> data) {
+    final context = navigatorKey.currentContext;
+    if (context == null) return;
+    try {
+      Navigator.push(
+        context,
+        MaterialPageRoute(builder: (_) => const AdminSignupManagement()),
+      );
+    } catch (e) {
+      debugPrint('[NotificationService] 가입 관리 네비게이션 실패: $e');
+    }
+  }
+
+  /// 칼럼 승인 요청 알림(column_approval) 클릭 시 관리자 칼럼 관리 화면 진입.
+  /// 라우트 미등록이라 직접 push.
+  static void _navigateToAdminColumnManagement(Map<String, dynamic> data) {
+    final context = navigatorKey.currentContext;
+    if (context == null) return;
+    try {
+      Navigator.push(
+        context,
+        MaterialPageRoute(builder: (_) => const AdminColumnManagement()),
+      );
+    } catch (e) {
+      debugPrint('[NotificationService] 칼럼 관리 네비게이션 실패: $e');
     }
   }
 
