@@ -32,7 +32,7 @@ class PostTypeBadge extends StatelessWidget {
                   style: AppTheme.bodySmallStyle.copyWith(
                     fontWeight: FontWeight.w600,
                     color: color,
-                    fontSize: 10,
+                    fontSize: 11,
                     height: 1.0,
                   ),
                   textAlign: TextAlign.center,
@@ -42,7 +42,7 @@ class PostTypeBadge extends StatelessWidget {
                   style: AppTheme.bodySmallStyle.copyWith(
                     fontWeight: FontWeight.w600,
                     color: color,
-                    fontSize: 10,
+                    fontSize: 11,
                     height: 1.0,
                   ),
                   textAlign: TextAlign.center,

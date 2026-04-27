@@ -48,8 +48,8 @@ class PostListRow extends StatelessWidget {
       onTap: onTap,
       child: Container(
         padding: const EdgeInsets.symmetric(
-          vertical: 14.0,
-          horizontal: 16.0,
+          vertical: 18.0,
+          horizontal: 8.0,
         ),
         margin: const EdgeInsets.symmetric(vertical: 1.0),
         decoration: BoxDecoration(

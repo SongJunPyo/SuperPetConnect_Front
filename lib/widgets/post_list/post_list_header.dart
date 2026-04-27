@@ -15,7 +15,7 @@ class PostListHeader extends StatelessWidget {
     );
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
+      padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 16.0),
       decoration: BoxDecoration(
         color: Colors.grey.shade100,
         border: Border(
