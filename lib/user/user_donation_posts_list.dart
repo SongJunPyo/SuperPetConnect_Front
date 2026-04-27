@@ -4,6 +4,7 @@ import '../utils/preferences_manager.dart';
 import '../utils/app_theme.dart';
 import '../utils/config.dart';
 import '../utils/app_constants.dart';
+import '../utils/phone_formatter.dart';
 import '../services/dashboard_service.dart';
 import '../models/unified_post_model.dart';
 import '../services/applied_donation_service.dart';
@@ -2871,7 +2872,7 @@ class _DonationApplicationPageState extends State<DonationApplicationPage> {
             children: [
               _buildInfoRow('이름', userInfo!['name'] ?? '-'),
               _buildInfoRow('닉네임', userInfo!['nickname'] ?? '-'),
-              _buildInfoRow('연락처', _formatPhoneNumber(userInfo!['phone'] ?? '-')),
+              _buildInfoRow('연락처', formatPhoneNumber(userInfo!['phone'] as String?, fallback: '-')),
               _buildInfoRow('주소', userInfo!['address'] ?? '-'),
             ],
           ),
@@ -2926,17 +2927,6 @@ class _DonationApplicationPageState extends State<DonationApplicationPage> {
         ),
       ],
     );
-  }
-
-  /// 전화번호 포맷팅 (01011112222 → 010-1111-2222)
-  String _formatPhoneNumber(String phone) {
-    final digits = phone.replaceAll(RegExp(r'[^0-9]'), '');
-    if (digits.length == 11) {
-      return '${digits.substring(0, 3)}-${digits.substring(3, 7)}-${digits.substring(7)}';
-    } else if (digits.length == 10) {
-      return '${digits.substring(0, 3)}-${digits.substring(3, 6)}-${digits.substring(6)}';
-    }
-    return phone;
   }
 
   Widget _buildInfoRow(String label, String value) {

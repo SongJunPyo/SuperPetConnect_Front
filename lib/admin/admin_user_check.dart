@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../utils/app_theme.dart';
 import '../utils/app_constants.dart';
 import '../utils/error_display.dart';
+import '../utils/phone_formatter.dart';
 import '../widgets/app_app_bar.dart';
 import '../widgets/app_search_bar.dart';
 import '../widgets/pagination_bar.dart';
@@ -432,7 +433,7 @@ class _AdminUserCheckState extends State<AdminUserCheck>
             Expanded(
               flex: 3,
               child: Text(
-                _formatPhoneNumber(user.phoneNumber),
+                formatPhoneNumber(user.phoneNumber),
                 textAlign: TextAlign.center,
                 style: AppTheme.bodyMediumStyle.copyWith(
                   fontWeight: FontWeight.w500,
@@ -489,11 +490,6 @@ class _AdminUserCheckState extends State<AdminUserCheck>
     );
   }
 
-  // 전화번호 포맷팅 헬퍼 메서드
-  String _formatPhoneNumber(String phoneNumber) {
-    if (phoneNumber.length != 11) return phoneNumber;
-    return '${phoneNumber.substring(0, 3)}-${phoneNumber.substring(3, 7)}-${phoneNumber.substring(7)}';
-  }
 }
 
 class _BlacklistBottomSheet extends StatefulWidget {

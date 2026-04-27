@@ -6,6 +6,7 @@ import '../services/auth_http_client.dart';
 import '../utils/app_theme.dart';
 import '../utils/app_constants.dart';
 import '../utils/api_endpoints.dart';
+import '../utils/phone_formatter.dart';
 import '../widgets/pet_profile_image.dart';
 import '../widgets/app_search_bar.dart';
 import '../widgets/post_list/post_list_header.dart';
@@ -2447,18 +2448,6 @@ class _AdminPostCheckState extends State<AdminPostCheck>
     );
   }
 
-  String _formatPhoneNumber(String? phone) {
-    if (phone == null || phone.isEmpty) return '연락처 없음';
-
-    // 숫자만 추출
-    String numbers = phone.replaceAll(RegExp(r'[^0-9]'), '');
-
-    if (numbers.length != 11) return phone; // 휴대폰 번호가 아닌 경우 원본 반환
-
-    // 000-0000-0000 형식으로 변환
-    return '${numbers.substring(0, 3)}-${numbers.substring(3, 7)}-${numbers.substring(7)}';
-  }
-
   /// 직전 헌혈일 포맷 (YYYY.MM.DD 형식)
   String _formatLastDonationDate(String dateTime) {
     try {
@@ -3387,7 +3376,7 @@ class _AdminPostCheckState extends State<AdminPostCheck>
                                       ),
                                       const SizedBox(height: 4),
                                       Text(
-                                        _formatPhoneNumber(applicant['contact']),
+                                        formatPhoneNumber(applicant['contact'] as String?, fallback: '연락처 없음'),
                                         style: AppTheme.bodySmallStyle.copyWith(
                                           color: AppTheme.textSecondary,
                                         ),
@@ -4710,7 +4699,7 @@ class _AdminPostCheckState extends State<AdminPostCheck>
           _buildApplicantInfoRow('이름', applicant['name'].toString()),
         if (applicant['nickname'] != null && applicant['nickname'].toString().isNotEmpty)
           _buildApplicantInfoRow('닉네임', applicant['nickname'].toString()),
-        _buildApplicantInfoRow('연락처', _formatPhoneNumber(applicant['contact'])),
+        _buildApplicantInfoRow('연락처', formatPhoneNumber(applicant['contact'] as String?, fallback: '연락처 없음')),
         const Divider(height: 24),
         // 반려동물 정보
         _buildApplicantInfoRow(

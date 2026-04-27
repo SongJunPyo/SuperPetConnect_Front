@@ -3,6 +3,7 @@ import 'dart:convert';
 import '../utils/app_theme.dart';
 import '../utils/config.dart';
 import '../utils/api_endpoints.dart';
+import '../utils/phone_formatter.dart';
 import '../models/user_model.dart';
 import '../models/pet_model.dart';
 import '../services/user_management_service.dart';
@@ -190,7 +191,7 @@ class _SuspendedUserBottomSheetState extends State<SuspendedUserBottomSheet> {
           if (widget.user.nickname?.isNotEmpty == true)
             _buildInfoRow('닉네임', widget.user.nickname!),
           _buildInfoRow('이메일', widget.user.email),
-          _buildInfoRow('전화번호', _formatPhoneNumber(widget.user.phoneNumber)),
+          _buildInfoRow('전화번호', formatPhoneNumber(widget.user.phoneNumber)),
 
           const SizedBox(height: 24),
           SizedBox(
@@ -311,16 +312,6 @@ class _SuspendedUserBottomSheetState extends State<SuspendedUserBottomSheet> {
         ],
       ),
     );
-  }
-
-  String _formatPhoneNumber(String phone) {
-    final digits = phone.replaceAll(RegExp(r'[^0-9]'), '');
-    if (digits.length == 11) {
-      return '${digits.substring(0, 3)}-${digits.substring(3, 7)}-${digits.substring(7)}';
-    } else if (digits.length == 10) {
-      return '${digits.substring(0, 3)}-${digits.substring(3, 6)}-${digits.substring(6)}';
-    }
-    return phone;
   }
 
   Widget _buildInfoRow(String label, String value) {
@@ -506,7 +497,7 @@ class _ActiveUserBottomSheetState extends State<ActiveUserBottomSheet>
                 if (widget.user.nickname?.isNotEmpty == true)
                   _buildInfoRow('닉네임', widget.user.nickname!),
                 _buildInfoRow('이메일', widget.user.email),
-                _buildInfoRow('전화번호', _formatPhoneNumber(widget.user.phoneNumber)),
+                _buildInfoRow('전화번호', formatPhoneNumber(widget.user.phoneNumber)),
                 _buildInfoRow('주소', widget.user.address),
                 _buildInfoRow('상태', widget.user.statusText),
                 if (widget.user.createdAt != null)
@@ -1367,16 +1358,6 @@ class _ActiveUserBottomSheetState extends State<ActiveUserBottomSheet>
       }
     } catch (_) {}
     return [];
-  }
-
-  String _formatPhoneNumber(String phone) {
-    final digits = phone.replaceAll(RegExp(r'[^0-9]'), '');
-    if (digits.length == 11) {
-      return '${digits.substring(0, 3)}-${digits.substring(3, 7)}-${digits.substring(7)}';
-    } else if (digits.length == 10) {
-      return '${digits.substring(0, 3)}-${digits.substring(3, 6)}-${digits.substring(6)}';
-    }
-    return phone;
   }
 
   Widget _buildInfoRow(String label, String value) {
