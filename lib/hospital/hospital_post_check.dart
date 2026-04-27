@@ -39,7 +39,6 @@ class _HospitalPostCheckState extends State<HospitalPostCheck>
   // 탭 2,3은 "yy.MM.dd 오후 02:30" 형태로 길어서 120w 필요.
   // 탭 0,1은 yy.MM.dd만 보여 여유롭게 사용.
   static const double _columnDateWidth = 120; // 작성일/시간대
-  static const double _columnApplicantWidth = 60; // 신청자
 
   List<UnifiedPostModel> posts = [];
   List<UnifiedPostModel> filteredPosts = [];
@@ -700,19 +699,6 @@ class _HospitalPostCheckState extends State<HospitalPostCheck>
               textAlign: TextAlign.center,
             ),
           ),
-          // 신청자 컬럼은 게시글 단위(탭 0, 1)에서만 의미 있음.
-          // 탭 2~4는 신청자 1명 단위 행이라 항상 "1명/-"으로 무의미.
-          if (_currentTabIndex == 0 || _currentTabIndex == 1)
-            SizedBox(
-              width: _columnApplicantWidth,
-              child: Text(
-                '신청자',
-                style: AppTheme.bodyMediumStyle.copyWith(
-                  fontWeight: FontWeight.w600,
-                ),
-                textAlign: TextAlign.center,
-              ),
-            ),
         ],
       ),
     );
@@ -753,19 +739,6 @@ class _HospitalPostCheckState extends State<HospitalPostCheck>
               alignment: Alignment.center,
               child: Text(
                 TimeFormatUtils.formatPostDate(post.createdDate),
-                style: AppTheme.bodySmallStyle.copyWith(
-                  fontSize: 11,
-                  color: Colors.grey[600],
-                ),
-                textAlign: TextAlign.center,
-              ),
-            ),
-            // 신청자 수
-            Container(
-              width: _columnApplicantWidth,
-              alignment: Alignment.center,
-              child: Text(
-                '${post.applicantCount > 99 ? '99+' : post.applicantCount}명',
                 style: AppTheme.bodySmallStyle.copyWith(
                   fontSize: 11,
                   color: Colors.grey[600],
