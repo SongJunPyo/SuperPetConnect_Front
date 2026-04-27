@@ -785,7 +785,7 @@ class _UserDashboardState extends State<UserDashboard>
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Icon(Icons.announcement, size: 20),
+                    Icon(Icons.campaign, size: 20),
                     SizedBox(width: 8),
                     Text('공지사항'),
                   ],
