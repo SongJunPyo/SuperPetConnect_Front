@@ -39,6 +39,48 @@ class TimeFormatUtils {
     return time24.isNotEmpty ? time24 : '미정';
   }
 
+  /// "9:5" 또는 "14:30:00" -> "09:05" / "14:30" (zero-padded 24-hour)
+  /// 빈 문자열은 '시간 미정' 반환, 파싱 실패 시 원본 반환
+  static String formatTime24(String time24) {
+    if (time24.isEmpty) return '시간 미정';
+
+    try {
+      final parts = time24.split(':');
+      if (parts.length >= 2) {
+        final hour = int.parse(parts[0]);
+        final minute = parts[1];
+        return '${hour.toString().padLeft(2, '0')}:$minute';
+      }
+    } catch (e) {
+      return time24;
+    }
+    return '시간 미정';
+  }
+
+  /// 날짜 문자열을 요일로 변환 ("2024-12-25" -> "수")
+  /// 파싱 실패 시 빈 문자열 반환
+  static String getWeekday(String dateStr) {
+    try {
+      final date = DateTime.parse(dateStr);
+      const weekdays = ['월', '화', '수', '목', '금', '토', '일'];
+      return weekdays[date.weekday - 1];
+    } catch (e) {
+      return '';
+    }
+  }
+
+  /// 날짜 문자열을 "YYYY년 M월 D일 O요일" 형태로 포맷팅
+  /// 파싱 실패 시 원본 반환
+  static String formatDateWithWeekday(String dateStr) {
+    try {
+      final date = DateTime.parse(dateStr);
+      final weekday = getWeekday(dateStr);
+      return '${date.year}년 ${date.month}월 ${date.day}일 $weekday요일';
+    } catch (e) {
+      return dateStr;
+    }
+  }
+
   // ===== DateTime 객체 포맷팅 (게시글 바텀시트용) =====
 
   /// 게시글 작성일 포맷: yy.MM.dd

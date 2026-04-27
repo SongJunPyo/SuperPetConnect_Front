@@ -6,6 +6,7 @@ import '../services/hospital_post_service.dart';
 import '../utils/app_theme.dart';
 import '../utils/app_constants.dart';
 import '../utils/error_display.dart';
+import '../utils/time_format_util.dart';
 import 'package:intl/intl.dart';
 import '../utils/config.dart';
 import '../widgets/pet_profile_image.dart';
@@ -32,6 +33,11 @@ class HospitalPostCheck extends StatefulWidget {
 
 class _HospitalPostCheckState extends State<HospitalPostCheck>
     with SingleTickerProviderStateMixin {
+  // 게시글 리스트 컬럼 너비 (헤더와 행에서 동시 참조)
+  static const double _columnTypeWidth = 80; // 구분
+  static const double _columnDateWidth = 90; // 작성일/시간대
+  static const double _columnApplicantWidth = 60; // 신청자
+
   List<UnifiedPostModel> posts = [];
   List<UnifiedPostModel> filteredPosts = [];
   List<PostTimeItem> postTimeItems = [];
@@ -430,15 +436,6 @@ class _HospitalPostCheckState extends State<HospitalPostCheck>
   }
 
   // 날짜 포맷팅 함수
-  String _formatDate(String dateString) {
-    try {
-      DateTime date = DateTime.parse(dateString);
-      return DateFormat('MM.dd').format(date);
-    } catch (e) {
-      return dateString;
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -674,7 +671,7 @@ class _HospitalPostCheckState extends State<HospitalPostCheck>
       child: Row(
         children: [
           SizedBox(
-            width: 70,
+            width: _columnTypeWidth,
             child: Text(
               '구분',
               style: AppTheme.bodyMediumStyle.copyWith(
@@ -691,7 +688,7 @@ class _HospitalPostCheckState extends State<HospitalPostCheck>
             ),
           ),
           SizedBox(
-            width: 80,
+            width: _columnDateWidth,
             child: Text(
               _currentTabIndex == 2 || _currentTabIndex == 3 ? '시간대' : '작성일',
               style: AppTheme.bodyMediumStyle.copyWith(
@@ -701,9 +698,9 @@ class _HospitalPostCheckState extends State<HospitalPostCheck>
             ),
           ),
           SizedBox(
-            width: 70,
+            width: _columnApplicantWidth,
             child: Text(
-              _currentTabIndex >= 2 ? '신청자' : '신청자',
+              '신청자',
               style: AppTheme.bodyMediumStyle.copyWith(
                 fontWeight: FontWeight.w600,
               ),
@@ -732,7 +729,7 @@ class _HospitalPostCheckState extends State<HospitalPostCheck>
           children: [
             // 구분 (뱃지)
             Container(
-              width: 70,
+              width: _columnTypeWidth,
               alignment: Alignment.centerLeft,
               child: PostTypeBadge(type: post.isUrgent ? '긴급' : '정기'),
             ),
@@ -746,10 +743,10 @@ class _HospitalPostCheckState extends State<HospitalPostCheck>
             ),
             // 작성일
             Container(
-              width: 80,
+              width: _columnDateWidth,
               alignment: Alignment.center,
               child: Text(
-                DateFormat('MM.dd').format(post.createdDate),
+                TimeFormatUtils.formatPostDate(post.createdDate),
                 style: AppTheme.bodySmallStyle.copyWith(
                   fontSize: 11,
                   color: Colors.grey[600],
@@ -759,7 +756,7 @@ class _HospitalPostCheckState extends State<HospitalPostCheck>
             ),
             // 신청자 수
             Container(
-              width: 70,
+              width: _columnApplicantWidth,
               alignment: Alignment.center,
               child: Text(
                 '${post.applicantCount > 99 ? '99+' : post.applicantCount}명',
@@ -941,8 +938,8 @@ class _HospitalPostCheckState extends State<HospitalPostCheck>
     // 헌혈취소 탭에서는 작성일, 다른 탭에서는 시간대
     final String dateDisplay =
         isCancellationTab
-            ? _formatDate(item.createdDate)
-            : '${_formatDate(item.date)} ${item.time}';
+            ? TimeFormatUtils.formatFlexibleDate(item.createdDate)
+            : '${TimeFormatUtils.formatFlexibleDate(item.date)} ${TimeFormatUtils.formatTime24(item.time)}';
     final String applicantDisplay = item.applicantNickname != null ? '1명' : '-';
 
     return InkWell(
@@ -964,7 +961,7 @@ class _HospitalPostCheckState extends State<HospitalPostCheck>
               children: [
                 // 구분 (뱃지)
                 Container(
-                  width: 70,
+                  width: _columnTypeWidth,
                   alignment: Alignment.centerLeft,
                   child: PostTypeBadge(type: badgeType),
                 ),
@@ -978,7 +975,7 @@ class _HospitalPostCheckState extends State<HospitalPostCheck>
                 ),
                 // 시간대 또는 작성일
                 Container(
-                  width: 80,
+                  width: _columnDateWidth,
                   alignment: Alignment.center,
                   child: Text(
                     dateDisplay,
@@ -991,7 +988,7 @@ class _HospitalPostCheckState extends State<HospitalPostCheck>
                 ),
                 // 신청자 수
                 Container(
-                  width: 70,
+                  width: _columnApplicantWidth,
                   alignment: Alignment.center,
                   child: Text(
                     applicantDisplay,
@@ -1027,7 +1024,7 @@ class _HospitalPostCheckState extends State<HospitalPostCheck>
           children: [
             // 구분 (뱃지)
             Container(
-              width: 70,
+              width: _columnTypeWidth,
               alignment: Alignment.centerLeft,
               child: Container(
                 padding: const EdgeInsets.symmetric(
@@ -1059,10 +1056,10 @@ class _HospitalPostCheckState extends State<HospitalPostCheck>
             ),
             // 작성일
             Container(
-              width: 80,
+              width: _columnDateWidth,
               alignment: Alignment.center,
               child: Text(
-                DateFormat('MM.dd').format(DateTime.parse(post.createdDate)),
+                TimeFormatUtils.formatFlexibleDate(post.createdDate),
                 style: AppTheme.bodySmallStyle.copyWith(
                   fontSize: 11,
                   color: Colors.grey[600],
@@ -1072,7 +1069,7 @@ class _HospitalPostCheckState extends State<HospitalPostCheck>
             ),
             // 빈 칸
             Container(
-              width: 70,
+              width: _columnApplicantWidth,
               alignment: Alignment.center,
               child: Text(
                 '-',
@@ -2286,7 +2283,7 @@ class _PostDetailBottomSheetState extends State<PostDetailBottomSheet> {
                   ),
                   const SizedBox(width: 8),
                   Text(
-                    '${_formatDateWithWeekday(applicant.selectedDate!)} ${_formatTime(applicant.selectedTime!)}',
+                    '${TimeFormatUtils.formatDateWithWeekday(applicant.selectedDate!)} ${TimeFormatUtils.formatTime24(applicant.selectedTime!)}',
                     style: AppTheme.bodyMediumStyle.copyWith(
                       color: AppTheme.primaryDarkBlue,
                       fontWeight: FontWeight.w500,
@@ -2413,44 +2410,6 @@ class _PostDetailBottomSheetState extends State<PostDetailBottomSheet> {
   }
 
   // 날짜를 요일로 변환하는 함수
-  String _getWeekday(String dateStr) {
-    try {
-      final date = DateTime.parse(dateStr);
-      const weekdays = ['월', '화', '수', '목', '금', '토', '일'];
-      return weekdays[date.weekday - 1];
-    } catch (e) {
-      return '';
-    }
-  }
-
-  // 날짜를 "YYYY년 MM월 DD일 O요일" 형태로 포맷팅
-  String _formatDateWithWeekday(String dateStr) {
-    try {
-      final date = DateTime.parse(dateStr);
-      final weekday = _getWeekday(dateStr);
-      return '${date.year}년 ${date.month}월 ${date.day}일 $weekday요일';
-    } catch (e) {
-      return dateStr;
-    }
-  }
-
-  // 시간 포맷팅 메서드 - 24시간제
-  String _formatTime(String time24) {
-    if (time24.isEmpty) return '시간 미정';
-
-    try {
-      final parts = time24.split(':');
-      if (parts.length == 2) {
-        final hour = int.parse(parts[0]);
-        final minute = parts[1];
-        return '${hour.toString().padLeft(2, '0')}:$minute';
-      }
-    } catch (e) {
-      return time24;
-    }
-    return '시간 미정';
-  }
-
   Widget _buildDateTimeDropdown() {
     if (widget.post.timeRanges == null || widget.post.timeRanges!.isEmpty) {
       return Container(
@@ -2518,7 +2477,7 @@ class _PostDetailBottomSheetState extends State<PostDetailBottomSheet> {
                         const SizedBox(width: 16),
                         Expanded(
                           child: Text(
-                            _formatDateWithWeekday(dateStr),
+                            TimeFormatUtils.formatDateWithWeekday(dateStr),
                             style: AppTheme.bodyLargeStyle.copyWith(
                               fontWeight: FontWeight.w600,
                               color: AppTheme.textPrimary,
@@ -2560,7 +2519,7 @@ class _PostDetailBottomSheetState extends State<PostDetailBottomSheet> {
                                     const SizedBox(width: 12),
                                     Expanded(
                                       child: Text(
-                                        _formatTime(timeSlot.time),
+                                        TimeFormatUtils.formatTime24(timeSlot.time),
                                         style: AppTheme.bodyMediumStyle.copyWith(
                                           fontWeight: FontWeight.w600,
                                           color: AppTheme.textPrimary,
@@ -2679,7 +2638,7 @@ class _PostDetailBottomSheetState extends State<PostDetailBottomSheet> {
                                     ),
                                     const SizedBox(height: 4),
                                     Text(
-                                      '${_formatDateWithWeekday(dateStr)} ${_formatTime(timeSlot.time)}',
+                                      '${TimeFormatUtils.formatDateWithWeekday(dateStr)} ${TimeFormatUtils.formatTime24(timeSlot.time)}',
                                       style: AppTheme.bodyMediumStyle.copyWith(
                                         color: AppTheme.textSecondary,
                                       ),

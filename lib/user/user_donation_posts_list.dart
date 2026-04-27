@@ -22,6 +22,7 @@ import '../models/pet_model.dart' as pet_model;
 import '../models/region_model.dart';
 import '../widgets/region_selection_sheet.dart';
 import '../utils/donation_eligibility.dart';
+import '../utils/time_format_util.dart';
 
 class UserDonationPostsListScreen extends StatefulWidget {
   final UnifiedPostModel? initialPost; // 초기에 표시할 게시글
@@ -41,6 +42,11 @@ class UserDonationPostsListScreen extends StatefulWidget {
 class _UserDonationPostsListScreenState
     extends State<UserDonationPostsListScreen>
     with TickerProviderStateMixin {
+  // 게시글 리스트 컬럼 너비 (헤더와 행에서 동시 참조)
+  static const double _columnTypeWidth = 80; // 구분
+  static const double _columnHospitalWidth = 90; // 병원
+  static const double _columnDateWidth = 60; // 작성일
+
   List<UnifiedPostModel> filteredPosts = [];
   bool isLoading = true;
   String errorMessage = '';
@@ -66,52 +72,6 @@ class _UserDonationPostsListScreenState
   Map<int, MyApplicationInfo> myApplicationsMap = {};
 
   // 시간 포맷팅 메서드
-  String _formatTime(String time24) {
-    if (time24.isEmpty) return '시간 미정';
-
-    try {
-      final parts = time24.split(':');
-      if (parts.length == 2) {
-        final hour = int.parse(parts[0]);
-        final minute = parts[1];
-        if (hour == 0) {
-          return '오전 12:$minute';
-        } else if (hour < 12) {
-          return '오전 ${hour.toString().padLeft(2, '0')}:$minute';
-        } else if (hour == 12) {
-          return '오후 12:$minute';
-        } else {
-          return '오후 ${(hour - 12).toString().padLeft(2, '0')}:$minute';
-        }
-      }
-    } catch (e) {
-      return time24;
-    }
-    return '시간 미정';
-  }
-
-  // 날짜를 요일로 변환하는 함수
-  String _getWeekday(String dateStr) {
-    try {
-      final date = DateTime.parse(dateStr);
-      const weekdays = ['월', '화', '수', '목', '금', '토', '일'];
-      return weekdays[date.weekday - 1];
-    } catch (e) {
-      return '';
-    }
-  }
-
-  // 날짜를 "YYYY년 MM월 DD일 O요일" 형태로 포맷팅
-  String _formatDateWithWeekday(String dateStr) {
-    try {
-      final date = DateTime.parse(dateStr);
-      final weekday = _getWeekday(dateStr);
-      return '${date.year}년 ${date.month}월 ${date.day}일 $weekday요일';
-    } catch (e) {
-      return dateStr;
-    }
-  }
-
   @override
   void initState() {
     super.initState();
@@ -541,7 +501,7 @@ class _UserDonationPostsListScreenState
                     child: Padding(
                       padding: const EdgeInsets.symmetric(vertical: 8),
                       child: Text(
-                        _formatTime(timeSlot['time'] ?? ''),
+                        TimeFormatUtils.formatTime24(timeSlot['time'] ?? ''),
                         style: AppTheme.bodyMediumStyle.copyWith(
                           fontWeight: FontWeight.w500,
                         ),
@@ -630,7 +590,7 @@ class _UserDonationPostsListScreenState
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      '$selectedDate ${_formatTime(time)}',
+                      '$selectedDate ${TimeFormatUtils.formatTime24(time)}',
                       style: AppTheme.bodyLargeStyle.copyWith(
                         fontWeight: FontWeight.w600,
                         color: AppTheme.primaryBlue,
@@ -1764,7 +1724,7 @@ class _UserDonationPostsListScreenState
             child: Row(
               children: [
                 SizedBox(
-                  width: 50,
+                  width: _columnTypeWidth,
                   child: Text(
                     '구분',
                     style: AppTheme.bodyMediumStyle.copyWith(
@@ -1781,7 +1741,7 @@ class _UserDonationPostsListScreenState
                   ),
                 ),
                 SizedBox(
-                  width: 60,
+                  width: _columnHospitalWidth,
                   child: Text(
                     '병원',
                     style: AppTheme.bodyMediumStyle.copyWith(
@@ -1791,7 +1751,7 @@ class _UserDonationPostsListScreenState
                   ),
                 ),
                 SizedBox(
-                  width: 70,
+                  width: _columnDateWidth,
                   child: Text(
                     '작성일',
                     style: AppTheme.bodyMediumStyle.copyWith(
@@ -1841,7 +1801,7 @@ class _UserDonationPostsListScreenState
           children: [
             // 구분 (긴급/정기 뱃지)
             Container(
-              width: 50,
+              width: _columnTypeWidth,
               alignment: Alignment.centerLeft,
               child: PostTypeBadge(type: post.isUrgent ? '긴급' : '정기'),
             ),
@@ -1868,7 +1828,7 @@ class _UserDonationPostsListScreenState
 
             // 병원 이름 (닉네임 우선, 전체 표시)
             Container(
-              width: 80,
+              width: _columnHospitalWidth,
               alignment: Alignment.center,
               child: Text(
                 post.hospitalNickname ??
@@ -1885,10 +1845,10 @@ class _UserDonationPostsListScreenState
 
             // 작성날짜
             Container(
-              width: 70,
+              width: _columnDateWidth,
               alignment: Alignment.center,
               child: Text(
-                DateFormat('yy.MM.dd').format(post.createdAt),
+                TimeFormatUtils.formatPostDate(post.createdAt),
                 style: AppTheme.bodySmallStyle.copyWith(
                   fontSize: 11,
                   color: Colors.grey[600],
@@ -1961,7 +1921,7 @@ class _UserDonationPostsListScreenState
                         const SizedBox(width: 16),
                         Expanded(
                           child: Text(
-                            _formatDateWithWeekday(dateStr),
+                            TimeFormatUtils.formatDateWithWeekday(dateStr),
                             style: AppTheme.h4Style.copyWith(
                               fontSize: 16,
                               fontWeight: FontWeight.w600,
@@ -1995,7 +1955,7 @@ class _UserDonationPostsListScreenState
                                 } else {
                                   // 신청하지 않은 시간대 클릭 시 신청 페이지 표시
                                   final displayText =
-                                      '${_formatDateWithWeekday(dateStr)} ${_formatTime(timeSlot['time'] ?? '')}';
+                                      '${TimeFormatUtils.formatDateWithWeekday(dateStr)} ${TimeFormatUtils.formatTime24(timeSlot['time'] ?? '')}';
                                   _showDonationApplicationPage(
                                     dateStr,
                                     timeSlot,
@@ -2041,7 +2001,7 @@ class _UserDonationPostsListScreenState
                                             CrossAxisAlignment.start,
                                         children: [
                                           Text(
-                                            _formatTime(timeSlot['time'] ?? ''),
+                                            TimeFormatUtils.formatTime24(timeSlot['time'] ?? ''),
                                             style: AppTheme.bodyLargeStyle
                                                 .copyWith(
                                                   fontWeight: FontWeight.w600,

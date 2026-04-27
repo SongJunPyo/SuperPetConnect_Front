@@ -34,6 +34,11 @@ class AdminPostCheck extends StatefulWidget {
 
 class _AdminPostCheckState extends State<AdminPostCheck>
     with SingleTickerProviderStateMixin {
+  // 게시글 리스트 컬럼 너비 (헤더와 행에서 동시 참조)
+  static const double _columnTypeWidth = 80; // 구분
+  static const double _columnDateWidth = 90; // 작성일/시간대
+  static const double _columnApplicantWidth = 60; // 신청자
+
   List<dynamic> posts = [];
   bool isLoading = true;
   String errorMessage = '';
@@ -2000,7 +2005,7 @@ class _AdminPostCheckState extends State<AdminPostCheck>
                   Padding(
                     padding: const EdgeInsets.only(left: 5),
                     child: SizedBox(
-                      width: 80,
+                      width: _columnTypeWidth,
                       child: Text(
                         '구분',
                         style: AppTheme.bodyMediumStyle.copyWith(
@@ -2018,7 +2023,7 @@ class _AdminPostCheckState extends State<AdminPostCheck>
                     ),
                   ),
                   SizedBox(
-                    width: 80,
+                    width: _columnDateWidth,
                     child: Text(
                       '작성일',
                       style: AppTheme.bodyMediumStyle.copyWith(
@@ -2028,7 +2033,7 @@ class _AdminPostCheckState extends State<AdminPostCheck>
                     ),
                   ),
                   SizedBox(
-                    width: 60,
+                    width: _columnApplicantWidth,
                     child: Text(
                       '신청자',
                       style: AppTheme.bodyMediumStyle.copyWith(
@@ -2102,7 +2107,7 @@ class _AdminPostCheckState extends State<AdminPostCheck>
           children: [
             // 구분 (뱃지)
             Container(
-              width: 70,
+              width: _columnTypeWidth,
               alignment: Alignment.centerLeft,
               child: PostTypeBadge(type: postType),
             ),
@@ -2123,10 +2128,12 @@ class _AdminPostCheckState extends State<AdminPostCheck>
             ),
             // 작성일
             Container(
-              width: 80,
+              width: _columnDateWidth,
               alignment: Alignment.center,
               child: Text(
-                _formatDate(post['createdDate'] ?? post['created_date'] ?? post['created_at'] ?? ''),
+                TimeFormatUtils.formatFlexibleDate(
+                  post['createdDate'] ?? post['created_date'] ?? post['created_at'],
+                ),
                 style: AppTheme.bodySmallStyle.copyWith(
                   fontSize: 11,
                   color: Colors.grey[600],
@@ -2136,7 +2143,7 @@ class _AdminPostCheckState extends State<AdminPostCheck>
             ),
             // 신청자
             Container(
-              width: 60,
+              width: _columnApplicantWidth,
               alignment: Alignment.center,
               child: Text(
                 '${post['applicantCount'] ?? post['applicant_count'] ?? 0}',
@@ -2575,26 +2582,6 @@ class _AdminPostCheckState extends State<AdminPostCheck>
     return '${numbers.substring(0, 3)}-${numbers.substring(3, 7)}-${numbers.substring(7)}';
   }
 
-  String _formatDate(String dateTime) {
-    try {
-      if (dateTime.isEmpty || dateTime == 'N/A') return '-';
-
-      // ISO 8601, YYYY-MM-DD HH:mm:ss, YYYY-MM-DD 모두 처리
-      final parsed = DateTime.parse(dateTime);
-      return DateFormat('MM.dd').format(parsed);
-    } catch (e) {
-      // 파싱 실패 시 기존 로직 시도
-      try {
-        final datePart = dateTime.split(' ')[0].split('T')[0];
-        final parts = datePart.split('-');
-        if (parts.length == 3) {
-          return '${parts[1]}.${parts[2]}';
-        }
-      } catch (_) {}
-      return '-';
-    }
-  }
-
   /// 직전 헌혈일 포맷 (YYYY.MM.DD 형식)
   String _formatLastDonationDate(String dateTime) {
     try {
@@ -2606,53 +2593,6 @@ class _AdminPostCheckState extends State<AdminPostCheck>
     } catch (e) {
       return '-';
     }
-  }
-
-  // 날짜를 요일로 변환하는 함수
-  String _getWeekday(String dateStr) {
-    try {
-      final date = DateTime.parse(dateStr);
-      const weekdays = ['월', '화', '수', '목', '금', '토', '일'];
-      return weekdays[date.weekday - 1];
-    } catch (e) {
-      return '';
-    }
-  }
-
-  // 날짜를 "YYYY년 MM월 DD일 O요일" 형태로 포맷팅
-  String _formatDateWithWeekday(String dateStr) {
-    try {
-      final date = DateTime.parse(dateStr);
-      final weekday = _getWeekday(dateStr);
-      return '${date.year}년 ${date.month}월 ${date.day}일 $weekday요일';
-    } catch (e) {
-      return dateStr;
-    }
-  }
-
-  // 시간 포맷팅 메서드
-  String _formatTime(String time24) {
-    if (time24.isEmpty) return '시간 미정';
-
-    try {
-      final parts = time24.split(':');
-      if (parts.length >= 2) {
-        final hour = int.parse(parts[0]);
-        final minute = parts[1];
-        if (hour == 0) {
-          return '오전 12:$minute';
-        } else if (hour < 12) {
-          return '오전 ${hour.toString().padLeft(2, '0')}:$minute';
-        } else if (hour == 12) {
-          return '오후 12:$minute';
-        } else {
-          return '오후 ${(hour - 12).toString().padLeft(2, '0')}:$minute';
-        }
-      }
-    } catch (e) {
-      return time24;
-    }
-    return '시간 미정';
   }
 
   // 제목에서 병원 이름 추출하는 메서드
@@ -2737,7 +2677,7 @@ class _AdminPostCheckState extends State<AdminPostCheck>
                         const Icon(Icons.calendar_month, color: Colors.black, size: 24),
                         const SizedBox(width: 12),
                         Text(
-                          _formatDateWithWeekday(dateStr),
+                          TimeFormatUtils.formatDateWithWeekday(dateStr),
                           style: AppTheme.bodyLargeStyle.copyWith(fontWeight: FontWeight.w600),
                         ),
                       ],
@@ -2791,7 +2731,7 @@ class _AdminPostCheckState extends State<AdminPostCheck>
                                 ),
                                 const SizedBox(width: 8),
                                 Text(
-                                  _formatTime(time),
+                                  TimeFormatUtils.formatTime24(time),
                                   style: AppTheme.bodyMediumStyle.copyWith(
                                     color:
                                         isSlotClosed
@@ -2943,7 +2883,7 @@ class _AdminPostCheckState extends State<AdminPostCheck>
                                   ),
                                   const SizedBox(height: 4),
                                   Text(
-                                    '${_formatDateWithWeekday(date)} ${_formatTime(time)}',
+                                    '${TimeFormatUtils.formatDateWithWeekday(date)} ${TimeFormatUtils.formatTime24(time)}',
                                     style: AppTheme.bodyMediumStyle.copyWith(
                                       color: Colors.grey[600],
                                     ),
@@ -3517,7 +3457,7 @@ class _AdminPostCheckState extends State<AdminPostCheck>
                       ),
                       const SizedBox(height: 8),
                       Text(
-                        '${_formatDateWithWeekday(date)} ${_formatTime(time)}',
+                        '${TimeFormatUtils.formatDateWithWeekday(date)} ${TimeFormatUtils.formatTime24(time)}',
                         style: AppTheme.bodyLargeStyle,
                       ),
                       const SizedBox(height: 16),
@@ -3543,7 +3483,7 @@ class _AdminPostCheckState extends State<AdminPostCheck>
                                   lastDonationDate.toString().isEmpty) {
                                 lastDonationText = '첫 헌혈';
                               } else {
-                                lastDonationText = _formatDate(
+                                lastDonationText = TimeFormatUtils.formatFlexibleDate(
                                   lastDonationDate.toString(),
                                 );
                               }
@@ -3665,7 +3605,7 @@ class _AdminPostCheckState extends State<AdminPostCheck>
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                '${_formatDateWithWeekday(date)} ${_formatTime(time)}',
+                '${TimeFormatUtils.formatDateWithWeekday(date)} ${TimeFormatUtils.formatTime24(time)}',
                 style: const TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.w500,
