@@ -1,8 +1,15 @@
+import 'dart:convert';
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:firebase_messaging/firebase_messaging.dart';
-import 'dart:convert';
+import 'package:flutter_naver_login/flutter_naver_login.dart';
+import 'package:http/http.dart' as http;
+import 'package:provider/provider.dart';
 import '../admin/admin_pet_management.dart';
+import '../providers/notification_provider.dart';
+import '../utils/config.dart';
+import '../utils/preferences_manager.dart';
+import '../web/web_storage_helper.dart';
 import 'fcm_handler.dart';
 
 class NotificationService {
@@ -52,6 +59,9 @@ class NotificationService {
           _navigateToNewDonationPost(parsedData);
         } else if (message.data['type'] == 'new_pet_registration') {
           _navigateToAdminPetManagement(parsedData);
+        } else if (message.data['type'] == 'account_suspended' ||
+            message.data['type'] == 'account_status_changed') {
+          _navigateForAccountStatus(message.data);
         }
       } catch (e) {
         // 파싱 실패 시 기본 데이터로 처리
@@ -99,6 +109,9 @@ class NotificationService {
               _navigateToNewDonationPost(parsedData);
             } else if (message.data['type'] == 'new_pet_registration') {
               _navigateToAdminPetManagement(parsedData);
+            } else if (message.data['type'] == 'account_suspended' ||
+                message.data['type'] == 'account_status_changed') {
+              _navigateForAccountStatus(message.data);
             }
           } catch (e) {
             // 파싱 실패 시 기본 데이터로 처리
@@ -152,6 +165,10 @@ class NotificationService {
         case 'new_pet_registration':
           final parsedData = _parseNotificationData(data);
           _navigateToAdminPetManagement(parsedData);
+          break;
+        case 'account_suspended':
+        case 'account_status_changed':
+          _navigateForAccountStatus(data);
           break;
         default:
       }
@@ -428,6 +445,107 @@ class NotificationService {
       debugPrint('[NotificationService] 헌혈 완료 네비게이션 실패: $e');
       // 오류 발생 시 사용자 대시보드로 이동
       Navigator.pushNamed(context, '/user/dashboard');
+    }
+  }
+
+  /// account_suspended / account_status_changed 알림 처리.
+  /// 옵션 d 분기: SUSPENDED(2)/BLOCKED(3) → 강제 모달 + 로그아웃 + welcome 이동.
+  /// PENDING(0)/ACTIVE(1)는 OS 푸시만으로 안내 (인앱 화면 이동 없음, 의도된 dead-end).
+  static void _navigateForAccountStatus(Map<String, dynamic> data) {
+    final context = navigatorKey.currentContext;
+    if (context == null) return;
+
+    // FCM data는 모든 값이 string으로 직렬화되므로 양쪽 타입 처리
+    final raw = data['new_status'];
+    final newStatus = raw is int ? raw : int.tryParse(raw?.toString() ?? '');
+
+    if (newStatus == 2 || newStatus == 3) {
+      _showAccountSuspendedDialog(context, isBlocked: newStatus == 3);
+    }
+  }
+
+  /// 정지/차단 강제 모달. 닫기 불가, 확인 버튼만 노출.
+  /// 확인 누르면 [_forceLogoutAndGoWelcome] 실행.
+  static void _showAccountSuspendedDialog(
+    BuildContext context, {
+    required bool isBlocked,
+  }) {
+    final title = isBlocked ? '계정 사용이 차단되었습니다' : '계정이 정지되었습니다';
+    final body = isBlocked
+        ? '계정 사용이 차단되었습니다.\n자세한 사항은 관리자에게 문의해 주세요.'
+        : '계정이 일시 정지되었습니다.\n자세한 사항은 관리자에게 문의해 주세요.';
+
+    showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext dialogContext) => PopScope(
+        canPop: false,
+        child: AlertDialog(
+          title: Text(title),
+          content: Text(body),
+          actions: [
+            TextButton(
+              onPressed: () async {
+                Navigator.of(dialogContext).pop();
+                await _forceLogoutAndGoWelcome();
+              },
+              child: const Text('확인'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// 강제 로그아웃 + welcome(`/`) 이동. profile_management.dart::_logout 패턴 미러.
+  /// 로컬 데이터 → Provider 초기화 → 서버 logout → 네이버 SDK 클리어 → 라우트 교체 순서.
+  static Future<void> _forceLogoutAndGoWelcome() async {
+    final token = await PreferencesManager.getAuthToken();
+    final refreshToken = await PreferencesManager.getRefreshToken();
+
+    await PreferencesManager.clearAll();
+    if (kIsWeb) {
+      WebStorageHelper.clearAll();
+    }
+
+    final providerContext = navigatorKey.currentContext;
+    if (providerContext != null && providerContext.mounted) {
+      try {
+        providerContext.read<NotificationProvider>().reset();
+      } catch (_) {
+        // Provider가 위젯 트리에 없는 경우 무시
+      }
+    }
+
+    try {
+      await http
+          .post(
+            Uri.parse('${Config.serverUrl}/api/auth/logout'),
+            headers: {
+              'Content-Type': 'application/json; charset=UTF-8',
+              if (token != null) 'Authorization': 'Bearer $token',
+            },
+            body: jsonEncode({'refresh_token': refreshToken}),
+          )
+          .timeout(const Duration(seconds: 5));
+    } catch (_) {
+      // 서버 로그아웃 실패 시 무시 (로컬 데이터는 이미 삭제됨)
+    }
+
+    if (!kIsWeb) {
+      try {
+        await FlutterNaverLogin.logOutAndDeleteToken();
+      } catch (_) {
+        // 네이버 로그인 세션이 없는 경우 무시
+      }
+    }
+
+    final navContext = navigatorKey.currentContext;
+    if (navContext != null && navContext.mounted) {
+      Navigator.of(navContext).pushNamedAndRemoveUntil(
+        '/',
+        (Route<dynamic> route) => false,
+      );
     }
   }
 }
