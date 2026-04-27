@@ -517,6 +517,30 @@ New notification type:
 - 백엔드는 **상대 경로**로 반환 (예: `/uploads/posts/abc.jpg`).
 - 프론트는 `DonationPostImageService.getFullImageUrl()`이 `http`로 시작하지 않으면 `Config.serverUrl`을 prefix로 붙임. CDN 전환해서 절대 URL을 반환해도 안전.
 
+### 회원가입 응답 펫 인덱스 contract (계약 확정)
+이메일 가입(`POST /api/register`)과 네이버 온보딩(`POST /api/auth/onboarding`) **모두 동일 규약**. 가입 시 함께 받은 펫 사진을 가입 직후 `POST /api/pets/{pet_idx}/profile-image`로 multipart 자동 업로드하는 흐름의 기반.
+
+**응답 스키마** (두 엔드포인트 공통)
+
+| 필드 | 타입 | 설명 |
+|------|------|------|
+| `message` | string | 안내 메시지 |
+| `account_idx` | int | 가입 직후 식별자 (토큰 발급 전 단계용) |
+| `pet_idx` | int \| null | 대표 펫 idx. 펫 0마리면 null |
+| `pet_idxs` | int[] \| null | 등록된 모든 펫의 idx 배열. 펫 0마리면 null |
+
+**순서 보장 (절대 깨면 안 됨)**
+요청 `pets[i]`와 응답 `pet_idxs[i]`는 **인덱스 1:1 일치**. 백엔드는 sequential `for` + `db.flush()` 패턴으로 채번하고 있으며, **`asyncio.gather` / `TaskGroup` 등 동시 실행 도입 금지** — silent reorder가 발생하면 사진이 다른 펫에 붙는 데이터 오염이 생김. 백엔드 리팩터 시 이 가드를 반드시 유지해야 함 (백엔드 측 CLAUDE.md에도 동일 contract 박제됨).
+
+**프론트 사용 패턴**
+프론트는 가입 폼에서 사용자가 선택한 펫 사진(`XFile?`)을 `RegistrationPetData`에 메모리로 보관 → 가입 응답 수신 후 인덱스 매칭으로 `pets[i]`의 사진을 `pet_idxs[i]`에 `POST /api/pets/{pet_idx}/profile-image`로 업로드. 사진 미선택 펫은 호출 스킵. 부분 실패(가입 OK / 사진 일부 실패) 시 "프로필 > 반려동물에서 다시 등록해주세요" 안내.
+
+**펫 0마리 가입**
+`pet_idx = null`, `pet_idxs = null`. 프론트는 `null`과 빈 배열 둘 다 방어 (향후 백엔드가 빈 배열로 바꿀 가능성 대비).
+
+**호환성 메모**
+`POST /api/register` 응답은 2026-04 이전까지 **빈 body**였음. 새 필드 추가는 순수 추가라 기존 코드 영향 없음 (프론트는 응답 body 미사용). status code 201 유지.
+
 ## API 경로 정규화 계획
 
 백엔드에 단수/복수 섞인 경로(예: `/api/hospital/post/{id}` vs `/api/hospital/posts/{id}`)가 일부 남아있으며, 장기적으로 정리할 예정입니다. **합의된 변경 절차**:
