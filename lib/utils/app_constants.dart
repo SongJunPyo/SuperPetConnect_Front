@@ -49,11 +49,15 @@ class AppConstants {
   static const String animalTypeCatKr = '고양이';
 
   // ===== 공지사항 대상 (Notice Target Audience) =====
-  // 서버 enums.py: ALL=0, ADMIN_ONLY=1, HOSPITAL_ONLY=2
-  // (USER_ONLY=3은 운영 정책상 사용하지 않음)
+  // 서버 enums.py: ALL=0, ADMIN_ONLY=1, HOSPITAL_ONLY=2, USER_ONLY=3(deprecated)
   static const int noticeTargetAll = 0;
   static const int noticeTargetAdmin = 1;
   static const int noticeTargetHospital = 2;
+
+  /// 사용자 전용 공지 (deprecated 2026-04-28). 신규 입력 차단(400). DB 0건.
+  /// enum 미러링 계약(백엔드와 동일 번호 유지) 보존을 위해 자리만 점유.
+  @Deprecated('2026-04-28: 사용자 전용 공지 정책 폐기. 신규 입력 차단됨')
+  static const int noticeTargetUser = 3;
 
   // ===== 공지사항 중요도 (Notice Importance) =====
   // 0=일반(뱃지 OFF), 1=긴급(뱃지 ON)

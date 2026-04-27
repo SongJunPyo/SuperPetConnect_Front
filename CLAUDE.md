@@ -541,6 +541,61 @@ New notification type:
 **호환성 메모**
 `POST /api/register` 응답은 2026-04 이전까지 **빈 body**였음. 새 필드 추가는 순수 추가라 기존 코드 영향 없음 (프론트는 응답 body 미사용). status code 201 유지.
 
+### 공지사항(Notice) 정책 (계약 확정 2026-04-28)
+
+운영 정책 변경: 활성/비활성 토글 워크플로우를 폐기하고 "잘못 작성된 공지는 수정 또는 삭제로 처리"하는 정책으로 단순화. 사용자 전용 공지(USER_ONLY)도 운영상 의미가 없어 폐기.
+
+**target_audience enum** (백엔드 `constants/enums.py::NoticeTargetAudience` 미러)
+
+| 값 | 이름 | 비고 |
+|---|------|------|
+| 0 | ALL (전체) | 모든 사용자에게 노출 |
+| 1 | ADMIN_ONLY (관리자) | |
+| 2 | HOSPITAL_ONLY (병원) | |
+| 3 | ~~USER_ONLY (사용자)~~ | **deprecated 2026-04-28**. 신규 입력 차단(400). DB 0건. enum 미러링 자리만 점유 |
+
+값 재번호 금지 — `noticeTargetUser=3`은 [app_constants.dart](lib/utils/app_constants.dart)에 `@Deprecated` 어노테이션과 함께 자리 점유 중.
+
+**신규 입력 차단** (`POST /api/notices/`, `PUT /api/notices/{notice_idx}`)
+- `target_audience=3` 입력 시 **400 응답**
+- 응답 본문: `{"detail": "사용자 전용 공지는 더 이상 작성할 수 없습니다. 다른 공지 유형을 선택해주세요."}`
+- 메시지 키: `ErrorMsg.NOTICE_TARGET_USER_DEPRECATED`
+- 프론트 [admin_notice_create.dart](lib/admin/admin_notice_create.dart)에서 라디오 옵션을 노출 안 하므로 정상 사용 시 도달 불가. API 직접 호출 방어용.
+
+**중요 ↔ 대상 상호 배타 (프론트만 검증)**
+- `notice_important=1`(중요)과 `target_audience IN (1, 2)`(관리자/병원)는 동시 선택 불가
+- [admin_notice_create.dart](lib/admin/admin_notice_create.dart)에서 양방향 비활성화로 UI 차단 (중요 체크 시 관리자/병원 라디오 disabled, 관리자/병원 선택 시 중요 체크박스 disabled)
+- **백엔드 검증 없음**. API 직접 호출 시 충돌 데이터 작성 가능 — GA 후 보안 라운드에서 서버 검증 추가 예정
+
+**대상별 권한 가시성**
+백엔드의 dead-branch 정리(2026-04-28)로 사용자/비로그인 화면은 ALL(0)만 응답되도록 분기 정리됨. 단, 명시적 서버 측 권한 필터링은 아직 미적용:
+
+| 호출자 | 보이는 공지 |
+|--------|-------------|
+| 비로그인 / 사용자 (account_type=3) | ALL(0)만 |
+| 병원 (account_type=2) | ALL(0) + HOSPITAL_ONLY(2) — 클라이언트 필터링 |
+| 관리자 (account_type=1) | 모두 |
+
+→ 사용자가 API 직접 호출 시 권한 외 공지가 응답에 포함될 가능성 (admin/hospital 엔드포인트). GA 후 보안 라운드에서 `account_type` 기반 자동 필터링 추가 예정.
+
+**비활성화 토글 폐기**
+- `PATCH /api/notices/{notice_idx}/toggle` 엔드포인트 **삭제됨** (구버전 빌드 호출 시 404)
+- `notice_active` DB 컬럼은 유지하지만 항상 `true` (DB default). 마이그레이션 미진행
+- 프론트의 `NoticeService.toggleNoticeActive` 메서드도 제거됨
+
+**리스트 행 제목 색상 매핑** (UI 정책, [notice_styling.dart](lib/widgets/post_list/notice_styling.dart))
+
+audience가 importance보다 우선. 상호 배타 정책으로 audience=관리자/병원 + importance=중요 조합은 발생하지 않음.
+
+| 조건 | 색 | 정렬 우선순위 |
+|------|---|:---:|
+| audience=ALL + importance=중요(1) | 빨강 (`AppTheme.error`) | 1 |
+| audience=ADMIN_ONLY | 파랑 (`AppTheme.primaryBlue`) | 2 |
+| audience=HOSPITAL_ONLY | 초록 (`AppTheme.success`) | 3 |
+| audience=ALL + importance=일반(0) | 검정 (`AppTheme.textPrimary`) | 4 |
+
+같은 색 그룹 내에서는 `created_at` 역순.
+
 ## API 경로 정규화 계획
 
 백엔드에 단수/복수 섞인 경로(예: `/api/hospital/post/{id}` vs `/api/hospital/posts/{id}`)가 일부 남아있으며, 장기적으로 정리할 예정입니다. **합의된 변경 절차**:
