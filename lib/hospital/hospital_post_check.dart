@@ -8,7 +8,6 @@ import '../utils/app_constants.dart';
 import '../utils/error_display.dart';
 import '../utils/time_format_util.dart';
 import 'package:intl/intl.dart';
-import '../utils/config.dart';
 import '../widgets/pet_profile_image.dart';
 import '../models/applied_donation_model.dart';
 import 'donation_completion_sheet.dart';
@@ -20,10 +19,10 @@ import '../widgets/post_detail/post_detail_meta_section.dart';
 import '../widgets/post_detail/post_detail_blood_type.dart';
 import '../widgets/post_detail/post_detail_description.dart';
 import '../widgets/post_detail/post_detail_patient_info.dart';
-import '../widgets/post_type_badge.dart';
-import '../widgets/marquee_text.dart';
 import '../widgets/pagination_bar.dart';
 import '../widgets/info_row.dart';
+import '../widgets/post_list/post_list_header.dart';
+import '../widgets/post_list/post_list_row.dart';
 
 class HospitalPostCheck extends StatefulWidget {
   const HospitalPostCheck({super.key});
@@ -34,10 +33,6 @@ class HospitalPostCheck extends StatefulWidget {
 
 class _HospitalPostCheckState extends State<HospitalPostCheck>
     with SingleTickerProviderStateMixin {
-  // 게시글 리스트 컬럼 너비 (헤더와 행에서 동시 참조)
-  static const double _columnTypeWidth = 80; // 구분
-  static const double _columnDateWidth = 70; // 작성일
-
   List<UnifiedPostModel> posts = [];
   List<UnifiedPostModel> filteredPosts = [];
   List<PostTimeItem> postTimeItems = [];
@@ -620,7 +615,7 @@ class _HospitalPostCheckState extends State<HospitalPostCheck>
         itemBuilder: (context, index) {
           // 첫 번째 아이템은 헤더
           if (index == 0) {
-            return _buildHeaderRow();
+            return const PostListHeader();
           }
 
           // 게시글 범위를 벗어나면 PaginationBar
@@ -659,94 +654,13 @@ class _HospitalPostCheckState extends State<HospitalPostCheck>
     );
   }
 
-  Widget _buildHeaderRow() {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
-      decoration: BoxDecoration(
-        color: Colors.grey.shade100,
-        border: Border(
-          bottom: BorderSide(color: Colors.grey.shade400, width: 2),
-        ),
-      ),
-      child: Row(
-        children: [
-          SizedBox(
-            width: _columnTypeWidth,
-            child: Text(
-              '구분',
-              style: AppTheme.bodyMediumStyle.copyWith(
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ),
-          Expanded(
-            child: Text(
-              '제목',
-              style: AppTheme.bodyMediumStyle.copyWith(
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ),
-          SizedBox(
-            width: _columnDateWidth,
-            child: Text(
-              '작성일',
-              style: AppTheme.bodyMediumStyle.copyWith(
-                fontWeight: FontWeight.w600,
-              ),
-              textAlign: TextAlign.center,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
   Widget _buildPostListItem(UnifiedPostModel post) {
-    return InkWell(
+    return PostListRow(
+      badgeType: post.isUrgent ? '긴급' : '정기',
+      title: post.title,
+      dateText: TimeFormatUtils.formatShortDate(post.createdDate),
+      hospitalProfileImage: post.hospitalProfileImage,
       onTap: () => _showPostBottomSheet(post),
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 14.0, horizontal: 16.0),
-        margin: const EdgeInsets.symmetric(vertical: 1.0),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          border: Border(
-            bottom: BorderSide(color: Colors.grey.shade200, width: 1),
-          ),
-        ),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.center,
-          children: [
-            // 구분 (뱃지)
-            Container(
-              width: _columnTypeWidth,
-              alignment: Alignment.centerLeft,
-              child: PostTypeBadge(type: post.isUrgent ? '긴급' : '정기'),
-            ),
-            // 제목
-            Expanded(
-              child: Container(
-                padding: const EdgeInsets.only(right: 8.0),
-                alignment: Alignment.centerLeft,
-                child: _buildMarqueeText(post.title, profileImage: post.hospitalProfileImage),
-              ),
-            ),
-            // 작성일
-            Container(
-              width: _columnDateWidth,
-              alignment: Alignment.center,
-              child: Text(
-                TimeFormatUtils.formatShortDate(post.createdDate),
-                style: AppTheme.bodyMediumStyle.copyWith(
-                  fontWeight: FontWeight.w500,
-                  color: Colors.grey[600],
-                ),
-                textAlign: TextAlign.center,
-              ),
-            ),
-          ],
-        ),
-      ),
     );
   }
 
@@ -912,148 +826,21 @@ class _HospitalPostCheckState extends State<HospitalPostCheck>
       badgeType = item.isUrgent ? '긴급' : '정기';
     }
 
-    // 모든 탭에서 작성일(MM.dd) 통일 표시. 시간대 정보는 바텀시트 상세에서 확인 가능.
-    final String dateDisplay = TimeFormatUtils.formatFlexibleShortDate(item.createdDate);
-
-    return InkWell(
+    return PostListRow(
+      badgeType: badgeType,
+      title: item.postTitle,
+      dateText: TimeFormatUtils.formatFlexibleShortDate(item.createdDate),
+      hospitalProfileImage: item.hospitalProfileImage,
       onTap: () => _showPostTimeBottomSheet(item),
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 14.0, horizontal: 16.0),
-        margin: const EdgeInsets.symmetric(vertical: 1.0),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          border: Border(
-            bottom: BorderSide(color: Colors.grey.shade200, width: 1),
-          ),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
-                // 구분 (뱃지)
-                Container(
-                  width: _columnTypeWidth,
-                  alignment: Alignment.centerLeft,
-                  child: PostTypeBadge(type: badgeType),
-                ),
-                // 제목
-                Expanded(
-                  child: Container(
-                    padding: const EdgeInsets.only(right: 8.0),
-                    alignment: Alignment.centerLeft,
-                    child: _buildMarqueeText(item.postTitle, profileImage: item.hospitalProfileImage),
-                  ),
-                ),
-                // 작성일
-                Container(
-                  width: _columnDateWidth,
-                  alignment: Alignment.center,
-                  child: Text(
-                    dateDisplay,
-                    style: AppTheme.bodyMediumStyle.copyWith(
-                      fontWeight: FontWeight.w500,
-                      color: Colors.grey[600],
-                    ),
-                    textAlign: TextAlign.center,
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ),
-      ),
     );
   }
 
   Widget _buildRejectedPostListItem(RejectedPost post) {
-    return InkWell(
+    return PostListRow(
+      badgeType: '거절',
+      title: post.title,
+      dateText: TimeFormatUtils.formatFlexibleShortDate(post.createdDate),
       onTap: () => _showRejectedPostBottomSheet(post),
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 14.0, horizontal: 16.0),
-        margin: const EdgeInsets.symmetric(vertical: 1.0),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          border: Border(
-            bottom: BorderSide(color: Colors.grey.shade200, width: 1),
-          ),
-        ),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.center,
-          children: [
-            // 구분 (뱃지)
-            Container(
-              width: _columnTypeWidth,
-              alignment: Alignment.centerLeft,
-              child: Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 8.0,
-                  vertical: 4.0,
-                ),
-                decoration: BoxDecoration(
-                  color: Colors.red.withAlpha(51),
-                  borderRadius: BorderRadius.circular(6.0),
-                ),
-                child: Text(
-                  '거절',
-                  style: AppTheme.bodySmallStyle.copyWith(
-                    fontWeight: FontWeight.w600,
-                    color: Colors.red,
-                    fontSize: 11,
-                  ),
-                  textAlign: TextAlign.center,
-                ),
-              ),
-            ),
-            // 제목
-            Expanded(
-              child: Container(
-                padding: const EdgeInsets.only(right: 8.0),
-                alignment: Alignment.centerLeft,
-                child: _buildMarqueeText(post.title),
-              ),
-            ),
-            // 작성일
-            Container(
-              width: _columnDateWidth,
-              alignment: Alignment.center,
-              child: Text(
-                TimeFormatUtils.formatFlexibleShortDate(post.createdDate),
-                style: AppTheme.bodyMediumStyle.copyWith(
-                  fontWeight: FontWeight.w500,
-                  color: Colors.grey[600],
-                ),
-                textAlign: TextAlign.center,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildMarqueeText(String text, {String? profileImage}) {
-    final fontSize = AppTheme.bodyMedium;
-    return MarqueeText(
-      text: text,
-      style: AppTheme.bodyMediumStyle.copyWith(
-        fontWeight: FontWeight.w500,
-      ),
-      leading: profileImage != null
-          ? CircleAvatar(
-              radius: fontSize * 0.55,
-              backgroundImage: NetworkImage(
-                profileImage.startsWith('http')
-                    ? profileImage
-                    : '${Config.serverUrl}$profileImage',
-              ),
-              backgroundColor: AppTheme.veryLightGray,
-              onBackgroundImageError: (_, __) {},
-            )
-          : null,
-      animationDuration: const Duration(milliseconds: 5000),
-      pauseDuration: const Duration(milliseconds: 2000),
     );
   }
 

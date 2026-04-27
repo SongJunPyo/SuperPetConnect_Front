@@ -6,10 +6,10 @@ import '../services/auth_http_client.dart';
 import '../utils/app_theme.dart';
 import '../utils/app_constants.dart';
 import '../utils/api_endpoints.dart';
-import '../widgets/marquee_text.dart';
-import '../widgets/post_type_badge.dart';
 import '../widgets/pet_profile_image.dart';
 import '../widgets/app_search_bar.dart';
+import '../widgets/post_list/post_list_header.dart';
+import '../widgets/post_list/post_list_row.dart';
 import 'package:intl/intl.dart';
 import '../services/admin_completed_donation_service.dart';
 import '../services/dashboard_service.dart';
@@ -35,10 +35,6 @@ class AdminPostCheck extends StatefulWidget {
 
 class _AdminPostCheckState extends State<AdminPostCheck>
     with SingleTickerProviderStateMixin {
-  // 게시글 리스트 컬럼 너비 (헤더와 행에서 동시 참조)
-  static const double _columnTypeWidth = 80; // 구분
-  static const double _columnDateWidth = 70; // 작성일
-
   List<dynamic> posts = [];
   bool isLoading = true;
   String errorMessage = '';
@@ -1989,49 +1985,7 @@ class _AdminPostCheckState extends State<AdminPostCheck>
         itemBuilder: (context, index) {
           // 첫 번째 아이템은 헤더
           if (index == 0) {
-            return Container(
-              padding: const EdgeInsets.symmetric(
-                horizontal: 16.0,
-                vertical: 12.0,
-              ),
-              decoration: BoxDecoration(
-                color: Colors.grey.shade100,
-                border: Border(
-                  bottom: BorderSide(color: Colors.grey.shade400, width: 2),
-                ),
-              ),
-              child: Row(
-                children: [
-                  SizedBox(
-                    width: _columnTypeWidth,
-                    child: Text(
-                      '구분',
-                      style: AppTheme.bodyMediumStyle.copyWith(
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ),
-                  Expanded(
-                    child: Text(
-                      '제목',
-                      style: AppTheme.bodyMediumStyle.copyWith(
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ),
-                  SizedBox(
-                    width: _columnDateWidth,
-                    child: Text(
-                      '작성일',
-                      style: AppTheme.bodyMediumStyle.copyWith(
-                        fontWeight: FontWeight.w600,
-                      ),
-                      textAlign: TextAlign.center,
-                    ),
-                  ),
-                ],
-              ),
-            );
+            return const PostListHeader();
           }
 
           // 게시글 범위를 벗어나면 페이지네이션 바
@@ -2048,10 +2002,7 @@ class _AdminPostCheckState extends State<AdminPostCheck>
           String postStatus = _getPostStatus(post['status']);
           String postType = _getPostType(post);
 
-          return Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16.0),
-            child: _buildPostListItem(post, index - 1, postStatus, postType),
-          );
+          return _buildPostListItem(post, index - 1, postStatus, postType);
         },
       ),
     );
@@ -2063,7 +2014,13 @@ class _AdminPostCheckState extends State<AdminPostCheck>
     String postStatus,
     String postType,
   ) {
-    return InkWell(
+    return PostListRow(
+      badgeType: postType,
+      title: post['title'] ?? '제목 없음',
+      dateText: TimeFormatUtils.formatFlexibleShortDate(
+        post['createdDate'] ?? post['created_date'] ?? post['created_at'],
+      ),
+      hospitalProfileImage: post['hospitalProfileImage'] ?? post['hospital_profile_image'],
       onTap: () {
         // 헌혈완료/취소 탭 또는 완료대기/중단대기는 바로 신청자 상세 표시
         if (_currentTabIndex == 3 || _currentTabIndex == 4 ||
@@ -2077,60 +2034,6 @@ class _AdminPostCheckState extends State<AdminPostCheck>
           );
         }
       },
-      child: Container(
-        padding: const EdgeInsets.symmetric(
-          vertical: 14.0,
-          horizontal: 0,
-        ), // 패딩 증가
-        margin: const EdgeInsets.symmetric(vertical: 1.0), // 마진 추가로 공간 확보
-        decoration: BoxDecoration(
-          color: Colors.white, // 배경색 명시
-          border: Border(
-            bottom: BorderSide(color: Colors.grey.shade200, width: 1),
-          ),
-        ),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.center,
-          children: [
-            // 구분 (뱃지)
-            Container(
-              width: _columnTypeWidth,
-              alignment: Alignment.centerLeft,
-              child: PostTypeBadge(type: postType),
-            ),
-            // 제목
-            Expanded(
-              child: Container(
-                padding: const EdgeInsets.only(right: 8.0),
-                alignment: Alignment.centerLeft,
-                child: MarqueeText(
-                  text: post['title'] ?? '제목 없음',
-                  style: AppTheme.bodyMediumStyle.copyWith(
-                    fontWeight: FontWeight.w500,
-                  ),
-                  animationDuration: const Duration(milliseconds: 5000),
-                  pauseDuration: const Duration(milliseconds: 2000),
-                ),
-              ),
-            ),
-            // 작성일
-            Container(
-              width: _columnDateWidth,
-              alignment: Alignment.center,
-              child: Text(
-                TimeFormatUtils.formatFlexibleShortDate(
-                  post['createdDate'] ?? post['created_date'] ?? post['created_at'],
-                ),
-                style: AppTheme.bodyMediumStyle.copyWith(
-                  fontWeight: FontWeight.w500,
-                  color: Colors.grey[600],
-                ),
-                textAlign: TextAlign.center,
-              ),
-            ),
-          ],
-        ),
-      ),
     );
   }
 

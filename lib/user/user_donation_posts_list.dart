@@ -8,8 +8,6 @@ import '../services/dashboard_service.dart';
 import '../models/unified_post_model.dart';
 import '../services/applied_donation_service.dart';
 import '../models/applied_donation_model.dart';
-import '../widgets/marquee_text.dart';
-import '../widgets/post_type_badge.dart';
 import '../services/auth_http_client.dart';
 import '../widgets/custom_tab_bar.dart';
 import '../widgets/rich_text_viewer.dart';
@@ -23,6 +21,8 @@ import '../models/region_model.dart';
 import '../widgets/region_selection_sheet.dart';
 import '../utils/donation_eligibility.dart';
 import '../utils/time_format_util.dart';
+import '../widgets/post_list/post_list_header.dart';
+import '../widgets/post_list/post_list_row.dart';
 
 class UserDonationPostsListScreen extends StatefulWidget {
   final UnifiedPostModel? initialPost; // 초기에 표시할 게시글
@@ -42,10 +42,6 @@ class UserDonationPostsListScreen extends StatefulWidget {
 class _UserDonationPostsListScreenState
     extends State<UserDonationPostsListScreen>
     with TickerProviderStateMixin {
-  // 게시글 리스트 컬럼 너비 (헤더와 행에서 동시 참조)
-  static const double _columnTypeWidth = 80; // 구분
-  static const double _columnDateWidth = 70; // 작성일
-
   List<UnifiedPostModel> filteredPosts = [];
   bool isLoading = true;
   String errorMessage = '';
@@ -1709,49 +1705,7 @@ class _UserDonationPostsListScreenState
       itemBuilder: (context, index) {
         // 첫 번째 아이템은 헤더
         if (index == 0) {
-          return Container(
-            padding: const EdgeInsets.symmetric(
-              horizontal: 16.0,
-              vertical: 12.0,
-            ),
-            decoration: BoxDecoration(
-              color: Colors.grey.shade100,
-              border: Border(
-                bottom: BorderSide(color: Colors.grey.shade400, width: 2),
-              ),
-            ),
-            child: Row(
-              children: [
-                SizedBox(
-                  width: _columnTypeWidth,
-                  child: Text(
-                    '구분',
-                    style: AppTheme.bodyMediumStyle.copyWith(
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ),
-                Expanded(
-                  child: Text(
-                    '제목',
-                    style: AppTheme.bodyMediumStyle.copyWith(
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ),
-                SizedBox(
-                  width: _columnDateWidth,
-                  child: Text(
-                    '작성일',
-                    style: AppTheme.bodyMediumStyle.copyWith(
-                      fontWeight: FontWeight.w600,
-                    ),
-                    textAlign: TextAlign.center,
-                  ),
-                ),
-              ],
-            ),
-          );
+          return const PostListHeader();
         }
 
         // 게시글 범위를 벗어나면 페이지네이션 바
@@ -1765,72 +1719,20 @@ class _UserDonationPostsListScreenState
 
         // 나머지는 게시글 아이템
         final post = filteredPosts[index - 1];
-        return Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16.0),
-          child: _buildPostListItem(post),
-        );
+        return _buildPostListItem(post);
       },
     ),
     );
   }
 
   Widget _buildPostListItem(UnifiedPostModel post) {
-    return InkWell(
+    return PostListRow(
+      badgeType: post.isUrgent ? '긴급' : '정기',
+      title: post.title,
+      dateText: TimeFormatUtils.formatShortDate(post.createdAt),
+      titleColor: post.isUrgent ? Colors.red.shade700 : null,
+      hospitalProfileImage: post.hospitalProfileImage,
       onTap: () => _showPostDetail(post),
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 14.0),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          border: Border(
-            bottom: BorderSide(color: Colors.grey.shade200, width: 1),
-          ),
-        ),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.center,
-          children: [
-            // 구분 (긴급/정기 뱃지)
-            Container(
-              width: _columnTypeWidth,
-              alignment: Alignment.centerLeft,
-              child: PostTypeBadge(type: post.isUrgent ? '긴급' : '정기'),
-            ),
-
-            // 제목
-            Expanded(
-              child: Container(
-                padding: const EdgeInsets.only(right: 8.0),
-                alignment: Alignment.centerLeft,
-                child: MarqueeText(
-                  text: post.title,
-                  style: AppTheme.bodyMediumStyle.copyWith(
-                    fontWeight: FontWeight.w500,
-                    color:
-                        post.isUrgent
-                            ? Colors.red.shade700
-                            : AppTheme.textPrimary,
-                  ),
-                  animationDuration: const Duration(milliseconds: 5000),
-                  pauseDuration: const Duration(milliseconds: 2000),
-                ),
-              ),
-            ),
-
-            // 작성날짜
-            Container(
-              width: _columnDateWidth,
-              alignment: Alignment.center,
-              child: Text(
-                TimeFormatUtils.formatShortDate(post.createdAt),
-                style: AppTheme.bodyMediumStyle.copyWith(
-                  fontWeight: FontWeight.w500,
-                  color: Colors.grey[600],
-                ),
-                textAlign: TextAlign.center,
-              ),
-            ),
-          ],
-        ),
-      ),
     );
   }
 
