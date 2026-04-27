@@ -23,6 +23,7 @@ import '../widgets/post_detail/post_detail_patient_info.dart';
 import '../widgets/post_type_badge.dart';
 import '../widgets/marquee_text.dart';
 import '../widgets/pagination_bar.dart';
+import '../widgets/info_row.dart';
 
 class HospitalPostCheck extends StatefulWidget {
   const HospitalPostCheck({super.key});
@@ -1378,10 +1379,10 @@ class _HospitalPostCheckState extends State<HospitalPostCheck>
                                     ],
                                     if (item.applicantName != null && item.applicantName!.isNotEmpty) ...[
                                       const SizedBox(height: 8),
-                                      _buildInfoRow(
-                                        Icons.person,
-                                        '이름',
-                                        item.applicantName!,
+                                      InfoRow(
+                                        icon: Icons.person,
+                                        label: '이름',
+                                        value: item.applicantName!,
                                       ),
                                     ],
                                     const Divider(height: 24),
@@ -1417,24 +1418,24 @@ class _HospitalPostCheckState extends State<HospitalPostCheck>
                                           final ageText = months < 12 ? '$months개월' : '${months ~/ 12}살';
                                           birthText = '$birthText ($ageText)';
                                         }
-                                        return _buildInfoRow(Icons.cake, '생년월일', birthText);
+                                        return InfoRow(icon: Icons.cake, label: '생년월일', value: birthText);
                                       }(),
                                     ],
                                     if (item.bloodType != null) ...[
                                       const SizedBox(height: 12),
-                                      _buildInfoRow(
-                                        Icons.bloodtype,
-                                        '혈액형',
-                                        item.bloodType!,
+                                      InfoRow(
+                                        icon: Icons.bloodtype,
+                                        label: '혈액형',
+                                        value: item.bloodType!,
                                       ),
                                     ],
                                     // 헌혈량 표시 (헌혈완료 시)
                                     if (item.bloodVolumeMl != null) ...[
                                       const SizedBox(height: 12),
-                                      _buildInfoRow(
-                                        Icons.water_drop,
-                                        '헌혈량',
-                                        '${item.bloodVolumeMl!.toStringAsFixed(item.bloodVolumeMl! == item.bloodVolumeMl!.roundToDouble() ? 0 : 1)} mL',
+                                      InfoRow(
+                                        icon: Icons.water_drop,
+                                        label: '헌혈량',
+                                        value: '${item.bloodVolumeMl!.toStringAsFixed(item.bloodVolumeMl! == item.bloodVolumeMl!.roundToDouble() ? 0 : 1)} mL',
                                       ),
                                     ],
                                     // 상태 뱃지 (헌혈모집 탭에서는 숨김)
@@ -1555,21 +1556,6 @@ class _HospitalPostCheckState extends State<HospitalPostCheck>
               );
             },
           ),
-    );
-  }
-
-  Widget _buildInfoRow(IconData icon, String label, String value) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Icon(icon, size: 16, color: AppTheme.textSecondary),
-        const SizedBox(width: 8),
-        Text(
-          '$label: ',
-          style: AppTheme.bodyMediumStyle.copyWith(fontWeight: FontWeight.w600),
-        ),
-        Expanded(child: Text(value, style: AppTheme.bodyMediumStyle)),
-      ],
     );
   }
 

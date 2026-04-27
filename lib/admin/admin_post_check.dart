@@ -24,6 +24,7 @@ import '../widgets/post_detail/post_detail_patient_info.dart';
 import '../utils/time_format_util.dart';
 import 'admin_post_edit.dart';
 import '../widgets/pagination_bar.dart';
+import '../widgets/info_row.dart';
 
 class AdminPostCheck extends StatefulWidget {
   const AdminPostCheck({super.key});
@@ -3985,26 +3986,26 @@ class _AdminPostCheckState extends State<AdminPostCheck>
                                     crossAxisAlignment: CrossAxisAlignment.start,
                                     children: [
                                       if (post['user_name'] != null && post['user_name'].toString().isNotEmpty)
-                                        _buildCompletionInfoRow(
-                                          Icons.person,
-                                          '이름',
-                                          post['user_name'].toString(),
+                                        InfoRow(
+                                          icon: Icons.person,
+                                          label: '이름',
+                                          value: post['user_name'].toString(),
                                         ),
                                       if (post['user_nickname'] != null && post['user_nickname'].toString().isNotEmpty) ...[
                                         const SizedBox(height: 12),
-                                        _buildCompletionInfoRow(
-                                          Icons.badge,
-                                          '닉네임',
-                                          post['user_nickname'].toString(),
+                                        InfoRow(
+                                          icon: Icons.badge,
+                                          label: '닉네임',
+                                          value: post['user_nickname'].toString(),
                                         ),
                                       ],
                                       if (post['pet_name'] != null &&
                                           post['pet_name'].toString().isNotEmpty) ...[
                                         const SizedBox(height: 12),
-                                        _buildCompletionInfoRow(
-                                          Icons.pets,
-                                          '반려동물',
-                                          post['pet_breed'] != null && post['pet_breed'].toString().isNotEmpty
+                                        InfoRow(
+                                          icon: Icons.pets,
+                                          label: '반려동물',
+                                          value: post['pet_breed'] != null && post['pet_breed'].toString().isNotEmpty
                                               ? '${post['pet_name']} (${post['pet_breed']})'
                                               : post['pet_name'],
                                         ),
@@ -4019,24 +4020,24 @@ class _AdminPostCheckState extends State<AdminPostCheck>
                                             final ageText = months < 12 ? '$months개월' : '${months ~/ 12}살';
                                             birthText = '$birthText ($ageText)';
                                           }
-                                          return _buildCompletionInfoRow(Icons.cake, '생년월일', birthText);
+                                          return InfoRow(icon: Icons.cake, label: '생년월일', value: birthText);
                                         }(),
                                       ],
                                       if ((post['pet_blood_type'] ?? post['bloodType'] ?? post['blood_type']) != null) ...[
                                         const SizedBox(height: 12),
-                                        _buildCompletionInfoRow(
-                                          Icons.bloodtype,
-                                          '혈액형',
-                                          (post['pet_blood_type'] ?? post['bloodType'] ?? post['blood_type']).toString(),
+                                        InfoRow(
+                                          icon: Icons.bloodtype,
+                                          label: '혈액형',
+                                          value: (post['pet_blood_type'] ?? post['bloodType'] ?? post['blood_type']).toString(),
                                         ),
                                       ],
                                       // 헌혈량 표시 (헌혈완료 시)
                                       if (post['blood_volume'] != null) ...[
                                         const SizedBox(height: 12),
-                                        _buildCompletionInfoRow(
-                                          Icons.water_drop,
-                                          '헌혈량',
-                                          '${post['blood_volume']} mL',
+                                        InfoRow(
+                                          icon: Icons.water_drop,
+                                          label: '헌혈량',
+                                          value: '${post['blood_volume']} mL',
                                         ),
                                       ],
                                     ],
@@ -4233,22 +4234,6 @@ class _AdminPostCheckState extends State<AdminPostCheck>
         );
       }
     }
-  }
-
-  // 헌혈완료/취소 상세 정보 행 빌더
-  Widget _buildCompletionInfoRow(IconData icon, String label, String value) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Icon(icon, size: 16, color: AppTheme.textSecondary),
-        const SizedBox(width: 8),
-        Text(
-          '$label: ',
-          style: AppTheme.bodyMediumStyle.copyWith(fontWeight: FontWeight.w600),
-        ),
-        Expanded(child: Text(value, style: AppTheme.bodyMediumStyle)),
-      ],
-    );
   }
 
   // 헌혈마감 날짜/시간 포맷팅
