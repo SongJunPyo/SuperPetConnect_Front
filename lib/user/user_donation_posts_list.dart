@@ -44,8 +44,7 @@ class _UserDonationPostsListScreenState
     with TickerProviderStateMixin {
   // 게시글 리스트 컬럼 너비 (헤더와 행에서 동시 참조)
   static const double _columnTypeWidth = 80; // 구분
-  static const double _columnHospitalWidth = 90; // 병원
-  static const double _columnDateWidth = 60; // 작성일
+  static const double _columnDateWidth = 70; // 작성일
 
   List<UnifiedPostModel> filteredPosts = [];
   bool isLoading = true;
@@ -1741,16 +1740,6 @@ class _UserDonationPostsListScreenState
                   ),
                 ),
                 SizedBox(
-                  width: _columnHospitalWidth,
-                  child: Text(
-                    '병원',
-                    style: AppTheme.bodyMediumStyle.copyWith(
-                      fontWeight: FontWeight.w600,
-                    ),
-                    textAlign: TextAlign.center,
-                  ),
-                ),
-                SizedBox(
                   width: _columnDateWidth,
                   child: Text(
                     '작성일',
@@ -1809,7 +1798,7 @@ class _UserDonationPostsListScreenState
             // 제목
             Expanded(
               child: Container(
-                padding: const EdgeInsets.only(left: 8.0, right: 8.0),
+                padding: const EdgeInsets.only(right: 8.0),
                 alignment: Alignment.centerLeft,
                 child: MarqueeText(
                   text: post.title,
@@ -1826,23 +1815,6 @@ class _UserDonationPostsListScreenState
               ),
             ),
 
-            // 병원 이름 (닉네임 우선, 전체 표시)
-            Container(
-              width: _columnHospitalWidth,
-              alignment: Alignment.center,
-              child: Text(
-                post.hospitalNickname ??
-                    (post.hospitalName.isNotEmpty ? post.hospitalName : '병원'),
-                style: AppTheme.bodySmallStyle.copyWith(
-                  fontSize: 10,
-                  color: Colors.grey[600],
-                ),
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                textAlign: TextAlign.center,
-              ),
-            ),
-
             // 작성날짜
             Container(
               width: _columnDateWidth,
@@ -1850,6 +1822,7 @@ class _UserDonationPostsListScreenState
               child: Text(
                 TimeFormatUtils.formatShortDate(post.createdAt),
                 style: AppTheme.bodyMediumStyle.copyWith(
+                  fontWeight: FontWeight.w500,
                   color: Colors.grey[600],
                 ),
                 textAlign: TextAlign.center,

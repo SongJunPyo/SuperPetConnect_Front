@@ -37,8 +37,7 @@ class _AdminPostCheckState extends State<AdminPostCheck>
     with SingleTickerProviderStateMixin {
   // 게시글 리스트 컬럼 너비 (헤더와 행에서 동시 참조)
   static const double _columnTypeWidth = 80; // 구분
-  static const double _columnDateWidth = 90; // 작성일/시간대
-  static const double _columnApplicantWidth = 60; // 신청자
+  static const double _columnDateWidth = 70; // 작성일
 
   List<dynamic> posts = [];
   bool isLoading = true;
@@ -2003,15 +2002,12 @@ class _AdminPostCheckState extends State<AdminPostCheck>
               ),
               child: Row(
                 children: [
-                  Padding(
-                    padding: const EdgeInsets.only(left: 5),
-                    child: SizedBox(
-                      width: _columnTypeWidth,
-                      child: Text(
-                        '구분',
-                        style: AppTheme.bodyMediumStyle.copyWith(
-                          fontWeight: FontWeight.w600,
-                        ),
+                  SizedBox(
+                    width: _columnTypeWidth,
+                    child: Text(
+                      '구분',
+                      style: AppTheme.bodyMediumStyle.copyWith(
+                        fontWeight: FontWeight.w600,
                       ),
                     ),
                   ),
@@ -2027,16 +2023,6 @@ class _AdminPostCheckState extends State<AdminPostCheck>
                     width: _columnDateWidth,
                     child: Text(
                       '작성일',
-                      style: AppTheme.bodyMediumStyle.copyWith(
-                        fontWeight: FontWeight.w600,
-                      ),
-                      textAlign: TextAlign.center,
-                    ),
-                  ),
-                  SizedBox(
-                    width: _columnApplicantWidth,
-                    child: Text(
-                      '신청자',
                       style: AppTheme.bodyMediumStyle.copyWith(
                         fontWeight: FontWeight.w600,
                       ),
@@ -2115,7 +2101,7 @@ class _AdminPostCheckState extends State<AdminPostCheck>
             // 제목
             Expanded(
               child: Container(
-                padding: const EdgeInsets.only(left: 8.0, right: 8.0),
+                padding: const EdgeInsets.only(right: 8.0),
                 alignment: Alignment.centerLeft,
                 child: MarqueeText(
                   text: post['title'] ?? '제목 없음',
@@ -2136,19 +2122,7 @@ class _AdminPostCheckState extends State<AdminPostCheck>
                   post['createdDate'] ?? post['created_date'] ?? post['created_at'],
                 ),
                 style: AppTheme.bodyMediumStyle.copyWith(
-                  color: Colors.grey[600],
-                ),
-                textAlign: TextAlign.center,
-              ),
-            ),
-            // 신청자
-            Container(
-              width: _columnApplicantWidth,
-              alignment: Alignment.center,
-              child: Text(
-                '${post['applicantCount'] ?? post['applicant_count'] ?? 0}',
-                style: AppTheme.bodySmallStyle.copyWith(
-                  fontSize: 11,
+                  fontWeight: FontWeight.w500,
                   color: Colors.grey[600],
                 ),
                 textAlign: TextAlign.center,

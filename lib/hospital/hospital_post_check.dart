@@ -36,9 +36,7 @@ class _HospitalPostCheckState extends State<HospitalPostCheck>
     with SingleTickerProviderStateMixin {
   // 게시글 리스트 컬럼 너비 (헤더와 행에서 동시 참조)
   static const double _columnTypeWidth = 80; // 구분
-  // 탭 2,3은 "yy.MM.dd 오후 02:30" 형태로 길어서 120w 필요.
-  // 탭 0,1은 yy.MM.dd만 보여 여유롭게 사용.
-  static const double _columnDateWidth = 120; // 작성일/시간대
+  static const double _columnDateWidth = 70; // 작성일
 
   List<UnifiedPostModel> posts = [];
   List<UnifiedPostModel> filteredPosts = [];
@@ -692,7 +690,7 @@ class _HospitalPostCheckState extends State<HospitalPostCheck>
           SizedBox(
             width: _columnDateWidth,
             child: Text(
-              _currentTabIndex == 2 || _currentTabIndex == 3 ? '시간대' : '작성일',
+              '작성일',
               style: AppTheme.bodyMediumStyle.copyWith(
                 fontWeight: FontWeight.w600,
               ),
@@ -728,7 +726,7 @@ class _HospitalPostCheckState extends State<HospitalPostCheck>
             // 제목
             Expanded(
               child: Container(
-                padding: const EdgeInsets.only(left: 8.0, right: 8.0),
+                padding: const EdgeInsets.only(right: 8.0),
                 alignment: Alignment.centerLeft,
                 child: _buildMarqueeText(post.title, profileImage: post.hospitalProfileImage),
               ),
@@ -740,6 +738,7 @@ class _HospitalPostCheckState extends State<HospitalPostCheck>
               child: Text(
                 TimeFormatUtils.formatShortDate(post.createdDate),
                 style: AppTheme.bodyMediumStyle.copyWith(
+                  fontWeight: FontWeight.w500,
                   color: Colors.grey[600],
                 ),
                 textAlign: TextAlign.center,
@@ -913,18 +912,8 @@ class _HospitalPostCheckState extends State<HospitalPostCheck>
       badgeType = item.isUrgent ? '긴급' : '정기';
     }
 
-    // 헌혈취소 탭은 작성일(MM.dd, 제목과 같은 크기), 탭 2,3은 시간대(작은 글씨로 그대로 유지)
-    final String dateDisplay =
-        isCancellationTab
-            ? TimeFormatUtils.formatFlexibleShortDate(item.createdDate)
-            : '${TimeFormatUtils.formatFlexibleDate(item.date)} ${TimeFormatUtils.formatTime(item.time)}';
-    final TextStyle dateStyle =
-        isCancellationTab
-            ? AppTheme.bodyMediumStyle.copyWith(color: Colors.grey[600])
-            : AppTheme.bodySmallStyle.copyWith(
-              fontSize: 11,
-              color: Colors.grey[600],
-            );
+    // 모든 탭에서 작성일(MM.dd) 통일 표시. 시간대 정보는 바텀시트 상세에서 확인 가능.
+    final String dateDisplay = TimeFormatUtils.formatFlexibleShortDate(item.createdDate);
 
     return InkWell(
       onTap: () => _showPostTimeBottomSheet(item),
@@ -952,18 +941,21 @@ class _HospitalPostCheckState extends State<HospitalPostCheck>
                 // 제목
                 Expanded(
                   child: Container(
-                    padding: const EdgeInsets.only(left: 8.0, right: 8.0),
+                    padding: const EdgeInsets.only(right: 8.0),
                     alignment: Alignment.centerLeft,
                     child: _buildMarqueeText(item.postTitle, profileImage: item.hospitalProfileImage),
                   ),
                 ),
-                // 시간대 또는 작성일
+                // 작성일
                 Container(
                   width: _columnDateWidth,
                   alignment: Alignment.center,
                   child: Text(
                     dateDisplay,
-                    style: dateStyle,
+                    style: AppTheme.bodyMediumStyle.copyWith(
+                      fontWeight: FontWeight.w500,
+                      color: Colors.grey[600],
+                    ),
                     textAlign: TextAlign.center,
                   ),
                 ),
@@ -1017,7 +1009,7 @@ class _HospitalPostCheckState extends State<HospitalPostCheck>
             // 제목
             Expanded(
               child: Container(
-                padding: const EdgeInsets.only(left: 8.0, right: 8.0),
+                padding: const EdgeInsets.only(right: 8.0),
                 alignment: Alignment.centerLeft,
                 child: _buildMarqueeText(post.title),
               ),
@@ -1029,6 +1021,7 @@ class _HospitalPostCheckState extends State<HospitalPostCheck>
               child: Text(
                 TimeFormatUtils.formatFlexibleShortDate(post.createdDate),
                 style: AppTheme.bodyMediumStyle.copyWith(
+                  fontWeight: FontWeight.w500,
                   color: Colors.grey[600],
                 ),
                 textAlign: TextAlign.center,
