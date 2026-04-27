@@ -15,19 +15,14 @@ class ServerNotificationMapping {
       UserType.admin: AdminNotificationType.postApprovalRequest, // 헌혈 게시글 승인 요청
     },
 
+    // admin only — 백엔드 emit 3곳 모두 send_notification_to_admins(...) 사용
+    // (donation_apply_service.py, donation_apply_user_service.py, applied_donation/commands.py).
+    // hospital은 수신하지 않음 (CLAUDE.md "알림 다중 수신 라우팅" 참조).
     'new_donation_application': {
-      UserType.admin:
-          AdminNotificationType.donationApplicationRequest, // 관리자는 헌혈 신청 승인 요청
-      UserType.hospital:
-          HospitalNotificationType.donationApplication, // 병원도 수신 가능
+      UserType.admin: AdminNotificationType.donationApplicationRequest,
     },
 
     // === 병원이 받는 알림들 ===
-    'new_donation_application_hospital': {
-      UserType.hospital:
-          HospitalNotificationType.donationApplication, // 새 신청 알림
-    },
-
     // 특정 시간대 모집 완료
     'timeslot_filled': {
       UserType.hospital: HospitalNotificationType.timeslotFilled,
@@ -61,13 +56,6 @@ class ServerNotificationMapping {
       UserType.hospital: HospitalNotificationType.columnRejected,
     },
 
-    'donation_application': {
-      UserType.admin:
-          AdminNotificationType.donationApplicationRequest, // 관리자 헌혈 신청 요청
-      UserType.hospital:
-          HospitalNotificationType.donationApplication, // 병원 새 헌혈 신청 접수
-    },
-
     // === 반려동물 재심사 요청 ===
     'pet_review_request': {
       UserType.admin: AdminNotificationType.petReviewRequest,
@@ -91,6 +79,11 @@ class ServerNotificationMapping {
     'account_rejected': {UserType.user: UserNotificationType.systemNotice},
 
     'account_suspended': {UserType.user: UserNotificationType.systemNotice},
+
+    // 옵션 d 분기 (CLAUDE.md "account 상태 알림 키" 참조):
+    // ACTIVE/PENDING → 토스트, SUSPENDED/BLOCKED → 강제 모달 + 로그아웃.
+    // 분기 로직은 _navigateToXxx 핸들러에서 data['new_status']로 처리.
+    'account_status_changed': {UserType.user: UserNotificationType.systemNotice},
 
     'application_approved': {UserType.user: UserNotificationType.systemNotice},
 
@@ -203,7 +196,6 @@ class ServerNotificationMapping {
       case 'new_user_registration':
         return '👤';
       case 'new_donation_application':
-      case 'new_donation_application_hospital':
         return '💉';
       case 'donation_post_approved':
         return '✅';

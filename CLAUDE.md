@@ -430,6 +430,15 @@ Windows에서는 `.git/hooks/pre-commit.cmd` 사용.
 | [NotificationService](lib/services/notification_service.dart) | FCM **탭 네비게이션** 전담. `onMessageOpenedApp` (navigation용), `getInitialMessage`, `handleLocalNotificationTap`, 9개 `_navigateToXxx` 메서드, `navigatorKey` 보유. `updateTokenAfterLogin`은 `FCMHandler`로 위임하는 thin delegator |
 | [UnifiedNotificationManager](lib/services/unified_notification_manager.dart) | 플랫폼 분기. 모바일은 `FCMHandler.notificationStream`, 웹은 `WebSocketHandler.notificationStream`을 구독해 단일 스트림으로 제공 |
 
+**라우팅 책임 분담 (계약 확정 2026-04-28)**
+
+| 영역 | 책임 |
+|------|------|
+| 백엔드 | `type` + 도메인 식별자(top-level flat 키)만 제공. 어느 화면으로 갈지는 모름. `navigation` 객체는 deprecated, 신규 emit에 추가 금지 |
+| 프론트 | `type` → 화면 매핑 ([notification_service.dart](lib/services/notification_service.dart)의 9개 `_navigateToXxx`). 동일 `type`이 다중 수신자(admin/hospital/user)에 발송되는 경우 `account_type`으로 분기 (예: `donation_completed`) |
+
+라우팅 분기는 **100% `data['type']` 기반**. `data.navigation.page` 힌트는 분기 결정에 사용하지 않음. 다중 수신 분기 규약은 "백엔드 의존 계약 → 알림 다중 수신 라우팅" 섹션 참조.
+
 **앱 상태별 알림 탭 → 네비게이션 경로** (세 경로 모두 `NotificationService`가 처리)
 
 | 앱 상태 | Firebase 콜백 | 핸들러 |
@@ -465,13 +474,42 @@ Windows에서는 `.git/hooks/pre-commit.cmd` 사용.
 - **WebSocket**: `data`가 원본 object 그대로 전달 (중첩 dict/list 사용 가능).
 - **FCM**: Firebase 스펙상 `data`의 모든 값이 **string이어야 함**. 백엔드가 dict는 `json.dumps()`로 직렬화, 나머지는 `str()` 캐스팅. 프론트는 `post_info`, `navigation` 같은 필드를 `jsonDecode`로 재파싱해야 함 — [notification_converter.dart:parseRelatedData](lib/services/notification_converter.dart)에서 이미 처리 중.
 
+### FCM/WebSocket data 키 컨벤션 (계약 확정 2026-04-28)
+
+도메인 식별자는 항상 **top-level flat 키**로 emit. 신규 emit 사이트에서 객체로 묶지 말 것.
+
+**표준 키**
+
+| 키 | 타입 | 용도 |
+|----|------|------|
+| `post_idx` | int | `donation_posts.post_idx` |
+| `application_id` | int | `applied_donation.applied_donation_idx`. **FCM data만** 이 키 이름. REST 응답 body는 `applied_donation_idx` 그대로 (의도된 보존, 아래 참조) |
+| `column_id` | int | `hospital_columns.column_idx` |
+| `pet_idx` | int | `pets.pet_idx` |
+| `is_selected` | string `"true"`/`"false"` | `recruitment_closed`에서 선정 여부 분기 |
+| `new_status` | int (0~3) | account 상태 알림 전용 — 별도 섹션 참조 |
+| `status_label` | string | account 상태 알림 전용 — 별도 섹션 참조 |
+
+**`navigation` 객체는 deprecated** (계약 확정 2026-04-28). GA 후 백엔드 emit 13곳에서 제거 예정. **신규 emit에는 추가 금지**. 프론트는 이미 9개 핸들러 중 6개가 top-level 식별자를 직접 읽음. 라우팅 결정은 **100% `data['type']` 기반**이므로 `navigation.page` 힌트 불필요.
+
+**FCM data vs REST 응답 body 키 이름 차이 (의도된 보존)**
+
+`applied_donation_idx`는 백엔드가 광범위하게 사용 중인 정식 컬럼명이지만, FCM data는 프론트 핸들러 일관성을 위해 `application_id`로 정정함 (2026-04-28). REST 응답 body는 그대로 `applied_donation_idx` 유지:
+
+| 위치 | 키 | 비고 |
+|------|---|------|
+| FCM data (2곳) | `application_id` | `donation_completion_rejected`, `donation_completed` (admin report) |
+| REST 응답 body (다수) | `applied_donation_idx` | 모델 4개 + 화면 다수 의존, GA 이후 통일 검토 |
+
+[donation_history_screen.dart:802](lib/user/donation_history_screen.dart#L802), [applied_donation_model.dart:583](lib/models/applied_donation_model.dart#L583)은 이미 양방향 fallback (`json['applied_donation_idx'] ?? json['application_id']`).
+
 ### FCM `type` 공식 목록 (계약 확정)
-백엔드 `constants/enums.py::NotificationType`가 **단일 원천**. 총 **31개 고유** (역할 간 중복 포함 시 33개). **신규 추가 시 changelog 필수** — 안 그러면 프론트가 fallback `systemNotice`로 떨어짐. 프론트 쪽 매핑 파일([lib/models/notification_mapping.dart](lib/models/notification_mapping.dart))과 **이중 동기화** 필요.
+백엔드 `constants/enums.py::NotificationType`가 **단일 원천**. 총 **30개 고유** (2026-04-28 `donation_application` 레거시 제거 후 31→30). **신규 추가 시 changelog 필수** — 안 그러면 프론트가 fallback `systemNotice`로 떨어짐. 프론트 쪽 매핑 파일([lib/models/notification_mapping.dart](lib/models/notification_mapping.dart))과 **이중 동기화** 필요.
 
 ```
-# 관리자용 (9개)
+# 관리자용 (8개)
 admin_alert, new_user_registration, new_post_approval, column_approval,
-new_donation_application, donation_application, donation_completed, pet_review_request,
+new_donation_application, donation_completed, pet_review_request,
 new_pet_registration                        # 2026-04 append: services/pets_service.py:90
 
 # 병원용 (12개)
@@ -509,9 +547,48 @@ New notification type:
   - audience: ["user"]
   - emit: services/pets_service.py:<line>
   - data keys: { "pet_idx": int, "deleted_by": "admin"|"user" }
-  - navigation payload: { "page": "pet_history", "pet_idx": int } (선택)
   - title/body example: "반려동물이 삭제되었습니다" / "{pet_name} 기록이 제거되었습니다"
 ```
+
+(`navigation payload` 항목은 deprecated. 신규 type 추가 시 포함 금지.)
+
+### 알림 다중 수신 라우팅 (계약 확정 2026-04-28)
+
+같은 `type`이라도 수신자(audience)가 여러 역할이면 **프론트가 `account_type`으로 분기**. 백엔드는 `type`을 분리하지 않음 (양측 dual-sync 부담 회피). 분기 위치는 [notification_service.dart](lib/services/notification_service.dart)의 `_navigateToXxx` 함수 내부, [PreferencesManager.getAccountType()](lib/utils/preferences_manager.dart)으로 조회.
+
+**`donation_completed` (admin / hospital / user 3분기)**
+
+| 수신자 | 발송 시점 | 본문 키 (`constants/messages.py`) | 도착 화면 |
+|--------|----------|----------------------------------|----------|
+| user (account_type=3) | 관리자 최종 승인 시 | `DONATION_COMPLETE_USER_BODY` | 본인 헌혈 이력 화면 |
+| hospital (account_type=2) | 관리자 최종 승인 시 | `DONATION_COMPLETE_CONFIRM_BODY` | 게시글 신청자/완료 헌혈자 관리 화면 ([hospital_post_check.dart](lib/hospital/hospital_post_check.dart)) |
+| admin (account_type=1) | 병원 1차 완료 처리 시 | `DONATION_COMPLETE_REPORT_BODY` | 헌혈 최종 승인 대기 목록 ([admin_donation_approval_page.dart](lib/admin/admin_donation_approval_page.dart)) |
+
+**`new_donation_application` (admin only)**
+
+백엔드 emit 사이트 3곳 모두 `send_notification_to_admins(...)` 사용 — `donation_apply_service.py`, `donation_apply_user_service.py`, `applied_donation/commands.py`. **hospital은 수신하지 않음**.
+
+프론트 매핑 정리 (2026-04-28):
+- `new_donation_application`의 `UserType.hospital` 라인 → 제거 (dead code)
+- `new_donation_application_hospital` 매핑 → 전체 제거 (emit 사이트 0건)
+- `donation_application` 매핑 → 전체 제거 (백엔드 enums.py에서도 함께 제거됨)
+
+도착 화면: 관리자의 헌혈 신청 검토/관리 화면. data에 `post_idx`, `application_id` 포함되어 있어 추가 작업 불요.
+
+### account 상태 알림 키 (계약 확정 2026-04-28)
+
+`account_suspended`, `account_status_changed` 두 type의 data에 다음 키 포함 (백엔드 emit: `services/admin_users_service.py`의 `_send_suspension_notification`, `_send_status_change_notification`):
+
+| 키 | 타입 | 값 |
+|----|------|---|
+| `new_status` | int | 0=PENDING, 1=ACTIVE, 2=SUSPENDED, 3=BLOCKED — `UserStatus` 미러 (CLAUDE.md "계정 상태" 섹션 동일) |
+| `status_label` | string | `"pending"` / `"active"` / `"suspended"` / `"blocked"` (분기 가독성용, 영문 enum 라벨 lowercase) |
+
+**프론트 분기 (옵션 d)** — 임팩트별 차등 처리:
+- `new_status == 1` (ACTIVE) / `new_status == 0` (PENDING) → 대시보드 진입 + 상단 토스트로 상태 안내 (부드러운 처리)
+- `new_status == 2` (SUSPENDED) / `new_status == 3` (BLOCKED) → 강제 모달 + 강제 로그아웃 (강한 처리)
+
+이유: ACTIVE 복귀 알림과 정지/차단 알림은 임팩트가 달라 동일 처리 부적절. SUSPENDED/BLOCKED 상태에서는 어차피 다른 API가 403 반환하므로 모달+로그아웃이 자연스러움.
 
 ### 이미지 URL
 - 백엔드는 **상대 경로**로 반환 (예: `/uploads/posts/abc.jpg`).
