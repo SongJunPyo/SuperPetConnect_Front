@@ -1537,6 +1537,22 @@ class _UserDonationPostsListScreenState
         centerTitle: false,
         actions: [
           IconButton(
+            icon: Icon(
+              selectedLargeRegions.isEmpty
+                  ? Icons.location_on_outlined
+                  : Icons.location_on,
+              color: selectedLargeRegions.isEmpty
+                  ? Colors.black87
+                  : AppTheme.primaryBlue,
+            ),
+            tooltip: selectedLargeRegions.isEmpty
+                ? '지역 선택'
+                : selectedLargeRegions.length == 1
+                    ? selectedLargeRegions.first.name
+                    : '${selectedLargeRegions.first.name} 외 ${selectedLargeRegions.length - 1}곳',
+            onPressed: _showRegionSelectionSheet,
+          ),
+          IconButton(
             icon: const Icon(Icons.calendar_today, color: Colors.black87),
             tooltip: '날짜 범위 선택',
             onPressed: _selectDateRange,
@@ -1574,35 +1590,6 @@ class _UserDonationPostsListScreenState
               onClear: () {
                 _onSearchChanged('');
               },
-            ),
-          ),
-
-          // 선택된 지역 표시
-          GestureDetector(
-            onTap: _showRegionSelectionSheet,
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-              color: Colors.grey.shade100,
-              child: Row(
-                children: [
-                  Icon(Icons.location_on, size: 16, color: AppTheme.primaryBlue),
-                  const SizedBox(width: 4),
-                  Expanded(
-                    child: Text(
-                      selectedLargeRegions.isEmpty
-                          ? '전체 지역'
-                          : selectedLargeRegions.length == 1
-                              ? selectedLargeRegions.first.name
-                              : '${selectedLargeRegions.first.name} 외 ${selectedLargeRegions.length - 1}곳',
-                      style: AppTheme.bodySmallStyle.copyWith(
-                        color: AppTheme.textSecondary,
-                      ),
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
-                  Icon(Icons.keyboard_arrow_down, size: 18, color: AppTheme.textSecondary),
-                ],
-              ),
             ),
           ),
 
