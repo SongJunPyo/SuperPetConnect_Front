@@ -36,7 +36,9 @@ class _HospitalPostCheckState extends State<HospitalPostCheck>
     with SingleTickerProviderStateMixin {
   // 게시글 리스트 컬럼 너비 (헤더와 행에서 동시 참조)
   static const double _columnTypeWidth = 80; // 구분
-  static const double _columnDateWidth = 90; // 작성일/시간대
+  // 탭 2,3은 "yy.MM.dd 오후 02:30" 형태로 길어서 120w 필요.
+  // 탭 0,1은 yy.MM.dd만 보여 여유롭게 사용.
+  static const double _columnDateWidth = 120; // 작성일/시간대
   static const double _columnApplicantWidth = 60; // 신청자
 
   List<UnifiedPostModel> posts = [];
@@ -943,7 +945,7 @@ class _HospitalPostCheckState extends State<HospitalPostCheck>
     final String dateDisplay =
         isCancellationTab
             ? TimeFormatUtils.formatFlexibleDate(item.createdDate)
-            : '${TimeFormatUtils.formatFlexibleDate(item.date)} ${TimeFormatUtils.formatTime24(item.time)}';
+            : '${TimeFormatUtils.formatFlexibleDate(item.date)} ${TimeFormatUtils.formatTime(item.time)}';
 
     return InkWell(
       onTap: () => _showPostTimeBottomSheet(item),
@@ -2245,7 +2247,7 @@ class _PostDetailBottomSheetState extends State<PostDetailBottomSheet> {
                   ),
                   const SizedBox(width: 8),
                   Text(
-                    '${TimeFormatUtils.formatDateWithWeekday(applicant.selectedDate!)} ${TimeFormatUtils.formatTime24(applicant.selectedTime!)}',
+                    '${TimeFormatUtils.formatDateWithWeekday(applicant.selectedDate!)} ${TimeFormatUtils.formatTime(applicant.selectedTime!)}',
                     style: AppTheme.bodyMediumStyle.copyWith(
                       color: AppTheme.primaryDarkBlue,
                       fontWeight: FontWeight.w500,
@@ -2481,7 +2483,7 @@ class _PostDetailBottomSheetState extends State<PostDetailBottomSheet> {
                                     const SizedBox(width: 12),
                                     Expanded(
                                       child: Text(
-                                        TimeFormatUtils.formatTime24(timeSlot.time),
+                                        TimeFormatUtils.formatTime(timeSlot.time),
                                         style: AppTheme.bodyMediumStyle.copyWith(
                                           fontWeight: FontWeight.w600,
                                           color: AppTheme.textPrimary,
@@ -2600,7 +2602,7 @@ class _PostDetailBottomSheetState extends State<PostDetailBottomSheet> {
                                     ),
                                     const SizedBox(height: 4),
                                     Text(
-                                      '${TimeFormatUtils.formatDateWithWeekday(dateStr)} ${TimeFormatUtils.formatTime24(timeSlot.time)}',
+                                      '${TimeFormatUtils.formatDateWithWeekday(dateStr)} ${TimeFormatUtils.formatTime(timeSlot.time)}',
                                       style: AppTheme.bodyMediumStyle.copyWith(
                                         color: AppTheme.textSecondary,
                                       ),

@@ -501,7 +501,7 @@ class _UserDonationPostsListScreenState
                     child: Padding(
                       padding: const EdgeInsets.symmetric(vertical: 8),
                       child: Text(
-                        TimeFormatUtils.formatTime24(timeSlot['time'] ?? ''),
+                        TimeFormatUtils.formatTime(timeSlot['time'] ?? ''),
                         style: AppTheme.bodyMediumStyle.copyWith(
                           fontWeight: FontWeight.w500,
                         ),
@@ -590,7 +590,7 @@ class _UserDonationPostsListScreenState
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      '$selectedDate ${TimeFormatUtils.formatTime24(time)}',
+                      '$selectedDate ${TimeFormatUtils.formatTime(time)}',
                       style: AppTheme.bodyLargeStyle.copyWith(
                         fontWeight: FontWeight.w600,
                         color: AppTheme.primaryBlue,
@@ -1955,7 +1955,7 @@ class _UserDonationPostsListScreenState
                                 } else {
                                   // 신청하지 않은 시간대 클릭 시 신청 페이지 표시
                                   final displayText =
-                                      '${TimeFormatUtils.formatDateWithWeekday(dateStr)} ${TimeFormatUtils.formatTime24(timeSlot['time'] ?? '')}';
+                                      '${TimeFormatUtils.formatDateWithWeekday(dateStr)} ${TimeFormatUtils.formatTime(timeSlot['time'] ?? '')}';
                                   _showDonationApplicationPage(
                                     dateStr,
                                     timeSlot,
@@ -2001,7 +2001,7 @@ class _UserDonationPostsListScreenState
                                             CrossAxisAlignment.start,
                                         children: [
                                           Text(
-                                            TimeFormatUtils.formatTime24(timeSlot['time'] ?? ''),
+                                            TimeFormatUtils.formatTime(timeSlot['time'] ?? ''),
                                             style: AppTheme.bodyLargeStyle
                                                 .copyWith(
                                                   fontWeight: FontWeight.w600,

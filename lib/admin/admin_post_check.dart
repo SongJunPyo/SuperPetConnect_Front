@@ -2732,7 +2732,7 @@ class _AdminPostCheckState extends State<AdminPostCheck>
                                 ),
                                 const SizedBox(width: 8),
                                 Text(
-                                  TimeFormatUtils.formatTime24(time),
+                                  TimeFormatUtils.formatTime(time),
                                   style: AppTheme.bodyMediumStyle.copyWith(
                                     color:
                                         isSlotClosed
@@ -2884,7 +2884,7 @@ class _AdminPostCheckState extends State<AdminPostCheck>
                                   ),
                                   const SizedBox(height: 4),
                                   Text(
-                                    '${TimeFormatUtils.formatDateWithWeekday(date)} ${TimeFormatUtils.formatTime24(time)}',
+                                    '${TimeFormatUtils.formatDateWithWeekday(date)} ${TimeFormatUtils.formatTime(time)}',
                                     style: AppTheme.bodyMediumStyle.copyWith(
                                       color: Colors.grey[600],
                                     ),
@@ -3458,7 +3458,7 @@ class _AdminPostCheckState extends State<AdminPostCheck>
                       ),
                       const SizedBox(height: 8),
                       Text(
-                        '${TimeFormatUtils.formatDateWithWeekday(date)} ${TimeFormatUtils.formatTime24(time)}',
+                        '${TimeFormatUtils.formatDateWithWeekday(date)} ${TimeFormatUtils.formatTime(time)}',
                         style: AppTheme.bodyLargeStyle,
                       ),
                       const SizedBox(height: 16),
@@ -3606,7 +3606,7 @@ class _AdminPostCheckState extends State<AdminPostCheck>
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                '${TimeFormatUtils.formatDateWithWeekday(date)} ${TimeFormatUtils.formatTime24(time)}',
+                '${TimeFormatUtils.formatDateWithWeekday(date)} ${TimeFormatUtils.formatTime(time)}',
                 style: const TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.w500,
