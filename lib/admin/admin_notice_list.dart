@@ -1,15 +1,13 @@
 ﻿import 'package:flutter/material.dart';
 import '../utils/app_theme.dart';
-import '../utils/app_constants.dart';
-import '../utils/config.dart';
 import '../models/notice_model.dart';
 import '../services/notice_service.dart';
 import 'admin_notice_create.dart';
 import 'package:intl/intl.dart';
 import '../widgets/app_search_bar.dart';
-import '../widgets/marquee_text.dart';
-import '../utils/number_format_util.dart';
 import 'package:url_launcher/url_launcher.dart';
+import '../widgets/post_list/board_list_row.dart';
+import '../widgets/post_list/notice_styling.dart';
 
 class AdminNoticeListScreen extends StatefulWidget {
   const AdminNoticeListScreen({super.key});
@@ -18,8 +16,7 @@ class AdminNoticeListScreen extends StatefulWidget {
   State<AdminNoticeListScreen> createState() => _AdminNoticeListScreenState();
 }
 
-class _AdminNoticeListScreenState extends State<AdminNoticeListScreen>
-    with SingleTickerProviderStateMixin {
+class _AdminNoticeListScreenState extends State<AdminNoticeListScreen> {
   List<Notice> notices = [];
   List<Notice> filteredNotices = [];
   bool isLoading = true;
@@ -29,33 +26,16 @@ class _AdminNoticeListScreenState extends State<AdminNoticeListScreen>
   DateTime? startDate;
   DateTime? endDate;
 
-  // 슬라이딩 탭 관련
-  TabController? _tabController;
-  int _currentTabIndex = 0; // 0: 공지, 1: 비공지
-
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 2, vsync: this);
-    _tabController!.addListener(_handleTabChange);
     _loadNotices();
   }
 
   @override
   void dispose() {
-    _tabController?.dispose();
     searchController.dispose();
     super.dispose();
-  }
-
-  void _handleTabChange() {
-    if (_tabController!.indexIsChanging ||
-        _tabController!.index != _currentTabIndex) {
-      setState(() {
-        _currentTabIndex = _tabController!.index;
-        _updateFilteredNotices();
-      });
-    }
   }
 
   Future<void> _loadNotices() async {
@@ -86,15 +66,6 @@ class _AdminNoticeListScreenState extends State<AdminNoticeListScreen>
   void _updateFilteredNotices() {
     List<Notice> filtered = notices;
 
-    // 탭에 따른 필터링 (notice_active 활용)
-    if (_currentTabIndex == 0) {
-      // 공지 탭: notice_active가 true(활성화)인 공지만
-      filtered = filtered.where((notice) => notice.noticeActive).toList();
-    } else {
-      // 비공지 탭: notice_active가 false(비활성화)인 공지만
-      filtered = filtered.where((notice) => !notice.noticeActive).toList();
-    }
-
     // 검색 필터링
     if (searchQuery.isNotEmpty) {
       filtered =
@@ -119,8 +90,19 @@ class _AdminNoticeListScreenState extends State<AdminNoticeListScreen>
           }).toList();
     }
 
-    // 정렬 (최신순)
-    filtered.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+    // 색 그룹 우선순위 → 같은 그룹 내 작성일 역순
+    filtered.sort((a, b) {
+      final ar = NoticeStyling.priorityRank(
+        targetAudience: a.targetAudience,
+        noticeImportant: a.noticeImportant,
+      );
+      final br = NoticeStyling.priorityRank(
+        targetAudience: b.targetAudience,
+        noticeImportant: b.noticeImportant,
+      );
+      if (ar != br) return ar - br;
+      return b.createdAt.compareTo(a.createdAt);
+    });
 
     setState(() {
       filteredNotices = filtered;
@@ -173,37 +155,6 @@ class _AdminNoticeListScreenState extends State<AdminNoticeListScreen>
       endDate = null;
     });
     _updateFilteredNotices();
-  }
-
-  Future<void> _toggleNoticeActive(Notice notice) async {
-    try {
-      final updatedNotice = await NoticeService.toggleNoticeActive(
-        notice.noticeIdx,
-      );
-
-      if (mounted) {
-        final statusText = updatedNotice.noticeActive ? '활성화' : '비활성화';
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('공지글이 $statusText되었습니다.'),
-            backgroundColor:
-                updatedNotice.noticeActive
-                    ? AppTheme.success
-                    : AppTheme.mediumGray,
-          ),
-        );
-        _loadNotices(); // 목록 새로고침
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('상태 변경 실패: ${e.toString()}'),
-            backgroundColor: AppTheme.error,
-          ),
-        );
-      }
-    }
   }
 
   Future<void> _deleteNotice(Notice notice) async {
@@ -571,8 +522,6 @@ class _AdminNoticeListScreenState extends State<AdminNoticeListScreen>
         return '관리자';
       case 2:
         return '병원';
-      case 3:
-        return '사용자';
       default:
         return '전체';
     }
@@ -580,16 +529,12 @@ class _AdminNoticeListScreenState extends State<AdminNoticeListScreen>
 
   Color _getTargetAudienceColor(int targetAudience) {
     switch (targetAudience) {
-      case 0:
-        return Colors.purple; // 전체: 보라색
       case 1:
         return AppTheme.primaryBlue; // 관리자
       case 2:
-        return Colors.orange; // 병원: 주황색
-      case 3:
-        return AppTheme.success; // 사용자: 초록색
+        return AppTheme.success; // 병원
       default:
-        return Colors.purple; // 전체: 보라색
+        return AppTheme.textPrimary; // 전체
     }
   }
 
@@ -637,34 +582,6 @@ class _AdminNoticeListScreenState extends State<AdminNoticeListScreen>
             tooltip: '공지글 작성',
           ),
         ],
-        bottom: TabBar(
-          controller: _tabController,
-          tabs: const [
-            Tab(
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(Icons.campaign, size: 20),
-                  SizedBox(width: 8),
-                  Text('공지'),
-                ],
-              ),
-            ),
-            Tab(
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(Icons.article, size: 20),
-                  SizedBox(width: 8),
-                  Text('비공지'),
-                ],
-              ),
-            ),
-          ],
-          labelColor: Colors.black87,
-          unselectedLabelColor: Colors.grey,
-          indicatorColor: Colors.black87,
-        ),
       ),
       body: Column(
         children: [
@@ -803,255 +720,49 @@ class _AdminNoticeListScreenState extends State<AdminNoticeListScreen>
         itemBuilder: (context, index) {
           final notice = filteredNotices[index];
 
-          return InkWell(
-            onTap: () => _showNoticeDetail(notice),
+          return GestureDetector(
             onLongPress: () {
-              // 길게 누르면 옵션 메뉴 표시
               showModalBottomSheet(
                 context: context,
-                builder:
-                    (context) => SafeArea(
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          ListTile(
-                            leading: const Icon(Icons.edit),
-                            title: const Text('수정'),
-                            onTap: () {
-                              Navigator.pop(context);
-                              _navigateToEditNotice(notice);
-                            },
-                          ),
-                          ListTile(
-                            leading: Icon(
-                              notice.noticeActive
-                                  ? Icons.visibility_off
-                                  : Icons.visibility,
-                            ),
-                            title: Text(notice.noticeActive ? '비활성화' : '활성화'),
-                            onTap: () {
-                              Navigator.pop(context);
-                              _toggleNoticeActive(notice);
-                            },
-                          ),
-                          ListTile(
-                            leading: const Icon(
-                              Icons.delete,
-                              color: Colors.red,
-                            ),
-                            title: const Text(
-                              '삭제',
-                              style: TextStyle(color: Colors.red),
-                            ),
-                            onTap: () {
-                              Navigator.pop(context);
-                              _deleteNotice(notice);
-                            },
-                          ),
-                        ],
-                      ),
-                    ),
-              );
-            },
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // 중앙: 메인 콘텐츠
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        // 첫 번째 줄: [대상 뱃지][제목][작성 일자]
-                        Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            // 대상 뱃지
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 6,
-                                vertical: 2,
-                              ),
-                              decoration: BoxDecoration(
-                                color: _getTargetAudienceColor(
-                                  notice.targetAudience,
-                                ),
-                                borderRadius: BorderRadius.circular(4),
-                              ),
-                              child: Text(
-                                _getTargetAudienceText(notice.targetAudience),
-                                style: AppTheme.bodySmallStyle.copyWith(
-                                  color: Colors.white,
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 10,
-                                ),
-                              ),
-                            ),
-                            const SizedBox(width: 4),
-                            // 공지 뱃지 (noticeImportant == 0일 때만 표시)
-                            if (notice.noticeImportant ==
-                                AppConstants.noticeImportant)
-                              Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 6,
-                                  vertical: 2,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: Colors.red,
-                                  borderRadius: BorderRadius.circular(4),
-                                ),
-                                child: Text(
-                                  '공지',
-                                  style: AppTheme.bodySmallStyle.copyWith(
-                                    color: Colors.white,
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 10,
-                                  ),
-                                ),
-                              ),
-                            const SizedBox(width: 8),
-                            // 제목
-                            Expanded(
-                              child: MarqueeText(
-                                text: notice.title,
-                                style: AppTheme.bodyMediumStyle.copyWith(
-                                  color: AppTheme.textPrimary,
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 13,
-                                ),
-                                animationDuration: const Duration(
-                                  milliseconds: 4000,
-                                ),
-                                pauseDuration: const Duration(
-                                  milliseconds: 1000,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 6),
-                        // 두 번째 줄: [프로필 사진][닉네임][수정 일자]
-                        Row(
-                          children: [
-                            // 작성자 프로필 사진
-                            Builder(
-                              builder: (context) {
-                                final profileImage = notice.authorProfileImage;
-                                final hasImage = profileImage != null && profileImage.isNotEmpty;
-                                return CircleAvatar(
-                                  radius: 10,
-                                  backgroundColor: AppTheme.veryLightGray,
-                                  foregroundImage: hasImage
-                                      ? NetworkImage(
-                                          profileImage.startsWith('http')
-                                              ? profileImage
-                                              : '${Config.serverUrl}$profileImage',
-                                        )
-                                      : null,
-                                  onForegroundImageError: hasImage ? (_, __) {} : null,
-                                  child: Icon(
-                                    Icons.business,
-                                    size: 12,
-                                    color: AppTheme.textTertiary,
-                                  ),
-                                );
-                              },
-                            ),
-                            const SizedBox(width: 6),
-                            // 닉네임 (작성자 닉네임)
-                            Expanded(
-                              child: Text(
-                                (notice.authorNickname ?? notice.authorName)
-                                            .length >
-                                        15
-                                    ? '${(notice.authorNickname ?? notice.authorName).substring(0, 15)}..'
-                                    : (notice.authorNickname ??
-                                        notice.authorName),
-                                style: AppTheme.bodySmallStyle.copyWith(
-                                  color: AppTheme.textSecondary,
-                                  fontSize: 13,
-                                ),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  // 오른쪽: 날짜들 + 2줄 높이의 조회수 박스
-                  Row(
+                builder: (context) => SafeArea(
+                  child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      // 날짜 컬럼 (작성/수정일 세로 배치)
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.end,
-                        children: [
-                          Text(
-                            '작성: ${DateFormat('yy.MM.dd').format(notice.createdAt)}',
-                            style: AppTheme.bodySmallStyle.copyWith(
-                              color: AppTheme.textTertiary,
-                              fontSize: 13,
-                            ),
-                          ),
-                          const SizedBox(height: 2),
-                          Text(
-                            '수정: ${DateFormat('yy.MM.dd').format(notice.updatedAt)}',
-                            style: AppTheme.bodySmallStyle.copyWith(
-                              color: AppTheme.textTertiary,
-                              fontSize: 13,
-                            ),
-                          ),
-                        ],
+                      ListTile(
+                        leading: const Icon(Icons.edit),
+                        title: const Text('수정'),
+                        onTap: () {
+                          Navigator.pop(context);
+                          _navigateToEditNotice(notice);
+                        },
                       ),
-                      const SizedBox(width: 8),
-                      // 2줄 높이의 조회수 박스
-                      Container(
-                        height: 36,
-                        width: 40,
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 4,
-                          vertical: 4,
+                      ListTile(
+                        leading: const Icon(Icons.delete, color: Colors.red),
+                        title: const Text(
+                          '삭제',
+                          style: TextStyle(color: Colors.red),
                         ),
-                        decoration: BoxDecoration(
-                          color: AppTheme.mediumGray.withValues(alpha: 0.2),
-                          borderRadius: BorderRadius.circular(6),
-                          border: Border.all(
-                            color: AppTheme.lightGray.withValues(alpha: 0.3),
-                            width: 1,
-                          ),
-                        ),
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(
-                              Icons.visibility_outlined,
-                              size: 10,
-                              color: AppTheme.textTertiary,
-                            ),
-                            const SizedBox(height: 1),
-                            Text(
-                              NumberFormatUtil.formatViewCount(
-                                notice.viewCount ?? 0,
-                              ),
-                              style: AppTheme.bodySmallStyle.copyWith(
-                                color: AppTheme.textTertiary,
-                                fontSize: 10,
-                                fontWeight: FontWeight.w500,
-                              ),
-                              textAlign: TextAlign.center,
-                            ),
-                          ],
-                        ),
+                        onTap: () {
+                          Navigator.pop(context);
+                          _deleteNotice(notice);
+                        },
                       ),
                     ],
                   ),
-                ],
+                ),
+              );
+            },
+            child: BoardListRow(
+              index: index + 1,
+              title: notice.title,
+              titleColor: NoticeStyling.titleColor(
+                targetAudience: notice.targetAudience,
+                noticeImportant: notice.noticeImportant,
               ),
+              authorName: notice.authorNickname ?? notice.authorName,
+              authorProfileImage: notice.authorProfileImage,
+              createdAt: notice.createdAt,
+              onTap: () => _showNoticeDetail(notice),
             ),
           );
         },

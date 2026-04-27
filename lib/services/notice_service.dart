@@ -147,28 +147,6 @@ class NoticeService {
     }
   }
 
-  // 공지글 활성화/비활성화 토글 (관리자만)
-  static Future<Notice> toggleNoticeActive(int noticeIdx) async {
-    try {
-      final response = await AuthHttpClient.patch(
-        Uri.parse('$baseUrl/$noticeIdx/toggle'),
-      );
-
-      if (response.statusCode == 200) {
-        final data = response.parseJson();
-        return Notice.fromJson(data);
-      } else if (response.statusCode == 403) {
-        throw Exception('관리자 권한이 필요합니다.');
-      } else if (response.statusCode == 404) {
-        throw Exception('공지글을 찾을 수 없습니다.');
-      } else {
-        throw response.toException('상태 변경에 실패했습니다.');
-      }
-    } catch (e) {
-      throw Exception('공지글 상태 변경 중 오류 발생: $e');
-    }
-  }
-
   // 공지글 삭제 (관리자만) - 소프트 삭제 (is_active = false)
   static Future<void> deleteNotice(int noticeIdx) async {
     try {

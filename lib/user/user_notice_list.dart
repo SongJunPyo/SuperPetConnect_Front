@@ -1,16 +1,16 @@
 import 'package:flutter/material.dart';
 import '../utils/app_theme.dart';
-import '../utils/config.dart';
 import '../models/notice_model.dart';
 import '../services/dashboard_service.dart';
 import '../models/notice_post_model.dart';
 import 'package:intl/intl.dart';
-import '../widgets/marquee_text.dart';
-import '../utils/number_format_util.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../utils/app_constants.dart';
+import '../utils/number_format_util.dart';
 import '../widgets/app_search_bar.dart';
 import '../widgets/pagination_bar.dart';
+import '../widgets/post_list/board_list_row.dart';
+import '../widgets/post_list/notice_styling.dart';
 
 class UserNoticeListScreen extends StatefulWidget {
   final bool isPublic; // true: 로그인 전 (공개 API 사용), false: 로그인 후 (인증 API 사용)
@@ -87,7 +87,7 @@ class _UserNoticeListScreenState extends State<UserNoticeListScreen> {
 
         final visibleNoticePosts = response.notices.where(
           (noticePost) =>
-              noticePost.targetAudience == AppConstants.noticeTargetAll || noticePost.targetAudience == AppConstants.noticeTargetUser,
+              noticePost.targetAudience == AppConstants.noticeTargetAll,
         );
 
         _allNotices.addAll(visibleNoticePosts.map(_mapToNotice));
@@ -177,12 +177,19 @@ class _UserNoticeListScreenState extends State<UserNoticeListScreen> {
       });
     }
 
-    final sorted =
-        filtered.toList()..sort((a, b) {
-          if (a.showBadge && !b.showBadge) return -1;
-          if (!a.showBadge && b.showBadge) return 1;
-          return b.createdAt.compareTo(a.createdAt);
-        });
+    final sorted = filtered.toList()
+      ..sort((a, b) {
+        final ar = NoticeStyling.priorityRank(
+          targetAudience: a.targetAudience,
+          noticeImportant: a.noticeImportant,
+        );
+        final br = NoticeStyling.priorityRank(
+          targetAudience: b.targetAudience,
+          noticeImportant: b.noticeImportant,
+        );
+        if (ar != br) return ar - br;
+        return b.createdAt.compareTo(a.createdAt);
+      });
 
     return sorted;
   }
@@ -640,197 +647,17 @@ class _UserNoticeListScreenState extends State<UserNoticeListScreen> {
 
           final notice = notices[index];
 
-          return InkWell(
-            onTap: () => _showNoticeDetail(notice),
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            SizedBox(
-                              width: 20,
-                              child: Text(
-                                '${index + 1}',
-                                style: AppTheme.bodySmallStyle.copyWith(
-                                  color: AppTheme.textTertiary,
-                                  fontWeight: FontWeight.w500,
-                                  fontSize: 13,
-                                ),
-                                textAlign: TextAlign.center,
-                              ),
-                            ),
-                            const SizedBox(width: 8),
-                            if (notice.showBadge) ...[
-                              Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 6,
-                                  vertical: 2,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: AppTheme.error,
-                                  borderRadius: BorderRadius.circular(4),
-                                ),
-                                child: Text(
-                                  notice.badgeText,
-                                  style: AppTheme.bodySmallStyle.copyWith(
-                                    color: Colors.white,
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 10,
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(width: 8),
-                            ],
-                            Expanded(
-                              child: MarqueeText(
-                                text: notice.title,
-                                style: AppTheme.bodyMediumStyle.copyWith(
-                                  color:
-                                      notice.showBadge
-                                          ? AppTheme.error
-                                          : AppTheme.textPrimary,
-                                  fontWeight:
-                                      notice.showBadge
-                                          ? FontWeight.w600
-                                          : FontWeight.bold,
-                                  fontSize: 13,
-                                ),
-                                animationDuration: const Duration(
-                                  milliseconds: 4000,
-                                ),
-                                pauseDuration: const Duration(
-                                  milliseconds: 1000,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 6),
-                        Padding(
-                          padding: const EdgeInsets.only(left: 28),
-                          child: Row(
-                            children: [
-                              Builder(
-                                builder: (context) {
-                                  final profileImage = notice.authorProfileImage;
-                                  final hasImage = profileImage != null && profileImage.isNotEmpty;
-                                  return CircleAvatar(
-                                    radius: 10,
-                                    backgroundColor: AppTheme.veryLightGray,
-                                    foregroundImage: hasImage
-                                        ? NetworkImage(
-                                            profileImage.startsWith('http')
-                                                ? profileImage
-                                                : '${Config.serverUrl}$profileImage',
-                                          )
-                                        : null,
-                                    onForegroundImageError: hasImage ? (_, __) {} : null,
-                                    child: Icon(
-                                      Icons.business,
-                                      size: 12,
-                                      color: AppTheme.textTertiary,
-                                    ),
-                                  );
-                                },
-                              ),
-                              const SizedBox(width: 6),
-                              Flexible(
-                                child: Text(
-                                  (notice.authorNickname ?? notice.authorName)
-                                              .length >
-                                          15
-                                      ? '${(notice.authorNickname ?? notice.authorName).substring(0, 15)}..'
-                                      : (notice.authorNickname ?? notice.authorName),
-                                  style: AppTheme.bodySmallStyle.copyWith(
-                                    color: AppTheme.textSecondary,
-                                    fontSize: 13,
-                                  ),
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.end,
-                        children: [
-                          Text(
-                            '작성: ${DateFormat('yy.MM.dd').format(notice.createdAt)}',
-                            style: AppTheme.bodySmallStyle.copyWith(
-                              color: AppTheme.textTertiary,
-                              fontSize: 13,
-                            ),
-                          ),
-                          const SizedBox(height: 2),
-                          Text(
-                            '수정: ${DateFormat('yy.MM.dd').format(notice.updatedAt)}',
-                            style: AppTheme.bodySmallStyle.copyWith(
-                              color: AppTheme.textTertiary,
-                              fontSize: 13,
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(width: 8),
-                      Container(
-                        height: 36,
-                        width: 40,
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 4,
-                          vertical: 4,
-                        ),
-                        decoration: BoxDecoration(
-                          color: AppTheme.mediumGray.withValues(alpha: 0.2),
-                          borderRadius: BorderRadius.circular(6),
-                          border: Border.all(
-                            color: AppTheme.lightGray.withValues(alpha: 0.3),
-                            width: 1,
-                          ),
-                        ),
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(
-                              Icons.visibility_outlined,
-                              size: 10,
-                              color: AppTheme.textTertiary,
-                            ),
-                            const SizedBox(height: 1),
-                            Text(
-                              NumberFormatUtil.formatViewCount(
-                                notice.viewCount ?? 0,
-                              ),
-                              style: AppTheme.bodySmallStyle.copyWith(
-                                color: AppTheme.textTertiary,
-                                fontSize: 10,
-                                fontWeight: FontWeight.w500,
-                              ),
-                              textAlign: TextAlign.center,
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
+          return BoardListRow(
+            index: index + 1,
+            title: notice.title,
+            titleColor: NoticeStyling.titleColor(
+              targetAudience: notice.targetAudience,
+              noticeImportant: notice.noticeImportant,
             ),
+            authorName: notice.authorNickname ?? notice.authorName,
+            authorProfileImage: notice.authorProfileImage,
+            createdAt: notice.createdAt,
+            onTap: () => _showNoticeDetail(notice),
           );
         },
       ),

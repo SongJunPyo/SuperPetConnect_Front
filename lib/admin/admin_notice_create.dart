@@ -19,12 +19,18 @@ class _AdminNoticeCreateScreenState extends State<AdminNoticeCreateScreen> {
   final _titleController = TextEditingController();
   final _contentController = TextEditingController();
   final _urlController = TextEditingController();
-  int _isImportant = 1; // 0=뱃지 표시, 1=뱃지 숨김, 기본값은 숨김
-  bool _isActive = true;
+  int _isImportant = 0; // 0=일반, 1=중요공지(빨강)
   bool _isLoading = false;
-  int _targetAudience = 0; // 0: 전체, 1: 관리자, 2: 병원, 3: 사용자
+  int _targetAudience = 0; // 0: 전체, 1: 관리자, 2: 병원
 
   bool get isEditMode => widget.editNotice != null;
+
+  // audience가 관리자/병원이면 중요 공지(importance=1)와 충돌하므로 비활성화
+  bool get _importantDisabled =>
+      _targetAudience == 1 || _targetAudience == 2;
+
+  // importance가 중요(1)이면 관리자/병원 audience와 충돌하므로 비활성화
+  bool get _audienceRestrictedDisabled => _isImportant == 1;
 
   @override
   void initState() {
@@ -34,7 +40,6 @@ class _AdminNoticeCreateScreenState extends State<AdminNoticeCreateScreen> {
       _contentController.text = widget.editNotice!.content;
       _urlController.text = widget.editNotice!.noticeUrl ?? '';
       _isImportant = widget.editNotice!.noticeImportant;
-      _isActive = widget.editNotice!.noticeActive;
       _targetAudience = widget.editNotice!.targetAudience;
     }
   }
@@ -63,7 +68,6 @@ class _AdminNoticeCreateScreenState extends State<AdminNoticeCreateScreen> {
           title: _titleController.text.trim(),
           content: _contentController.text.trim(),
           noticeImportant: _isImportant,
-          noticeActive: _isActive,
           targetAudience: _targetAudience,
           noticeUrl:
               _urlController.text.trim().isEmpty
@@ -274,8 +278,14 @@ class _AdminNoticeCreateScreenState extends State<AdminNoticeCreateScreen> {
                 child: RadioGroup<int>(
                   groupValue: _targetAudience,
                   onChanged: (value) {
+                    if (value == null) return;
+                    // 중요 공지일 때는 관리자/병원으로 변경 차단
+                    if (_audienceRestrictedDisabled &&
+                        (value == 1 || value == 2)) {
+                      return;
+                    }
                     setState(() {
-                      _targetAudience = value!;
+                      _targetAudience = value;
                     });
                   },
                   child: Column(
@@ -288,23 +298,38 @@ class _AdminNoticeCreateScreenState extends State<AdminNoticeCreateScreen> {
                         contentPadding: EdgeInsets.zero,
                       ),
                       RadioListTile<int>(
-                        title: const Text('관리자'),
-                        subtitle: const Text('관리자에게만 표시'),
+                        title: Text(
+                          '관리자',
+                          style: TextStyle(
+                            color: _audienceRestrictedDisabled
+                                ? AppTheme.textTertiary
+                                : null,
+                          ),
+                        ),
+                        subtitle: Text(
+                          _audienceRestrictedDisabled
+                              ? '중요 공지 해제 후 선택할 수 있습니다'
+                              : '관리자에게만 표시',
+                        ),
                         value: 1,
                         activeColor: AppTheme.primaryBlue,
                         contentPadding: EdgeInsets.zero,
                       ),
                       RadioListTile<int>(
-                        title: const Text('병원'),
-                        subtitle: const Text('병원 사용자에게만 표시'),
+                        title: Text(
+                          '병원',
+                          style: TextStyle(
+                            color: _audienceRestrictedDisabled
+                                ? AppTheme.textTertiary
+                                : null,
+                          ),
+                        ),
+                        subtitle: Text(
+                          _audienceRestrictedDisabled
+                              ? '중요 공지 해제 후 선택할 수 있습니다'
+                              : '병원 사용자에게만 표시',
+                        ),
                         value: 2,
-                        activeColor: AppTheme.warning,
-                        contentPadding: EdgeInsets.zero,
-                      ),
-                      RadioListTile<int>(
-                        title: const Text('사용자'),
-                        subtitle: const Text('일반 사용자에게만 표시'),
-                        value: 3,
                         activeColor: AppTheme.success,
                         contentPadding: EdgeInsets.zero,
                       ),
@@ -315,7 +340,7 @@ class _AdminNoticeCreateScreenState extends State<AdminNoticeCreateScreen> {
 
               const SizedBox(height: AppTheme.spacing24),
 
-              // 중요 공지 체크박스
+              // 중요 공지 체크박스 (대상이 관리자/병원이면 비활성화)
               Container(
                 padding: const EdgeInsets.all(AppTheme.spacing16),
                 decoration: BoxDecoration(
@@ -325,30 +350,34 @@ class _AdminNoticeCreateScreenState extends State<AdminNoticeCreateScreen> {
                 child: Row(
                   children: [
                     Checkbox(
-                      value: _isImportant == 1, // 1=뱃지 표시이면 체크
-                      onChanged: (value) {
-                        setState(() {
-                          _isImportant =
-                              (value ?? false)
-                                  ? 1
-                                  : 0; // 체크되면 뱃지 표시(1), 아니면 숨김(0)
-                        });
-                      },
-                      activeColor: AppTheme.black,
+                      value: _isImportant == 1,
+                      onChanged: _importantDisabled
+                          ? null
+                          : (value) {
+                              setState(() {
+                                _isImportant = (value ?? false) ? 1 : 0;
+                              });
+                            },
+                      activeColor: AppTheme.error,
                     ),
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            '공지 뱃지 표시',
+                            '중요 공지',
                             style: AppTheme.bodyMediumStyle.copyWith(
                               fontWeight: FontWeight.w600,
+                              color: _importantDisabled
+                                  ? AppTheme.textTertiary
+                                  : AppTheme.textPrimary,
                             ),
                           ),
                           const SizedBox(height: AppTheme.spacing4),
                           Text(
-                            '체크하면 공지 뱃지가 표시되어 상단에 고정됩니다.',
+                            _importantDisabled
+                                ? '대상이 전체일 때만 중요 공지로 지정할 수 있습니다.'
+                                : '체크하면 빨강색으로 표시되며 상단에 고정됩니다.',
                             style: AppTheme.bodySmallStyle.copyWith(
                               color: AppTheme.textSecondary,
                             ),
@@ -359,51 +388,6 @@ class _AdminNoticeCreateScreenState extends State<AdminNoticeCreateScreen> {
                   ],
                 ),
               ),
-
-              // 수정 모드일 때만 활성화 체크박스 표시
-              if (isEditMode) ...[
-                const SizedBox(height: AppTheme.spacing16),
-                Container(
-                  padding: const EdgeInsets.all(AppTheme.spacing16),
-                  decoration: BoxDecoration(
-                    color: AppTheme.veryLightGray,
-                    borderRadius: BorderRadius.circular(AppTheme.radius8),
-                  ),
-                  child: Row(
-                    children: [
-                      Checkbox(
-                        value: _isActive,
-                        onChanged: (value) {
-                          setState(() {
-                            _isActive = value ?? true;
-                          });
-                        },
-                        activeColor: AppTheme.black,
-                      ),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              '공지글 활성화',
-                              style: AppTheme.bodyMediumStyle.copyWith(
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                            const SizedBox(height: AppTheme.spacing4),
-                            Text(
-                              '체크 해제하면 공지글이 숨겨집니다.',
-                              style: AppTheme.bodySmallStyle.copyWith(
-                                color: AppTheme.textSecondary,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
 
               const SizedBox(height: AppTheme.spacing32),
 

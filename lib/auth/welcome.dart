@@ -18,6 +18,8 @@ import '../utils/app_constants.dart';
 import '../widgets/dashboard/dashboard_list_item.dart';
 import '../widgets/dashboard/dashboard_more_button.dart';
 import '../widgets/dashboard/dashboard_empty_state.dart';
+import '../widgets/post_list/board_list_row.dart';
+import '../widgets/post_list/notice_styling.dart';
 import '../widgets/association_footer.dart';
 
 class WelcomeScreen extends StatefulWidget {
@@ -374,8 +376,7 @@ class _WelcomeScreenState extends State<WelcomeScreen>
           noticePosts
               .where(
                 (notice) =>
-                    notice.targetAudience == AppConstants.noticeTargetAll ||
-                    notice.targetAudience == AppConstants.noticeTargetUser,
+                    notice.targetAudience == AppConstants.noticeTargetAll,
               )
               .map((notice) {
                 final displayNickname =
@@ -403,10 +404,17 @@ class _WelcomeScreenState extends State<WelcomeScreen>
               })
               .toList();
 
-      // 뱃지가 있는 공지를 상단에 정렬
+      // 색 그룹 우선순위 → 같은 그룹 내 작성일 역순
       sortedNotices.sort((a, b) {
-        if (a.showBadge && !b.showBadge) return -1;
-        if (!a.showBadge && b.showBadge) return 1;
+        final ar = NoticeStyling.priorityRank(
+          targetAudience: a.targetAudience,
+          noticeImportant: a.noticeImportant,
+        );
+        final br = NoticeStyling.priorityRank(
+          targetAudience: b.targetAudience,
+          noticeImportant: b.noticeImportant,
+        );
+        if (ar != br) return ar - br;
         return b.createdAt.compareTo(a.createdAt);
       });
 
@@ -637,19 +645,17 @@ class _WelcomeScreenState extends State<WelcomeScreen>
 
                 final notice = notices[index];
 
-                return DashboardListItem<Notice>(
-                  item: notice,
+                return BoardListRow(
                   index: index + 1,
+                  title: notice.title,
+                  titleColor: NoticeStyling.titleColor(
+                    targetAudience: notice.targetAudience,
+                    noticeImportant: notice.noticeImportant,
+                  ),
+                  authorName: notice.authorNickname ?? notice.authorName,
+                  authorProfileImage: notice.authorProfileImage,
+                  createdAt: notice.createdAt,
                   onTap: () => _showNoticeBottomSheet(context, notice),
-                  getTitle: (n) => n.title,
-                  getAuthor: (n) => n.authorNickname ?? n.authorName,
-                  getCreatedAt: (n) => n.createdAt,
-                  getUpdatedAt: (n) => n.updatedAt,
-                  getViewCount: (n) => n.viewCount ?? 0,
-                  shouldShowBadge: (n) => n.showBadge,
-                  getBadgeText: (n) => n.badgeText,
-                  enableTextPersonalization: false,
-                  getProfileImage: (n) => n.authorProfileImage,
                 );
               },
             ),

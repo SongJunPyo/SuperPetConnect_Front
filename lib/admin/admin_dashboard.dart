@@ -30,6 +30,8 @@ import 'package:url_launcher/url_launcher.dart';
 import '../widgets/dashboard/dashboard_empty_state.dart';
 import '../widgets/dashboard/dashboard_more_button.dart';
 import '../widgets/dashboard/dashboard_list_item.dart';
+import '../widgets/post_list/board_list_row.dart';
+import '../widgets/post_list/notice_styling.dart';
 import '../services/hospital_column_service.dart';
 import '../widgets/rich_text_viewer.dart';
 import '../widgets/association_footer.dart';
@@ -301,8 +303,15 @@ class _AdminDashboardState extends State<AdminDashboard>
           }).toList();
 
       sortedNotices.sort((a, b) {
-        if (a.showBadge && !b.showBadge) return -1;
-        if (!a.showBadge && b.showBadge) return 1;
+        final ar = NoticeStyling.priorityRank(
+          targetAudience: a.targetAudience,
+          noticeImportant: a.noticeImportant,
+        );
+        final br = NoticeStyling.priorityRank(
+          targetAudience: b.targetAudience,
+          noticeImportant: b.noticeImportant,
+        );
+        if (ar != br) return ar - br;
         return b.createdAt.compareTo(a.createdAt);
       });
 
@@ -804,19 +813,17 @@ class _AdminDashboardState extends State<AdminDashboard>
 
                 final notice = notices[index];
 
-                return DashboardListItem<Notice>(
-                  item: notice,
+                return BoardListRow(
                   index: index + 1,
+                  title: notice.title,
+                  titleColor: NoticeStyling.titleColor(
+                    targetAudience: notice.targetAudience,
+                    noticeImportant: notice.noticeImportant,
+                  ),
+                  authorName: notice.authorNickname ?? notice.authorName,
+                  authorProfileImage: notice.authorProfileImage,
+                  createdAt: notice.createdAt,
                   onTap: () => _showNoticeBottomSheet(context, notice),
-                  getTitle: (n) => n.title,
-                  getAuthor: (n) => n.authorNickname ?? n.authorName,
-                  getCreatedAt: (n) => n.createdAt,
-                  getUpdatedAt: (n) => n.updatedAt,
-                  getViewCount: (n) => n.viewCount ?? 0,
-                  shouldShowBadge: (n) => n.showBadge,
-                  getBadgeText: (n) => n.badgeText,
-                  enableTextPersonalization: false,
-                  getProfileImage: (n) => n.authorProfileImage,
                 );
               },
             ),
