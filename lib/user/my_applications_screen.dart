@@ -3,6 +3,7 @@ import '../models/donation_application_model.dart';
 import '../models/applied_donation_model.dart';
 import '../services/hospital_post_service.dart';
 import '../utils/app_theme.dart';
+import '../widgets/state_view.dart';
 
 /// 내 헌혈 신청 내역 화면 (사용자용)
 class MyApplicationsScreen extends StatefulWidget {
@@ -254,58 +255,20 @@ class _MyApplicationsScreenState extends State<MyApplicationsScreen> {
       ),
       body:
           isLoading
-              ? Center(
-                child: CircularProgressIndicator(color: AppTheme.primaryBlue),
-              )
+              ? const StateView.loading()
               : errorMessage != null
-              ? Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(Icons.error_outline, size: 64, color: AppTheme.error),
-                    const SizedBox(height: 16),
-                    Text('오류가 발생했습니다', style: AppTheme.h4Style),
-                    const SizedBox(height: 8),
-                    Text(
-                      errorMessage!,
-                      style: AppTheme.bodyMediumStyle,
-                      textAlign: TextAlign.center,
-                    ),
-                    const SizedBox(height: 24),
-                    ElevatedButton.icon(
-                      onPressed: _loadApplications,
-                      icon: const Icon(Icons.refresh),
-                      label: const Text('다시 시도'),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppTheme.primaryBlue,
-                        foregroundColor: Colors.white,
-                      ),
-                    ),
-                  ],
-                ),
-              )
+              ? StateView.error(
+                  message: errorMessage!,
+                  onRetry: _loadApplications,
+                )
               : applications.isEmpty
-              ? Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(
-                      Icons.volunteer_activism_outlined,
-                      size: 64,
-                      color: AppTheme.mediumGray,
-                    ),
-                    const SizedBox(height: 16),
-                    Text(
-                      selectedStatus != null
-                          ? '$selectedStatus 상태의 신청이 없습니다'
-                          : '신청 내역이 없습니다',
-                      style: AppTheme.h4Style,
-                    ),
-                    const SizedBox(height: 8),
-                    Text('헌혈 게시글에서 신청해보세요', style: AppTheme.bodyMediumStyle),
-                  ],
-                ),
-              )
+              ? StateView.empty(
+                  icon: Icons.volunteer_activism_outlined,
+                  message: selectedStatus != null
+                      ? '$selectedStatus 상태의 신청이 없습니다'
+                      : '신청 내역이 없습니다',
+                  subtitle: '헌혈 게시글에서 신청해보세요',
+                )
               : Column(
                 children: [
                   // 필터 상태 표시

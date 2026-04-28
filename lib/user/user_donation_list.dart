@@ -8,6 +8,7 @@ import '../widgets/post_type_badge.dart';
 import '../utils/number_format_util.dart';
 import '../widgets/rich_text_viewer.dart';
 import '../widgets/app_search_bar.dart';
+import '../widgets/state_view.dart';
 
 class UserDonationListScreen extends StatefulWidget {
   const UserDonationListScreen({super.key});
@@ -377,56 +378,18 @@ class _UserDonationListScreenState extends State<UserDonationListScreen> {
 
   Widget _buildContent() {
     if (isLoading) {
-      return Center(
-        child: CircularProgressIndicator(color: AppTheme.primaryBlue),
-      );
+      return const StateView.loading();
     }
 
     if (errorMessage != null) {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.error_outline, size: 64, color: AppTheme.error),
-            const SizedBox(height: 16),
-            Text('오류가 발생했습니다', style: AppTheme.h4Style),
-            const SizedBox(height: 8),
-            Text(
-              errorMessage!,
-              style: AppTheme.bodyMediumStyle,
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 24),
-            ElevatedButton.icon(
-              onPressed: _loadDonations,
-              icon: const Icon(Icons.refresh),
-              label: const Text('다시 시도'),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppTheme.primaryBlue,
-                foregroundColor: Colors.white,
-              ),
-            ),
-          ],
-        ),
-      );
+      return StateView.error(message: errorMessage!, onRetry: _loadDonations);
     }
 
     if (donations.isEmpty) {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              Icons.bloodtype_outlined,
-              size: 64,
-              color: AppTheme.mediumGray,
-            ),
-            const SizedBox(height: 16),
-            Text('조건에 맞는 헌혈 모집이 없습니다', style: AppTheme.h4Style),
-            const SizedBox(height: 8),
-            Text('필터를 조정해보세요', style: AppTheme.bodyMediumStyle),
-          ],
-        ),
+      return const StateView.empty(
+        icon: Icons.bloodtype_outlined,
+        message: '조건에 맞는 헌혈 모집이 없습니다',
+        subtitle: '필터를 조정해보세요',
       );
     }
 

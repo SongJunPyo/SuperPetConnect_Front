@@ -17,7 +17,8 @@ import '../widgets/post_list/board_list_row.dart';
 import '../widgets/post_list/board_list_header.dart';
 import 'hospital_column_create.dart';
 import 'hospital_column_edit.dart';
-import '../widgets/app_search_bar.dart';
+import '../widgets/search_date_filter_bar.dart';
+import '../widgets/state_view.dart';
 
 class HospitalColumnManagementScreen extends StatefulWidget {
   const HospitalColumnManagementScreen({super.key});
@@ -678,69 +679,14 @@ class _HospitalColumnManagementScreenState
       ),
       body: Column(
         children: [
-          // 검색창
-          Container(
-            padding: const EdgeInsets.all(16.0),
-            child: AppSearchBar(
-              controller: searchController,
-              hintText: '칼럼 제목, 내용으로 검색...',
-              onChanged: _onSearchChanged,
-              onClear: () {
-                _onSearchChanged('');
-              },
-            ),
+          SearchAndDateFilterBar(
+            searchController: searchController,
+            hintText: '칼럼 제목, 내용으로 검색...',
+            onSearchChanged: _onSearchChanged,
+            startDate: startDate,
+            endDate: endDate,
+            onClearDateRange: _clearDateRange,
           ),
-
-          // 날짜 범위 표시
-          if (startDate != null || endDate != null)
-            Container(
-              padding: const EdgeInsets.symmetric(
-                horizontal: 16.0,
-                vertical: 8.0,
-              ),
-              child: Container(
-                padding: const EdgeInsets.all(12.0),
-                decoration: BoxDecoration(
-                  color: AppTheme.lightBlue,
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(
-                    color: AppTheme.primaryBlue.withValues(alpha: 0.3),
-                  ),
-                ),
-                child: Row(
-                  children: [
-                    const Icon(
-                      Icons.date_range,
-                      color: AppTheme.primaryBlue,
-                      size: 18,
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        '기간: ${startDate != null ? DateFormat('yyyy-MM-dd').format(startDate!) : '시작일 미지정'} ~ ${endDate != null ? DateFormat('yyyy-MM-dd').format(endDate!) : '종료일 미지정'}',
-                        style: const TextStyle(
-                          color: AppTheme.primaryBlue,
-                          fontWeight: FontWeight.w500,
-                          fontSize: 14,
-                        ),
-                      ),
-                    ),
-                    IconButton(
-                      icon: const Icon(
-                        Icons.close,
-                        color: AppTheme.primaryBlue,
-                        size: 18,
-                      ),
-                      onPressed: _clearDateRange,
-                      padding: EdgeInsets.zero,
-                      constraints: const BoxConstraints(),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-
-          // 콘텐츠
           Expanded(child: _buildContent()),
         ],
       ),
@@ -749,50 +695,11 @@ class _HospitalColumnManagementScreenState
 
   Widget _buildContent() {
     if (isLoading) {
-      return const Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            CircularProgressIndicator(),
-            SizedBox(height: 16),
-            Text('칼럼 목록을 불러오고 있습니다...'),
-          ],
-        ),
-      );
+      return const StateView.loading();
     }
 
     if (hasError) {
-      return Center(
-        child: Padding(
-          padding: const EdgeInsets.all(20.0),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(Icons.error_outline, size: 64, color: Colors.red[300]),
-              const SizedBox(height: 16),
-              Text(
-                '오류가 발생했습니다',
-                style: Theme.of(
-                  context,
-                ).textTheme.titleLarge?.copyWith(color: Colors.red[500]),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                errorMessage,
-                style: Theme.of(
-                  context,
-                ).textTheme.bodyMedium?.copyWith(color: Colors.grey[600]),
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 16),
-              ElevatedButton(
-                onPressed: _loadMyColumns,
-                child: const Text('다시 시도'),
-              ),
-            ],
-          ),
-        ),
-      );
+      return StateView.error(message: errorMessage, onRetry: _loadMyColumns);
     }
 
     if (columns.isEmpty) {

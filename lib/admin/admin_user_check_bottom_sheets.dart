@@ -9,6 +9,7 @@ import '../models/pet_model.dart';
 import '../services/user_management_service.dart';
 import '../services/auth_http_client.dart';
 import '../models/unified_post_model.dart';
+import '../widgets/info_row.dart';
 import '../widgets/post_type_badge.dart';
 import '../widgets/pet_profile_image.dart';
 import 'package:intl/intl.dart';
@@ -187,11 +188,27 @@ class _SuspendedUserBottomSheetState extends State<SuspendedUserBottomSheet> {
           ),
           const SizedBox(height: 16),
           // 사용자 기본 정보
-          _buildInfoRow('이름', widget.user.name),
+          InfoRow(
+            label: '이름',
+            value: widget.user.name,
+            padding: const EdgeInsets.only(bottom: 8),
+          ),
           if (widget.user.nickname?.isNotEmpty == true)
-            _buildInfoRow('닉네임', widget.user.nickname!),
-          _buildInfoRow('이메일', widget.user.email),
-          _buildInfoRow('전화번호', formatPhoneNumber(widget.user.phoneNumber)),
+            InfoRow(
+              label: '닉네임',
+              value: widget.user.nickname!,
+              padding: const EdgeInsets.only(bottom: 8),
+            ),
+          InfoRow(
+            label: '이메일',
+            value: widget.user.email,
+            padding: const EdgeInsets.only(bottom: 8),
+          ),
+          InfoRow(
+            label: '전화번호',
+            value: formatPhoneNumber(widget.user.phoneNumber),
+            padding: const EdgeInsets.only(bottom: 8),
+          ),
 
           const SizedBox(height: 24),
           SizedBox(
@@ -314,34 +331,6 @@ class _SuspendedUserBottomSheetState extends State<SuspendedUserBottomSheet> {
     );
   }
 
-  Widget _buildInfoRow(String label, String value) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          SizedBox(
-            width: 80,
-            child: Text(
-              label,
-              style: AppTheme.bodyMediumStyle.copyWith(
-                fontWeight: FontWeight.w500,
-                color: Colors.grey[700],
-              ),
-            ),
-          ),
-          Expanded(
-            child: Text(
-              value,
-              style: AppTheme.bodyMediumStyle.copyWith(
-                color: AppTheme.textPrimary,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
 }
 
 // 활성 사용자용 바텀시트 (탭 구조: 반려동물 / 신청내역)
@@ -493,17 +482,43 @@ class _ActiveUserBottomSheetState extends State<ActiveUserBottomSheet>
             padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
             child: Column(
               children: [
-                _buildInfoRow('이름', widget.user.name),
+                InfoRow(
+                  label: '이름',
+                  value: widget.user.name,
+                  padding: const EdgeInsets.only(bottom: 12),
+                ),
                 if (widget.user.nickname?.isNotEmpty == true)
-                  _buildInfoRow('닉네임', widget.user.nickname!),
-                _buildInfoRow('이메일', widget.user.email),
-                _buildInfoRow('전화번호', formatPhoneNumber(widget.user.phoneNumber)),
-                _buildInfoRow('주소', widget.user.address),
-                _buildInfoRow('상태', widget.user.statusText),
+                  InfoRow(
+                    label: '닉네임',
+                    value: widget.user.nickname!,
+                    padding: const EdgeInsets.only(bottom: 12),
+                  ),
+                InfoRow(
+                  label: '이메일',
+                  value: widget.user.email,
+                  padding: const EdgeInsets.only(bottom: 12),
+                ),
+                InfoRow(
+                  label: '전화번호',
+                  value: formatPhoneNumber(widget.user.phoneNumber),
+                  padding: const EdgeInsets.only(bottom: 12),
+                ),
+                InfoRow(
+                  label: '주소',
+                  value: widget.user.address,
+                  padding: const EdgeInsets.only(bottom: 12),
+                ),
+                InfoRow(
+                  label: '상태',
+                  value: widget.user.statusText,
+                  padding: const EdgeInsets.only(bottom: 12),
+                ),
                 if (widget.user.createdAt != null)
-                  _buildInfoRow(
-                    '가입일',
-                    DateFormat('yyyy-MM-dd HH:mm:ss').format(widget.user.createdAt!),
+                  InfoRow(
+                    label: '가입일',
+                    value: DateFormat('yyyy-MM-dd HH:mm:ss')
+                        .format(widget.user.createdAt!),
+                    padding: const EdgeInsets.only(bottom: 12),
                   ),
               ],
             ),
@@ -1360,32 +1375,4 @@ class _ActiveUserBottomSheetState extends State<ActiveUserBottomSheet>
     return [];
   }
 
-  Widget _buildInfoRow(String label, String value) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          SizedBox(
-            width: 80,
-            child: Text(
-              label,
-              style: AppTheme.bodyMediumStyle.copyWith(
-                fontWeight: FontWeight.w500,
-                color: Colors.grey[700],
-              ),
-            ),
-          ),
-          Expanded(
-            child: Text(
-              value,
-              style: AppTheme.bodyMediumStyle.copyWith(
-                color: AppTheme.textPrimary,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
 }

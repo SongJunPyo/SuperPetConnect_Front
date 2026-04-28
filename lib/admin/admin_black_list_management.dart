@@ -9,6 +9,8 @@ import '../models/black_list_model.dart';
 import '../services/black_list_service.dart';
 import 'package:intl/intl.dart';
 import '../widgets/app_search_bar.dart';
+import '../widgets/info_row.dart';
+import '../widgets/state_view.dart';
 
 class AdminBlackListManagementScreen extends StatefulWidget {
   const AdminBlackListManagementScreen({super.key});
@@ -311,42 +313,18 @@ class _AdminBlackListManagementScreenState
 
   Widget _buildBlackListView() {
     if (isLoading) {
-      return Center(
-        child: CircularProgressIndicator(color: AppTheme.primaryBlue),
-      );
+      return const StateView.loading();
     }
 
     if (errorMessage != null) {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.error_outline, size: 64, color: AppTheme.error),
-            const SizedBox(height: 16),
-            Text('오류가 발생했습니다', style: AppTheme.h4Style),
-            const SizedBox(height: 8),
-            Text(errorMessage!, style: AppTheme.bodyMediumStyle),
-            const SizedBox(height: 24),
-            ElevatedButton(onPressed: _loadData, child: const Text('다시 시도')),
-          ],
-        ),
-      );
+      return StateView.error(message: errorMessage!, onRetry: _loadData);
     }
 
     if (blackLists.isEmpty) {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.block, size: 64, color: AppTheme.mediumGray),
-            const SizedBox(height: 16),
-            Text('블랙리스트가 없습니다', style: AppTheme.h4Style),
-            if (searchQuery.isNotEmpty) ...[
-              const SizedBox(height: 8),
-              Text('검색 결과가 없습니다', style: AppTheme.bodyMediumStyle),
-            ],
-          ],
-        ),
+      return StateView.empty(
+        icon: Icons.block,
+        message: '블랙리스트가 없습니다',
+        subtitle: searchQuery.isNotEmpty ? '검색 결과가 없습니다' : null,
       );
     }
 
@@ -857,25 +835,45 @@ class _DetailBlackListDialog extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _buildInfoRow('이메일', blackList.userEmail),
-            _buildInfoRow('전화번호', blackList.userPhone),
-            _buildInfoRow('상태', blackList.statusText),
-            _buildInfoRow('남은 일수', '${blackList.dDay}일'),
+            InfoRow(
+              label: '이메일',
+              value: blackList.userEmail,
+              padding: const EdgeInsets.only(bottom: 8),
+            ),
+            InfoRow(
+              label: '전화번호',
+              value: blackList.userPhone,
+              padding: const EdgeInsets.only(bottom: 8),
+            ),
+            InfoRow(
+              label: '상태',
+              value: blackList.statusText,
+              padding: const EdgeInsets.only(bottom: 8),
+            ),
+            InfoRow(
+              label: '남은 일수',
+              value: '${blackList.dDay}일',
+              padding: const EdgeInsets.only(bottom: 8),
+            ),
             const SizedBox(height: 16),
             const Text('정지 사유', style: TextStyle(fontWeight: FontWeight.bold)),
             const SizedBox(height: 8),
             Text(blackList.content),
             const SizedBox(height: 16),
             if (blackList.createdAt != null)
-              _buildInfoRow(
-                '작성일',
-                DateFormat('yyyy-MM-dd HH:mm:ss').format(blackList.createdAt!),
+              InfoRow(
+                label: '작성일',
+                value: DateFormat('yyyy-MM-dd HH:mm:ss')
+                    .format(blackList.createdAt!),
+                padding: const EdgeInsets.only(bottom: 8),
               ),
             if (blackList.updatedAt != null &&
                 blackList.updatedAt != blackList.createdAt)
-              _buildInfoRow(
-                '수정일',
-                DateFormat('yyyy-MM-dd HH:mm:ss').format(blackList.updatedAt!),
+              InfoRow(
+                label: '수정일',
+                value: DateFormat('yyyy-MM-dd HH:mm:ss')
+                    .format(blackList.updatedAt!),
+                padding: const EdgeInsets.only(bottom: 8),
               ),
           ],
         ),
@@ -889,25 +887,4 @@ class _DetailBlackListDialog extends StatelessWidget {
     );
   }
 
-  Widget _buildInfoRow(String label, String value) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          SizedBox(
-            width: 80,
-            child: Text(
-              label,
-              style: const TextStyle(
-                fontWeight: FontWeight.w500,
-                color: Colors.grey,
-              ),
-            ),
-          ),
-          Expanded(child: Text(value)),
-        ],
-      ),
-    );
-  }
 }

@@ -6,6 +6,7 @@ import '../utils/phone_formatter.dart';
 import '../widgets/app_app_bar.dart';
 import '../widgets/app_search_bar.dart';
 import '../widgets/pagination_bar.dart';
+import '../widgets/state_view.dart';
 import '../models/user_model.dart';
 import '../services/user_management_service.dart';
 import 'admin_user_check_bottom_sheets.dart';
@@ -269,42 +270,18 @@ class _AdminUserCheckState extends State<AdminUserCheck>
 
   Widget _buildUserListView() {
     if (isLoading) {
-      return Center(
-        child: CircularProgressIndicator(color: AppTheme.primaryBlue),
-      );
+      return const StateView.loading();
     }
 
     if (errorMessage != null) {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.error_outline, size: 64, color: AppTheme.error),
-            const SizedBox(height: 16),
-            Text('오류가 발생했습니다', style: AppTheme.h4Style),
-            const SizedBox(height: 8),
-            Text(errorMessage!, style: AppTheme.bodyMediumStyle),
-            const SizedBox(height: 24),
-            ElevatedButton(onPressed: _loadData, child: const Text('다시 시도')),
-          ],
-        ),
-      );
+      return StateView.error(message: errorMessage!, onRetry: _loadData);
     }
 
     if (users.isEmpty) {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.people_outline, size: 64, color: AppTheme.mediumGray),
-            const SizedBox(height: 16),
-            Text('사용자가 없습니다', style: AppTheme.h4Style),
-            if (searchQuery.isNotEmpty) ...[
-              const SizedBox(height: 8),
-              Text('검색 결과가 없습니다', style: AppTheme.bodyMediumStyle),
-            ],
-          ],
-        ),
+      return StateView.empty(
+        icon: Icons.people_outline,
+        message: '사용자가 없습니다',
+        subtitle: searchQuery.isNotEmpty ? '검색 결과가 없습니다' : null,
       );
     }
 

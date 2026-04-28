@@ -4,7 +4,9 @@ import '../utils/app_theme.dart';
 import '../utils/error_display.dart';
 import '../widgets/app_app_bar.dart';
 import '../widgets/app_search_bar.dart';
+import '../widgets/info_row.dart';
 import '../widgets/pagination_bar.dart';
+import '../widgets/state_view.dart';
 import '../models/user_model.dart';
 import '../services/user_management_service.dart';
 import 'package:intl/intl.dart';
@@ -177,42 +179,18 @@ class _AdminUserManagementScreenState extends State<AdminUserManagementScreen>
 
   Widget _buildUserListView() {
     if (isLoading) {
-      return Center(
-        child: CircularProgressIndicator(color: AppTheme.primaryBlue),
-      );
+      return const StateView.loading();
     }
 
     if (errorMessage != null) {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.error_outline, size: 64, color: AppTheme.error),
-            const SizedBox(height: 16),
-            Text('오류가 발생했습니다', style: AppTheme.h4Style),
-            const SizedBox(height: 8),
-            Text(errorMessage!, style: AppTheme.bodyMediumStyle),
-            const SizedBox(height: 24),
-            ElevatedButton(onPressed: _loadData, child: const Text('다시 시도')),
-          ],
-        ),
-      );
+      return StateView.error(message: errorMessage!, onRetry: _loadData);
     }
 
     if (users.isEmpty) {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.people_outline, size: 64, color: AppTheme.mediumGray),
-            const SizedBox(height: 16),
-            Text('사용자가 없습니다', style: AppTheme.h4Style),
-            if (searchQuery.isNotEmpty) ...[
-              const SizedBox(height: 8),
-              Text('검색 결과가 없습니다', style: AppTheme.bodyMediumStyle),
-            ],
-          ],
-        ),
+      return StateView.empty(
+        icon: Icons.people_outline,
+        message: '사용자가 없습니다',
+        subtitle: searchQuery.isNotEmpty ? '검색 결과가 없습니다' : null,
       );
     }
 
@@ -647,15 +625,37 @@ class _UserDetailDialog extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _buildInfoRow('이메일', user.email),
-            _buildInfoRow('전화번호', user.phoneNumber),
-            _buildInfoRow('주소', user.address),
-            _buildInfoRow('사용자 유형', user.userTypeText),
-            _buildInfoRow('상태', user.statusText),
+            InfoRow(
+              label: '이메일',
+              value: user.email,
+              padding: const EdgeInsets.only(bottom: 8),
+            ),
+            InfoRow(
+              label: '전화번호',
+              value: user.phoneNumber,
+              padding: const EdgeInsets.only(bottom: 8),
+            ),
+            InfoRow(
+              label: '주소',
+              value: user.address,
+              padding: const EdgeInsets.only(bottom: 8),
+            ),
+            InfoRow(
+              label: '사용자 유형',
+              value: user.userTypeText,
+              padding: const EdgeInsets.only(bottom: 8),
+            ),
+            InfoRow(
+              label: '상태',
+              value: user.statusText,
+              padding: const EdgeInsets.only(bottom: 8),
+            ),
             if (user.createdAt != null)
-              _buildInfoRow(
-                '가입일',
-                DateFormat('yyyy-MM-dd HH:mm:ss').format(user.createdAt!),
+              InfoRow(
+                label: '가입일',
+                value: DateFormat('yyyy-MM-dd HH:mm:ss')
+                    .format(user.createdAt!),
+                padding: const EdgeInsets.only(bottom: 8),
               ),
           ],
         ),
@@ -669,25 +669,4 @@ class _UserDetailDialog extends StatelessWidget {
     );
   }
 
-  Widget _buildInfoRow(String label, String value) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          SizedBox(
-            width: 80,
-            child: Text(
-              label,
-              style: const TextStyle(
-                fontWeight: FontWeight.w500,
-                color: Colors.grey,
-              ),
-            ),
-          ),
-          Expanded(child: Text(value)),
-        ],
-      ),
-    );
-  }
 }

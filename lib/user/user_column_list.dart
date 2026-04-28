@@ -8,7 +8,8 @@ import '../utils/number_format_util.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../utils/app_constants.dart';
 import '../widgets/pagination_bar.dart';
-import '../widgets/app_search_bar.dart';
+import '../widgets/search_date_filter_bar.dart';
+import '../widgets/state_view.dart';
 import '../widgets/post_list/board_list_row.dart';
 import '../widgets/post_list/board_list_header.dart';
 
@@ -359,63 +360,13 @@ class _UserColumnListScreenState extends State<UserColumnListScreen> {
       ),
       body: Column(
         children: [
-          // 검색창 및 날짜 필터 표시
-          Container(
-            padding: const EdgeInsets.all(16.0),
-            child: Column(
-              children: [
-                AppSearchBar(
-                  controller: searchController,
-                  hintText: '칼럼 제목, 닉네임으로 검색...',
-                  onChanged: _onSearchChanged,
-                  onClear: () {
-                    _onSearchChanged('');
-                  },
-                ),
-                // 날짜 범위 표시
-                if (startDate != null && endDate != null) ...[
-                  const SizedBox(height: 8),
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 8,
-                    ),
-                    decoration: BoxDecoration(
-                      color: AppTheme.primaryBlue.withValues(alpha: 0.1),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Row(
-                      children: [
-                        const Icon(
-                          Icons.date_range,
-                          size: 16,
-                          color: AppTheme.primaryBlue,
-                        ),
-                        const SizedBox(width: 8),
-                        Text(
-                          '${DateFormat('yyyy.MM.dd').format(startDate!)} - ${DateFormat('yyyy.MM.dd').format(endDate!)}',
-                          style: AppTheme.bodySmallStyle.copyWith(
-                            color: AppTheme.primaryBlue,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                        const Spacer(),
-                        IconButton(
-                          icon: const Icon(
-                            Icons.close,
-                            color: AppTheme.primaryBlue,
-                            size: 18,
-                          ),
-                          onPressed: _clearDateRange,
-                          padding: EdgeInsets.zero,
-                          constraints: const BoxConstraints(),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ],
-            ),
+          SearchAndDateFilterBar(
+            searchController: searchController,
+            hintText: '칼럼 제목, 닉네임으로 검색...',
+            onSearchChanged: _onSearchChanged,
+            startDate: startDate,
+            endDate: endDate,
+            onClearDateRange: _clearDateRange,
           ),
           Expanded(
             child: RefreshIndicator(
@@ -429,84 +380,37 @@ class _UserColumnListScreenState extends State<UserColumnListScreen> {
     );
   }
 
+  /// `RefreshIndicator`가 비어있는 상태에서도 pull-to-refresh를 동작시키도록
+  /// `StateView`를 스크롤 가능한 ListView로 감싼다.
+  Widget _scrollableState(Widget child) {
+    return ListView(
+      children: [
+        SizedBox(
+          height: MediaQuery.of(context).size.height * 0.6,
+          child: child,
+        ),
+      ],
+    );
+  }
+
   Widget _buildContent() {
     if (isLoading) {
-      return ListView(
-        children: [
-          SizedBox(
-            height: MediaQuery.of(context).size.height * 0.6,
-            child: Center(
-              child: CircularProgressIndicator(color: AppTheme.primaryBlue),
-            ),
-          ),
-        ],
-      );
+      return _scrollableState(const StateView.loading());
     }
 
     if (errorMessage != null) {
-      return ListView(
-        children: [
-          SizedBox(
-            height: MediaQuery.of(context).size.height * 0.6,
-            child: Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(Icons.error_outline, size: 64, color: AppTheme.error),
-                  const SizedBox(height: 16),
-                  Text('오류가 발생했습니다', style: AppTheme.h4Style),
-                  const SizedBox(height: 8),
-                  Text(
-                    errorMessage!,
-                    style: AppTheme.bodyMediumStyle,
-                    textAlign: TextAlign.center,
-                  ),
-                  const SizedBox(height: 24),
-                  ElevatedButton.icon(
-                    onPressed: () => _loadColumns(),
-                    icon: const Icon(Icons.refresh),
-                    label: const Text('다시 시도'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppTheme.primaryBlue,
-                      foregroundColor: Colors.white,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ],
+      return _scrollableState(
+        StateView.error(message: errorMessage!, onRetry: _loadColumns),
       );
     }
 
     if (columns.isEmpty) {
-      return ListView(
-        children: [
-          SizedBox(
-            height: MediaQuery.of(context).size.height * 0.6,
-            child: Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(
-                    Icons.article_outlined,
-                    size: 64,
-                    color: AppTheme.mediumGray,
-                  ),
-                  const SizedBox(height: 16),
-                  Text(
-                    searchQuery.isNotEmpty ? '검색 결과가 없습니다' : '공개된 칼럼이 없습니다',
-                    style: AppTheme.h4Style,
-                  ),
-                  if (searchQuery.isNotEmpty) ...[
-                    const SizedBox(height: 8),
-                    Text('다른 검색어를 시도해보세요', style: AppTheme.bodyMediumStyle),
-                  ],
-                ],
-              ),
-            ),
-          ),
-        ],
+      return _scrollableState(
+        StateView.empty(
+          icon: Icons.article_outlined,
+          message: searchQuery.isNotEmpty ? '검색 결과가 없습니다' : '공개된 칼럼이 없습니다',
+          subtitle: searchQuery.isNotEmpty ? '다른 검색어를 시도해보세요' : null,
+        ),
       );
     }
 

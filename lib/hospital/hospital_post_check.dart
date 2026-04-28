@@ -21,6 +21,7 @@ import '../widgets/post_detail/post_detail_description.dart';
 import '../widgets/post_detail/post_detail_patient_info.dart';
 import '../widgets/pagination_bar.dart';
 import '../widgets/info_row.dart';
+import '../widgets/state_view.dart';
 import '../widgets/post_list/post_list_header.dart';
 import '../widgets/post_list/post_list_row.dart';
 
@@ -538,38 +539,11 @@ class _HospitalPostCheckState extends State<HospitalPostCheck>
 
   Widget _buildContent() {
     if (isLoading) {
-      return Center(
-        child: CircularProgressIndicator(color: AppTheme.primaryBlue),
-      );
+      return const StateView.loading();
     }
 
     if (errorMessage != null) {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.error_outline, size: 64, color: AppTheme.error),
-            const SizedBox(height: 16),
-            Text('오류가 발생했습니다', style: AppTheme.h4Style),
-            const SizedBox(height: 8),
-            Text(
-              errorMessage!,
-              style: AppTheme.bodyMediumStyle,
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 24),
-            ElevatedButton.icon(
-              onPressed: _loadPosts,
-              icon: const Icon(Icons.refresh),
-              label: const Text('다시 시도'),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppTheme.primaryBlue,
-                foregroundColor: Colors.white,
-              ),
-            ),
-          ],
-        ),
-      );
+      return StateView.error(message: errorMessage!, onRetry: _loadPosts);
     }
 
     // 탭에 따라 다른 데이터 소스 확인
@@ -609,15 +583,9 @@ class _HospitalPostCheckState extends State<HospitalPostCheck>
           emptyMessage = '게시글이 없습니다.';
       }
 
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.post_add_outlined, size: 64, color: AppTheme.mediumGray),
-            const SizedBox(height: 16),
-            Text(emptyMessage, style: AppTheme.h4Style),
-          ],
-        ),
+      return StateView.empty(
+        icon: Icons.post_add_outlined,
+        message: emptyMessage,
       );
     }
 

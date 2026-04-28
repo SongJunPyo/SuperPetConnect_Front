@@ -10,7 +10,8 @@ import '../utils/number_format_util.dart';
 import '../widgets/app_app_bar.dart';
 import '../utils/app_constants.dart';
 import '../widgets/pagination_bar.dart';
-import '../widgets/app_search_bar.dart';
+import '../widgets/search_date_filter_bar.dart';
+import '../widgets/state_view.dart';
 import '../widgets/post_list/board_list_row.dart';
 import '../widgets/post_list/board_list_header.dart';
 import '../widgets/post_list/notice_styling.dart';
@@ -481,61 +482,13 @@ class _HospitalNoticeListScreenState extends State<HospitalNoticeListScreen> {
       ),
       body: Column(
         children: [
-          Container(
-            padding: const EdgeInsets.all(16.0),
-            child: Column(
-              children: [
-                AppSearchBar(
-                  controller: searchController,
-                  hintText: '제목, 닉네임으로 검색...',
-                  onChanged: _onSearchChanged,
-                  onClear: () {
-                    _onSearchChanged('');
-                  },
-                ),
-                if (startDate != null && endDate != null) ...[
-                  const SizedBox(height: 8),
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 8,
-                    ),
-                    decoration: BoxDecoration(
-                      color: AppTheme.primaryBlue.withValues(alpha: 0.1),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Row(
-                      children: [
-                        const Icon(
-                          Icons.date_range,
-                          size: 16,
-                          color: AppTheme.primaryBlue,
-                        ),
-                        const SizedBox(width: 8),
-                        Text(
-                          '${DateFormat('yyyy.MM.dd').format(startDate!)} - ${DateFormat('yyyy.MM.dd').format(endDate!)}',
-                          style: AppTheme.bodySmallStyle.copyWith(
-                            color: AppTheme.primaryBlue,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                        const Spacer(),
-                        IconButton(
-                          icon: const Icon(
-                            Icons.close,
-                            size: 18,
-                            color: AppTheme.primaryBlue,
-                          ),
-                          onPressed: _clearDateRange,
-                          padding: EdgeInsets.zero,
-                          constraints: const BoxConstraints(),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ],
-            ),
+          SearchAndDateFilterBar(
+            searchController: searchController,
+            hintText: '제목, 닉네임으로 검색...',
+            onSearchChanged: _onSearchChanged,
+            startDate: startDate,
+            endDate: endDate,
+            onClearDateRange: _clearDateRange,
           ),
           Expanded(
             child: RefreshIndicator(
@@ -551,54 +504,17 @@ class _HospitalNoticeListScreenState extends State<HospitalNoticeListScreen> {
 
   Widget _buildContent() {
     if (isLoading) {
-      return Center(
-        child: CircularProgressIndicator(color: AppTheme.primaryBlue),
-      );
+      return const StateView.loading();
     }
 
     if (errorMessage != null) {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.error_outline, size: 64, color: AppTheme.error),
-            const SizedBox(height: 16),
-            Text('오류가 발생했습니다', style: AppTheme.h4Style),
-            const SizedBox(height: 8),
-            Text(
-              errorMessage!,
-              style: AppTheme.bodyMediumStyle,
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 24),
-            ElevatedButton.icon(
-              onPressed: () => _loadNotices(),
-              icon: const Icon(Icons.refresh),
-              label: const Text('다시 시도'),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppTheme.primaryBlue,
-                foregroundColor: Colors.white,
-              ),
-            ),
-          ],
-        ),
-      );
+      return StateView.error(message: errorMessage!, onRetry: _loadNotices);
     }
 
     if (notices.isEmpty) {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              Icons.announcement_outlined,
-              size: 64,
-              color: AppTheme.mediumGray,
-            ),
-            const SizedBox(height: 16),
-            Text('공지사항이 없습니다', style: AppTheme.h4Style),
-          ],
-        ),
+      return const StateView.empty(
+        icon: Icons.announcement_outlined,
+        message: '공지사항이 없습니다',
       );
     }
 
