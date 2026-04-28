@@ -149,9 +149,9 @@ class CompletedDonation {
     );
   }
 
-  // 헌혈량 유효성 검사
+  // 헌혈량 유효성 검사 (0 허용 — 미채혈 완료 케이스. 사유는 별도 검증)
   static bool isValidBloodVolume(double volume) {
-    return volume > 0 && volume <= 1000; // 최대 1000mL
+    return volume >= 0 && volume <= 1000;
   }
 
   // 반려동물 체중 대비 적정 헌혈량 확인
@@ -430,15 +430,18 @@ class CompleteDonationRequest {
   final int appliedDonationIdx;
   final double bloodVolume;
   final DateTime? completedAt; // null이면 현재 시간 사용
+  // bloodVolume == 0인 미채혈 완료 시 필수 (검진실패/장비문제 등)
+  final String? incompletionReason;
 
   CompleteDonationRequest({
     required this.appliedDonationIdx,
     required this.bloodVolume,
     this.completedAt,
+    this.incompletionReason,
   });
 
   Map<String, dynamic> toJson() {
-    final json = {
+    final json = <String, dynamic>{
       'applied_donation_idx': appliedDonationIdx,
       'blood_volume': bloodVolume,
     };
@@ -447,13 +450,22 @@ class CompleteDonationRequest {
       json['completed_at'] = completedAt!.millisecondsSinceEpoch;
     }
 
+    if (incompletionReason != null && incompletionReason!.isNotEmpty) {
+      json['incompletion_reason'] = incompletionReason;
+    }
+
     return json;
   }
 
   // 유효성 검사
   bool isValid() {
-    return appliedDonationIdx > 0 &&
-        CompletedDonation.isValidBloodVolume(bloodVolume);
+    if (appliedDonationIdx <= 0) return false;
+    if (!CompletedDonation.isValidBloodVolume(bloodVolume)) return false;
+    if (bloodVolume == 0 &&
+        (incompletionReason == null || incompletionReason!.trim().isEmpty)) {
+      return false;
+    }
+    return true;
   }
 
   String? getValidationError() {
@@ -461,7 +473,11 @@ class CompleteDonationRequest {
       return '올바르지 않은 신청 정보입니다.';
     }
     if (!CompletedDonation.isValidBloodVolume(bloodVolume)) {
-      return '헌혈량은 0mL보다 크고 1000mL 이하여야 합니다.';
+      return '헌혈량은 0mL 이상 1000mL 이하여야 합니다.';
+    }
+    if (bloodVolume == 0 &&
+        (incompletionReason == null || incompletionReason!.trim().isEmpty)) {
+      return '헌혈량이 0mL인 경우 미채혈 사유를 입력해주세요.';
     }
     return null;
   }

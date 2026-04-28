@@ -26,6 +26,8 @@ class DonationCompletionSheet extends StatefulWidget {
 
 class _DonationCompletionSheetState extends State<DonationCompletionSheet> {
   final TextEditingController _bloodVolumeController = TextEditingController();
+  final TextEditingController _incompletionReasonController =
+      TextEditingController();
   DateTime selectedCompletedDate = DateTime.now();
   TimeOfDay selectedCompletedTime = TimeOfDay.now();
   bool isSubmitting = false;
@@ -365,6 +367,38 @@ class _DonationCompletionSheetState extends State<DonationCompletionSheet> {
               ],
             ),
 
+            // 헌혈량 0인 경우 미채혈 사유 입력 필드 노출
+            if ((double.tryParse(_bloodVolumeController.text.trim()) ?? -1) ==
+                0) ...[
+              const SizedBox(height: AppTheme.spacing16),
+              Text(
+                '미채혈 사유',
+                style: AppTheme.bodyLargeStyle.copyWith(
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const SizedBox(height: AppTheme.spacing8),
+              TextField(
+                controller: _incompletionReasonController,
+                maxLines: 2,
+                maxLength: 200,
+                decoration: InputDecoration(
+                  hintText: '예: 검진 결과 부적합, 장비 문제 등',
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(AppTheme.radius8),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(AppTheme.radius8),
+                    borderSide: BorderSide(
+                      color: AppTheme.primaryBlue,
+                      width: 2,
+                    ),
+                  ),
+                ),
+                onChanged: (_) => setState(() {}),
+              ),
+            ],
+
             const SizedBox(height: AppTheme.spacing20),
 
             // 완료 시간 설정
@@ -478,18 +512,48 @@ class _DonationCompletionSheetState extends State<DonationCompletionSheet> {
     if (volumeText.isEmpty) return false;
 
     final volume = double.tryParse(volumeText);
-    return volume != null && volume > 0;
+    if (volume == null || volume < 0) return false;
+
+    // 헌혈량 0인 미채혈 완료 케이스 — 사유 필수
+    if (volume == 0 && _incompletionReasonController.text.trim().isEmpty) {
+      return false;
+    }
+    return true;
   }
 
   Future<void> _completeBloodDonation() async {
     if (!_canSubmit()) return;
+
+    final volume = double.parse(_bloodVolumeController.text.trim());
+    final reason = _incompletionReasonController.text.trim();
+
+    // 헌혈량 0인 미채혈 완료 케이스 — 한 번 더 확인
+    if (volume == 0) {
+      final confirmed = await showDialog<bool>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: const Text('미채혈 완료 처리'),
+          content: Text('헌혈량 0mL로 미채혈 완료 처리하시겠습니까?\n\n사유: $reason'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop(false),
+              child: const Text('취소'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop(true),
+              child: const Text('확인'),
+            ),
+          ],
+        ),
+      );
+      if (confirmed != true) return;
+    }
 
     setState(() {
       isSubmitting = true;
     });
 
     try {
-      final volume = double.parse(_bloodVolumeController.text.trim());
       final completedAt = DateTime(
         selectedCompletedDate.year,
         selectedCompletedDate.month,
@@ -502,6 +566,7 @@ class _DonationCompletionSheetState extends State<DonationCompletionSheet> {
         appliedDonationIdx: widget.appliedDonation.appliedDonationIdx!,
         bloodVolume: volume,
         completedAt: completedAt,
+        incompletionReason: volume == 0 ? reason : null,
       );
 
       // 병원용 1차 헌혈 완료 처리 API 호출
@@ -551,6 +616,7 @@ class _DonationCompletionSheetState extends State<DonationCompletionSheet> {
   @override
   void dispose() {
     _bloodVolumeController.dispose();
+    _incompletionReasonController.dispose();
     super.dispose();
   }
 }

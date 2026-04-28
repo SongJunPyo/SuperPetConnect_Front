@@ -288,8 +288,17 @@ class CompletedDonationService {
     if (!CompletedDonation.isValidBloodVolume(bloodVolume)) {
       return {
         'isValid': false,
-        'message': '헌혈량은 0mL보다 크고 1000mL 이하여야 합니다.',
+        'message': '헌혈량은 0mL 이상 1000mL 이하여야 합니다.',
         'level': 'error',
+      };
+    }
+
+    // 헌혈량 0은 미채혈 완료 케이스 — 사유는 시트가 별도 검증
+    if (bloodVolume == 0) {
+      return {
+        'isValid': true,
+        'message': '미채혈 완료 — 사유 입력이 필요합니다.',
+        'level': 'warning',
       };
     }
 
