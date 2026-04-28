@@ -8,6 +8,7 @@ import '../utils/app_constants.dart';
 import '../utils/api_endpoints.dart';
 import '../utils/phone_formatter.dart';
 import '../widgets/pet_profile_image.dart';
+import '../widgets/app_dialog.dart';
 import '../widgets/app_search_bar.dart';
 import '../widgets/post_list/post_list_header.dart';
 import '../widgets/post_list/post_list_row.dart';
@@ -1443,52 +1444,26 @@ class _AdminPostCheckState extends State<AdminPostCheck>
   }
 
   /// 삭제 확인 다이얼로그
-  void _showDeleteConfirmDialog(int postIdx, String title) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('게시글 삭제'),
-        content: Text("'$title' 게시글을 삭제하시겠습니까?\n\n삭제된 게시글은 복구할 수 없습니다."),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('취소'),
-          ),
-          TextButton(
-            onPressed: () {
-              Navigator.pop(context);
-              _deletePost(postIdx);
-            },
-            style: TextButton.styleFrom(foregroundColor: Colors.red),
-            child: const Text('삭제'),
-          ),
-        ],
-      ),
+  Future<void> _showDeleteConfirmDialog(int postIdx, String title) async {
+    final ok = await AppDialog.confirm(
+      context,
+      title: '게시글 삭제',
+      message: "'$title' 게시글을 삭제하시겠습니까?\n\n삭제된 게시글은 복구할 수 없습니다.",
+      confirmLabel: '삭제',
+      isDestructive: true,
     );
+    if (ok == true) _deletePost(postIdx);
   }
 
   /// 대기 변경 확인 다이얼로그
-  void _showSuspendConfirmDialog(int postIdx, String title) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('대기 상태로 변경'),
-        content: Text("'$title' 게시글을 대기 상태로 변경하시겠습니까?\n\n병원에게 알림이 발송됩니다."),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('취소'),
-          ),
-          TextButton(
-            onPressed: () {
-              Navigator.pop(context);
-              _suspendPost(postIdx);
-            },
-            child: const Text('변경'),
-          ),
-        ],
-      ),
+  Future<void> _showSuspendConfirmDialog(int postIdx, String title) async {
+    final ok = await AppDialog.confirm(
+      context,
+      title: '대기 상태로 변경',
+      message: "'$title' 게시글을 대기 상태로 변경하시겠습니까?\n\n병원에게 알림이 발송됩니다.",
+      confirmLabel: '변경',
     );
+    if (ok == true) _suspendPost(postIdx);
   }
 
   /// 마감 상태에서 전환 시 경고 다이얼로그 (시간대 열기 + 신청자 초기화)
@@ -1543,27 +1518,14 @@ class _AdminPostCheckState extends State<AdminPostCheck>
   }
 
   /// 모집 재개 확인 다이얼로그
-  void _showResumeConfirmDialog(int postIdx, String title) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('모집중으로 변경'),
-        content: Text("'$title' 게시글을 모집중 상태로 변경하시겠습니까?\n\n병원에게 알림이 발송됩니다."),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('취소'),
-          ),
-          TextButton(
-            onPressed: () {
-              Navigator.pop(context);
-              _resumePost(postIdx);
-            },
-            child: const Text('변경'),
-          ),
-        ],
-      ),
+  Future<void> _showResumeConfirmDialog(int postIdx, String title) async {
+    final ok = await AppDialog.confirm(
+      context,
+      title: '모집중으로 변경',
+      message: "'$title' 게시글을 모집중 상태로 변경하시겠습니까?\n\n병원에게 알림이 발송됩니다.",
+      confirmLabel: '변경',
     );
+    if (ok == true) _resumePost(postIdx);
   }
 
   /// 게시글 상세 헤더의 ... 메뉴 항목 구성
@@ -1719,18 +1681,10 @@ class _AdminPostCheckState extends State<AdminPostCheck>
         final errorData = json.decode(utf8.decode(response.bodyBytes));
         final errorMessage = errorData['detail'] ?? '승인 처리에 실패했습니다.';
         if (mounted) {
-          showDialog(
-            context: context,
-            builder: (context) => AlertDialog(
-              title: const Text('승인 실패'),
-              content: Text(errorMessage.toString()),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.pop(context),
-                  child: const Text('확인'),
-                ),
-              ],
-            ),
+          await AppDialog.notice(
+            context,
+            title: '승인 실패',
+            message: errorMessage.toString(),
           );
         }
       }

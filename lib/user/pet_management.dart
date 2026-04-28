@@ -7,6 +7,7 @@ import 'package:connect/services/manage_pet_info.dart';
 import 'package:connect/services/donation_history_service.dart';
 import '../utils/app_theme.dart';
 import '../utils/donation_eligibility.dart';
+import '../widgets/app_dialog.dart';
 import '../widgets/pet_profile_image.dart';
 
 class PetManagementScreen extends StatefulWidget {
@@ -75,56 +76,28 @@ class _PetManagementScreenState extends State<PetManagementScreen> {
   }
 
   // 펫 삭제 기능
-  void _deletePet(Pet pet) {
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: const Text('펫 삭제 확인'),
-          content: Text("'${pet.name}' 펫의 정보를 정말 삭제하시겠습니까?"),
-          actions: <Widget>[
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: const Text('취소'),
-            ),
-            TextButton(
-              // onPressed를 비동기(async)로 변경
-              onPressed: () async {
-                // petIdx가 null인 경우는 없어야 하지만, 안전을 위해 확인
-                if (pet.petIdx == null) {
-                  _showSnackBar('잘못된 펫 정보입니다.');
-                  Navigator.of(context).pop();
-                  return;
-                }
-
-                try {
-                  // 1. PetService를 통해 서버에 삭제 요청
-                  await PetService.deletePet(pet.petIdx!);
-
-                  // 2. 다이얼로그 닫기
-                  if (mounted) {
-                    Navigator.of(context).pop();
-                  }
-
-                  // 3. 삭제 성공 메시지 표시
-                  _showSnackBar('${pet.name} 펫이 삭제되었습니다.');
-
-                  // 4. 목록 새로고침
-                  _refreshPets();
-                } catch (e) {
-                  // 에러 처리
-                  if (mounted) {
-                    Navigator.of(context).pop();
-                  }
-                  _showSnackBar('삭제 실패: $e');
-                }
-              },
-              child: const Text('삭제', style: TextStyle(color: Colors.red)),
-            ),
-          ],
-        );
-      },
+  Future<void> _deletePet(Pet pet) async {
+    final confirmed = await AppDialog.confirm(
+      context,
+      title: '펫 삭제 확인',
+      message: "'${pet.name}' 펫의 정보를 정말 삭제하시겠습니까?",
+      confirmLabel: '삭제',
+      isDestructive: true,
     );
+    if (confirmed != true) return;
+
+    if (pet.petIdx == null) {
+      _showSnackBar('잘못된 펫 정보입니다.');
+      return;
+    }
+
+    try {
+      await PetService.deletePet(pet.petIdx!);
+      _showSnackBar('${pet.name} 펫이 삭제되었습니다.');
+      _refreshPets();
+    } catch (e) {
+      _showSnackBar('삭제 실패: $e');
+    }
   }
 
   // 하단에 알림 보여주는 스낵바 함수

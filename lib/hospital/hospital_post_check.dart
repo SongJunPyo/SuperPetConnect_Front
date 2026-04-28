@@ -20,6 +20,7 @@ import '../widgets/post_detail/post_detail_blood_type.dart';
 import '../widgets/post_detail/post_detail_description.dart';
 import '../widgets/post_detail/post_detail_patient_info.dart';
 import '../widgets/pagination_bar.dart';
+import '../widgets/app_dialog.dart';
 import '../widgets/info_row.dart';
 import '../widgets/state_view.dart';
 import '../widgets/post_list/post_list_header.dart';
@@ -1595,24 +1596,12 @@ class _PostDetailBottomSheetState extends State<PostDetailBottomSheet> {
   }
 
   Future<void> _deletePost() async {
-    final confirm = await showDialog<bool>(
-      context: context,
-      builder:
-          (context) => AlertDialog(
-            title: const Text('게시글 삭제'),
-            content: const Text('정말로 이 게시글을 삭제하시겠습니까?\n삭제된 게시글은 복구할 수 없습니다.'),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.of(context).pop(false),
-                child: const Text('취소'),
-              ),
-              TextButton(
-                onPressed: () => Navigator.of(context).pop(true),
-                style: TextButton.styleFrom(foregroundColor: Colors.red),
-                child: const Text('삭제'),
-              ),
-            ],
-          ),
+    final confirm = await AppDialog.confirm(
+      context,
+      title: '게시글 삭제',
+      message: '정말로 이 게시글을 삭제하시겠습니까?\n삭제된 게시글은 복구할 수 없습니다.',
+      confirmLabel: '삭제',
+      isDestructive: true,
     );
 
     if (confirm == true) {

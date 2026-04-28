@@ -3,6 +3,7 @@ import '../models/donation_application_model.dart';
 import '../models/applied_donation_model.dart';
 import '../services/hospital_post_service.dart';
 import '../utils/app_theme.dart';
+import '../widgets/app_dialog.dart';
 import '../widgets/state_view.dart';
 
 /// 내 헌혈 신청 내역 화면 (사용자용)
@@ -91,25 +92,13 @@ class _MyApplicationsScreenState extends State<MyApplicationsScreen> {
 
   Future<void> _cancelApplication(DonationApplication application) async {
     // 확인 다이얼로그
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: const Text('신청 취소'),
-          content: Text('${application.pet.name}의 헌혈 신청을 취소하시겠습니까?'),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(false),
-              child: const Text('아니오'),
-            ),
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(true),
-              style: TextButton.styleFrom(foregroundColor: AppTheme.error),
-              child: const Text('취소하기'),
-            ),
-          ],
-        );
-      },
+    final confirmed = await AppDialog.confirm(
+      context,
+      title: '신청 취소',
+      message: '${application.pet.name}의 헌혈 신청을 취소하시겠습니까?',
+      cancelLabel: '아니오',
+      confirmLabel: '취소하기',
+      isDestructive: true,
     );
 
     if (confirmed != true) return;

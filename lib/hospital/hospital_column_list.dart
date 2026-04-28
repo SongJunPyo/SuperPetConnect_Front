@@ -296,33 +296,21 @@ class _HospitalColumnListState extends State<HospitalColumnList> {
     );
   }
 
-  /// `RefreshIndicator`가 비어있는 상태에서도 pull-to-refresh를 동작시키도록
-  /// `StateView`를 스크롤 가능한 ListView로 감싼다.
-  Widget _scrollableState(Widget child) {
-    return ListView(
-      physics: const AlwaysScrollableScrollPhysics(),
-      children: [
-        SizedBox(
-          height: MediaQuery.of(context).size.height * 0.6,
-          child: child,
-        ),
-      ],
-    );
-  }
-
   Widget _buildContent() {
     if (isLoading) {
-      return _scrollableState(const StateView.loading());
+      return StateView.scrollable(context, const StateView.loading());
     }
 
     if (errorMessage != null) {
-      return _scrollableState(
+      return StateView.scrollable(
+        context,
         StateView.error(message: errorMessage!, onRetry: _loadColumns),
       );
     }
 
     if (columns.isEmpty) {
-      return _scrollableState(
+      return StateView.scrollable(
+        context,
         StateView.empty(
           icon: Icons.article_outlined,
           message: searchQuery.isNotEmpty ? '검색 결과가 없습니다' : '공개된 칼럼이 없습니다',

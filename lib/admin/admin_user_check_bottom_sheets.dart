@@ -9,6 +9,7 @@ import '../models/pet_model.dart';
 import '../services/user_management_service.dart';
 import '../services/auth_http_client.dart';
 import '../models/unified_post_model.dart';
+import '../widgets/app_dialog.dart';
 import '../widgets/info_row.dart';
 import '../widgets/post_type_badge.dart';
 import '../widgets/pet_profile_image.dart';
@@ -48,23 +49,11 @@ class _SuspendedUserBottomSheetState extends State<SuspendedUserBottomSheet> {
   }
 
   Future<void> _activateUser() async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder:
-          (context) => AlertDialog(
-            title: const Text('계정 활성화'),
-            content: Text('${widget.user.name}님의 계정을 활성화하시겠습니까?'),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.of(context).pop(false),
-                child: const Text('취소'),
-              ),
-              TextButton(
-                onPressed: () => Navigator.of(context).pop(true),
-                child: const Text('활성화'),
-              ),
-            ],
-          ),
+    final confirmed = await AppDialog.confirm(
+      context,
+      title: '계정 활성화',
+      message: '${widget.user.name}님의 계정을 활성화하시겠습니까?',
+      confirmLabel: '활성화',
     );
 
     if (confirmed != true) return;

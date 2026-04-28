@@ -4,6 +4,7 @@ import '../utils/app_constants.dart';
 import '../utils/error_display.dart';
 import '../utils/phone_formatter.dart';
 import '../widgets/app_app_bar.dart';
+import '../widgets/app_dialog.dart';
 import '../widgets/app_search_bar.dart';
 import '../widgets/pagination_bar.dart';
 import '../widgets/state_view.dart';
@@ -131,28 +132,13 @@ class _AdminUserCheckState extends State<AdminUserCheck>
   }
 
   Future<void> _deleteUser(User user) async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('계정 삭제'),
-        content: Text(
+    final confirmed = await AppDialog.confirm(
+      context,
+      title: '계정 삭제',
+      message:
           '정말 삭제하시겠습니까?\n이 작업은 되돌릴 수 없습니다.\n\n사용자: ${user.name} (${user.email})',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(false),
-            child: const Text('취소'),
-          ),
-          ElevatedButton(
-            onPressed: () => Navigator.of(ctx).pop(true),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppTheme.error,
-              foregroundColor: Colors.white,
-            ),
-            child: const Text('삭제'),
-          ),
-        ],
-      ),
+      confirmLabel: '삭제',
+      isDestructive: true,
     );
 
     if (confirmed != true) return;

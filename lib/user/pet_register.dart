@@ -9,6 +9,7 @@ import 'package:connect/models/pet_model.dart';
 import '../utils/app_theme.dart';
 import '../utils/blood_type_constants.dart';
 import '../widgets/app_button.dart';
+import '../widgets/app_dialog.dart';
 import '../widgets/app_input_field.dart';
 import '../widgets/app_app_bar.dart';
 import '../widgets/pet_profile_image.dart';
@@ -187,18 +188,10 @@ class _PetRegisterScreenState extends State<PetRegisterScreen> {
         final responseBody = jsonDecode(utf8.decode(response.bodyBytes));
         final errorMessage = responseBody['detail'] ?? '처리에 실패했습니다.';
         if (mounted) {
-          showDialog(
-            context: context,
-            builder: (context) => AlertDialog(
-              title: const Text('알림'),
-              content: Text(errorMessage.toString()),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.pop(context),
-                  child: const Text('확인'),
-                ),
-              ],
-            ),
+          await AppDialog.notice(
+            context,
+            title: '알림',
+            message: errorMessage.toString(),
           );
         }
       }

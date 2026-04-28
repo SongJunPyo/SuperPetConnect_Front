@@ -3,6 +3,7 @@ import '../services/hospital_column_service.dart';
 import '../models/hospital_column_model.dart';
 import '../utils/app_theme.dart';
 import '../utils/error_display.dart';
+import '../widgets/app_dialog.dart';
 import '../widgets/rich_text_viewer.dart';
 import 'hospital_column_edit.dart';
 import 'package:intl/intl.dart';
@@ -76,28 +77,12 @@ class _HospitalColumnDetailState extends State<HospitalColumnDetail> {
   Future<void> _deleteColumn() async {
     if (column == null) return;
 
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: const Text('칼럼 삭제'),
-          content: Text('정말로 이 칼럼을 삭제하시겠습니까?\n\n제목: ${column!.title}'),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(false),
-              child: const Text('취소'),
-            ),
-            ElevatedButton(
-              onPressed: () => Navigator.of(context).pop(true),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.red,
-                foregroundColor: Colors.white,
-              ),
-              child: const Text('삭제'),
-            ),
-          ],
-        );
-      },
+    final confirmed = await AppDialog.confirm(
+      context,
+      title: '칼럼 삭제',
+      message: '정말로 이 칼럼을 삭제하시겠습니까?\n\n제목: ${column!.title}',
+      confirmLabel: '삭제',
+      isDestructive: true,
     );
 
     if (confirmed == true) {

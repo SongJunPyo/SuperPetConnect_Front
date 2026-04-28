@@ -3,6 +3,7 @@
 import 'package:flutter/material.dart';
 import '../utils/app_theme.dart';
 import '../widgets/app_app_bar.dart';
+import '../widgets/app_dialog.dart';
 import '../services/donation_date_service.dart';
 import '../models/donation_post_date_model.dart';
 import '../services/dashboard_service.dart';
@@ -700,24 +701,12 @@ class _DonationDateManagementDialogState
   }
 
   Future<void> _deleteDate(DonationPostDate date) async {
-    final bool? confirmed = await showDialog<bool>(
-      context: context,
-      builder:
-          (context) => AlertDialog(
-            title: const Text('헌혈 날짜 삭제'),
-            content: Text('${date.formattedDate} 헌혈 날짜를 삭제하시겠습니까?'),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.of(context).pop(false),
-                child: const Text('취소'),
-              ),
-              TextButton(
-                onPressed: () => Navigator.of(context).pop(true),
-                style: TextButton.styleFrom(foregroundColor: Colors.red),
-                child: const Text('삭제'),
-              ),
-            ],
-          ),
+    final confirmed = await AppDialog.confirm(
+      context,
+      title: '헌혈 날짜 삭제',
+      message: '${date.formattedDate} 헌혈 날짜를 삭제하시겠습니까?',
+      confirmLabel: '삭제',
+      isDestructive: true,
     );
 
     if (confirmed == true && mounted) {

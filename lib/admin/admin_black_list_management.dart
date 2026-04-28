@@ -8,6 +8,7 @@ import '../widgets/pagination_bar.dart';
 import '../models/black_list_model.dart';
 import '../services/black_list_service.dart';
 import 'package:intl/intl.dart';
+import '../widgets/app_dialog.dart';
 import '../widgets/app_search_bar.dart';
 import '../widgets/info_row.dart';
 import '../widgets/state_view.dart';
@@ -155,27 +156,12 @@ class _AdminBlackListManagementScreenState
   }
 
   Future<void> _releaseBlackList(BlackList blackList) async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder:
-          (context) => AlertDialog(
-            title: const Text('즉시 해제'),
-            content: Text(
-              '${blackList.userName}님을 즉시 해제하시겠습니까?\n\n'
-              '남은 정지 일수: ${blackList.dDay}일',
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context, false),
-                child: const Text('취소'),
-              ),
-              TextButton(
-                onPressed: () => Navigator.pop(context, true),
-                style: TextButton.styleFrom(foregroundColor: AppTheme.success),
-                child: const Text('해제'),
-              ),
-            ],
-          ),
+    final confirmed = await AppDialog.confirm(
+      context,
+      title: '즉시 해제',
+      message: '${blackList.userName}님을 즉시 해제하시겠습니까?\n\n'
+          '남은 정지 일수: ${blackList.dDay}일',
+      confirmLabel: '해제',
     );
 
     if (confirmed != true) return;
@@ -205,27 +191,13 @@ class _AdminBlackListManagementScreenState
   }
 
   Future<void> _deleteBlackList(BlackList blackList) async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder:
-          (context) => AlertDialog(
-            title: const Text('블랙리스트 삭제'),
-            content: Text(
-              '${blackList.userName}님의 블랙리스트 기록을 완전히 삭제하시겠습니까?\n\n'
-              '⚠️ 이 작업은 되돌릴 수 없습니다.',
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context, false),
-                child: const Text('취소'),
-              ),
-              TextButton(
-                onPressed: () => Navigator.pop(context, true),
-                style: TextButton.styleFrom(foregroundColor: AppTheme.error),
-                child: const Text('삭제'),
-              ),
-            ],
-          ),
+    final confirmed = await AppDialog.confirm(
+      context,
+      title: '블랙리스트 삭제',
+      message: '${blackList.userName}님의 블랙리스트 기록을 완전히 삭제하시겠습니까?\n\n'
+          '⚠️ 이 작업은 되돌릴 수 없습니다.',
+      confirmLabel: '삭제',
+      isDestructive: true,
     );
 
     if (confirmed != true) return;

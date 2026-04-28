@@ -60,6 +60,22 @@ class StateView extends StatelessWidget {
         _onRetry = null,
         _retryLabel = '';
 
+  /// `StateView`를 부모 `RefreshIndicator`에서 pull-to-refresh가 동작하도록
+  /// 스크롤 가능한 ListView로 감싼다. 화면 60% 높이를 확보해 가운데 정렬.
+  ///
+  /// 비어있는 화면에서도 아래로 당겨 새로고침이 가능해야 하는 경우에 사용.
+  static Widget scrollable(BuildContext context, Widget child) {
+    return ListView(
+      physics: const AlwaysScrollableScrollPhysics(),
+      children: [
+        SizedBox(
+          height: MediaQuery.of(context).size.height * 0.6,
+          child: child,
+        ),
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     switch (_kind) {

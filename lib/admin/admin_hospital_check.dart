@@ -9,6 +9,7 @@ import '../utils/error_display.dart';
 import '../utils/phone_formatter.dart';
 import '../utils/kakao_postcode_stub.dart'
     if (dart.library.html) '../utils/kakao_postcode_web.dart';
+import '../widgets/app_dialog.dart';
 import '../widgets/pagination_bar.dart';
 import 'package:intl/intl.dart';
 
@@ -582,28 +583,13 @@ class _AdminHospitalDetailScreenState extends State<AdminHospitalDetailScreen> {
   }
 
   Future<void> _deleteHospital() async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: const Text('병원 탈퇴'),
-          content: Text('정말 삭제하시겠습니까?\n이 작업은 되돌릴 수 없습니다.\n\n병원명: ${hospitalInfo.nickname?.isNotEmpty == true ? hospitalInfo.nickname! : hospitalInfo.name}'),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(false),
-              child: const Text('취소'),
-            ),
-            ElevatedButton(
-              onPressed: () => Navigator.of(context).pop(true),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.red,
-                foregroundColor: Colors.white,
-              ),
-              child: const Text('삭제'),
-            ),
-          ],
-        );
-      },
+    final confirmed = await AppDialog.confirm(
+      context,
+      title: '병원 탈퇴',
+      message:
+          '정말 삭제하시겠습니까?\n이 작업은 되돌릴 수 없습니다.\n\n병원명: ${hospitalInfo.nickname?.isNotEmpty == true ? hospitalInfo.nickname! : hospitalInfo.name}',
+      confirmLabel: '삭제',
+      isDestructive: true,
     );
 
     if (confirmed != true || isLoading) return;
