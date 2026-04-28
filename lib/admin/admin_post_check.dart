@@ -2163,7 +2163,7 @@ class _AdminPostCheckState extends State<AdminPostCheck>
                                           if (post['cancelled_at'] != null) ...[
                                             const SizedBox(height: 8),
                                             Text(
-                                              '중단 처리 시간: ${_formatCancellationTime(post['cancelled_at'])}',
+                                              '중단 처리 시간: ${TimeFormatUtils.formatKoreanDateTime(post['cancelled_at'])}',
                                               style: AppTheme.bodySmallStyle
                                                   .copyWith(
                                                     color:
@@ -2432,19 +2432,6 @@ class _AdminPostCheckState extends State<AdminPostCheck>
         );
       },
     );
-  }
-
-  /// 직전 헌혈일 포맷 (YYYY.MM.DD 형식)
-  String _formatLastDonationDate(String dateTime) {
-    try {
-      if (dateTime.isEmpty) return '-';
-
-      // ISO 8601 형식 (2025-01-27T00:00:00) 또는 YYYY-MM-DD 형식 처리
-      final date = DateTime.parse(dateTime);
-      return '${date.year}.${date.month.toString().padLeft(2, '0')}.${date.day.toString().padLeft(2, '0')}';
-    } catch (e) {
-      return '-';
-    }
   }
 
   // 제목에서 병원 이름 추출하는 메서드
@@ -2817,7 +2804,7 @@ class _AdminPostCheckState extends State<AdminPostCheck>
                                       final lastDonationDate = petInfo['last_donation_date'];
                                       final lastDonationText = (lastDonationDate == null || lastDonationDate.toString().isEmpty)
                                           ? '첫 헌혈을 기다리는 중'
-                                          : _formatLastDonationDate(lastDonationDate.toString());
+                                          : TimeFormatUtils.formatFlexibleDate(lastDonationDate);
 
                                       final isApproved = applicant['status'] == 1;
 
@@ -3799,8 +3786,8 @@ class _AdminPostCheckState extends State<AdminPostCheck>
                                     ),
                                     Expanded(
                                       child: Text(
-                                        _formatCompletionDateTime(
-                                          post['donation_date'] ?? '',
+                                        TimeFormatUtils.formatKoreanDateTimeWithWeekday(
+                                          post['donation_date'],
                                         ),
                                         style: AppTheme.bodyMediumStyle.copyWith(
                                           fontWeight: FontWeight.w600,
@@ -3928,7 +3915,7 @@ class _AdminPostCheckState extends State<AdminPostCheck>
                                       if (post['cancelled_at'] != null) ...[
                                         const SizedBox(height: 8),
                                         Text(
-                                          '중단 시간: ${_formatCancellationTime(post['cancelled_at'])}',
+                                          '중단 시간: ${TimeFormatUtils.formatKoreanDateTime(post['cancelled_at'])}',
                                           style: AppTheme.bodySmallStyle
                                               .copyWith(
                                                 color: Colors.grey[600],
@@ -4087,18 +4074,6 @@ class _AdminPostCheckState extends State<AdminPostCheck>
     }
   }
 
-  // 헌혈마감 날짜/시간 포맷팅
-  String _formatCompletionDateTime(String dateTime) {
-    if (dateTime.isEmpty) return '일정 정보 없음';
-
-    try {
-      final date = DateTime.parse(dateTime);
-      return DateFormat('yyyy년 MM월 dd일 (E) HH:mm', 'ko_KR').format(date);
-    } catch (e) {
-      return dateTime;
-    }
-  }
-
   // 게시글 타입 결정 (헬퍼 함수)
   String _getPostType(Map<String, dynamic> post) {
     if (_currentTabIndex == 2) {
@@ -4119,18 +4094,6 @@ class _AdminPostCheckState extends State<AdminPostCheck>
       // 모집대기 탭: SUSPENDED(5)이면 [대기] 뱃지, 아니면 긴급/정기
       if (post['status'] == 5) return '대기';
       return post['types'] == 0 ? '긴급' : '정기';
-    }
-  }
-
-  // 중단 처리 시간 포맷팅
-  String _formatCancellationTime(String? cancelledAt) {
-    if (cancelledAt == null || cancelledAt.isEmpty) return '';
-
-    try {
-      final date = DateTime.parse(cancelledAt);
-      return DateFormat('yyyy년 MM월 dd일 HH:mm', 'ko_KR').format(date);
-    } catch (e) {
-      return cancelledAt;
     }
   }
 
@@ -4702,7 +4665,7 @@ class _AdminPostCheckState extends State<AdminPostCheck>
           if (lastDonation == null || lastDonation.toString().isEmpty) {
             return '첫 헌혈을 기다리는 중';
           }
-          return _formatLastDonationDate(lastDonation.toString());
+          return TimeFormatUtils.formatFlexibleDate(lastDonation);
         }()),
       ],
     );

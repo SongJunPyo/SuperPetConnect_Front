@@ -150,4 +150,28 @@ class TimeFormatUtils {
     if (parsed == null) return defaultValue;
     return formatShortDate(parsed);
   }
+
+  /// 한국어 풀 포맷 (요일 포함): yyyy년 MM월 dd일 (E) HH:mm
+  /// 예: 2024년 12월 25일 (수) 14:30
+  /// 헌혈 마감 일정 등 시간대 맥락 표시에 사용.
+  static String formatKoreanDateTimeWithWeekday(
+    dynamic dateValue, {
+    String defaultValue = '일정 정보 없음',
+  }) {
+    final parsed = parseFlexibleDate(dateValue);
+    if (parsed == null) return defaultValue;
+    return DateFormat('yyyy년 MM월 dd일 (E) HH:mm', 'ko_KR').format(parsed);
+  }
+
+  /// 한국어 날짜+시간 포맷 (요일 없음): yyyy년 MM월 dd일 HH:mm
+  /// 예: 2024년 12월 25일 14:30
+  /// 처리 시각 등 단순 타임스탬프 표시에 사용.
+  static String formatKoreanDateTime(
+    dynamic dateValue, {
+    String defaultValue = '',
+  }) {
+    final parsed = parseFlexibleDate(dateValue);
+    if (parsed == null) return defaultValue;
+    return DateFormat('yyyy년 MM월 dd일 HH:mm', 'ko_KR').format(parsed);
+  }
 }
