@@ -329,6 +329,27 @@ Windows에서는 `.git/hooks/pre-commit.cmd` 사용.
 - `B`: B형
 - `AB`: AB형
 
+### 반려동물 성별 (Pet Sex / pets.sex)
+백엔드 `constants/enums.py::PetSex` 기준. **NOT NULL** 컬럼이므로 가입/수정 폼에서 필수 입력. 알파 데이터는 1(수컷)로 일괄 마이그레이션됨 (암컷이 있으면 관리자가 별도 보정).
+- `0`: **FEMALE** (암컷)
+- `1`: **MALE** (수컷)
+
+### 임신/출산 상태 (Pregnancy Birth Status / pets.pregnancy_birth_status)
+백엔드 `constants/enums.py::PregnancyBirthStatus` 기준. **NOT NULL, default 0**. 단일 셀렉터로 통합 관리 (이전 `pregnant` bool + `has_birth_experience` bool 두 필드를 대체).
+- `0`: **NONE** (해당 없음)
+- `1`: **PREGNANT** (현재 임신중) - `last_pregnancy_end_date` 입력 안 받음
+- `2`: **POST_BIRTH** (출산 이력 있음) - `last_pregnancy_end_date` 필수
+
+**status=1 → status=2 전이는 사용자 수동** (백엔드에 batch/cron/전용 endpoint 없음). 출산 종료 시 펫 정보 수정 화면에서 직접 status 변경 + 종료일 입력. 폼에 안내 문구 권장: "출산 종료 시 직접 '출산 이력 있음'으로 변경하고 종료일을 입력해주세요."
+
+### 헌혈 자격 거부 사유 (Eligibility Reason / failed_conditions[*].reason)
+백엔드 `constants/donation_eligibility.py::EligibilityReason` 기준. **`condition == "pregnancyBirth"`인 항목에만 부여**. 다른 condition 항목에는 reason 없음.
+- `"pregnant"`: 현재 임신중 (status=1)
+- `"cooldown"`: 출산 12개월 미경과 (status=2 + 종료일 < 12개월)
+- `"date_missing"`: status=2인데 종료일 NULL
+
+백엔드 `message` 텍스트가 바뀌어도 `reason`은 유지되므로 UI 분기는 reason 기반 권장. 표시 텍스트는 `message` 그대로 fallback 가능.
+
 ### 지역 코드 (Region Code)
 - 한국 시도별 코드 (KPostal 표준 따름)
 - 예: `서울`, `경기`, `인천`, `대구`, `부산`, `광주`, `대전`, `울산`, `세종`, `강원`, `충북`, `충남`, `전북`, `전남`, `경북`, `경남`, `제주`
@@ -375,14 +396,16 @@ Windows에서는 `.git/hooks/pre-commit.cmd` 사용.
   ```json
   {
     "detail": {
-      "message": "자격 미달",
+      "message": "헌혈 자격 조건을 충족하지 않습니다.",
       "failed_conditions": [
-        {"message": "체중 부족"},
-        {"message": "건강 상태 이상"}
+        {"condition": "weight", "message": "체중 부족"},
+        {"condition": "pregnancyBirth", "reason": "pregnant", "message": "현재 임신 중"}
       ]
     }
   }
   ```
+
+각 항목은 `condition` (조건 키) + `message` (한국어 표시) 필수 + `reason` (선택, `pregnancyBirth`에만). reason 가능 값은 "데이터 타입 → 헌혈 자격 거부 사유" 섹션 참조.
 
 서버의 `constants/messages.py`에 있는 한국어 메시지는 **클라이언트에 그대로 노출됨** — 메시지 변경은 곧 UI 변경.
 
@@ -755,6 +778,54 @@ APPROVED 펫의 프로필 사진 변경에 한해 관리자 검토를 거치는 
 | 사진 검토 | `pending_profile_image` + `pending_image_status`(NULL/0) | `POST /api/admin/pets/{idx}/profile-image/approve` / `/reject` |
 
 → 정보는 승인하면서 사진은 거절하는 **분리 결정 가능**. 묶음 처리 단일 endpoint는 백엔드가 제공하지 않음. 프론트가 통합 카드 UI를 원하면 두 목록(`GET /api/admin/pets?status=0` + `GET .../profile-images/pending`)을 각각 호출해서 `pet_idx` 기준으로 merge한 뒤 카드 1개에 두 결정 버튼 세트를 같이 노출하는 방식으로 처리.
+
+### Pet 모델 / 헌혈 자격 검증 contract (계약 확정 2026-04-28 Phase 1)
+
+`pregnant` (bool) + `has_birth_experience` (bool) 두 필드를 폐기하고 `sex` + `pregnancy_birth_status` + `last_pregnancy_end_date` 3필드로 재구성. 헌혈 자격 검증 로직도 함께 변경.
+
+**Pet 스키마 wire format** (백엔드 `schemas/pet_schema.py:82-86`)
+
+| 필드 | 타입 | nullable | 비고 |
+|------|------|----------|------|
+| `sex` | int | **NO** (필수) | 0=FEMALE, 1=MALE. 모든 GET 응답에서 non-null 보장 |
+| `pregnancy_birth_status` | int | **NO** (default 0) | 0=NONE, 1=PREGNANT, 2=POST_BIRTH |
+| `last_pregnancy_end_date` | date \| null | YES | status=2일 때만 값 존재. `"YYYY-MM-DD"` 문자열 (birth_date / neutered_date와 동일 포맷) |
+
+**제거된 필드** — 응답에서 더 이상 오지 않음. 프론트 모델에서도 제거:
+- `pregnant` (bool)
+- `has_birth_experience` (bool)
+
+**적용 엔드포인트 (요청·응답 양방향)**
+- `POST /api/pets`, `PUT /api/pets/{pet_idx}`, `GET /api/pets/me`, `PATCH /api/pets/donation-complete`
+- `POST /api/register`, `POST /api/auth/onboarding`
+- `GET /api/signup_management/pending-users` (응답 내 `pets[*]`)
+- `GET /api/admin/pets*` (관리자 펫 관리 응답)
+
+**자격 검증 변경** (백엔드 `services/donation_eligibility_service.py`)
+
+| 항목 | 변경 |
+|------|------|
+| 강아지 체중 | 25kg → **20kg 단일 기준** (협의 zone 폐기) |
+| 임신/출산 통합 | condition 키 `pregnant` + `birthExperience` → **`pregnancyBirth`** |
+| 임신/출산 쿨다운 | 출산 후 **12개월** 미경과는 fail (강아지·고양이 공통) |
+| 중성화 | `is_neutered=true`이면 **`neutered_date` 필수** (NULL이면 fail) |
+| None 처리 | 모든 None 값은 **보수적으로 fail** (이전엔 일부 None 통과) |
+
+`failed_conditions[*].reason` 필드 ("데이터 타입 → 헌혈 자격 거부 사유" 섹션 참조)는 `pregnancyBirth`에만 붙음. 백엔드 메시지 카탈로그는 `constants/messages.py::ELIGIBILITY_*`.
+
+**프론트 자체 검증** ([lib/utils/donation_eligibility.dart](lib/utils/donation_eligibility.dart))
+
+프론트는 사용자 안내용으로 자체 검증을 가짐 (백엔드와 이중 체크). **백엔드 로직과 1:1 동기화 필요** — 백엔드가 변경되면 프론트도 같은 결과를 내야 함. 협의 zone 필드(`consultWeightMinKg`/`consultWeightMaxKg`) 폐기, `_checkPregnant`/`_checkBirthExperience` 통합 → `_checkPregnancyBirth`, `_checkNeutered`의 `neuteredDate==null` 처리를 `needsConsultation` → `ineligible`로 변경.
+
+**status=1 → status=2 전이는 사용자 수동** (CLAUDE.md "임신/출산 상태" 섹션 참조). 백엔드에 자동 전이 로직 없음.
+
+**정보 수정 → 재심사 워크플로우 진입**
+
+세 신규 필드(`sex`, `pregnancy_birth_status`, `last_pregnancy_end_date`) 모두 수정 시 재심사 진입(approval_status PENDING + previous_values 기록 + admin에게 `pet_review_request` 알림). 기존 정보 수정 워크플로우와 동일.
+
+`previous_values` JSON에 `last_pregnancy_end_date`는 `"YYYY-MM-DD"` 문자열로 저장됨 (백엔드 `_normalize`가 date → str 변환). `sex` / `pregnancy_birth_status`는 int 그대로.
+
+폼 안내 문구 권장: "정보 수정 시 관리자 재심사가 진행되어 일시적으로 헌혈 신청이 제한될 수 있습니다."
 
 ### 공지사항(Notice) 정책 (계약 확정 2026-04-28)
 
