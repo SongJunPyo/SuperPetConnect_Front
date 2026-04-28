@@ -38,10 +38,13 @@ class _PetRegisterScreenState extends State<PetRegisterScreen> {
   int? _selectedAnimalType; // 0=강아지, 1=고양이 (서버 전송용)
   String? _selectedBloodType;
   DateTime? _birthDate; // 생년월일
-  bool _isPregnant = false;
+  // 성별 (CLAUDE.md PetSex: 0=암컷, 1=수컷). 폼에서 필수 — null이면 미선택.
+  int? _sex;
+  // 임신/출산 상태 (CLAUDE.md PregnancyBirthStatus: 0=해당없음, 1=임신중, 2=출산이력)
+  int _pregnancyBirthStatus = 0;
+  DateTime? _lastPregnancyEndDate;
   bool _isVaccinated = false;
   bool _hasDisease = false;
-  bool _hasBirthExperience = false;
   bool _isNeutered = false; // 중성화 수술 여부
   DateTime? _neuteredDate; // 중성화 수술 일자
   bool _hasPreventiveMedication = false; // 예방약 복용 여부
@@ -72,10 +75,11 @@ class _PetRegisterScreenState extends State<PetRegisterScreen> {
       // 혈액형 유효성 검사
       _selectedBloodType = _validateBloodType(pet.species, pet.bloodType);
 
-      _isPregnant = pet.pregnant;
+      _sex = pet.sex;
+      _pregnancyBirthStatus = pet.pregnancyBirthStatus;
+      _lastPregnancyEndDate = pet.lastPregnancyEndDate;
       _isVaccinated = pet.vaccinated ?? false;
       _hasDisease = pet.hasDisease ?? false;
-      _hasBirthExperience = pet.hasBirthExperience ?? false;
       _isNeutered = pet.isNeutered ?? false;
       _neuteredDate = pet.neuteredDate;
       _hasPreventiveMedication = pet.hasPreventiveMedication ?? false;
@@ -114,6 +118,24 @@ class _PetRegisterScreenState extends State<PetRegisterScreen> {
       ).showSnackBar(const SnackBar(content: Text('종과 혈액형을 모두 선택해주세요.')));
       return;
     }
+    if (_sex == null) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('성별을 선택해주세요.')));
+      return;
+    }
+    if (_pregnancyBirthStatus == 2 && _lastPregnancyEndDate == null) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('출산 종료일을 입력해주세요.')));
+      return;
+    }
+    if (_isNeutered && _neuteredDate == null) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('중성화 수술일을 입력해주세요.')));
+      return;
+    }
 
     final int? accountIdx =
         await PreferencesManager.getAccountIdx(); // account_idx로 사용
@@ -134,11 +156,13 @@ class _PetRegisterScreenState extends State<PetRegisterScreen> {
       'breed': _breedController.text.trim(),
       'birth_date': _birthDate?.toIso8601String().split('T')[0],
       'weight_kg': double.parse(_weightController.text.trim()),
-      'pregnant': _isPregnant ? 1 : 0,
+      'sex': _sex!,
+      'pregnancy_birth_status': _pregnancyBirthStatus,
+      'last_pregnancy_end_date':
+          _lastPregnancyEndDate?.toIso8601String().split('T')[0],
       'blood_type': _selectedBloodType!,
       'vaccinated': _isVaccinated ? 1 : 0,
       'has_disease': _hasDisease ? 1 : 0,
-      'has_birth_experience': _hasBirthExperience ? 1 : 0,
       'prev_donation_date': _prevDonationDate?.toIso8601String().split('T')[0],
       'is_neutered': _isNeutered ? 1 : 0,
       'neutered_date': _neuteredDate?.toIso8601String().split('T')[0],
@@ -538,6 +562,7 @@ class _PetRegisterScreenState extends State<PetRegisterScreen> {
                     (value) => value!.isEmpty ? '이름은 필수 입력 항목입니다.' : null,
               ),
               _buildSpeciesDropdown(context), // 종류 선택
+              _buildSexSelector(), // 성별 (필수 — CLAUDE.md PetSex)
               _buildTextField(
                 controller: _breedController,
                 label: '품종',
@@ -577,21 +602,8 @@ class _PetRegisterScreenState extends State<PetRegisterScreen> {
                 onChanged:
                     (value) => setState(() => _hasDisease = value ?? false),
               ),
-              _buildCheckboxTile(
-                title: '출산 경험',
-                subtitle: '출산 경험이 있나요? (출산 경험 존재 --> 헌혈 불가)',
-                value: _hasBirthExperience,
-                onChanged:
-                    (value) =>
-                        setState(() => _hasBirthExperience = value ?? false),
-              ),
-              _buildCheckboxTile(
-                title: '현재 임신 여부',
-                subtitle: '현재 임신 중인가요?',
-                value: _isPregnant,
-                onChanged:
-                    (value) => setState(() => _isPregnant = value ?? false),
-              ),
+              // 임신/출산 통합 셀렉터 (CLAUDE.md PregnancyBirthStatus)
+              _buildPregnancyBirthSelector(),
               _buildCheckboxTile(
                 title: '예방약 복용',
                 subtitle: '심장사상충 예방약을 정기적으로 복용하고 있나요?',
@@ -603,7 +615,7 @@ class _PetRegisterScreenState extends State<PetRegisterScreen> {
               ),
               _buildCheckboxTile(
                 title: '중성화 수술',
-                subtitle: '중성화 수술을 받았나요? (수술 후 6개월 이후 헌혈 가능)',
+                subtitle: '중성화 수술을 받았나요? (수술 후 6개월 이후 헌혈 가능, 수술일 필수)',
                 value: _isNeutered,
                 onChanged: (value) {
                   setState(() {
@@ -615,6 +627,22 @@ class _PetRegisterScreenState extends State<PetRegisterScreen> {
                 },
               ),
               if (_isNeutered) _buildNeuteredDatePicker(context),
+              const SizedBox(height: AppTheme.spacing12),
+              // 재심사 안내 (정보 수정 워크플로우 — CLAUDE.md Pet contract)
+              if (_isEditMode)
+                Container(
+                  padding: const EdgeInsets.all(AppTheme.spacing12),
+                  decoration: BoxDecoration(
+                    color: AppTheme.lightBlue,
+                    borderRadius: BorderRadius.circular(AppTheme.radius8),
+                  ),
+                  child: Text(
+                    '※ 정보 수정 시 관리자 재심사가 진행되어 일시적으로 헌혈 신청이 제한될 수 있습니다.',
+                    style: AppTheme.bodySmallStyle.copyWith(
+                      color: AppTheme.textSecondary,
+                    ),
+                  ),
+                ),
               const SizedBox(height: 24),
               _buildSaveButton(context), // context 전달
             ],
@@ -950,6 +978,210 @@ class _PetRegisterScreenState extends State<PetRegisterScreen> {
               Icon(Icons.chevron_right, color: AppTheme.mediumGray),
             ],
           ),
+        ),
+      ),
+    );
+  }
+
+  /// 성별 선택 (필수 — CLAUDE.md PetSex: 0=암컷, 1=수컷)
+  Widget _buildSexSelector() {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: AppTheme.spacing16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          RichText(
+            text: TextSpan(
+              text: '성별',
+              style: AppTheme.bodyMediumStyle.copyWith(fontWeight: FontWeight.w600),
+              children: const [
+                TextSpan(text: ' *', style: TextStyle(color: AppTheme.error)),
+              ],
+            ),
+          ),
+          const SizedBox(height: AppTheme.spacing8),
+          Row(
+            children: [
+              Expanded(child: _buildSexButton('암컷', 0)),
+              const SizedBox(width: 12),
+              Expanded(child: _buildSexButton('수컷', 1)),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSexButton(String label, int value) {
+    final isSelected = _sex == value;
+    return GestureDetector(
+      onTap: () => setState(() {
+        _sex = value;
+        // 수컷이면 임신/출산 자동 해당없음
+        if (value == 1) {
+          _pregnancyBirthStatus = 0;
+          _lastPregnancyEndDate = null;
+        }
+      }),
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 12),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: isSelected ? AppTheme.primaryBlue : Colors.grey.shade300,
+            width: isSelected ? 2 : 1,
+          ),
+          color: isSelected
+              ? AppTheme.primaryBlue.withValues(alpha: 0.1)
+              : Colors.grey[100],
+        ),
+        child: Center(
+          child: Text(
+            label,
+            style: TextStyle(
+              fontSize: 15,
+              fontWeight: FontWeight.w600,
+              color: isSelected ? AppTheme.primaryBlue : Colors.grey[700],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// 임신/출산 통합 셀렉터 (CLAUDE.md PregnancyBirthStatus)
+  /// 수컷이면 자동 해당없음 + 비활성화. status=2 선택 시 종료일 picker 노출.
+  Widget _buildPregnancyBirthSelector() {
+    final isMale = _sex == 1;
+    return Padding(
+      padding: const EdgeInsets.only(bottom: AppTheme.spacing12),
+      child: Container(
+        padding: const EdgeInsets.all(AppTheme.spacing16),
+        decoration: BoxDecoration(
+          color: Colors.grey[50],
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: Colors.grey.shade200),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              '임신/출산 상태',
+              style: AppTheme.bodyMediumStyle.copyWith(fontWeight: FontWeight.w600),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              isMale
+                  ? '수컷은 해당 없음으로 자동 설정됩니다.'
+                  : '출산 종료 시 직접 \'출산 이력 있음\'으로 변경하고 종료일을 입력해주세요.',
+              style: AppTheme.bodySmallStyle.copyWith(color: AppTheme.textSecondary),
+            ),
+            const SizedBox(height: AppTheme.spacing12),
+            _buildPregnancyBirthRadio(0, '해당 없음', isMale),
+            _buildPregnancyBirthRadio(1, '현재 임신중', isMale),
+            _buildPregnancyBirthRadio(2, '출산 이력 있음', isMale),
+            if (_pregnancyBirthStatus == 2) ...[
+              const SizedBox(height: AppTheme.spacing8),
+              _buildLastPregnancyEndDatePicker(),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPregnancyBirthRadio(int value, String label, bool disabled) {
+    return InkWell(
+      onTap: disabled
+          ? null
+          : () => setState(() {
+                _pregnancyBirthStatus = value;
+                if (value != 2) _lastPregnancyEndDate = null;
+              }),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 6),
+        child: Row(
+          children: [
+            Radio<int>(
+              value: value,
+              groupValue: _pregnancyBirthStatus,
+              onChanged: disabled
+                  ? null
+                  : (v) => setState(() {
+                        _pregnancyBirthStatus = v ?? 0;
+                        if (_pregnancyBirthStatus != 2) {
+                          _lastPregnancyEndDate = null;
+                        }
+                      }),
+              activeColor: AppTheme.primaryBlue,
+            ),
+            Expanded(
+              child: Text(
+                label,
+                style: AppTheme.bodyMediumStyle.copyWith(
+                  color: disabled ? AppTheme.textTertiary : AppTheme.textPrimary,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// 출산 종료일 picker (status=2일 때만 노출, 필수)
+  Widget _buildLastPregnancyEndDatePicker() {
+    return InkWell(
+      onTap: () async {
+        final picked = await showDatePicker(
+          context: context,
+          initialDate: _lastPregnancyEndDate ?? DateTime.now(),
+          firstDate: DateTime(2010),
+          lastDate: DateTime.now(),
+          helpText: '출산 종료일 선택',
+          cancelText: '취소',
+          confirmText: '선택',
+        );
+        if (picked != null) setState(() => _lastPregnancyEndDate = picked);
+      },
+      child: Container(
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: AppTheme.lightBlue,
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: AppTheme.lightGray),
+        ),
+        child: Row(
+          children: [
+            Icon(Icons.calendar_today, size: 18, color: AppTheme.primaryBlue),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    '출산 종료일 *',
+                    style: AppTheme.bodySmallStyle.copyWith(
+                      color: AppTheme.primaryBlue,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    _lastPregnancyEndDate != null
+                        ? '${_lastPregnancyEndDate!.year}년 ${_lastPregnancyEndDate!.month}월 ${_lastPregnancyEndDate!.day}일'
+                        : '날짜를 선택하세요',
+                    style: AppTheme.bodyMediumStyle.copyWith(
+                      color: _lastPregnancyEndDate != null
+                          ? AppTheme.textPrimary
+                          : AppTheme.textSecondary,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Icon(Icons.chevron_right, color: AppTheme.mediumGray),
+          ],
         ),
       ),
     );

@@ -703,12 +703,12 @@ class _PetDetailBottomSheetState extends State<_PetDetailBottomSheet> {
                                   : (pet.hasDisease == false ? '없음' : '정보 없음'),
                             ),
                             _buildDetailRow(
-                              '출산 경험',
-                              pet.hasBirthExperience == true
-                                  ? '있음'
-                                  : (pet.hasBirthExperience == false
-                                      ? '없음'
-                                      : '정보 없음'),
+                              '성별',
+                              pet.sex == 0 ? '암컷' : '수컷',
+                            ),
+                            _buildDetailRow(
+                              '임신/출산',
+                              _formatPregnancyBirth(pet),
                             ),
                             _buildDetailRow(
                               '중성화 수술',
@@ -721,7 +721,7 @@ class _PetDetailBottomSheetState extends State<_PetDetailBottomSheet> {
                       ),
 
                       // 임신 중 알림
-                      if (pet.pregnant) ...[
+                      if (pet.isPregnant) ...[
                         const SizedBox(height: AppTheme.spacing12),
                         Container(
                           padding: const EdgeInsets.all(AppTheme.spacing12),
@@ -957,6 +957,20 @@ class _PetDetailBottomSheetState extends State<_PetDetailBottomSheet> {
             ),
           ),
     );
+  }
+
+  /// 임신/출산 상태 표시 텍스트 (CLAUDE.md PregnancyBirthStatus 미러)
+  String _formatPregnancyBirth(Pet pet) {
+    switch (pet.pregnancyBirthStatus) {
+      case 1:
+        return '임신중';
+      case 2:
+        if (pet.lastPregnancyEndDate == null) return '출산 이력 (종료일 미입력)';
+        final d = pet.lastPregnancyEndDate!;
+        return '출산 이력 (${d.year}.${d.month.toString().padLeft(2, '0')}.${d.day.toString().padLeft(2, '0')})';
+      default:
+        return '해당 없음';
+    }
   }
 
   // 상세 정보 행 위젯

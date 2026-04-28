@@ -11,10 +11,14 @@ class Pet {
   final DateTime? birthDate; // 생년월일
   final String? bloodType;
   final double weightKg;
-  final bool pregnant;
+  // 성별 (CLAUDE.md 데이터 타입 → 반려동물 성별): 0=암컷, 1=수컷. NOT NULL 보장.
+  final int sex;
+  // 임신/출산 상태 (CLAUDE.md 데이터 타입 → 임신/출산 상태): 0=해당없음, 1=임신중, 2=출산이력. NOT NULL, default 0.
+  final int pregnancyBirthStatus;
+  // 출산 종료일. status=2일 때만 값 존재. status=1/0이면 NULL.
+  final DateTime? lastPregnancyEndDate;
   final bool? vaccinated; // 백신 접종 여부 (DB에서 NULL 허용)
   final bool? hasDisease; // 질병 이력 여부 (DB에서 NULL 허용)
-  final bool? hasBirthExperience; // 출산 경험 여부 (DB에서 NULL 허용)
   final DateTime? prevDonationDate; // 이전 헌혈 일자
   final bool? isNeutered; // 중성화 수술 여부
   final DateTime? neuteredDate; // 중성화 수술 일자
@@ -42,10 +46,11 @@ class Pet {
     this.birthDate,
     this.bloodType,
     required this.weightKg,
-    required this.pregnant,
+    required this.sex,
+    this.pregnancyBirthStatus = 0,
+    this.lastPregnancyEndDate,
     this.vaccinated,
     this.hasDisease,
-    this.hasBirthExperience,
     this.prevDonationDate,
     this.isNeutered,
     this.neuteredDate,
@@ -116,10 +121,15 @@ class Pet {
           : null,
       bloodType: json['blood_type'],
       weightKg: parseWeight(json['weight_kg']),
-      pregnant:
-          json['pregnant'] == null
-              ? false
-              : (json['pregnant'] == 1 || json['pregnant'] == true),
+      // sex/pregnancy_birth_status는 백엔드 NOT NULL 보장 (CLAUDE.md Pet contract).
+      // 다만 폼 미전송 단계에서 받을 수도 있어 안전 기본값 (수컷/해당없음).
+      sex: json['sex'] is int ? json['sex'] as int : 1,
+      pregnancyBirthStatus: json['pregnancy_birth_status'] is int
+          ? json['pregnancy_birth_status'] as int
+          : 0,
+      lastPregnancyEndDate: json['last_pregnancy_end_date'] != null
+          ? DateTime.tryParse(json['last_pregnancy_end_date'])
+          : null,
       vaccinated:
           json['vaccinated'] == null
               ? null
@@ -128,11 +138,6 @@ class Pet {
           json['has_disease'] == null
               ? null
               : (json['has_disease'] == 1 || json['has_disease'] == true),
-      hasBirthExperience:
-          json['has_birth_experience'] == null
-              ? null
-              : (json['has_birth_experience'] == 1 ||
-                  json['has_birth_experience'] == true),
       prevDonationDate:
           json['prev_donation_date'] != null
               ? DateTime.tryParse(json['prev_donation_date'])
@@ -165,6 +170,10 @@ class Pet {
   bool get hasPendingProfileImage =>
       pendingProfileImage != null && pendingImageStatus == 0;
 
+  // 임신/출산 상태 헬퍼 (CLAUDE.md PregnancyBirthStatus 미러)
+  bool get isPregnant => pregnancyBirthStatus == 1;
+  bool get hasBirthHistory => pregnancyBirthStatus == 2;
+
   // API 통신을 위한 Map 변환
   Map<String, dynamic> toMap() {
     return {
@@ -178,11 +187,12 @@ class Pet {
       'birth_date': birthDate?.toIso8601String().split('T')[0],
       'blood_type': bloodType,
       'weight_kg': weightKg,
-      'pregnant': pregnant ? 1 : 0,
+      'sex': sex,
+      'pregnancy_birth_status': pregnancyBirthStatus,
+      'last_pregnancy_end_date':
+          lastPregnancyEndDate?.toIso8601String().split('T')[0],
       'vaccinated': vaccinated == null ? null : (vaccinated! ? 1 : 0),
       'has_disease': hasDisease == null ? null : (hasDisease! ? 1 : 0),
-      'has_birth_experience':
-          hasBirthExperience == null ? null : (hasBirthExperience! ? 1 : 0),
       'prev_donation_date': prevDonationDate?.toIso8601String(),
       'is_neutered': isNeutered == null ? null : (isNeutered! ? 1 : 0),
       'neutered_date': neuteredDate?.toIso8601String().split('T')[0],

@@ -599,12 +599,16 @@ class _AdminPetManagementState extends State<AdminPetManagement>
                     _buildDetailRow('생년월일', pet.birthDateWithAge),
                     _buildDetailRow('몸무게', '${pet.weightKg}kg',
                         isWarning: pet.weightKg < 1),
+                    _buildDetailRow('성별', pet.sex == 0 ? '암컷' : '수컷'),
+                    _buildDetailRow(
+                      '임신/출산',
+                      _formatPregnancyBirth(pet),
+                      isWarning: pet.isPregnant,
+                    ),
                     const Divider(),
                     // 건강 정보
                     _buildBoolRow('백신 접종', pet.vaccinated, failIfFalse: true),
                     _buildBoolRow('질병 이력', pet.hasDisease, failIfTrue: true),
-                    _buildBoolRow('출산 경험', pet.hasBirthExperience),
-                    _buildBoolRow('임신 여부', pet.pregnant, failIfTrue: true),
                     _buildBoolRow('중성화', pet.isNeutered),
                     _buildBoolRow('예방약 복용', pet.hasPreventiveMedication, failIfFalse: true),
                     if (adminPet.isReview && adminPet.previousValues != null && adminPet.previousValues!.isNotEmpty) ...[
@@ -687,14 +691,30 @@ class _AdminPetManagementState extends State<AdminPetManagement>
       case 'birth_date': return pet.birthDate?.toIso8601String().split('T')[0];
       case 'blood_type': return pet.bloodType;
       case 'weight_kg': return pet.weightKg;
-      case 'pregnant': return pet.pregnant;
+      case 'sex': return pet.sex;
+      case 'pregnancy_birth_status': return pet.pregnancyBirthStatus;
+      case 'last_pregnancy_end_date':
+        return pet.lastPregnancyEndDate?.toIso8601String().split('T')[0];
       case 'vaccinated': return pet.vaccinated;
       case 'has_disease': return pet.hasDisease;
-      case 'has_birth_experience': return pet.hasBirthExperience;
       case 'is_neutered': return pet.isNeutered;
       case 'neutered_date': return pet.neuteredDate?.toIso8601String().split('T')[0];
       case 'has_preventive_medication': return pet.hasPreventiveMedication;
       default: return null;
+    }
+  }
+
+  /// 임신/출산 상태 표시 텍스트 (CLAUDE.md PregnancyBirthStatus 미러)
+  String _formatPregnancyBirth(Pet pet) {
+    switch (pet.pregnancyBirthStatus) {
+      case 1:
+        return '임신중';
+      case 2:
+        if (pet.lastPregnancyEndDate == null) return '출산 이력 (종료일 미입력)';
+        final d = pet.lastPregnancyEndDate!;
+        return '출산 ${d.year}.${d.month.toString().padLeft(2, '0')}.${d.day.toString().padLeft(2, '0')}';
+      default:
+        return '해당 없음';
     }
   }
 
@@ -1315,10 +1335,11 @@ class _AdminPet {
     'birth_date': '생년월일',
     'blood_type': '혈액형',
     'weight_kg': '몸무게',
-    'pregnant': '임신 여부',
+    'sex': '성별',
+    'pregnancy_birth_status': '임신/출산',
+    'last_pregnancy_end_date': '출산 종료일',
     'vaccinated': '백신 접종',
     'has_disease': '질병 여부',
-    'has_birth_experience': '출산 경험',
     'is_neutered': '중성화 여부',
     'neutered_date': '중성화 수술일',
     'has_preventive_medication': '예방약 복용',
@@ -1326,8 +1347,7 @@ class _AdminPet {
 
   /// Boolean 필드 목록
   static const Set<String> boolFields = {
-    'pregnant', 'vaccinated', 'has_disease', 'has_birth_experience',
-    'is_neutered', 'has_preventive_medication',
+    'vaccinated', 'has_disease', 'is_neutered', 'has_preventive_medication',
   };
 
   /// 값을 표시용 문자열로 변환
@@ -1335,6 +1355,16 @@ class _AdminPet {
     if (value == null) return '-';
     if (boolFields.contains(field)) {
       return (value == true || value == 1) ? '✅' : '❌';
+    }
+    if (field == 'sex') {
+      return value == 0 ? '암컷' : '수컷';
+    }
+    if (field == 'pregnancy_birth_status') {
+      switch (value) {
+        case 1: return '임신중';
+        case 2: return '출산 이력';
+        default: return '해당 없음';
+      }
     }
     if (field == 'weight_kg') return '${value}kg';
     return value.toString();

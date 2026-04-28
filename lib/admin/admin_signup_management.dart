@@ -599,6 +599,20 @@ class _AdminSignupManagementState extends State<AdminSignupManagement> {
     );
   }
 
+  /// 임신/출산 상태 표시 텍스트 (CLAUDE.md PregnancyBirthStatus 미러)
+  String _formatPregnancyBirth(Pet pet) {
+    switch (pet.pregnancyBirthStatus) {
+      case 1:
+        return '임신중';
+      case 2:
+        if (pet.lastPregnancyEndDate == null) return '출산 이력 (종료일 미입력)';
+        final d = pet.lastPregnancyEndDate!;
+        return '출산 ${d.year}.${d.month.toString().padLeft(2, '0')}.${d.day.toString().padLeft(2, '0')}';
+      default:
+        return '해당 없음';
+    }
+  }
+
   Widget _buildDetailRow(
     BuildContext context,
     IconData icon,
@@ -860,10 +874,10 @@ class _AdminSignupManagementState extends State<AdminSignupManagement> {
             _buildDetailRow(context, Icons.cake_outlined, '생년월일', pet.birthDateWithAge),
             _buildDetailRow(context, Icons.monitor_weight_outlined, '체중', '${pet.weightKg}kg'),
             _buildDetailRow(context, Icons.vaccines_outlined, '접종', pet.vaccinated == true ? '완료' : '미완료'),
-            _buildDetailRow(context, Icons.pregnant_woman_outlined, '임신', pet.pregnant ? 'O' : 'X'),
+            _buildDetailRow(context, Icons.wc_outlined, '성별', pet.sex == 0 ? '암컷' : '수컷'),
+            _buildDetailRow(context, Icons.pregnant_woman_outlined, '임신/출산', _formatPregnancyBirth(pet)),
             _buildDetailRow(context, Icons.content_cut_outlined, '중성화', pet.isNeutered == true ? 'O' : 'X'),
             _buildDetailRow(context, Icons.local_hospital_outlined, '질병', pet.hasDisease == true ? '있음' : '없음'),
-            _buildDetailRow(context, Icons.child_friendly_outlined, '출산', pet.hasBirthExperience == true ? '있음' : '없음'),
             _buildDetailRow(context, Icons.medication_outlined, '예방약', pet.hasPreventiveMedication == true ? '복용' : '미복용'),
             // 헌혈 조건 검증 결과
             const SizedBox(height: 8),

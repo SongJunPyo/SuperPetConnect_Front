@@ -1,8 +1,20 @@
 // lib/utils/donation_eligibility.dart
 // 헌혈 자격 조건 설정 및 검증 로직
 // 유지보수 시 이 파일의 조건 값만 수정하면 전체 앱에 적용됩니다.
+//
+// 백엔드 services/donation_eligibility_service.py와 1:1 동기화 필요.
+// CLAUDE.md "Pet 모델 / 헌혈 자격 검증 contract" 섹션 참조.
 
 import '../models/pet_model.dart';
+
+/// 헌혈 자격 거부 사유 키 (백엔드 constants/donation_eligibility.py::EligibilityReason 미러).
+/// `pregnancyBirth` condition에만 부여되는 reason 값.
+class EligibilityReason {
+  EligibilityReason._();
+  static const String pregnant = 'pregnant'; // 현재 임신중 (status=1)
+  static const String cooldown = 'cooldown'; // 출산 12개월 미경과
+  static const String dateMissing = 'date_missing'; // status=2인데 종료일 NULL
+}
 
 /// 헌혈 자격 상태
 enum EligibilityStatus {
@@ -18,12 +30,16 @@ class ConditionResult {
   final String description; // 조건 설명
   final EligibilityStatus status;
   final String? message; // 상세 메시지
+  /// 거부 사유 키. `pregnancyBirth` 조건에서만 부여 (백엔드 wire format 미러).
+  /// CLAUDE.md "헌혈 자격 거부 사유" 섹션 참조.
+  final String? reason;
 
   const ConditionResult({
     required this.conditionName,
     required this.description,
     required this.status,
     this.message,
+    this.reason,
   });
 
   bool get isPassed => status == EligibilityStatus.eligible;
@@ -79,17 +95,14 @@ class DogEligibilityConditions {
   /// 최대 나이 (년)
   final int maxAgeYears;
 
-  /// 최소 체중 (kg) - 이 이상이면 헌혈 가능
+  /// 최소 체중 (kg) - 이 이상이면 헌혈 가능 (협의 zone 폐기, 단일 기준)
   final double minWeightKg;
-
-  /// 협의 필요 체중 최소값 (kg)
-  final double consultWeightMinKg;
-
-  /// 협의 필요 체중 최대값 (kg)
-  final double consultWeightMaxKg;
 
   /// 중성화 수술 후 필요 경과 개월 수
   final int neuteredMonthsRequired;
+
+  /// 임신/출산 후 쿨다운 (개월)
+  final int pregnancyCooldownMonths;
 
   /// 헌혈 간격 (일)
   final int donationIntervalDays;
@@ -98,22 +111,21 @@ class DogEligibilityConditions {
     this.minAgeMonths = 18,
     this.minAgeYears = 2,
     this.maxAgeYears = 8,
-    this.minWeightKg = 25.0,
-    this.consultWeightMinKg = 20.0,
-    this.consultWeightMaxKg = 24.9,
+    this.minWeightKg = 20.0,
     this.neuteredMonthsRequired = 6,
+    this.pregnancyCooldownMonths = 12,
     this.donationIntervalDays = 56,
   });
 
   /// 조건 요약 텍스트 (UI 표시용)
   String get summaryText => '''
 • 나이: $minAgeYears세 ~ $maxAgeYears세 ($minAgeMonths개월 이상)
-• 체중: ${minWeightKg}kg 이상 ($consultWeightMinKg~${consultWeightMaxKg}kg 협의)
+• 체중: ${minWeightKg}kg 이상
 • 예방접종 완료
 • 예방약 복용 완료
 • 질병 이력 없음
-• 출산 경험 없음
-• 중성화 수술 $neuteredMonthsRequired개월 이후
+• 임신/출산 이력 없음 (출산 후 $pregnancyCooldownMonths개월 경과 시 가능)
+• 중성화 시 수술 후 $neuteredMonthsRequired개월 이후 (수술일 입력 필수)
 • 이전 헌혈 후 ${donationIntervalDays ~/ 7}주 이상 경과''';
 }
 
@@ -130,6 +142,9 @@ class CatEligibilityConditions {
   /// 최소 체중 (kg)
   final double minWeightKg;
 
+  /// 임신/출산 후 쿨다운 (개월)
+  final int pregnancyCooldownMonths;
+
   /// 헌혈 간격 (일)
   final int donationIntervalDays;
 
@@ -137,16 +152,17 @@ class CatEligibilityConditions {
     this.minAgeYears = 1,
     this.maxAgeYears = 8,
     this.minWeightKg = 4.0,
+    this.pregnancyCooldownMonths = 12,
     this.donationIntervalDays = 56,
   });
 
   /// 조건 요약 텍스트 (UI 표시용)
-  /// TODO: 고양이 조건이 확정되면 업데이트
   String get summaryText => '''
 • 나이: $minAgeYears세 ~ $maxAgeYears세
 • 체중: ${minWeightKg}kg 이상
 • 예방접종 완료
 • 질병 이력 없음
+• 임신/출산 이력 없음 (출산 후 $pregnancyCooldownMonths개월 경과 시 가능)
 • 이전 헌혈 후 ${donationIntervalDays ~/ 7}주 이상 경과''';
 }
 
@@ -161,19 +177,18 @@ class DonationEligibility {
     minAgeMonths: 18, // 최소 18개월
     minAgeYears: 2, // 최소 2살
     maxAgeYears: 8, // 최대 8살
-    minWeightKg: 25.0, // 최소 25kg
-    consultWeightMinKg: 20.0, // 협의 필요: 20kg 이상
-    consultWeightMaxKg: 24.9, // 협의 필요: 24.9kg 이하
+    minWeightKg: 20.0, // 최소 20kg (협의 zone 폐기, 단일 기준)
     neuteredMonthsRequired: 6, // 중성화 후 6개월
+    pregnancyCooldownMonths: 12, // 출산 후 12개월
     donationIntervalDays: 56, // 헌혈 간격 56일(8주)
   );
 
   /// 고양이 헌혈 조건
-  /// TODO: 고양이 조건이 확정되면 업데이트
   static const catConditions = CatEligibilityConditions(
     minAgeYears: 1,
     maxAgeYears: 8,
     minWeightKg: 4.0,
+    pregnancyCooldownMonths: 12,
     donationIntervalDays: 56,
   );
 
@@ -220,15 +235,15 @@ class DonationEligibility {
     final diseaseResult = _checkDisease(pet.hasDisease);
     results.add(diseaseResult);
 
-    // 6. 출산 경험
-    final birthResult = _checkBirthExperience(pet.hasBirthExperience);
-    results.add(birthResult);
+    // 6. 임신/출산 (이전 pregnant + has_birth_experience 통합 — CLAUDE.md Pet contract)
+    final pregnancyBirthResult = _checkPregnancyBirth(
+      pet.pregnancyBirthStatus,
+      pet.lastPregnancyEndDate,
+      conditions.pregnancyCooldownMonths,
+    );
+    results.add(pregnancyBirthResult);
 
-    // 7. 임신 여부
-    final pregnantResult = _checkPregnant(pet.pregnant);
-    results.add(pregnantResult);
-
-    // 8. 중성화 수술
+    // 7. 중성화 수술
     final neuteredResult = _checkNeutered(
       pet.isNeutered,
       pet.neuteredDate,
@@ -236,7 +251,7 @@ class DonationEligibility {
     );
     results.add(neuteredResult);
 
-    // 9. 헌혈 간격
+    // 8. 헌혈 간격
     final intervalResult = _checkDonationInterval(
       pet.prevDonationDate,
       conditions.donationIntervalDays,
@@ -270,9 +285,13 @@ class DonationEligibility {
     final diseaseResult = _checkDisease(pet.hasDisease);
     results.add(diseaseResult);
 
-    // 5. 임신 여부
-    final pregnantResult = _checkPregnant(pet.pregnant);
-    results.add(pregnantResult);
+    // 5. 임신/출산 (이전 pregnant 단일 → 통합 — CLAUDE.md Pet contract)
+    final pregnancyBirthResult = _checkPregnancyBirth(
+      pet.pregnancyBirthStatus,
+      pet.lastPregnancyEndDate,
+      conditions.pregnancyCooldownMonths,
+    );
+    results.add(pregnancyBirthResult);
 
     // 6. 헌혈 간격
     final intervalResult = _checkDonationInterval(
@@ -322,7 +341,7 @@ class DonationEligibility {
     );
   }
 
-  /// 강아지 체중 검증
+  /// 강아지 체중 검증 (협의 zone 폐기, 단일 기준 — CLAUDE.md Pet contract)
   static ConditionResult _checkDogWeight(
     double weightKg,
     DogEligibilityConditions conditions,
@@ -336,22 +355,11 @@ class DonationEligibility {
       );
     }
 
-    if (weightKg >= conditions.consultWeightMinKg &&
-        weightKg <= conditions.consultWeightMaxKg) {
-      return ConditionResult(
-        conditionName: '체중',
-        description: '${conditions.minWeightKg}kg 이상',
-        status: EligibilityStatus.needsConsultation,
-        message:
-            '현재 ${weightKg}kg (${conditions.consultWeightMinKg}~${conditions.consultWeightMaxKg}kg은 병원 협의 필요)',
-      );
-    }
-
     return ConditionResult(
       conditionName: '체중',
       description: '${conditions.minWeightKg}kg 이상',
       status: EligibilityStatus.ineligible,
-      message: '현재 ${weightKg}kg (최소 ${conditions.consultWeightMinKg}kg 이상 필요)',
+      message: '현재 ${weightKg}kg (최소 ${conditions.minWeightKg}kg 이상 필요)',
     );
   }
 
@@ -500,69 +508,82 @@ class DonationEligibility {
     );
   }
 
-  /// 출산 경험 검증 (강아지만)
-  static ConditionResult _checkBirthExperience(bool? hasBirthExperience) {
-    // null인 경우 정보 없음 - 헌혈 불가
-    if (hasBirthExperience == null) {
+  /// 임신/출산 통합 검증 (CLAUDE.md Pet contract - PregnancyBirthStatus + last_pregnancy_end_date)
+  ///
+  /// 백엔드 services/donation_eligibility_service.py의 pregnancyBirth condition과 동일 결과.
+  /// reason 매핑: pregnant / cooldown / date_missing.
+  static ConditionResult _checkPregnancyBirth(
+    int status,
+    DateTime? endDate,
+    int cooldownMonths,
+  ) {
+    // 0: 해당없음 (NONE)
+    if (status == 0) {
       return const ConditionResult(
-        conditionName: '출산 경험',
-        description: '출산 경험 없음',
+        conditionName: '임신/출산',
+        description: '임신중이 아니며 출산 이력 없음',
+        status: EligibilityStatus.eligible,
+        message: '해당 없음',
+      );
+    }
+
+    // 1: 임신중 (PREGNANT) → fail (reason: pregnant)
+    if (status == 1) {
+      return const ConditionResult(
+        conditionName: '임신/출산',
+        description: '임신중이 아니며 출산 이력 없음',
         status: EligibilityStatus.ineligible,
-        message: '출산 경험 정보를 입력해주세요',
+        message: '현재 임신 중에는 헌혈이 어렵습니다',
+        reason: EligibilityReason.pregnant,
       );
     }
 
-    if (hasBirthExperience == false) {
+    // 2: 출산 이력 (POST_BIRTH)
+    // 종료일 NULL → fail (reason: date_missing)
+    if (endDate == null) {
       return const ConditionResult(
-        conditionName: '출산 경험',
-        description: '출산 경험 없음',
-        status: EligibilityStatus.eligible,
-        message: '출산 경험 없음',
+        conditionName: '임신/출산',
+        description: '출산 후 12개월 경과',
+        status: EligibilityStatus.ineligible,
+        message: '출산 종료일을 입력해주세요',
+        reason: EligibilityReason.dateMissing,
       );
     }
 
-    // hasBirthExperience == true
-    return const ConditionResult(
-      conditionName: '출산 경험',
-      description: '출산 경험 없음',
+    final monthsSinceEnd = DateTime.now().difference(endDate).inDays ~/ 30;
+    if (monthsSinceEnd >= cooldownMonths) {
+      return ConditionResult(
+        conditionName: '임신/출산',
+        description: '출산 후 $cooldownMonths개월 경과',
+        status: EligibilityStatus.eligible,
+        message: '출산 후 $monthsSinceEnd개월 경과',
+      );
+    }
+
+    // cooldown 미경과 → fail (reason: cooldown)
+    final remaining = cooldownMonths - monthsSinceEnd;
+    return ConditionResult(
+      conditionName: '임신/출산',
+      description: '출산 후 $cooldownMonths개월 경과',
       status: EligibilityStatus.ineligible,
-      message: '출산 경험이 있어 헌혈이 어렵습니다',
+      message: '출산 후 $monthsSinceEnd개월 경과 ($remaining개월 후 가능)',
+      reason: EligibilityReason.cooldown,
     );
   }
 
-  /// 임신 여부 검증
-  static ConditionResult _checkPregnant(bool pregnant) {
-    if (!pregnant) {
-      return const ConditionResult(
-        conditionName: '임신 상태',
-        description: '임신하지 않은 상태',
-        status: EligibilityStatus.eligible,
-        message: '임신하지 않음',
-      );
-    }
-
-    return const ConditionResult(
-      conditionName: '임신 상태',
-      description: '임신하지 않은 상태',
-      status: EligibilityStatus.ineligible,
-      message: '임신 중에는 헌혈이 어렵습니다',
-    );
-  }
-
-  /// 중성화 수술 검증
-  /// TODO: Pet 모델에 isNeutered, neuteredDate 필드 추가 후 구현
+  /// 중성화 수술 검증 (CLAUDE.md Pet contract: is_neutered=true이면 neutered_date 필수)
   static ConditionResult _checkNeutered(
     bool? isNeutered,
     DateTime? neuteredDate,
     int requiredMonths,
   ) {
-    // 필드가 없으면 검증 건너뜀 (통과 처리)
+    // None 보수적 fail (백엔드 정책 동기화)
     if (isNeutered == null) {
       return ConditionResult(
         conditionName: '중성화 수술',
         description: '중성화 수술 $requiredMonths개월 이후',
-        status: EligibilityStatus.eligible,
-        message: '(정보 없음 - 병원에서 확인)',
+        status: EligibilityStatus.ineligible,
+        message: '중성화 수술 정보를 입력해주세요',
       );
     }
 
@@ -576,13 +597,13 @@ class DonationEligibility {
       );
     }
 
-    // 중성화한 경우 - 수술 후 경과 기간 확인
+    // 중성화한 경우 - 수술일 필수
     if (neuteredDate == null) {
       return ConditionResult(
         conditionName: '중성화 수술',
         description: '중성화 수술 $requiredMonths개월 이후',
-        status: EligibilityStatus.needsConsultation,
-        message: '중성화 수술일 확인 필요',
+        status: EligibilityStatus.ineligible,
+        message: '중성화 수술일을 입력해주세요',
       );
     }
 
