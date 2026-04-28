@@ -216,6 +216,9 @@ class NotificationService {
           break;
         case 'new_pet_registration':
         case 'pet_review_request':
+        case 'pet_profile_image_review_request':
+          // 사진 검토 요청도 동일하게 관리자 반려동물 관리(승인 대기 탭)로 이동.
+          // CLAUDE.md "펫 프로필 사진 검토 워크플로우" 참고.
           final parsedData = _parseNotificationData(data);
           _navigateToAdminPetManagement(parsedData);
           break;
@@ -246,6 +249,10 @@ class NotificationService {
           break;
         case 'pet_approved':
         case 'pet_rejected':
+        case 'pet_profile_image_approved':
+        case 'pet_profile_image_rejected':
+          // 사진 승인/거절도 동일하게 사용자 펫 관리 화면으로.
+          // 거절 시 자동으로 사진 옵션 시트는 열지 않음 (수정 화면까지만 도착).
           final parsedData = _parseNotificationData(data);
           _navigateToUserPetManagement(parsedData);
           break;
