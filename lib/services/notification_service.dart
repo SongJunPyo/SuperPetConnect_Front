@@ -6,8 +6,10 @@ import 'package:flutter_naver_login/flutter_naver_login.dart';
 import 'package:http/http.dart' as http;
 import 'package:provider/provider.dart';
 import '../admin/admin_column_management.dart';
+import '../admin/admin_donation_approval_page.dart';
 import '../admin/admin_pet_management.dart';
 import '../admin/admin_signup_management.dart';
+import '../hospital/hospital_post_check.dart';
 import '../providers/notification_provider.dart';
 import '../utils/config.dart';
 import '../utils/preferences_manager.dart';
@@ -56,7 +58,7 @@ class NotificationService {
         } else if (message.data['type'] == 'recruitment_closed') {
           _navigateForRecruitmentClosed(message.data);
         } else if (message.data['type'] == 'donation_completed') {
-          _navigateToDonationHistory(message.data);
+          _navigateForDonationCompleted(message.data);
         } else if (message.data['type'] == 'new_donation_post') {
           _navigateToNewDonationPost(parsedData);
         } else if (message.data['type'] == 'new_pet_registration' ||
@@ -117,7 +119,7 @@ class NotificationService {
             } else if (message.data['type'] == 'recruitment_closed') {
               _navigateForRecruitmentClosed(message.data);
             } else if (message.data['type'] == 'donation_completed') {
-              _navigateToDonationHistory(message.data);
+              _navigateForDonationCompleted(message.data);
             } else if (message.data['type'] == 'new_donation_post') {
               _navigateToNewDonationPost(parsedData);
             } else if (message.data['type'] == 'new_pet_registration' ||
@@ -180,7 +182,7 @@ class NotificationService {
           _navigateForRecruitmentClosed(data);
           break;
         case 'donation_completed':
-          _navigateToDonationHistory(data);
+          _navigateForDonationCompleted(data);
           break;
         case 'new_donation_post':
           final parsedData = _parseNotificationData(data);
@@ -494,6 +496,40 @@ class NotificationService {
       debugPrint('[NotificationService] 새 헌혈 모집 네비게이션 실패: $e');
       // 오류 발생 시 헌혈 게시글 목록으로 이동
       Navigator.pushNamed(context, '/user/donation-posts');
+    }
+  }
+
+  /// donation_completed 알림 분기 (2-3a 임시 정정).
+  /// CLAUDE.md "알림 다중 수신 라우팅" 박제대로 account_type 3분기:
+  /// - admin(1)    → 헌혈 최종 승인 대기 화면
+  /// - hospital(2) → 게시글 신청자/완료 관리 화면 (현재 단순 push,
+  ///                 백엔드 단일 게시글 fetch API 합의 후 2-3b에서 자동 오픈 보강 예정)
+  /// - user(3)     → 본인 헌혈 이력 (_navigateToDonationHistory 위임)
+  static Future<void> _navigateForDonationCompleted(
+    Map<String, dynamic> data,
+  ) async {
+    final context = navigatorKey.currentContext;
+    if (context == null) return;
+
+    final accountType = await PreferencesManager.getAccountType();
+    if (!context.mounted) return;
+
+    try {
+      if (accountType == 1) {
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => const AdminDonationApprovalPage()),
+        );
+      } else if (accountType == 2) {
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => const HospitalPostCheck()),
+        );
+      } else {
+        _navigateToDonationHistory(data);
+      }
+    } catch (e) {
+      debugPrint('[NotificationService] donation_completed 분기 실패: $e');
     }
   }
 
