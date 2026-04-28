@@ -59,6 +59,8 @@ class NotificationService {
           _navigateForRecruitmentClosed(message.data);
         } else if (message.data['type'] == 'donation_completed') {
           _navigateForDonationCompleted(message.data);
+        } else if (message.data['type'] == 'donation_completion_rejected') {
+          _navigateToDonationHistory(message.data);
         } else if (message.data['type'] == 'new_donation_post') {
           _navigateToNewDonationPost(parsedData);
         } else if (message.data['type'] == 'new_pet_registration' ||
@@ -120,6 +122,8 @@ class NotificationService {
               _navigateForRecruitmentClosed(message.data);
             } else if (message.data['type'] == 'donation_completed') {
               _navigateForDonationCompleted(message.data);
+            } else if (message.data['type'] == 'donation_completion_rejected') {
+              _navigateToDonationHistory(message.data);
             } else if (message.data['type'] == 'new_donation_post') {
               _navigateToNewDonationPost(parsedData);
             } else if (message.data['type'] == 'new_pet_registration' ||
@@ -161,10 +165,6 @@ class NotificationService {
           final parsedData = _parseNotificationData(data);
           _navigateToPostManagement(parsedData);
           break;
-        case 'donation_application':
-          final parsedData = _parseNotificationData(data);
-          _navigateToDonationManagement(parsedData);
-          break;
         case 'donation_post_approved':
           final parsedData = _parseNotificationData(data);
           _navigateToHospitalPosts(parsedData);
@@ -183,6 +183,9 @@ class NotificationService {
           break;
         case 'donation_completed':
           _navigateForDonationCompleted(data);
+          break;
+        case 'donation_completion_rejected':
+          _navigateToDonationHistory(data);
           break;
         case 'new_donation_post':
           final parsedData = _parseNotificationData(data);
@@ -289,45 +292,6 @@ class NotificationService {
   static Future<void> updateTokenAfterLogin() async {
     if (kIsWeb) return;
     await FCMHandler.instance.updateFCMToken();
-  }
-
-  // 헌혈 신청 관리 페이지로 이동 (병원용)
-  static void _navigateToDonationManagement(Map<String, dynamic> data) {
-    final context = navigatorKey.currentContext;
-    if (context == null) return;
-
-    try {
-      final navigation = data['navigation'];
-
-      if (navigation != null) {
-        // navigation이 JSON 문자열인 경우 파싱
-        final navData =
-            navigation is String ? jsonDecode(navigation) : navigation;
-
-        final postId = navData['post_id']; // 게시글 ID
-        final tab = navData['tab']; // "applications"
-
-        // 병원 헌혈 신청 관리 페이지로 이동
-        Navigator.pushNamed(
-          context,
-          '/hospital/donation-management',
-          arguments: {
-            'postId': postId is String ? int.tryParse(postId) : postId,
-            'initialTab': tab,
-            'highlightApplication':
-                data['application_id'] is String
-                    ? int.tryParse(data['application_id'])
-                    : data['application_id'],
-          },
-        );
-      } else {
-        // 기본 병원 대시보드로 이동
-        Navigator.pushNamed(context, '/hospital/dashboard');
-      }
-    } catch (e) {
-      // 오류 발생 시 기본 병원 대시보드로 이동
-      Navigator.pushNamed(context, '/hospital/dashboard');
-    }
   }
 
   // 병원 헌혈 게시글 페이지로 이동

@@ -112,6 +112,12 @@ class ServerNotificationMapping {
       UserType.user: UserNotificationType.applicationRejected,
     },
 
+    // 헌혈 완료 거절 (관리자 최종 승인 단계 거절). user 1명 수신.
+    // 도착 화면: 본인 헌혈 이력 (_navigateToDonationHistory 재사용, application_id로 highlight).
+    'donation_completion_rejected': {
+      UserType.user: UserNotificationType.applicationRejected,
+    },
+
     // === 모집 마감 알림 (사용자 + 병원 모두 받음) ===
     'recruitment_closed': {
       UserType.user: UserNotificationType.recruitmentClosed,
