@@ -15,18 +15,15 @@ import '../widgets/post_list/post_list_row.dart';
 import 'package:intl/intl.dart';
 import '../services/admin_completed_donation_service.dart';
 import '../services/dashboard_service.dart';
-import '../widgets/post_detail/post_detail_handle_bar.dart';
 import '../widgets/post_detail/post_detail_header.dart';
-import '../widgets/post_detail/post_detail_meta_section.dart';
-import '../widgets/post_detail/post_detail_blood_type.dart';
 import '../widgets/post_detail/post_detail_description.dart';
-import '../widgets/post_detail/post_detail_patient_info.dart';
 import '../utils/time_format_util.dart';
 import 'admin_post_edit.dart';
 import '../widgets/pagination_bar.dart';
 import '../widgets/info_row.dart';
 import '../widgets/donation_history_sheet.dart';
 import '../widgets/admin/applicant_detail_sheet.dart';
+import '../widgets/admin/post_detail_sheet.dart';
 
 class AdminPostCheck extends StatefulWidget {
   /// 알림 탭 등 외부 진입 시 강조할 게시글 post_idx.
@@ -2014,7 +2011,7 @@ class _AdminPostCheckState extends State<AdminPostCheck>
             post['is_completion_pending'] == true) {
           _showCompletionApplicantInfo(post);
         } else {
-          _showPostDetail(
+          _openPostDetailSheet(
             post,
             postStatus,
             post['types'] == 0 ? '긴급' : '정기',
@@ -2024,425 +2021,39 @@ class _AdminPostCheckState extends State<AdminPostCheck>
     );
   }
 
-  void _showPostDetail(
+  /// 게시글 상세 시트를 열기 위한 진입점.
+  /// 시트 자체는 [showPostDetailBottomSheet] (lib/widgets/admin/post_detail_sheet.dart)에 있고,
+  /// 여기서는 메뉴/시간대 빌더 + 액션 콜백을 본 화면 컨텍스트에 묶어 전달.
+  void _openPostDetailSheet(
     Map<String, dynamic> post,
     String postStatus,
     String postType,
   ) {
-    // 동물 종류 표시를 위한 변환 (int 0/1 또는 String 'dog'/'cat')
-    final animalTypeRaw = post['animalType'];
-    final animalType = animalTypeRaw == 0 || animalTypeRaw == '0' ? 0 :
-                       animalTypeRaw == 1 || animalTypeRaw == '1' ? 1 : 0;
-
-    // 생성일 파싱
-    final createdAt = TimeFormatUtils.parseFlexibleDate(
-      post['createdDate'] ?? post['created_date'] ?? post['created_at'],
-    ) ?? DateTime.now();
-
-    // 혈액형 추출
-    final bloodType = post['bloodType'] ?? post['blood_type'] ?? post['emergency_blood_type'];
-
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+    showPostDetailBottomSheet(
+      context,
+      post: post,
+      postStatus: postStatus,
+      postType: postType,
+      currentTabIndex: _currentTabIndex,
+      menuItems: (_currentTabIndex == 0 ||
+              _currentTabIndex == 1 ||
+              _currentTabIndex == 2)
+          ? _buildPostDetailMenuItems(post)
+          : null,
+      timeSlotBuilder: (setState) => _buildDateTimeDropdown(post, setState),
+      actions: PostDetailSheetActions(
+        onApprovePostTap: (id, title) => _showConfirmDialog(id, true, title),
+        onRejectPostTap: (id, title) => _showConfirmDialog(id, false, title),
+        onFinalApproveCompletion: _finalApproveCompletion,
+        onRejectCompletion: _rejectCompletion,
+        onClosePost: (setState) =>
+            _showClosePostConfirmationSheet(post, setState),
+        onReopenPost: (setState) =>
+            _showReopenPostConfirmationSheet(post, setState),
       ),
-      builder: (BuildContext context) {
-        return StatefulBuilder(
-          builder: (BuildContext context, StateSetter setState) {
-            return DraggableScrollableSheet(
-              initialChildSize: 0.7,
-              minChildSize: 0.5,
-              maxChildSize: 0.95,
-              expand: false,
-              builder: (context, scrollController) {
-                return Container(
-                  decoration: const BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.vertical(
-                      top: Radius.circular(20),
-                    ),
-                  ),
-                  child: Column(
-                    children: [
-                      // 핸들 바
-                      const PostDetailHandleBar(),
-
-                      // 헤더 (... 메뉴 또는 수정 아이콘)
-                      PostDetailHeader(
-                        title: post['title'] ?? '제목 없음',
-                        isUrgent: postType == '긴급',
-                        typeText: postType,
-                        profileImage: post['hospitalProfileImage'] ?? post['hospital_profile_image'],
-                        onClose: () => Navigator.pop(context),
-                        menuItems: (_currentTabIndex == 0 || _currentTabIndex == 1 || _currentTabIndex == 2)
-                            ? _buildPostDetailMenuItems(post)
-                            : null,
-                      ),
-
-                      const Divider(height: 1),
-
-                      // 상세 정보 (스크롤 가능)
-                      Expanded(
-                        child: SingleChildScrollView(
-                          controller: scrollController,
-                          padding: const EdgeInsets.fromLTRB(20, 20, 20, 20),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              // 메타 정보 (병원명, 주소, 동물 종류, 신청자 수)
-                              PostDetailMetaSection(
-                                hospitalName: _extractHospitalName(post['title'] ?? ''),
-                                hospitalNickname: null,
-                                hospitalProfileImage: post['hospitalProfileImage'] ?? post['hospital_profile_image'],
-                                location: post['location'] ?? '주소 정보 없음',
-                                animalType: animalType,
-                                applicantCount: post['applicantCount'] ?? post['applicant_count'] ?? 0,
-                                createdAt: createdAt,
-                              ),
-
-                              // 설명글
-                              PostDetailDescription(
-                                contentDelta: (post['contentDelta'] ?? post['content_delta'])?.toString(),
-                                plainText: post['description']?.toString(),
-                              ),
-
-                              // 중단 사유 (상태 6 또는 4인 경우에 표시)
-                              if ((post['status'] == 6 ||
-                                      post['status'] == 4) &&
-                                  post['cancelled_reason'] != null &&
-                                  post['cancelled_reason']
-                                      .toString()
-                                      .isNotEmpty) ...[
-                                const SizedBox(height: 16),
-                                Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Row(
-                                      children: [
-                                        Icon(
-                                          Icons.warning_amber_rounded,
-                                          size: 18,
-                                          color: Colors.orange.shade700,
-                                        ),
-                                        const SizedBox(width: 8),
-                                        Text(
-                                          '중단 사유',
-                                          style: AppTheme.bodyLargeStyle
-                                              .copyWith(
-                                                fontWeight: FontWeight.w600,
-                                                color: Colors.orange.shade700,
-                                              ),
-                                        ),
-                                      ],
-                                    ),
-                                    const SizedBox(height: 8),
-                                    Container(
-                                      width: double.infinity,
-                                      padding: const EdgeInsets.all(12),
-                                      decoration: BoxDecoration(
-                                        color: Colors.orange.shade50,
-                                        borderRadius: BorderRadius.circular(8),
-                                        border: Border.all(
-                                          color: Colors.orange.shade200,
-                                        ),
-                                      ),
-                                      child: Column(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.start,
-                                        children: [
-                                          Text(
-                                            post['cancelled_reason'],
-                                            style: AppTheme.bodyMediumStyle
-                                                .copyWith(
-                                                  color: AppTheme.textPrimary,
-                                                  height: 1.4,
-                                                ),
-                                          ),
-                                          if (post['cancelled_at'] != null) ...[
-                                            const SizedBox(height: 8),
-                                            Text(
-                                              '중단 처리 시간: ${TimeFormatUtils.formatKoreanDateTime(post['cancelled_at'])}',
-                                              style: AppTheme.bodySmallStyle
-                                                  .copyWith(
-                                                    color:
-                                                        AppTheme.textSecondary,
-                                                  ),
-                                            ),
-                                          ],
-                                        ],
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                                const SizedBox(height: 20),
-                              ],
-
-                              // 환자 정보 (긴급 헌혈만)
-                              PostDetailPatientInfo(
-                                isUrgent: post['types'] == 0,
-                                patientName: post['patientName']?.toString() ?? post['patient_name']?.toString(),
-                                breed: post['breed']?.toString(),
-                                age: post['age'] is int ? post['age'] : (int.tryParse(post['age']?.toString() ?? '')),
-                                diagnosis: post['diagnosis']?.toString(),
-                              ),
-
-                              // 혈액형 정보
-                              if (post['types'] == 0) PostDetailBloodType(
-                                bloodType: bloodType?.toString(),
-                                isUrgent: postType == '긴급',
-                              ),
-
-                              // 헌혈 일정
-                              Text("헌혈 일정", style: AppTheme.h4Style),
-                              const SizedBox(height: 12),
-
-                              // 드롭다운 형태의 날짜/시간 선택 UI
-                              _buildDateTimeDropdown(post, setState),
-
-                              const SizedBox(height: 16),
-
-                              // 전체 마감 버튼 (모집중 상태이거나 일부 시간대가 열려있는 경우 표시)
-                              // status: 0=대기, 1=모집중, 2=거절, 3=마감
-                              if ((post['status'] == 1 ||
-                                      (post['status'] == 3 &&
-                                          _hasOpenTimeSlots(post))) &&
-                                  post['is_completion_pending'] != true &&
-                                  _currentTabIndex == 1)
-                                SizedBox(
-                                  width: double.infinity,
-                                  child: OutlinedButton(
-                                    onPressed: () {
-                                      _showClosePostConfirmationSheet(
-                                        post,
-                                        setState,
-                                      );
-                                    },
-                                    style: OutlinedButton.styleFrom(
-                                      foregroundColor: Colors.red,
-                                      side: const BorderSide(color: Colors.red),
-                                      padding: const EdgeInsets.symmetric(
-                                        vertical: 14,
-                                      ),
-                                      shape: RoundedRectangleBorder(
-                                        borderRadius: BorderRadius.circular(8),
-                                      ),
-                                    ),
-                                    child: const Text('모든 시간대 게시글 마감'),
-                                  ),
-                                ),
-
-                              // 게시글 전체 재오픈 버튼 (마감 상태이고 열린 시간대가 없을 때 표시)
-                              if (post['status'] == 3 &&
-                                  !_hasOpenTimeSlots(post) &&
-                                  post['is_completion_pending'] != true &&
-                                  _currentTabIndex == 1)
-                                Padding(
-                                  padding: const EdgeInsets.only(top: 8),
-                                  child: SizedBox(
-                                    width: double.infinity,
-                                    child: ElevatedButton.icon(
-                                      onPressed: () {
-                                        _showReopenPostConfirmationSheet(
-                                          post,
-                                          setState,
-                                        );
-                                      },
-                                      icon: const Icon(
-                                        Icons.refresh,
-                                        size: 18,
-                                      ),
-                                      label: const Text('게시글 전체 재오픈'),
-                                      style: ElevatedButton.styleFrom(
-                                        backgroundColor: Colors.green,
-                                        foregroundColor: Colors.white,
-                                        padding: const EdgeInsets.symmetric(
-                                          vertical: 14,
-                                        ),
-                                        shape: RoundedRectangleBorder(
-                                          borderRadius: BorderRadius.circular(8),
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                                ),
-
-                              const SizedBox(height: 24),
-
-                              // 헌혈마감 탭에서는 상태에 따라 버튼 구분 표시
-                              if (post['is_completion_pending'] == true) ...[
-                                // 완료대기(status==5)는 헌혈마감 버튼만, 중단대기(status==6)는 헌혈중단 버튼만
-                                if (post['status'] == 5) ...[
-                                  // 완료대기 - 헌혈마감 버튼만 표시
-                                  SizedBox(
-                                    width: double.infinity,
-                                    child: OutlinedButton(
-                                      onPressed: () {
-                                        Navigator.of(context).pop();
-                                        _finalApproveCompletion(
-                                          post['application_id'] ??
-                                              post['id'] ??
-                                              0,
-                                        );
-                                      },
-                                      style: OutlinedButton.styleFrom(
-                                        foregroundColor: Colors.green,
-                                        side: const BorderSide(
-                                          color: Colors.green,
-                                        ),
-                                        backgroundColor: Colors.white,
-                                        shape: RoundedRectangleBorder(
-                                          borderRadius: BorderRadius.circular(
-                                            8,
-                                          ),
-                                        ),
-                                        padding: const EdgeInsets.symmetric(
-                                          vertical: 12,
-                                        ),
-                                      ),
-                                      child: const Text('헌혈 마감'),
-                                    ),
-                                  ),
-                                ] else if (post['status'] == 6) ...[
-                                  // 중단대기 - 헌혈중단 버튼만 표시
-                                  SizedBox(
-                                    width: double.infinity,
-                                    child: OutlinedButton(
-                                      onPressed: () {
-                                        Navigator.of(context).pop();
-                                        _rejectCompletion(
-                                          post['application_id'] ??
-                                              post['id'] ??
-                                              0,
-                                        );
-                                      },
-                                      style: OutlinedButton.styleFrom(
-                                        foregroundColor: Colors.red,
-                                        side: const BorderSide(
-                                          color: Colors.red,
-                                        ),
-                                        backgroundColor: Colors.transparent,
-                                        shape: RoundedRectangleBorder(
-                                          borderRadius: BorderRadius.circular(
-                                            8,
-                                          ),
-                                        ),
-                                        padding: const EdgeInsets.symmetric(
-                                          vertical: 12,
-                                        ),
-                                      ),
-                                      child: const Text('헌혈 중단'),
-                                    ),
-                                  ),
-                                ],
-                              ]
-                              // 승인/거절 버튼 (WAIT(0) 대기 상태일 때만 표시, 헌혈완료/취소 탭에서는 표시하지 않음)
-                              else if (postStatus == '승인 대기' &&
-                                  _currentTabIndex != 3 &&
-                                  _currentTabIndex != 4) ...[
-                                Row(
-                                  children: [
-                                    Expanded(
-                                      child: OutlinedButton(
-                                        onPressed: () {
-                                          Navigator.of(context).pop();
-                                          final postId = post['id'];
-                                          if (postId != null) {
-                                            _showConfirmDialog(
-                                              postId is int
-                                                  ? postId
-                                                  : int.tryParse(
-                                                        postId.toString(),
-                                                      ) ??
-                                                      0,
-                                              true,
-                                              post['title'] ?? '제목 없음',
-                                            );
-                                          }
-                                        },
-                                        style: OutlinedButton.styleFrom(
-                                          foregroundColor: Colors.green,
-                                          side: const BorderSide(
-                                            color: Colors.green,
-                                          ),
-                                          backgroundColor: Colors.transparent,
-                                          shape: RoundedRectangleBorder(
-                                            borderRadius: BorderRadius.circular(
-                                              8,
-                                            ),
-                                          ),
-                                          padding: const EdgeInsets.symmetric(
-                                            vertical: 12,
-                                          ),
-                                        ),
-                                        child: const Text('승인'),
-                                      ),
-                                    ),
-                                    const SizedBox(width: 12),
-                                    Expanded(
-                                      child: OutlinedButton(
-                                        onPressed: () {
-                                          Navigator.of(context).pop();
-                                          final postId = post['id'];
-                                          if (postId != null) {
-                                            _showConfirmDialog(
-                                              postId is int
-                                                  ? postId
-                                                  : int.tryParse(
-                                                        postId.toString(),
-                                                      ) ??
-                                                      0,
-                                              false,
-                                              post['title'] ?? '제목 없음',
-                                            );
-                                          }
-                                        },
-                                        style: OutlinedButton.styleFrom(
-                                          foregroundColor: Colors.red,
-                                          side: const BorderSide(
-                                            color: Colors.red,
-                                          ),
-                                          backgroundColor: Colors.transparent,
-                                          shape: RoundedRectangleBorder(
-                                            borderRadius: BorderRadius.circular(
-                                              8,
-                                            ),
-                                          ),
-                                          padding: const EdgeInsets.symmetric(
-                                            vertical: 12,
-                                          ),
-                                        ),
-                                        child: const Text('거절'),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ],
-                            ],
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                );
-              },
-            );
-          },
-        );
-      },
     );
   }
 
-  // 제목에서 병원 이름 추출하는 메서드
-  String _extractHospitalName(String title) {
-    // [병원이름] 형식에서 병원 이름 추출
-    final match = RegExp(r'\[(.*?)\]').firstMatch(title);
-    if (match != null && match.group(1) != null) {
-      return match.group(1)!;
-    }
-    return '병원 이름 없음';
-  }
 
   Widget _buildDateTimeDropdown(
     Map<String, dynamic> post,
@@ -3590,7 +3201,7 @@ class _AdminPostCheckState extends State<AdminPostCheck>
       );
 
       // 5. 업데이트된 게시글로 상세 모달 다시 열기
-      _showPostDetail(
+      _openPostDetailSheet(
         updatedPost,
         _getPostStatus(updatedPost['status']),
         updatedPost['types'] == 0 ? '긴급' : '정기',
@@ -4531,11 +4142,8 @@ class _AdminPostCheckState extends State<AdminPostCheck>
     );
   }
 
-  // 열린 시간대가 있는지 확인
   bool _hasOpenTimeSlots(Map<String, dynamic> post) {
     final timeRanges = post['timeRanges'] as List<dynamic>? ?? [];
-    // status 0 = 열림, status 1 = 마감
     return timeRanges.any((ts) => ts['status'] == 0 || ts['status'] == null);
   }
-
 }
