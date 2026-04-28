@@ -200,11 +200,11 @@ class _DonationHistoryScreenState extends State<DonationHistoryScreen>
                 .toList();
 
         // 신청 중인 것과 완료된 것 분리
-        // status_code: 0=대기중, 1=승인됨, 2=미승인, 4=취소됨, 7=헌혈완료
+        // status_code: 0=대기, 1=선정, 2=완료대기, 3=완료, 4=종결
         applications =
-            allApplications.where((app) => app.statusCode != 7).toList();
+            allApplications.where((app) => app.statusCode != 3).toList();
         completed =
-            allApplications.where((app) => app.statusCode == 7).toList();
+            allApplications.where((app) => app.statusCode == 3).toList();
 
         debugPrint(
           '[DonationHistory] 신청 중: ${applications.length}개, 완료: ${completed.length}개',

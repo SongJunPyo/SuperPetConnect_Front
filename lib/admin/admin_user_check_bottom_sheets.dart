@@ -880,7 +880,7 @@ class _ActiveUserBottomSheetState extends State<ActiveUserBottomSheet>
             ),
           ),
           // 헌혈완료 — 자료 요청 버튼 (카드 탭과 분리)
-          if (status == 7) ...[
+          if (status == 3) ...[
             const SizedBox(height: 8),
             SizedBox(
               width: double.infinity,
@@ -1276,7 +1276,7 @@ class _ActiveUserBottomSheetState extends State<ActiveUserBottomSheet>
                   isLoading = false;
                   for (final app in petApplications) {
                     final completed = app['completed'] as Map<String, dynamic>?;
-                    if (completed != null && app['status'] == 7) {
+                    if (completed != null && app['status'] == 3) {
                       totalBloodVolume += ((completed['blood_volume'] ?? 0) as num).toInt();
                     }
                   }
@@ -1316,7 +1316,7 @@ class _ActiveUserBottomSheetState extends State<ActiveUserBottomSheet>
                     Wrap(
                       spacing: 8,
                       children: [
-                        _statChip(Icons.check_circle, '완료 ${petApplications.where((a) => a['status'] == 7).length}건'),
+                        _statChip(Icons.check_circle, '완료 ${petApplications.where((a) => a['status'] == 3).length}건'),
                         if (totalBloodVolume > 0)
                           _statChip(Icons.bloodtype, '총 ${totalBloodVolume}ml'),
                       ],
@@ -1356,7 +1356,7 @@ class _ActiveUserBottomSheetState extends State<ActiveUserBottomSheet>
           final petData = app['pet'] as Map<String, dynamic>?;
           final appPetIdx = petData?['pet_idx'] as int?;
           final status = app['status'] as int?;
-          return appPetIdx == petIdx && status == 7;
+          return appPetIdx == petIdx && status == 3;
         }).toList();
       }
     } catch (_) {}

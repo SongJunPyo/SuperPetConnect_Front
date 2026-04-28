@@ -22,7 +22,7 @@ class PostDetailSheetActions {
   /// Tab 0 모집대기 — 거절 버튼.
   final void Function(int postId, String title)? onRejectPostTap;
 
-  /// Tab 2 헌혈마감 — 헌혈 마감 (status 5 → 7).
+  /// Tab 2 헌혈마감 — 헌혈 마감 (PENDING_COMPLETION 2 → COMPLETED 3).
   final void Function(int applicationId)? onFinalApproveCompletion;
 
   /// Tab 1 헌혈모집 — 모든 시간대 마감.
@@ -213,7 +213,7 @@ void showPostDetailBottomSheet(
                               ),
                             const SizedBox(height: 24),
                             if (post['is_completion_pending'] == true &&
-                                post['status'] == 5 &&
+                                post['status'] == 2 &&
                                 actions.onFinalApproveCompletion != null) ...[
                               SizedBox(
                                 width: double.infinity,

@@ -10,10 +10,10 @@ import '../post_detail/post_detail_description.dart';
 /// 헌혈마감 / 헌혈완료 탭에서 확정 신청자 1명의 정보를 표시할 때
 /// 호출되는 액션 묶음. 모든 콜백 nullable — 해당 status에서 보일 버튼 콜백만 채움.
 class CompletionApplicantSheetActions {
-  /// status 5 (PENDING_COMPLETION) — "헌혈 마감" 버튼.
+  /// status 2 (PENDING_COMPLETION) — "헌혈 마감" 버튼.
   final void Function(int applicationId)? onFinalApproveCompletion;
 
-  /// status 7 (FINAL_COMPLETED) — "헌혈 자료 요청" 버튼.
+  /// status 3 (COMPLETED) — "헌혈 자료 요청" 버튼.
   final void Function(int applicationId)? onRequestDocuments;
 
   const CompletionApplicantSheetActions({
@@ -134,11 +134,11 @@ void showCompletionApplicantSheet(
                       const SizedBox(height: 12),
                       _ApplicantInfoCard(post: post),
                     ],
-                    if (post['status'] != 5) ...[
+                    if (post['status'] != 2) ...[
                       const SizedBox(height: 24),
                       DonationHistorySection(petIdx: petIdx),
                     ],
-                    if (post['status'] == 5 &&
+                    if (post['status'] == 2 &&
                         actions.onFinalApproveCompletion != null) ...[
                       const SizedBox(height: 24),
                       _ActionButton(
@@ -152,7 +152,7 @@ void showCompletionApplicantSheet(
                         },
                       ),
                     ],
-                    if (post['status'] == 7 &&
+                    if (post['status'] == 3 &&
                         actions.onRequestDocuments != null) ...[
                       const SizedBox(height: 24),
                       SizedBox(

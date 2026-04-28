@@ -175,9 +175,9 @@ class _HospitalPostCheckState extends State<HospitalPostCheck>
 
     switch (_currentTabIndex) {
       case 2:
-        // 모집마감: 승인(1) + 완료대기(5)
+        // 모집마감: 선정(1) + 완료대기(2)
         var allItems = postTimeItems
-            .where((item) => [1, 5].contains(item.applicantStatus))
+            .where((item) => [1, 2].contains(item.applicantStatus))
             .toList();
 
         // 검색어 필터링
@@ -211,7 +211,7 @@ class _HospitalPostCheckState extends State<HospitalPostCheck>
         break;
 
       case 3:
-        // 헌혈완료: applicant_status=7
+        // 헌혈완료: applicant_status=3 (COMPLETED)
         var allItems = postTimeItems.toList();
 
         // 검색어 필터링
@@ -288,32 +288,25 @@ class _HospitalPostCheckState extends State<HospitalPostCheck>
           break;
 
         case 2:
-          // 모집마감: 승인(1) + 완료대기(5) + 중단대기(6) 조회
+          // 모집마감: 선정(1) + 완료대기(2) 조회
           final approvedItems = await HospitalPostService.getPostTimes(
             applicantStatus: 1,
           );
           final pendingCompleteItems = await HospitalPostService.getPostTimes(
-            applicantStatus: 5,
-          );
-          final pendingCancelItems = await HospitalPostService.getPostTimes(
-            applicantStatus: 6,
+            applicantStatus: 2,
           );
           if (mounted) {
             setState(() {
-              postTimeItems = [
-                ...approvedItems,
-                ...pendingCompleteItems,
-                ...pendingCancelItems,
-              ];
+              postTimeItems = [...approvedItems, ...pendingCompleteItems];
               isLoading = false;
             });
           }
           break;
 
         case 3:
-          // 헌혈완료: applicant_status=7
+          // 헌혈완료: applicant_status=3 (COMPLETED)
           final loadedPostTimes = await HospitalPostService.getPostTimes(
-            applicantStatus: 7,
+            applicantStatus: 3,
           );
           if (mounted) {
             setState(() {
@@ -665,7 +658,7 @@ class _HospitalPostCheckState extends State<HospitalPostCheck>
     // 뱃지 타입 결정
     String badgeType;
     if (_currentTabIndex == 2) {
-      badgeType = item.applicantStatus == 5 ? '완료대기' : '마감';
+      badgeType = item.applicantStatus == 2 ? '완료대기' : '마감';
     } else {
       badgeType = item.isUrgent ? '긴급' : '정기';
     }

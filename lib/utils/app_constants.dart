@@ -22,11 +22,14 @@ class AppConstants {
   static const int postStatusCompleted = 4;   // 헌혈완료
   static const int postStatusSuspended = 5;  // 대기상태 (관리자가 모집중→대기로 변경)
 
-  // ===== 신청자 상태 (Applicant Status) =====
+  // ===== 신청자 상태 (Applicant Status, applied_donation.status) =====
+  // 단일 원천: AppliedDonationStatus 클래스 (lib/models/applied_donation_model.dart)
+  // 0=PENDING, 1=APPROVED, 2=PENDING_COMPLETION, 3=COMPLETED, 4=CLOSED
   static const int applicantStatusWaiting = 0;
   static const int applicantStatusApproved = 1;
-  static const int applicantStatusRejected = 2;
-  static const int applicantStatusCancelled = 3;
+  static const int applicantStatusPendingCompletion = 2;
+  static const int applicantStatusCompleted = 3;
+  static const int applicantStatusClosed = 4;
 
   // ===== 시간대 상태 (Time Slot Status) =====
   static const int timeSlotOpen = 0;
@@ -120,33 +123,9 @@ class AppConstants {
     }
   }
 
-  /// 신청자 상태 텍스트 반환
-  static String getApplicantStatusText(int status) {
-    switch (status) {
-      case applicantStatusWaiting:
-        return '대기';
-      case applicantStatusApproved:
-        return '승인';
-      case applicantStatusRejected:
-        return '미승인';
-      case applicantStatusCancelled:
-        return '취소';
-      default:
-        return '알 수 없음';
-    }
-  }
-
-  // ===== 신청자 확장 상태 (0~7) =====
-  static const int applicantStatusPendingCompletion = 5;
-  static const int applicantStatusPendingCancellation = 6;
-  static const int applicantStatusFinalCompleted = 7;
-
-  /// 신청자 상태 텍스트 반환 (확장 버전, 0~7)
-  /// @Deprecated - AppliedDonationStatus.getStatusText() 사용 권장
-  static String getApplicantStatusTextExtended(int status) {
-    // AppliedDonationStatus로 통합됨 - 하위 호환성을 위해 유지
-    return AppliedDonationStatus.getStatusText(status);
-  }
+  /// 신청자 상태 텍스트 반환 (AppliedDonationStatus로 위임)
+  static String getApplicantStatusText(int status) =>
+      AppliedDonationStatus.getStatusText(status);
 
   /// 긴급도 텍스트 반환
   static String getPostTypeText(int type) {

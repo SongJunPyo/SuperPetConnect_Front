@@ -310,9 +310,9 @@ class _AdminPostCheckState extends State<AdminPostCheck>
     }
 
     try {
-      // Status 7 (최종 헌혈완료) 조회
+      // status 3 (헌혈완료, 관리자 최종 승인) 조회
       String apiUrl =
-          '${Config.serverUrl}/api/applied_donation/admin/by-status/7';
+          '${Config.serverUrl}/api/applied_donation/admin/by-status/3';
 
       final response = await AuthHttpClient.get(Uri.parse(apiUrl));
 
@@ -512,9 +512,9 @@ class _AdminPostCheckState extends State<AdminPostCheck>
       // 완료 대기 + 모집마감 (헌혈마감 탭에 묶어 표시)
       List<Map<String, dynamic>> allApplications = [];
 
-      // 상태 5 (완료 대기) 조회
+      // 상태 2 (완료 대기) 조회
       String apiUrl5 =
-          '${Config.serverUrl}/api/applied_donation/admin/by-status/5';
+          '${Config.serverUrl}/api/applied_donation/admin/by-status/2';
 
       final response5 = await AuthHttpClient.get(Uri.parse(apiUrl5));
 
@@ -630,7 +630,7 @@ class _AdminPostCheckState extends State<AdminPostCheck>
                     'applicantCount': 1,
                     'description':
                         app['description'] ?? '병원에서 1차 완료 처리된 헌혈입니다.',
-                    'status': app['status'], // 5 (pendingCompletion)
+                    'status': app['status'], // 2 (PENDING_COMPLETION)
                     'pet_name': app['pet']?['name'] ?? app['pet_name'] ?? '',
                     'pet_breed': app['pet']?['breed'] ?? app['pet_breed'],
                     'pet_blood_type': app['pet']?['blood_type'],
@@ -726,7 +726,7 @@ class _AdminPostCheckState extends State<AdminPostCheck>
 
     try {
       // 서버에서 제공하는 헌혈모집 API 호출
-      // donation_posts.status IN (1, 3) & applied_donation.status NOT IN (5, 6)
+      // donation_posts.status IN (1, 3) & applied_donation.status NOT IN (PENDING_COMPLETION, COMPLETED)
       String apiUrl = '${Config.serverUrl}/api/admin/posts';
       List<String> queryParams = ['status=모집중', 'page_size=100'];
 
@@ -2966,8 +2966,8 @@ class _AdminPostCheckState extends State<AdminPostCheck>
   // 게시글 타입 결정 (헬퍼 함수)
   String _getPostType(Map<String, dynamic> post) {
     if (_currentTabIndex == 2) {
-      // 헌혈마감 탭: 모집마감(3)/완료대기(5) 구분
-      return post['status'] == 5 ? '완료대기' : '마감';
+      // 헌혈마감 탭: 게시글 모집마감(3)/applied_donation 완료대기(2) 구분
+      return post['status'] == 2 ? '완료대기' : '마감';
     } else if (_currentTabIndex == 1) {
       // 헌혈모집 탭에서는 진행/마감 뱃지 표시
       // donation_posts.status: 1 = 진행, 3 = 마감

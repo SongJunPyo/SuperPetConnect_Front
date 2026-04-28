@@ -326,7 +326,6 @@ class _AdminDonationApprovalPageState extends State<AdminDonationApprovalPage> {
               if (applications.isNotEmpty)
                 ...applications.map<Widget>((app) {
                   final petName = app['pet_name'] ?? '이름 없음';
-                  final status = app['status'];
                   final bloodVolume = app['blood_volume'];
 
                   return ListTile(
@@ -337,7 +336,7 @@ class _AdminDonationApprovalPageState extends State<AdminDonationApprovalPage> {
                     ),
                     title: Text(petName),
                     subtitle: Text(
-                      status == 5 ? '완료대기 - 헌혈량: ${bloodVolume}mL' : '취소대기',
+                      '완료대기 - 헌혈량: ${bloodVolume}mL',
                     ),
                   );
                 }).toList(),

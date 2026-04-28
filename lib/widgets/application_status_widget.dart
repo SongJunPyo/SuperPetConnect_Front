@@ -46,18 +46,12 @@ class ApplicationStatusWidget extends StatelessWidget {
         return Icons.schedule;
       case AppliedDonationStatus.approved:
         return Icons.check_circle;
-      case AppliedDonationStatus.rejected:
-        return Icons.cancel;
-      case AppliedDonationStatus.completed:
-        return Icons.done_all;
-      case AppliedDonationStatus.cancelled:
-        return Icons.close;
       case AppliedDonationStatus.pendingCompletion:
         return Icons.hourglass_empty;
-      case AppliedDonationStatus.pendingCancellation:
-        return Icons.pending;
-      case AppliedDonationStatus.finalCompleted:
+      case AppliedDonationStatus.completed:
         return Icons.verified;
+      case AppliedDonationStatus.closed:
+        return Icons.cancel;
       default:
         return Icons.help;
     }

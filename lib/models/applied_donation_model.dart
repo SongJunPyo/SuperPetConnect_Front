@@ -171,34 +171,30 @@ class AppliedDonation {
 }
 
 // 헌혈 신청 상태 관리 클래스
+//
+// 라이프사이클:
+//   PENDING(0) → APPROVED(1) → PENDING_COMPLETION(2) → COMPLETED(3)
+//   PENDING/APPROVED → CLOSED(4)  (게시글 마감 시 자동 일괄 처리 + 관리자 수동 종결)
+//   PENDING → hard delete  (사용자 자발 취소, 행 자체 삭제)
 class AppliedDonationStatus {
-  static const int pending = 0; // 대기중
-  static const int approved = 1; // 승인됨
-  static const int rejected = 2; // 미승인
-  static const int completed = 3; // 완료됨 (기존 호환용)
-  static const int cancelled = 4; // 취소됨
-  static const int pendingCompletion = 5; // 완료대기 (병원이 헌혈 완료 처리)
-  static const int pendingCancellation = 6; // 중단대기 (병원이 헌혈 중단 처리)
-  static const int finalCompleted = 7; // 헌혈완료 (관리자 최종 승인)
+  static const int pending = 0; // 신청 (대기)
+  static const int approved = 1; // 선정 (관리자 승인)
+  static const int pendingCompletion = 2; // 완료 대기 (병원 1차 완료)
+  static const int completed = 3; // 헌혈 완료 (관리자 최종 승인)
+  static const int closed = 4; // 종결 (미선정 / 관리자 수동 종결)
 
   static String getStatusText(int status) {
     switch (status) {
       case pending:
         return '대기중';
       case approved:
-        return '승인됨';
-      case rejected:
-        return '미승인';
-      case completed:
-        return '완료됨';
-      case cancelled:
-        return '취소됨';
+        return '선정';
       case pendingCompletion:
         return '완료대기';
-      case pendingCancellation:
-        return '중단대기';
-      case finalCompleted:
+      case completed:
         return '헌혈완료';
+      case closed:
+        return '종결';
       default:
         return '알 수 없음';
     }
@@ -210,18 +206,12 @@ class AppliedDonationStatus {
         return 'orange';
       case approved:
         return 'blue';
-      case rejected:
-        return 'grey';
+      case pendingCompletion:
+        return 'amber';
       case completed:
         return 'green';
-      case cancelled:
+      case closed:
         return 'grey';
-      case pendingCompletion:
-        return 'purple';
-      case pendingCancellation:
-        return 'orange';
-      case finalCompleted:
-        return 'green';
       default:
         return 'grey';
     }
@@ -234,18 +224,12 @@ class AppliedDonationStatus {
         return Colors.orange;
       case approved:
         return AppTheme.primaryBlue;
-      case rejected:
-        return Colors.grey;
-      case completed:
-        return AppTheme.success;
-      case cancelled:
-        return Colors.grey;
       case pendingCompletion:
         return Colors.amber;
-      case pendingCancellation:
-        return Colors.deepOrange;
-      case finalCompleted:
-        return AppTheme.primaryBlue;
+      case completed:
+        return AppTheme.success;
+      case closed:
+        return Colors.grey;
       default:
         return Colors.grey;
     }
@@ -260,45 +244,29 @@ class AppliedDonationStatus {
   static String getCancelBlockMessage(int status) {
     switch (status) {
       case approved:
-        return '승인된 신청은 취소할 수 없습니다. 취소가 필요하시면 관리자에게 문의해주세요.';
-      case rejected:
-        return '미승인된 신청입니다.';
-      case completed:
-        return '이미 완료된 신청은 취소할 수 없습니다.';
-      case cancelled:
-        return '이미 취소된 신청입니다.';
+        return '선정된 신청은 취소할 수 없습니다. 취소가 필요하시면 관리자에게 문의해주세요.';
       case pendingCompletion:
         return '헌혈 진행 중인 신청은 취소할 수 없습니다.';
-      case pendingCancellation:
-        return '중단 처리 중인 신청은 취소할 수 없습니다.';
-      case finalCompleted:
+      case completed:
         return '헌혈 완료된 신청은 취소할 수 없습니다.';
+      case closed:
+        return '종결된 신청은 취소할 수 없습니다.';
       default:
         return '취소할 수 없습니다.';
     }
   }
 
   /// 시간대에 빨간 테두리를 표시해야 하는 상태인지 확인
-  /// (미승인/취소는 다시 신청 가능하므로 제외)
+  /// (CLOSED는 다시 신청 가능하므로 제외)
   static bool shouldShowAppliedBorder(int status) {
     return status == pending ||
         status == approved ||
         status == pendingCompletion ||
-        status == pendingCancellation ||
-        status == finalCompleted;
+        status == completed;
   }
 
   static List<int> getAllStatuses() {
-    return [
-      pending,
-      approved,
-      rejected,
-      completed,
-      cancelled,
-      pendingCompletion,
-      pendingCancellation,
-      finalCompleted,
-    ];
+    return [pending, approved, pendingCompletion, completed, closed];
   }
 
   static List<Map<String, dynamic>> getStatusOptions() {
@@ -314,9 +282,9 @@ class AppliedDonationStatus {
         'color': getStatusColor(approved),
       },
       {
-        'value': rejected,
-        'text': getStatusText(rejected),
-        'color': getStatusColor(rejected),
+        'value': pendingCompletion,
+        'text': getStatusText(pendingCompletion),
+        'color': getStatusColor(pendingCompletion),
       },
       {
         'value': completed,
@@ -324,24 +292,9 @@ class AppliedDonationStatus {
         'color': getStatusColor(completed),
       },
       {
-        'value': cancelled,
-        'text': getStatusText(cancelled),
-        'color': getStatusColor(cancelled),
-      },
-      {
-        'value': pendingCompletion,
-        'text': getStatusText(pendingCompletion),
-        'color': getStatusColor(pendingCompletion),
-      },
-      {
-        'value': pendingCancellation,
-        'text': getStatusText(pendingCancellation),
-        'color': getStatusColor(pendingCancellation),
-      },
-      {
-        'value': finalCompleted,
-        'text': getStatusText(finalCompleted),
-        'color': getStatusColor(finalCompleted),
+        'value': closed,
+        'text': getStatusText(closed),
+        'color': getStatusColor(closed),
       },
     ];
   }
@@ -537,9 +490,8 @@ class PostApplications {
 
   int get pendingCount => getStatusCount(AppliedDonationStatus.pending);
   int get approvedCount => getStatusCount(AppliedDonationStatus.approved);
-  int get rejectedCount => getStatusCount(AppliedDonationStatus.rejected);
   int get completedCount => getStatusCount(AppliedDonationStatus.completed);
-  int get cancelledCount => getStatusCount(AppliedDonationStatus.cancelled);
+  int get closedCount => getStatusCount(AppliedDonationStatus.closed);
 }
 
 // 서버 API 응답용 내 신청 정보 모델 (GET /api/donation/my-applications)
