@@ -7,7 +7,7 @@ import '../info_row.dart';
 import '../pet_profile_image.dart';
 import '../post_detail/post_detail_description.dart';
 
-/// 헌혈마감 / 헌혈완료 / 헌혈취소 탭에서 확정 신청자 1명의 정보를 표시할 때
+/// 헌혈마감 / 헌혈완료 탭에서 확정 신청자 1명의 정보를 표시할 때
 /// 호출되는 액션 묶음. 모든 콜백 nullable — 해당 status에서 보일 버튼 콜백만 채움.
 class CompletionApplicantSheetActions {
   /// status 5 (PENDING_COMPLETION) — "헌혈 마감" 버튼.
@@ -16,13 +16,9 @@ class CompletionApplicantSheetActions {
   /// status 7 (FINAL_COMPLETED) — "헌혈 자료 요청" 버튼.
   final void Function(int applicationId)? onRequestDocuments;
 
-  /// status 6 (PENDING_CANCELLATION) — "헌혈 중단" 버튼.
-  final void Function(int applicationId)? onRejectCompletion;
-
   const CompletionApplicantSheetActions({
     this.onFinalApproveCompletion,
     this.onRequestDocuments,
-    this.onRejectCompletion,
   });
 }
 
@@ -138,15 +134,7 @@ void showCompletionApplicantSheet(
                       const SizedBox(height: 12),
                       _ApplicantInfoCard(post: post),
                     ],
-                    if ((post['status'] == 4 || post['status'] == 6) &&
-                        post['cancelled_reason'] != null &&
-                        post['cancelled_reason'].toString().isNotEmpty) ...[
-                      const SizedBox(height: 24),
-                      Text('중단 사유', style: AppTheme.h4Style),
-                      const SizedBox(height: 12),
-                      _CancelledReasonCard(post: post),
-                    ],
-                    if (post['status'] != 5 && post['status'] != 6) ...[
+                    if (post['status'] != 5) ...[
                       const SizedBox(height: 24),
                       DonationHistorySection(petIdx: petIdx),
                     ],
@@ -190,20 +178,6 @@ void showCompletionApplicantSheet(
                             ),
                           ),
                         ),
-                      ),
-                    ],
-                    if (post['status'] == 6 &&
-                        actions.onRejectCompletion != null) ...[
-                      const SizedBox(height: 24),
-                      _ActionButton(
-                        label: '헌혈 중단',
-                        color: Colors.red,
-                        onPressed: () {
-                          Navigator.of(context).pop();
-                          actions.onRejectCompletion!(
-                            post['application_id'] ?? post['id'] ?? 0,
-                          );
-                        },
                       ),
                     ],
                   ],
@@ -405,43 +379,6 @@ class _ApplicantInfoCard extends StatelessWidget {
       birthText = '$birthText ($ageText)';
     }
     return InfoRow(icon: Icons.cake, label: '생년월일', value: birthText);
-  }
-}
-
-class _CancelledReasonCard extends StatelessWidget {
-  final Map<String, dynamic> post;
-
-  const _CancelledReasonCard({required this.post});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.orange[50],
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.orange[200]!),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            post['cancelled_reason'],
-            style: AppTheme.bodyMediumStyle.copyWith(height: 1.4),
-          ),
-          if (post['cancelled_at'] != null) ...[
-            const SizedBox(height: 8),
-            Text(
-              '중단 시간: ${TimeFormatUtils.formatKoreanDateTime(post['cancelled_at'])}',
-              style: AppTheme.bodySmallStyle.copyWith(
-                color: Colors.grey[600],
-              ),
-            ),
-          ],
-        ],
-      ),
-    );
   }
 }
 

@@ -11,7 +11,6 @@ import 'package:intl/intl.dart';
 import '../widgets/pet_profile_image.dart';
 import '../models/applied_donation_model.dart';
 import 'donation_completion_sheet.dart';
-import 'donation_cancellation_sheet.dart';
 import '../widgets/rich_text_viewer.dart';
 import '../widgets/app_search_bar.dart';
 import '../widgets/post_detail/post_detail_handle_bar.dart';
@@ -43,8 +42,6 @@ class _HospitalPostCheckState extends State<HospitalPostCheck>
   List<UnifiedPostModel> filteredPosts = [];
   List<PostTimeItem> postTimeItems = [];
   List<PostTimeItem> filteredPostTimeItems = [];
-  List<RejectedPost> rejectedPosts = [];
-  List<RejectedPost> filteredRejectedPosts = [];
   bool isLoading = true;
   String? errorMessage;
   final TextEditingController _searchController = TextEditingController();
@@ -64,7 +61,7 @@ class _HospitalPostCheckState extends State<HospitalPostCheck>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 5, vsync: this);
+    _tabController = TabController(length: 4, vsync: this);
     _tabController!.addListener(_handleTabChange);
     _searchController.addListener(_onSearchChanged);
     _loadPosts();
@@ -178,9 +175,9 @@ class _HospitalPostCheckState extends State<HospitalPostCheck>
 
     switch (_currentTabIndex) {
       case 2:
-        // 모집마감: 승인(1) + 완료대기(5) + 중단대기(6)
+        // 모집마감: 승인(1) + 완료대기(5)
         var allItems = postTimeItems
-            .where((item) => [1, 5, 6].contains(item.applicantStatus))
+            .where((item) => [1, 5].contains(item.applicantStatus))
             .toList();
 
         // 검색어 필터링
@@ -247,61 +244,10 @@ class _HospitalPostCheckState extends State<HospitalPostCheck>
         });
         break;
 
-      case 4:
-        // 헌혈취소: 모집거절 게시글 + 시간대별 취소/거절 항목
-        var allRejected = rejectedPosts.toList();
-        var allTimeItems = postTimeItems.toList();
-
-        // 검색어 필터링
-        if (_searchController.text.isNotEmpty) {
-          final query = _searchController.text.toLowerCase();
-          allRejected = allRejected
-              .where((post) => post.title.toLowerCase().contains(query))
-              .toList();
-          allTimeItems = allTimeItems
-              .where(
-                  (item) => item.postTitle.toLowerCase().contains(query))
-              .toList();
-        }
-
-        // 날짜 범위 필터링
-        if (startDate != null && endDate != null) {
-          allRejected = allRejected
-              .where((post) =>
-                  _isInDateRange(DateTime.parse(post.createdDate)))
-              .toList();
-          allTimeItems = allTimeItems
-              .where((item) => _isInDateRange(DateTime.parse(item.date)))
-              .toList();
-        }
-
-        // 두 리스트를 합쳐서 페이지 계산 (거절 게시글 먼저, 시간대 항목 뒤에)
-        final totalItems4 = allRejected.length + allTimeItems.length;
-        final totalPages4 = (totalItems4 / pageSize).ceil();
-        final safePage4 =
-            _currentPage.clamp(1, totalPages4 > 0 ? totalPages4 : 1);
-        final start4 = (safePage4 - 1) * pageSize;
-        final end4 = (start4 + pageSize).clamp(0, totalItems4);
-
-        // 거절 게시글과 시간대 항목을 결합 인덱스로 슬라이스
-        final rejectedStart = start4.clamp(0, allRejected.length);
-        final rejectedEnd = end4.clamp(0, allRejected.length);
-        final timeStart = (start4 - allRejected.length).clamp(0, allTimeItems.length);
-        final timeEnd = (end4 - allRejected.length).clamp(0, allTimeItems.length);
-
-        setState(() {
-          filteredRejectedPosts = allRejected.sublist(rejectedStart, rejectedEnd);
-          filteredPostTimeItems = allTimeItems.sublist(timeStart, timeEnd);
-          _currentPage = safePage4;
-          _totalPages = totalPages4 > 0 ? totalPages4 : 1;
-        });
-        break;
-
       default:
         setState(() {
           filteredPosts = [];
           filteredPostTimeItems = [];
-          filteredRejectedPosts = [];
           _totalPages = 1;
         });
     }
@@ -372,26 +318,6 @@ class _HospitalPostCheckState extends State<HospitalPostCheck>
           if (mounted) {
             setState(() {
               postTimeItems = loadedPostTimes;
-              isLoading = false;
-            });
-          }
-          break;
-
-        case 4:
-          // 헌혈취소: 모집거절 게시글 + 취소/거절된 시간대
-          final loadedRejectedPosts =
-              await HospitalPostService.getRejectedPosts();
-          final rejectedTimeItems = await HospitalPostService.getPostTimes(
-            applicantStatus: 2,
-          );
-          final cancelledTimeItems = await HospitalPostService.getPostTimes(
-            applicantStatus: 4,
-          );
-
-          if (mounted) {
-            setState(() {
-              rejectedPosts = loadedRejectedPosts;
-              postTimeItems = [...rejectedTimeItems, ...cancelledTimeItems];
               isLoading = false;
             });
           }
@@ -517,7 +443,6 @@ class _HospitalPostCheckState extends State<HospitalPostCheck>
                         Tab(text: '헌혈모집'),
                         Tab(text: '모집마감'),
                         Tab(text: '헌혈완료'),
-                        Tab(text: '헌혈취소'),
                       ],
                       indicatorColor: Colors.black,
                       labelColor: Colors.black,
@@ -554,9 +479,6 @@ class _HospitalPostCheckState extends State<HospitalPostCheck>
     if (_currentTabIndex == 0 || _currentTabIndex == 1) {
       isEmpty = filteredPosts.isEmpty;
       itemCount = filteredPosts.length;
-    } else if (_currentTabIndex == 4) {
-      isEmpty = filteredPostTimeItems.isEmpty && filteredRejectedPosts.isEmpty;
-      itemCount = filteredPostTimeItems.length + filteredRejectedPosts.length;
     } else {
       isEmpty = filteredPostTimeItems.isEmpty;
       itemCount = filteredPostTimeItems.length;
@@ -576,9 +498,6 @@ class _HospitalPostCheckState extends State<HospitalPostCheck>
           break;
         case 3:
           emptyMessage = '헌혈 완료된 시간대가 없습니다.';
-          break;
-        case 4:
-          emptyMessage = '헌혈 취소된 시간대가 없습니다.';
           break;
         default:
           emptyMessage = '게시글이 없습니다.';
@@ -620,18 +539,6 @@ class _HospitalPostCheckState extends State<HospitalPostCheck>
             // 일반 게시글
             final post = filteredPosts[index - 1];
             return _buildPostListItem(post);
-          } else if (_currentTabIndex == 4) {
-            // 헌혈취소: 모집거절 게시글 + 시간대별 항목
-            final rejectedCount = filteredRejectedPosts.length;
-            if (index - 1 < rejectedCount) {
-              // 모집거절 게시글
-              final rejectedPost = filteredRejectedPosts[index - 1];
-              return _buildRejectedPostListItem(rejectedPost);
-            } else {
-              // 시간대별 취소/거절 항목
-              final timeItem = filteredPostTimeItems[index - 1 - rejectedCount];
-              return _buildPostTimeListItem(timeItem);
-            }
           } else {
             // 시간대별 게시글 (모집마감, 헌혈완료)
             final timeItem = filteredPostTimeItems[index - 1];
@@ -754,62 +661,11 @@ class _HospitalPostCheckState extends State<HospitalPostCheck>
     );
   }
 
-  void _showClosedCancellationSheet(PostTimeItem item) {
-    final appliedDonation = _buildAppliedDonationFromPostTime(item);
-    if (appliedDonation == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('신청자 정보를 불러올 수 없습니다. 잠시 후 다시 시도해주세요.'),
-          backgroundColor: Colors.red,
-        ),
-      );
-      return;
-    }
-
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      isDismissible: false,
-      enableDrag: false,
-      backgroundColor: Colors.transparent,
-      builder:
-          (context) => DonationCancellationSheet(
-            appliedDonation: appliedDonation,
-            onCancelled: (_) {
-              if (!mounted) return;
-              _loadPosts();
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('1차 헌혈 중단 처리되었습니다. 관리자 승인을 기다리고 있습니다.'),
-                  backgroundColor: Colors.orange,
-                ),
-              );
-            },
-          ),
-    );
-  }
-
   Widget _buildPostTimeListItem(PostTimeItem item) {
     // 뱃지 타입 결정
-    final bool isCancellationTab = _currentTabIndex == 4;
     String badgeType;
-
-    if (isCancellationTab) {
-      if (item.applicantStatus == 4) {
-        badgeType = '중단';
-      } else if (item.applicantStatus == 2) {
-        badgeType = '거절';
-      } else {
-        badgeType = item.isUrgent ? '긴급' : '정기';
-      }
-    } else if (_currentTabIndex == 2) {
-      if (item.applicantStatus == 5) {
-        badgeType = '완료대기';
-      } else if (item.applicantStatus == 6) {
-        badgeType = '중단대기';
-      } else {
-        badgeType = '마감';
-      }
+    if (_currentTabIndex == 2) {
+      badgeType = item.applicantStatus == 5 ? '완료대기' : '마감';
     } else {
       badgeType = item.isUrgent ? '긴급' : '정기';
     }
@@ -820,15 +676,6 @@ class _HospitalPostCheckState extends State<HospitalPostCheck>
       dateText: TimeFormatUtils.formatFlexibleShortDate(item.createdDate),
       hospitalProfileImage: item.hospitalProfileImage,
       onTap: () => _showPostTimeBottomSheet(item),
-    );
-  }
-
-  Widget _buildRejectedPostListItem(RejectedPost post) {
-    return PostListRow(
-      badgeType: '거절',
-      title: post.title,
-      dateText: TimeFormatUtils.formatFlexibleShortDate(post.createdDate),
-      onTap: () => _showRejectedPostBottomSheet(post),
     );
   }
 
@@ -864,8 +711,8 @@ class _HospitalPostCheckState extends State<HospitalPostCheck>
             maxChildSize: 0.95,
             expand: false,
             builder: (context, scrollController) {
-              // 승인(1) 상태일 때만 헌혈 완료/중단 버튼 표시
-              // 완료대기(5)/중단대기(6)는 이미 처리된 상태이므로 버튼 숨김
+              // 승인(1) 상태일 때만 헌혈 완료 버튼 표시
+              // 완료대기(5)는 이미 처리된 상태이므로 버튼 숨김
               final bool canPerformActions =
                   _currentTabIndex == 2 &&
                   item.applicantStatus == 1 &&
@@ -1226,71 +1073,34 @@ class _HospitalPostCheckState extends State<HospitalPostCheck>
                                 ),
                               ),
                             ],
-                            // 헌혈 중단/완료 버튼 (스크롤 영역 안에 포함)
+                            // 헌혈 완료 버튼 (스크롤 영역 안에 포함)
                             if (canPerformActions) ...[
                               const SizedBox(height: 24),
-                              Row(
-                                children: [
-                                  Expanded(
-                                    child: OutlinedButton.icon(
-                                      onPressed: () {
-                                        Navigator.of(context).pop();
-                                        _showClosedCancellationSheet(item);
-                                      },
-                                      icon: const Icon(
-                                        Icons.close,
-                                        size: 18,
-                                        color: Colors.red,
-                                      ),
-                                      label: const Text('헌혈 중단'),
-                                      style: OutlinedButton.styleFrom(
-                                        foregroundColor: Colors.red,
-                                        side: const BorderSide(
-                                          color: Colors.red,
-                                        ),
-                                        backgroundColor: Colors.transparent,
-                                        padding: const EdgeInsets.symmetric(
-                                          vertical: 12,
-                                        ),
-                                        shape: RoundedRectangleBorder(
-                                          borderRadius: BorderRadius.circular(
-                                            8,
-                                          ),
-                                        ),
-                                      ),
+                              SizedBox(
+                                width: double.infinity,
+                                child: OutlinedButton.icon(
+                                  onPressed: () {
+                                    Navigator.of(context).pop();
+                                    _showClosedCompletionSheet(item);
+                                  },
+                                  icon: const Icon(
+                                    Icons.check,
+                                    size: 18,
+                                    color: Colors.green,
+                                  ),
+                                  label: const Text('헌혈 완료'),
+                                  style: OutlinedButton.styleFrom(
+                                    foregroundColor: Colors.green,
+                                    side: const BorderSide(color: Colors.green),
+                                    backgroundColor: Colors.transparent,
+                                    padding: const EdgeInsets.symmetric(
+                                      vertical: 12,
+                                    ),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(8),
                                     ),
                                   ),
-                                  const SizedBox(width: 12),
-                                  Expanded(
-                                    child: OutlinedButton.icon(
-                                      onPressed: () {
-                                        Navigator.of(context).pop();
-                                        _showClosedCompletionSheet(item);
-                                      },
-                                      icon: const Icon(
-                                        Icons.check,
-                                        size: 18,
-                                        color: Colors.green,
-                                      ),
-                                      label: const Text('헌혈 완료'),
-                                      style: OutlinedButton.styleFrom(
-                                        foregroundColor: Colors.green,
-                                        side: const BorderSide(
-                                          color: Colors.green,
-                                        ),
-                                        backgroundColor: Colors.transparent,
-                                        padding: const EdgeInsets.symmetric(
-                                          vertical: 12,
-                                        ),
-                                        shape: RoundedRectangleBorder(
-                                          borderRadius: BorderRadius.circular(
-                                            8,
-                                          ),
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                                ],
+                                ),
                               ),
                             ],
                           ],
@@ -1305,241 +1115,6 @@ class _HospitalPostCheckState extends State<HospitalPostCheck>
     );
   }
 
-  void _showRejectedPostBottomSheet(RejectedPost post) {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder:
-          (context) => DraggableScrollableSheet(
-            initialChildSize: 0.6,
-            minChildSize: 0.4,
-            maxChildSize: 0.9,
-            expand: false,
-            builder: (context, scrollController) {
-              return Container(
-                decoration: const BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-                ),
-                child: Column(
-                  children: [
-                    // 핸들 바
-                    Container(
-                      width: 40,
-                      height: 4,
-                      margin: const EdgeInsets.symmetric(vertical: 12),
-                      decoration: BoxDecoration(
-                        color: Colors.grey[300],
-                        borderRadius: BorderRadius.circular(2),
-                      ),
-                    ),
-                    // 헤더
-                    Container(
-                      padding: const EdgeInsets.fromLTRB(20, 8, 20, 16),
-                      child: Row(
-                        children: [
-                          // 거절 뱃지
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 8,
-                              vertical: 4,
-                            ),
-                            decoration: BoxDecoration(
-                              color: Colors.red.withAlpha(51),
-                              borderRadius: BorderRadius.circular(6),
-                            ),
-                            child: Text(
-                              '모집거절',
-                              style: AppTheme.bodySmallStyle.copyWith(
-                                color: Colors.red,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  post.title,
-                                  style: AppTheme.h3Style.copyWith(
-                                    color: Colors.red,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                  maxLines: 2,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                              ],
-                            ),
-                          ),
-                          // X 버튼
-                          IconButton(
-                            icon: const Icon(Icons.close, color: Colors.black),
-                            onPressed: () => Navigator.pop(context),
-                            tooltip: '닫기',
-                          ),
-                        ],
-                      ),
-                    ),
-                    const Divider(height: 1),
-                    // 메타 정보
-                    Expanded(
-                      child: SingleChildScrollView(
-                        controller: scrollController,
-                        padding: const EdgeInsets.all(20),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            // 작성일과 거절일
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                Row(
-                                  children: [
-                                    Icon(
-                                      Icons.calendar_today,
-                                      size: 16,
-                                      color: AppTheme.textSecondary,
-                                    ),
-                                    const SizedBox(width: 8),
-                                    Text(
-                                      '작성일: ',
-                                      style: AppTheme.bodyMediumStyle.copyWith(
-                                        fontWeight: FontWeight.w500,
-                                        color: AppTheme.textPrimary,
-                                      ),
-                                    ),
-                                    Text(
-                                      DateFormat('yy.MM.dd').format(
-                                        DateTime.parse(post.createdDate),
-                                      ),
-                                      style: AppTheme.bodyMediumStyle.copyWith(
-                                        fontWeight: FontWeight.w600,
-                                        color: AppTheme.textPrimary,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                                if (post.rejectedDate != null)
-                                  Row(
-                                    children: [
-                                      Icon(
-                                        Icons.block,
-                                        size: 16,
-                                        color: Colors.red,
-                                      ),
-                                      const SizedBox(width: 4),
-                                      Text(
-                                        '거절: ${DateFormat('yy.MM.dd').format(DateTime.parse(post.rejectedDate!))}',
-                                        style: AppTheme.bodySmallStyle.copyWith(
-                                          color: Colors.red,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                              ],
-                            ),
-                            if ((post.contentDelta != null &&
-                                    post.contentDelta!.isNotEmpty) ||
-                                (post.description != null &&
-                                    post.description!.isNotEmpty)) ...[
-                              const SizedBox(height: 16),
-                              Container(
-                                width: double.infinity,
-                                decoration: BoxDecoration(
-                                  color: AppTheme.veryLightGray,
-                                  borderRadius: BorderRadius.circular(8),
-                                  border: Border.all(
-                                    color: AppTheme.lightGray.withAlpha(128),
-                                  ),
-                                ),
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Padding(
-                                      padding: const EdgeInsets.only(
-                                        left: 12,
-                                        top: 12,
-                                        right: 12,
-                                      ),
-                                      child: Text(
-                                        '게시글 설명',
-                                        style: AppTheme.bodyMediumStyle
-                                            .copyWith(
-                                              fontWeight: FontWeight.w600,
-                                            ),
-                                      ),
-                                    ),
-                                    RichTextViewer(
-                                      contentDelta: post.contentDelta,
-                                      plainText: post.description,
-                                      padding: const EdgeInsets.all(12),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ],
-                            if (post.rejectionReason != null &&
-                                post.rejectionReason!.isNotEmpty) ...[
-                              const SizedBox(height: 16),
-                              Container(
-                                width: double.infinity,
-                                padding: const EdgeInsets.all(12),
-                                decoration: BoxDecoration(
-                                  color: Colors.red.shade50,
-                                  borderRadius: BorderRadius.circular(8),
-                                  border: Border.all(
-                                    color: Colors.red.shade200,
-                                  ),
-                                ),
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Row(
-                                      children: [
-                                        Icon(
-                                          Icons.warning_amber_rounded,
-                                          size: 20,
-                                          color: Colors.red.shade700,
-                                        ),
-                                        const SizedBox(width: 8),
-                                        Text(
-                                          '거절 사유',
-                                          style: AppTheme.bodyMediumStyle
-                                              .copyWith(
-                                                fontWeight: FontWeight.w700,
-                                                color: Colors.red.shade700,
-                                              ),
-                                        ),
-                                      ],
-                                    ),
-                                    const SizedBox(height: 8),
-                                    Text(
-                                      post.rejectionReason!,
-                                      style: AppTheme.bodyMediumStyle.copyWith(
-                                        color: Colors.red.shade900,
-                                        height: 1.4,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ],
-                          ],
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              );
-            },
-          ),
-    );
-  }
 }
 
 // 바텀시트 위젯 - 사용자 헌혈 모집 게시글 페이지 스타일로 변경
@@ -1671,59 +1246,6 @@ class _PostDetailBottomSheetState extends State<PostDetailBottomSheet> {
                 const SnackBar(
                   content: Text('1차 헌혈 완료 처리되었습니다. 관리자 승인을 기다리고 있습니다.'),
                   backgroundColor: Colors.green,
-                ),
-              );
-            },
-          ),
-    );
-  }
-
-  // 헌혈 중단 바텀시트 표시
-  void _showCancellationDialog(DonationApplication applicant) {
-    // AppliedDonation 객체 생성
-    final appliedDonation = AppliedDonation(
-      appliedDonationIdx: applicant.appliedDonationIdx,
-      petIdx: applicant.pet.petIdx,
-      postTimesIdx: applicant.postTimesIdx,
-      status: applicant.status,
-      userNickname: applicant.userNickname,
-      pet: Pet(
-        petIdx: applicant.pet.petIdx,
-        name: applicant.pet.name,
-        bloodType: applicant.pet.bloodType,
-        weightKg: applicant.pet.weightKg,
-        birthDate: applicant.pet.birthDate,
-        species: applicant.pet.species,
-        animalType: applicant.pet.species,
-        breed: applicant.pet.breed,
-      ),
-      donationTime:
-          applicant.selectedTime != null
-              ? DateTime.parse(
-                '${applicant.selectedDate} ${applicant.selectedTime}',
-              )
-              : null,
-      postTitle: widget.post.title,
-      hospitalName: widget.post.hospitalNickname ?? widget.post.hospitalName,
-    );
-
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      isDismissible: false,
-      enableDrag: false,
-      backgroundColor: Colors.transparent,
-      builder:
-          (context) => DonationCancellationSheet(
-            appliedDonation: appliedDonation,
-            onCancelled: (cancelledDonation) {
-              // 중단 처리 후 목록 새로고침
-              _loadApplicants();
-              Navigator.pop(context); // 바텀시트 닫기
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('1차 헌혈 중단 처리되었습니다. 관리자 승인을 기다리고 있습니다.'),
-                  backgroundColor: Colors.orange,
                 ),
               );
             },
@@ -1989,48 +1511,25 @@ class _PostDetailBottomSheetState extends State<PostDetailBottomSheet> {
           // 액션 버튼 또는 상태 메시지 (showActions가 true일 때만)
           if (showActions && applicant.status == 1) ...[
             const SizedBox(height: 16),
-            Row(
-              children: [
-                Expanded(
-                  child: OutlinedButton.icon(
-                    onPressed: () => _showCancellationDialog(applicant),
-                    icon: const Icon(
-                      Icons.close,
-                      size: 18,
-                      color: Colors.black,
-                    ),
-                    label: const Text('헌혈 중단'),
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: Colors.red,
-                      side: const BorderSide(color: Colors.red),
-                      padding: const EdgeInsets.symmetric(vertical: 12),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                    ),
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                onPressed: () => _showCompletionDialog(applicant),
+                icon: const Icon(
+                  Icons.check,
+                  size: 18,
+                  color: Colors.black,
+                ),
+                label: const Text('헌혈 완료'),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: Colors.green,
+                  side: const BorderSide(color: Colors.green),
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
                   ),
                 ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: OutlinedButton.icon(
-                    onPressed: () => _showCompletionDialog(applicant),
-                    icon: const Icon(
-                      Icons.check,
-                      size: 18,
-                      color: Colors.black,
-                    ),
-                    label: const Text('헌혈 완료'),
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: Colors.green,
-                      side: const BorderSide(color: Colors.green),
-                      padding: const EdgeInsets.symmetric(vertical: 12),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                    ),
-                  ),
-                ),
-              ],
+              ),
             ),
           ],
         ],

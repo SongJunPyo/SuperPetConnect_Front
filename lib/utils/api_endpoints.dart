@@ -162,29 +162,6 @@ class ApiEndpoints {
   static String completedDonationMonthlyStats(int year, int month) =>
       '$completedDonation/stats/monthly/$year/$month';
 
-  // ===== Cancelled Donation =====
-  static const String cancelledDonation = '$api/cancelled_donation';
-  static const String cancelledDonationHospitalCancel =
-      '$cancelledDonation/hospital_cancel';
-  static const String cancelledDonationReasons =
-      '$cancelledDonation/templates/reasons';
-  static const String cancelledDonationMyPetsHistory =
-      '$cancelledDonation/my-pets/history';
-  static const String cancelledDonationHospitalStats =
-      '$cancelledDonation/hospital/stats';
-
-  /// 취소 헌혈 상세: /api/cancelled_donation/{idx}
-  static String cancelledDonationDetail(int idx) =>
-      '$cancelledDonation/$idx';
-
-  /// 게시물별 취소 목록: /api/cancelled_donation/post/{postIdx}/cancellations
-  static String cancelledDonationByPost(int postIdx) =>
-      '$cancelledDonation/post/$postIdx/cancellations';
-
-  /// 월별 취소 통계: /api/cancelled_donation/stats/monthly/{year}/{month}
-  static String cancelledDonationMonthlyStats(int year, int month) =>
-      '$cancelledDonation/stats/monthly/$year/$month';
-
   // ===== Applied Donation (확장) =====
   static const String appliedDonationMyPets =
       '$appliedDonation/my-pets/applications';
@@ -260,15 +237,6 @@ class ApiEndpoints {
   /// 완료 승인: /api/admin/completed_donation/approve-completion/{applicationId}
   static String adminCompletedDonationApprove(int applicationId) =>
       '$adminCompletedDonation/approve-completion/$applicationId';
-
-  /// 취소 승인: /api/admin/completed_donation/approve-cancellation/{applicationId}
-  static String adminCompletedDonationApproveCancellation(
-    int applicationId,
-  ) => '$adminCompletedDonation/approve-cancellation/$applicationId';
-
-  /// 취소 최종 승인: /api/admin/cancelled_donation/final_approve
-  static const String adminCancelledDonationFinalApprove =
-      '$admin/cancelled_donation/final_approve';
 
   // ===== Admin Donation Approval =====
   static const String adminDonationFinalApproval =

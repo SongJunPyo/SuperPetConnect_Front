@@ -65,9 +65,9 @@ class _AdminPostCheckState extends State<AdminPostCheck>
   @override
   void initState() {
     super.initState();
-    final initialIndex = (widget.initialTabIndex ?? 0).clamp(0, 4);
+    final initialIndex = (widget.initialTabIndex ?? 0).clamp(0, 3);
     _tabController = TabController(
-      length: 5,
+      length: 4,
       vsync: this,
       initialIndex: initialIndex,
     );
@@ -82,8 +82,6 @@ class _AdminPostCheckState extends State<AdminPostCheck>
       fetchPendingCompletions();
     } else if (initialIndex == 3) {
       fetchCompletedDonations();
-    } else if (initialIndex == 4) {
-      fetchCancelledDonations();
     } else {
       fetchPosts();
     }
@@ -101,17 +99,14 @@ class _AdminPostCheckState extends State<AdminPostCheck>
 
       // 탭에 따라 다른 API 호출
       if (_currentTabIndex == 1) {
-        // 헌혈모집 탭 - applied_donation 기반 조회 (Status 0, 1)
+        // 헌혈모집 탭 - applied_donation 기반 조회
         fetchAppliedDonations();
       } else if (_currentTabIndex == 2) {
-        // 헌혈마감 탭 - 병원에서 1차 완료/중단한 것들 조회 (Status 5, 6)
+        // 헌혈마감 탭 - 병원이 1차 완료한 것들 조회
         fetchPendingCompletions();
       } else if (_currentTabIndex == 3) {
-        // 헌혈완료 탭 - 최종 승인된 헌혈들 조회 (Status 7)
+        // 헌혈완료 탭 - 최종 승인된 헌혈들 조회
         fetchCompletedDonations();
-      } else if (_currentTabIndex == 4) {
-        // 헌혈취소 탭 - 거절/취소된 헌혈들 조회 (Status 2, 4)
-        fetchCancelledDonations();
       } else {
         // 모집대기(0) 탭 - donation_posts 기반 조회
         fetchPosts();
@@ -134,7 +129,7 @@ class _AdminPostCheckState extends State<AdminPostCheck>
       // 탭 0: 서버 페이지네이션
       fetchPosts();
     } else {
-      // 탭 1~4: 클라이언트 페이지네이션 (setState로 filteredPosts 재계산)
+      // 탭 1~3: 클라이언트 페이지네이션 (setState로 filteredPosts 재계산)
       setState(() {});
     }
     if (_scrollController.hasClients) {
@@ -239,113 +234,6 @@ class _AdminPostCheckState extends State<AdminPostCheck>
     }
   }
 
-  // 헌혈 완료 반려
-  Future<void> _rejectCompletion(int applicationId) async {
-    final reasonController = TextEditingController();
-
-    try {
-      final result = await showModalBottomSheet<bool>(
-        context: context,
-        backgroundColor: Colors.transparent,
-        isScrollControlled: true,
-        builder:
-            (context) => Container(
-              decoration: const BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-              ),
-              padding: EdgeInsets.only(
-                left: 24,
-                right: 24,
-                top: 24,
-                bottom: MediaQuery.of(context).viewInsets.bottom + 24,
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  // 핸들 바
-                  Center(
-                    child: Container(
-                      width: 40,
-                      height: 4,
-                      margin: const EdgeInsets.only(bottom: 20),
-                      decoration: BoxDecoration(
-                        color: Colors.grey.shade300,
-                        borderRadius: BorderRadius.circular(2),
-                      ),
-                    ),
-                  ),
-
-                  // 제목
-                  Text(
-                    '헌혈 중단',
-                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-
-                  // 내용
-                  Text(
-                    '헌혈 완료를 반려하시겠습니까?',
-                    style: Theme.of(context).textTheme.bodyMedium,
-                  ),
-                  const SizedBox(height: 24),
-
-                  // 버튼들
-                  Row(
-                    children: [
-                      Expanded(
-                        child: OutlinedButton(
-                          onPressed: () => Navigator.of(context).pop(false),
-                          child: const Text('취소'),
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: OutlinedButton(
-                          onPressed: () => Navigator.of(context).pop(true),
-                          style: OutlinedButton.styleFrom(
-                            foregroundColor: Colors.red,
-                            side: const BorderSide(color: Colors.red),
-                            backgroundColor: Colors.white,
-                          ),
-                          child: const Text('헌혈 중단'),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 16),
-                ],
-              ),
-            ),
-      );
-
-      if (result == true) {
-        await AdminCompletedDonationService.rejectCompletion(
-          applicationId,
-          '', // 빈 사유로 전송
-        );
-        // 데이터 새로고침 - 현재 탭에 있을 때만 새로고침
-        if (_currentTabIndex == 2) {
-          fetchPendingCompletions(); // 헌혈마감 탭 (현재 탭)
-        }
-        // 헌혈취소 탭은 나중에 탭 이동 시 자동으로 로드됨
-      }
-    } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('반려 중 오류가 발생했습니다: $e'),
-          backgroundColor: Colors.red,
-        ),
-      );
-    } finally {
-      reasonController.dispose();
-    }
-  }
-
   // 게시글 필터링 함수
   List<dynamic> get filteredPosts {
     List<dynamic> filtered;
@@ -359,22 +247,18 @@ class _AdminPostCheckState extends State<AdminPostCheck>
         filtered = posts;
         break;
       case 2:
-        // 헌혈마감 탭: status가 5(완료대기) 또는 6(중단대기)인 게시글 표시
+        // 헌혈마감 탭: 완료대기 게시글 표시
         filtered = posts;
         break;
       case 3:
-        // 헌혈완료 탭: status가 7인 게시글만 표시 (완료된 헌혈)
-        filtered = posts;
-        break;
-      case 4:
-        // 헌혈취소 탭: status가 2(거절) 또는 4(취소)인 게시글 표시
+        // 헌혈완료 탭: 완료된 헌혈만 표시
         filtered = posts;
         break;
       default:
         filtered = [];
     }
 
-    // 검색어 필터링 (탭 1~4에서 클라이언트 필터)
+    // 검색어 필터링 (탭 1~3에서 클라이언트 필터)
     if (_currentTabIndex != 0 && searchQuery.isNotEmpty) {
       filtered =
           filtered.where((post) {
@@ -390,7 +274,7 @@ class _AdminPostCheckState extends State<AdminPostCheck>
           }).toList();
     }
 
-    // 날짜 필터링 (탭 1~4에서 클라이언트 필터)
+    // 날짜 필터링 (탭 1~3에서 클라이언트 필터)
     if (_currentTabIndex != 0 && startDate != null && endDate != null) {
       filtered =
           filtered.where((post) {
@@ -405,7 +289,7 @@ class _AdminPostCheckState extends State<AdminPostCheck>
     // 탭 0: 서버 페이지네이션 → 그대로 반환
     if (_currentTabIndex == 0) return filtered;
 
-    // 탭 1~4: 클라이언트 측 페이지네이션
+    // 탭 1~3: 클라이언트 측 페이지네이션
     const pageSize = AppConstants.detailListPageSize;
     _totalPages = filtered.isEmpty ? 1 : (filtered.length / pageSize).ceil();
     if (_currentPage > _totalPages) _currentPage = _totalPages;
@@ -615,182 +499,7 @@ class _AdminPostCheckState extends State<AdminPostCheck>
     }
   }
 
-  // 헌혈취소 목록 조회 (탭 4) - 거절/취소된 헌혈들 (Status 2, 4)
-  Future<void> fetchCancelledDonations() async {
-    if (mounted) {
-      setState(() {
-        isLoading = true;
-        errorMessage = '';
-      });
-    }
-
-    try {
-      List<Map<String, dynamic>> allCancelled = [];
-
-      // Status 2 (모집거절 - posts 테이블)와 Status 4 (헌혈취소 - applied_donation 테이블) 조회
-      // 먼저 posts API에서 Status 2 가져오기
-      String postsApiUrl = '${Config.serverUrl}/api/admin/posts?status=거절&page_size=100';
-
-      // 검색 필터
-      if (searchQuery.isNotEmpty) {
-        postsApiUrl += '&search=${Uri.encodeComponent(searchQuery)}';
-      }
-      if (startDate != null) {
-        postsApiUrl += '&start_date=${DateFormat('yyyy-MM-dd').format(startDate!)}';
-      }
-      if (endDate != null) {
-        postsApiUrl += '&end_date=${DateFormat('yyyy-MM-dd').format(endDate!)}';
-      }
-
-      final postsResponse = await AuthHttpClient.get(Uri.parse(postsApiUrl));
-
-      if (postsResponse.statusCode == 200) {
-        final postsData = json.decode(utf8.decode(postsResponse.bodyBytes));
-        List postsList;
-        if (postsData is Map) {
-          postsList = (postsData['items'] ?? postsData['posts'] ?? []) as List;
-        } else if (postsData is List) {
-          postsList = postsData;
-        } else {
-          postsList = [];
-        }
-        allCancelled.addAll(List<Map<String, dynamic>>.from(postsList));
-      }
-
-      // Status 4 (헌혈취소) 조회 - applied_donation 테이블
-      String apiUrl4 =
-          '${Config.serverUrl}/api/applied_donation/admin/by-status/4';
-      final response4 = await AuthHttpClient.get(Uri.parse(apiUrl4));
-
-      if (response4.statusCode == 200) {
-        final data4 = json.decode(utf8.decode(response4.bodyBytes));
-        List<Map<String, dynamic>> cancelledDonations = [];
-
-        if (data4 is List) {
-          cancelledDonations = List<Map<String, dynamic>>.from(data4);
-        } else if (data4 is Map && data4['donations'] != null) {
-          cancelledDonations = List<Map<String, dynamic>>.from(
-            data4['donations'],
-          );
-        }
-
-        // Status 4 데이터를 posts 형태로 변환하여 추가
-        for (var app in cancelledDonations) {
-          // 날짜 포맷 처리 - 시간 제거
-          String createdAt = app['created_at'] ?? '';
-          if (createdAt.contains('T')) {
-            createdAt = createdAt.split('T')[0];
-          } else if (createdAt.length > 10) {
-            createdAt = createdAt.substring(0, 10);
-          }
-
-          // 제목에서 동물 종류 추출
-          String animalType = 'unknown';
-          String title = app['post_title']?.toString() ?? '';
-          if (title.contains('강아지')) {
-            animalType = 'dog';
-          } else if (title.contains('고양이')) {
-            animalType = 'cat';
-          }
-
-          // 제목에서 긴급/정기 구분 추출
-          int types = 1; // 기본값 정기
-          if (title.contains('긴급')) {
-            types = 0; // 긴급
-          }
-
-          // 주소 정보 설정 (hospital_address 필드 사용)
-          String location =
-              app['hospital_address'] ??
-              app['hospital_location'] ??
-              '${app['hospital_name'] ?? '병원'} (병원 코드: ${app['hospital_code'] ?? ''})';
-
-          allCancelled.add({
-            'id': app['applied_donation_idx'],
-            'application_id': app['applied_donation_idx'],
-            'title': app['post_title'] ?? '헌혈 취소',
-            'nickname': app['hospital_nickname'] ?? app['hospital_name'] ?? '병원',
-            'location': location,
-            'created_date': createdAt,
-            'animalType': animalType,
-            'types': types, // 긴급/정기 구분
-            // 게시글 필요 혈액형 (긴급 헌혈 시 서버에서 제공)
-            'blood_type':
-                app['emergency_blood_type'] ??
-                '상관없음',
-            // 신청자 반려동물 혈액형
-            'pet_blood_type': app['pet']?['blood_type'],
-            'applicantCount': 1, // 취소된 헌혈은 1건
-            'description': app['description'],
-            'contentDelta': app['content_delta'],
-            'blood_volume': app['blood_volume'],
-            'status': 4, // 헌혈취소 상태
-            'pet_name': app['pet']?['name'] ?? app['pet_name'] ?? '',
-            'pet_breed': app['pet']?['breed'] ?? app['pet_breed'],
-            'pet_idx': app['pet']?['pet_idx'] ?? app['pet_idx'],
-            'user_name': app['user_name'] ?? app['name'],
-            'user_nickname': app['user_nickname'] ?? '',
-            'cancelled_at': app['cancelled_at'] ?? '',
-            'cancelled_by': app['cancelled_by'] ?? '',
-            'cancelled_reason': app['cancelled_reason'] ?? '',
-            // 헌혈 예정일 정보
-            'donation_date': app['donation_time'] ?? app['donation_date'] ?? '',
-            // 단일 시간대 정보를 timeRanges 형식으로 변환
-            'timeRanges':
-                app['donation_time'] != null
-                    ? [
-                      {
-                        'id': app['applied_donation_idx'],
-                        'donation_date':
-                            app['donation_time']?.substring(0, 10) ?? '',
-                        'time': app['donation_time']?.substring(11, 16) ?? '',
-                        'status': 0, // 활성 상태
-                      },
-                    ]
-                    : [],
-            'availableDates':
-                app['donation_time'] != null
-                    ? {
-                      (app['donation_time']?.substring(0, 10) ?? ''): [
-                        {
-                          'post_times_idx': app['applied_donation_idx'],
-                          'time': app['donation_time']?.substring(11, 16) ?? '',
-                          'datetime': app['donation_time'],
-                        },
-                      ],
-                    }
-                    : {},
-            'applications': [
-              {
-                'applied_donation_idx': app['applied_donation_idx'],
-                'status': 4,
-                'user_email': app['user_email'],
-                'user_nickname': app['user_nickname'] ?? app['nickname'] ?? '',
-                'pet_name': app['pet']?['name'] ?? app['pet_name'] ?? '',
-                'donation_time': app['donation_time'] ?? '',
-              },
-            ],
-          });
-        }
-      }
-
-      if (mounted) {
-        setState(() {
-          posts = allCancelled;
-          isLoading = false;
-        });
-      }
-    } catch (e) {
-      if (mounted) {
-        setState(() {
-          errorMessage = '헌혈취소 데이터 로드 실패: ${e.toString()}';
-          isLoading = false;
-        });
-      }
-    }
-  }
-
-  // 헌혈 마감 목록 조회 (탭 2) - 병원에서 1차 완료/중단한 것들
+  // 헌혈 마감 목록 조회 (탭 2) - 병원이 1차 완료한 것들
   Future<void> fetchPendingCompletions() async {
     if (mounted) {
       setState(() {
@@ -800,7 +509,7 @@ class _AdminPostCheckState extends State<AdminPostCheck>
     }
 
     try {
-      // 서버에서 추가한 새로운 API 엔드포인트 사용 (완료 대기 + 중단 대기 + 모집마감)
+      // 완료 대기 + 모집마감 (헌혈마감 탭에 묶어 표시)
       List<Map<String, dynamic>> allApplications = [];
 
       // 상태 5 (완료 대기) 조회
@@ -808,11 +517,6 @@ class _AdminPostCheckState extends State<AdminPostCheck>
           '${Config.serverUrl}/api/applied_donation/admin/by-status/5';
 
       final response5 = await AuthHttpClient.get(Uri.parse(apiUrl5));
-
-      // 상태 6 (중단 대기) 조회
-      String apiUrl6 =
-          '${Config.serverUrl}/api/applied_donation/admin/by-status/6';
-      final response6 = await AuthHttpClient.get(Uri.parse(apiUrl6));
 
       // 상태 3 (모집마감) 조회 - donation_posts에서
       String apiUrl3 = '${Config.serverUrl}/api/admin/posts?status=헌혈마감&page_size=100';
@@ -828,9 +532,7 @@ class _AdminPostCheckState extends State<AdminPostCheck>
       }
       final response3 = await AuthHttpClient.get(Uri.parse(apiUrl3));
 
-      if (response5.statusCode == 200 ||
-          response6.statusCode == 200 ||
-          response3.statusCode == 200) {
+      if (response5.statusCode == 200 || response3.statusCode == 200) {
         // 상태 5 데이터 처리
         if (response5.statusCode == 200) {
           final data5 = json.decode(utf8.decode(response5.bodyBytes));
@@ -839,18 +541,6 @@ class _AdminPostCheckState extends State<AdminPostCheck>
           } else if (data5 is Map && data5['donations'] != null) {
             allApplications.addAll(
               List<Map<String, dynamic>>.from(data5['donations']),
-            );
-          }
-        }
-
-        // 상태 6 데이터 처리
-        if (response6.statusCode == 200) {
-          final data6 = json.decode(utf8.decode(response6.bodyBytes));
-          if (data6 is List) {
-            allApplications.addAll(List<Map<String, dynamic>>.from(data6));
-          } else if (data6 is Map && data6['donations'] != null) {
-            allApplications.addAll(
-              List<Map<String, dynamic>>.from(data6['donations']),
             );
           }
         }
@@ -939,11 +629,8 @@ class _AdminPostCheckState extends State<AdminPostCheck>
                     'blood_type': app['pet']?['blood_type'] ?? '상관없음',
                     'applicantCount': 1,
                     'description':
-                        app['status'] == 5
-                            ? (app['description'] ?? '병원에서 1차 완료 처리된 헌혈입니다.')
-                            : (app['description'] ?? '병원에서 1차 중단 처리된 헌혈입니다.'),
-                    'status':
-                        app['status'], // 5 (pendingCompletion) 또는 6 (pendingCancellation)
+                        app['description'] ?? '병원에서 1차 완료 처리된 헌혈입니다.',
+                    'status': app['status'], // 5 (pendingCompletion)
                     'pet_name': app['pet']?['name'] ?? app['pet_name'] ?? '',
                     'pet_breed': app['pet']?['breed'] ?? app['pet_breed'],
                     'pet_blood_type': app['pet']?['blood_type'],
@@ -952,10 +639,7 @@ class _AdminPostCheckState extends State<AdminPostCheck>
                     'user_nickname': app['user_nickname'] ?? '',
                     'blood_volume': app['blood_volume'],
                     'completed_at': app['completed_at'],
-                    // 중단 관련 정보 (상태 6인 경우)
-                    'cancelled_reason': app['cancelled_reason'],
-                    'cancelled_at': app['cancelled_at'],
-                    'cancelled_by': app['cancelled_by'],
+                    'incompletion_reason': app['incompletion_reason'],
                     // 헌혈 예정일 정보 (donation_time 사용)
                     'donation_date':
                         app['donation_time'] ?? app['donation_date'] ?? '',
@@ -1005,7 +689,6 @@ class _AdminPostCheckState extends State<AdminPostCheck>
           });
         }
       } else if (response5.statusCode == 401 ||
-          response6.statusCode == 401 ||
           response3.statusCode == 401) {
         if (mounted) {
           setState(() {
@@ -1017,7 +700,7 @@ class _AdminPostCheckState extends State<AdminPostCheck>
         if (mounted) {
           setState(() {
             errorMessage =
-                '헌혈 마감 목록을 불러오는데 실패했습니다. 상태 5: ${response5.statusCode}, 상태 6: ${response6.statusCode}, 상태 3: ${response3.statusCode}';
+                '헌혈 마감 목록을 불러오는데 실패했습니다. 상태 5: ${response5.statusCode}, 상태 3: ${response3.statusCode}';
             isLoading = false;
           });
         }
@@ -1025,7 +708,7 @@ class _AdminPostCheckState extends State<AdminPostCheck>
     } catch (e) {
       if (mounted) {
         setState(() {
-          errorMessage = '헌혈 완룼/중단 데이터 로드 실패: ${e.toString()}';
+          errorMessage = '헌혈 마감 데이터 로드 실패: ${e.toString()}';
           isLoading = false;
         });
       }
@@ -1156,8 +839,6 @@ class _AdminPostCheckState extends State<AdminPostCheck>
       await fetchPendingCompletions();
     } else if (_currentTabIndex == 3) {
       await fetchCompletedDonations();
-    } else if (_currentTabIndex == 4) {
-      await fetchCancelledDonations();
     } else {
       await fetchPosts();
     }
@@ -1795,7 +1476,6 @@ class _AdminPostCheckState extends State<AdminPostCheck>
                         Tab(text: '헌혈모집'),
                         Tab(text: '헌혈마감'),
                         Tab(text: '헌혈완료'),
-                        Tab(text: '헌혈취소'),
                       ],
                       indicatorColor: Colors.black,
                       labelColor: Colors.black,
@@ -2004,9 +1684,8 @@ class _AdminPostCheckState extends State<AdminPostCheck>
       ),
       hospitalProfileImage: post['hospitalProfileImage'] ?? post['hospital_profile_image'],
       onTap: () {
-        // 헌혈완료/취소 탭 또는 완료대기/중단대기는 바로 신청자 상세 표시
-        if (_currentTabIndex == 3 || _currentTabIndex == 4 ||
-            post['is_completion_pending'] == true) {
+        // 헌혈완료 탭 또는 완료대기는 바로 신청자 상세 표시
+        if (_currentTabIndex == 3 || post['is_completion_pending'] == true) {
           _openCompletionApplicantSheet(post);
         } else {
           _openPostDetailSheet(
@@ -2043,7 +1722,6 @@ class _AdminPostCheckState extends State<AdminPostCheck>
         onApprovePostTap: (id, title) => _showConfirmDialog(id, true, title),
         onRejectPostTap: (id, title) => _showConfirmDialog(id, false, title),
         onFinalApproveCompletion: _finalApproveCompletion,
-        onRejectCompletion: _rejectCompletion,
         onClosePost: (setState) =>
             _showClosePostConfirmationSheet(post, setState),
         onReopenPost: (setState) =>
@@ -2063,7 +1741,6 @@ class _AdminPostCheckState extends State<AdminPostCheck>
       actions: CompletionApplicantSheetActions(
         onFinalApproveCompletion: _finalApproveCompletion,
         onRequestDocuments: _requestDocuments,
-        onRejectCompletion: _rejectCompletion,
       ),
     );
   }
@@ -2158,9 +1835,8 @@ class _AdminPostCheckState extends State<AdminPostCheck>
                             // 헌혈마감 탭에서는 신청자 정보 표시, 다른 탭에서는 기존 로직
                             if (post['is_completion_pending'] == true) {
                               _openCompletionApplicantSheet(post);
-                            } else if (_currentTabIndex == 3 ||
-                                _currentTabIndex == 4) {
-                              // 헌혈완료/취소 탭에서도 신청자 정보 표시
+                            } else if (_currentTabIndex == 3) {
+                              // 헌혈완료 탭에서도 신청자 정보 표시
                               _openCompletionApplicantSheet(post);
                             } else if (isActive) {
                               await _showTimeSlotApplicants(
@@ -2681,17 +2357,17 @@ class _AdminPostCheckState extends State<AdminPostCheck>
           ),
         );
       }
-      final isCompletion = (postStatus == 5); // 완료대기
+      // 완료대기(postStatus == 5)
       return Container(
         alignment: Alignment.center,
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
         decoration: BoxDecoration(
-          color: isCompletion ? AppTheme.primaryBlue : Colors.pink,
+          color: AppTheme.primaryBlue,
           borderRadius: BorderRadius.circular(6),
         ),
-        child: Text(
-          isCompletion ? '헌혈완료' : '헌혈중단',
-          style: const TextStyle(
+        child: const Text(
+          '헌혈완료',
+          style: TextStyle(
             color: Colors.white,
             fontSize: 10,
             fontWeight: FontWeight.bold,
@@ -3290,9 +2966,8 @@ class _AdminPostCheckState extends State<AdminPostCheck>
   // 게시글 타입 결정 (헬퍼 함수)
   String _getPostType(Map<String, dynamic> post) {
     if (_currentTabIndex == 2) {
-      // 헌혈마감 탭에서는 상태에 따라 뱃지 표시
-      if (post['status'] == 3) return '마감';
-      return post['status'] == 5 ? '완료대기' : '중단대기';
+      // 헌혈마감 탭: 모집마감(3)/완료대기(5) 구분
+      return post['status'] == 5 ? '완료대기' : '마감';
     } else if (_currentTabIndex == 1) {
       // 헌혈모집 탭에서는 진행/마감 뱃지 표시
       // donation_posts.status: 1 = 진행, 3 = 마감
@@ -3300,9 +2975,6 @@ class _AdminPostCheckState extends State<AdminPostCheck>
     } else if (_currentTabIndex == 3) {
       // 헌혈완료 탭에서는 완료 뱃지 표시
       return '완료';
-    } else if (_currentTabIndex == 4) {
-      // 헌혈취소 탭에서는 중단/거절 뱃지 표시
-      return post['status'] == 4 ? '중단' : '거절';
     } else {
       // 모집대기 탭: SUSPENDED(5)이면 [대기] 뱃지, 아니면 긴급/정기
       if (post['status'] == 5) return '대기';

@@ -14,7 +14,7 @@ import '../post_detail/post_detail_patient_info.dart';
 /// 모든 콜백은 nullable — 호출하는 탭에 해당하는 것만 채우면 됨.
 /// (Tab 0 모집대기에서는 [onApprovePostTap]/[onRejectPostTap],
 /// Tab 1 헌혈모집에서는 [onClosePost]/[onReopenPost],
-/// Tab 2 헌혈마감에서는 [onFinalApproveCompletion]/[onRejectCompletion])
+/// Tab 2 헌혈마감에서는 [onFinalApproveCompletion])
 class PostDetailSheetActions {
   /// Tab 0 모집대기 — 승인 버튼.
   final void Function(int postId, String title)? onApprovePostTap;
@@ -24,9 +24,6 @@ class PostDetailSheetActions {
 
   /// Tab 2 헌혈마감 — 헌혈 마감 (status 5 → 7).
   final void Function(int applicationId)? onFinalApproveCompletion;
-
-  /// Tab 2 헌혈마감 — 헌혈 중단 (status 6 → 4).
-  final void Function(int applicationId)? onRejectCompletion;
 
   /// Tab 1 헌혈모집 — 모든 시간대 마감.
   /// 시트 내부 [StateSetter]를 넘겨주어 시트가 즉시 갱신될 수 있도록.
@@ -39,7 +36,6 @@ class PostDetailSheetActions {
     this.onApprovePostTap,
     this.onRejectPostTap,
     this.onFinalApproveCompletion,
-    this.onRejectCompletion,
     this.onClosePost,
     this.onReopenPost,
   });
@@ -143,16 +139,6 @@ void showPostDetailBottomSheet(
                                   ?.toString(),
                               plainText: post['description']?.toString(),
                             ),
-                            if ((post['status'] == 6 ||
-                                    post['status'] == 4) &&
-                                post['cancelled_reason'] != null &&
-                                post['cancelled_reason']
-                                    .toString()
-                                    .isNotEmpty) ...[
-                              const SizedBox(height: 16),
-                              _CancelledReasonSection(post: post),
-                              const SizedBox(height: 20),
-                            ],
                             PostDetailPatientInfo(
                               isUrgent: post['types'] == 0,
                               patientName: post['patientName']?.toString() ??
@@ -226,67 +212,36 @@ void showPostDetailBottomSheet(
                                 ),
                               ),
                             const SizedBox(height: 24),
-                            if (post['is_completion_pending'] == true) ...[
-                              if (post['status'] == 5 &&
-                                  actions.onFinalApproveCompletion != null) ...[
-                                SizedBox(
-                                  width: double.infinity,
-                                  child: OutlinedButton(
-                                    onPressed: () {
-                                      Navigator.of(context).pop();
-                                      actions.onFinalApproveCompletion!(
-                                        post['application_id'] ??
-                                            post['id'] ??
-                                            0,
-                                      );
-                                    },
-                                    style: OutlinedButton.styleFrom(
-                                      foregroundColor: Colors.green,
-                                      side: const BorderSide(
-                                        color: Colors.green,
-                                      ),
-                                      backgroundColor: Colors.white,
-                                      shape: RoundedRectangleBorder(
-                                        borderRadius: BorderRadius.circular(8),
-                                      ),
-                                      padding: const EdgeInsets.symmetric(
-                                        vertical: 12,
-                                      ),
+                            if (post['is_completion_pending'] == true &&
+                                post['status'] == 5 &&
+                                actions.onFinalApproveCompletion != null) ...[
+                              SizedBox(
+                                width: double.infinity,
+                                child: OutlinedButton(
+                                  onPressed: () {
+                                    Navigator.of(context).pop();
+                                    actions.onFinalApproveCompletion!(
+                                      post['application_id'] ??
+                                          post['id'] ??
+                                          0,
+                                    );
+                                  },
+                                  style: OutlinedButton.styleFrom(
+                                    foregroundColor: Colors.green,
+                                    side: const BorderSide(color: Colors.green),
+                                    backgroundColor: Colors.white,
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(8),
                                     ),
-                                    child: const Text('헌혈 마감'),
-                                  ),
-                                ),
-                              ] else if (post['status'] == 6 &&
-                                  actions.onRejectCompletion != null) ...[
-                                SizedBox(
-                                  width: double.infinity,
-                                  child: OutlinedButton(
-                                    onPressed: () {
-                                      Navigator.of(context).pop();
-                                      actions.onRejectCompletion!(
-                                        post['application_id'] ??
-                                            post['id'] ??
-                                            0,
-                                      );
-                                    },
-                                    style: OutlinedButton.styleFrom(
-                                      foregroundColor: Colors.red,
-                                      side: const BorderSide(color: Colors.red),
-                                      backgroundColor: Colors.transparent,
-                                      shape: RoundedRectangleBorder(
-                                        borderRadius: BorderRadius.circular(8),
-                                      ),
-                                      padding: const EdgeInsets.symmetric(
-                                        vertical: 12,
-                                      ),
+                                    padding: const EdgeInsets.symmetric(
+                                      vertical: 12,
                                     ),
-                                    child: const Text('헌혈 중단'),
                                   ),
+                                  child: const Text('헌혈 마감'),
                                 ),
-                              ],
+                              ),
                             ] else if (postStatus == '승인 대기' &&
                                 currentTabIndex != 3 &&
-                                currentTabIndex != 4 &&
                                 actions.onApprovePostTap != null &&
                                 actions.onRejectPostTap != null) ...[
                               Row(
@@ -365,69 +320,6 @@ String _extractHospitalName(String title) {
 bool _hasOpenTimeSlots(Map<String, dynamic> post) {
   final timeRanges = post['timeRanges'] as List<dynamic>? ?? [];
   return timeRanges.any((ts) => ts['status'] == 0 || ts['status'] == null);
-}
-
-class _CancelledReasonSection extends StatelessWidget {
-  final Map<String, dynamic> post;
-
-  const _CancelledReasonSection({required this.post});
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          children: [
-            Icon(
-              Icons.warning_amber_rounded,
-              size: 18,
-              color: Colors.orange.shade700,
-            ),
-            const SizedBox(width: 8),
-            Text(
-              '중단 사유',
-              style: AppTheme.bodyLargeStyle.copyWith(
-                fontWeight: FontWeight.w600,
-                color: Colors.orange.shade700,
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 8),
-        Container(
-          width: double.infinity,
-          padding: const EdgeInsets.all(12),
-          decoration: BoxDecoration(
-            color: Colors.orange.shade50,
-            borderRadius: BorderRadius.circular(8),
-            border: Border.all(color: Colors.orange.shade200),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                post['cancelled_reason'],
-                style: AppTheme.bodyMediumStyle.copyWith(
-                  color: AppTheme.textPrimary,
-                  height: 1.4,
-                ),
-              ),
-              if (post['cancelled_at'] != null) ...[
-                const SizedBox(height: 8),
-                Text(
-                  '중단 처리 시간: ${TimeFormatUtils.formatKoreanDateTime(post['cancelled_at'])}',
-                  style: AppTheme.bodySmallStyle.copyWith(
-                    color: AppTheme.textSecondary,
-                  ),
-                ),
-              ],
-            ],
-          ),
-        ),
-      ],
-    );
-  }
 }
 
 class _ApproveRejectButton extends StatelessWidget {
