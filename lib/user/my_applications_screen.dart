@@ -208,10 +208,6 @@ class _MyApplicationsScreenState extends State<MyApplicationsScreen> {
     }
   }
 
-  Color _getStatusColor(int status) {
-    return AppliedDonationStatus.getStatusColorValue(status);
-  }
-
   String _formatDateTime(DateTime dateTime) {
     return '${dateTime.year}-${dateTime.month.toString().padLeft(2, '0')}-${dateTime.day.toString().padLeft(2, '0')} ${dateTime.hour.toString().padLeft(2, '0')}:${dateTime.minute.toString().padLeft(2, '0')}';
   }
@@ -339,7 +335,8 @@ class _MyApplicationsScreenState extends State<MyApplicationsScreen> {
                                             vertical: 4.0,
                                           ),
                                           decoration: BoxDecoration(
-                                            color: _getStatusColor(
+                                            color: AppliedDonationStatus
+                                                .getStatusColorValue(
                                               application.status,
                                             ).withValues(alpha: 0.15),
                                             borderRadius: BorderRadius.circular(
@@ -351,7 +348,8 @@ class _MyApplicationsScreenState extends State<MyApplicationsScreen> {
                                             style: AppTheme.bodySmallStyle
                                                 .copyWith(
                                                   fontWeight: FontWeight.w600,
-                                                  color: _getStatusColor(
+                                                  color: AppliedDonationStatus
+                                                      .getStatusColorValue(
                                                     application.status,
                                                   ),
                                                 ),

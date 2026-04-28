@@ -1200,7 +1200,7 @@ class _HospitalPostCheckState extends State<HospitalPostCheck>
                                               vertical: 2,
                                             ),
                                             decoration: BoxDecoration(
-                                              color: _getStatusColor(
+                                              color: AppliedDonationStatus.getStatusColorValue(
                                                 item.applicantStatus!,
                                               ).withAlpha(51),
                                               borderRadius:
@@ -1210,7 +1210,8 @@ class _HospitalPostCheckState extends State<HospitalPostCheck>
                                               item.applicantStatusText ??
                                                   '알 수 없음',
                                               style: TextStyle(
-                                                color: _getStatusColor(
+                                                color: AppliedDonationStatus
+                                                    .getStatusColorValue(
                                                   item.applicantStatus!,
                                                 ),
                                                 fontWeight: FontWeight.w600,
@@ -1302,10 +1303,6 @@ class _HospitalPostCheckState extends State<HospitalPostCheck>
             },
           ),
     );
-  }
-
-  Color _getStatusColor(int status) {
-    return AppliedDonationStatus.getStatusColorValue(status);
   }
 
   void _showRejectedPostBottomSheet(RejectedPost post) {

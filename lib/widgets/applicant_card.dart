@@ -24,14 +24,10 @@ class ApplicantCard extends StatelessWidget {
     this.showActionButtons = true,
   });
 
-  /// 상태별 색상
-  Color _getStatusColor(int status) {
-    return AppliedDonationStatus.getStatusColorValue(status);
-  }
-
   @override
   Widget build(BuildContext context) {
-    final statusColor = _getStatusColor(applicant.status);
+    final statusColor =
+        AppliedDonationStatus.getStatusColorValue(applicant.status);
 
     return GestureDetector(
       onTap: () => _showApplicantDetail(context),

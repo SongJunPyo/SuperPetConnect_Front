@@ -936,7 +936,9 @@ class _CancelApplicationBottomSheetState
                 _buildInfoRow(
                   '상태',
                   widget.application.status,
-                  statusColor: _getStatusColor(widget.application.statusCode),
+                  statusColor: AppliedDonationStatus.getStatusColorValue(
+                    widget.application.statusCode,
+                  ),
                 ),
               ],
             ),
@@ -1049,10 +1051,6 @@ class _CancelApplicationBottomSheetState
         ),
       ],
     );
-  }
-
-  Color _getStatusColor(int statusCode) {
-    return AppliedDonationStatus.getStatusColorValue(statusCode);
   }
 
   Future<void> _handleCancel() async {

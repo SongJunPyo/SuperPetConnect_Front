@@ -347,7 +347,7 @@ class _UserDonationApplicationsScreenState
         color: Colors.grey.shade50,
         borderRadius: BorderRadius.circular(AppTheme.radius8),
         border: Border.all(
-          color: _getStatusColor(application.status),
+          color: AppliedDonationStatus.getStatusColorValue(application.status),
           width: 1,
         ),
       ),
@@ -373,7 +373,7 @@ class _UserDonationApplicationsScreenState
                   vertical: AppTheme.spacing4,
                 ),
                 decoration: BoxDecoration(
-                  color: _getStatusColor(
+                  color: AppliedDonationStatus.getStatusColorValue(
                     application.status,
                   ).withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(AppTheme.radius8),
@@ -381,7 +381,7 @@ class _UserDonationApplicationsScreenState
                 child: Text(
                   application.statusText,
                   style: AppTheme.captionStyle.copyWith(
-                    color: _getStatusColor(application.status),
+                    color: AppliedDonationStatus.getStatusColorValue(application.status),
                     fontWeight: FontWeight.w600,
                   ),
                 ),
@@ -457,10 +457,6 @@ class _UserDonationApplicationsScreenState
         ],
       ),
     );
-  }
-
-  Color _getStatusColor(int status) {
-    return AppliedDonationStatus.getStatusColorValue(status);
   }
 
   void _showCancelConfirmation(AppliedDonation application) {
