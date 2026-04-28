@@ -1,8 +1,10 @@
 // admin/admin_black_list_management.dart
 
 import 'package:flutter/material.dart';
+import '../utils/app_constants.dart';
 import '../utils/app_theme.dart';
 import '../widgets/app_app_bar.dart';
+import '../widgets/pagination_bar.dart';
 import '../models/black_list_model.dart';
 import '../services/black_list_service.dart';
 import 'package:intl/intl.dart';
@@ -32,10 +34,7 @@ class _AdminBlackListManagementScreenState
 
   // 페이징
   int currentPage = 1;
-  int pageSize = 10;
-  bool hasNextPage = false;
-  bool hasPreviousPage = false;
-  int totalCount = 0;
+  int totalPages = 1;
 
   @override
   void initState() {
@@ -88,6 +87,7 @@ class _AdminBlackListManagementScreenState
         errorMessage = null;
       });
 
+      const pageSize = AppConstants.detailListPageSize;
       final response = await BlackListService.getBlackLists(
         page: currentPage,
         pageSize: pageSize,
@@ -97,9 +97,9 @@ class _AdminBlackListManagementScreenState
 
       setState(() {
         blackLists = response.blackLists;
-        hasNextPage = response.hasNext;
-        hasPreviousPage = response.hasPrevious;
-        totalCount = response.totalCount;
+        totalPages = response.totalCount == 0
+            ? 1
+            : (response.totalCount / pageSize).ceil();
         isLoading = false;
       });
     } catch (e) {
@@ -118,22 +118,9 @@ class _AdminBlackListManagementScreenState
     _loadBlackLists();
   }
 
-  void _nextPage() {
-    if (hasNextPage) {
-      setState(() {
-        currentPage++;
-      });
-      _loadBlackLists();
-    }
-  }
-
-  void _previousPage() {
-    if (hasPreviousPage) {
-      setState(() {
-        currentPage--;
-      });
-      _loadBlackLists();
-    }
+  void _onPageChanged(int page) {
+    setState(() => currentPage = page);
+    _loadBlackLists();
   }
 
   Future<void> _showCreateDialog() async {
@@ -305,9 +292,6 @@ class _AdminBlackListManagementScreenState
               ],
             ),
           ),
-
-          // 페이징
-          if (totalCount > pageSize) _buildPagination(),
         ],
       ),
     );
@@ -366,10 +350,19 @@ class _AdminBlackListManagementScreenState
       );
     }
 
+    final int paginationBarCount = totalPages > 1 ? 1 : 0;
+
     return ListView.builder(
       padding: const EdgeInsets.all(16),
-      itemCount: blackLists.length,
+      itemCount: blackLists.length + paginationBarCount,
       itemBuilder: (context, index) {
+        if (index >= blackLists.length) {
+          return PaginationBar(
+            currentPage: currentPage,
+            totalPages: totalPages,
+            onPageChanged: _onPageChanged,
+          );
+        }
         final blackList = blackLists[index];
         return _buildBlackListCard(blackList);
       },
@@ -548,32 +541,6 @@ class _AdminBlackListManagementScreenState
     );
   }
 
-  Widget _buildPagination() {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Text(
-            '총 $totalCount개 ($currentPage/${((totalCount - 1) / pageSize).ceil() + 1}페이지)',
-            style: AppTheme.bodySmallStyle,
-          ),
-          Row(
-            children: [
-              IconButton(
-                onPressed: hasPreviousPage ? _previousPage : null,
-                icon: const Icon(Icons.chevron_left),
-              ),
-              IconButton(
-                onPressed: hasNextPage ? _nextPage : null,
-                icon: const Icon(Icons.chevron_right),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
 }
 
 // 블랙리스트 등록 대화상자

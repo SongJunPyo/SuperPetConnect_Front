@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
+import '../utils/app_constants.dart';
 import '../utils/app_theme.dart';
 import '../utils/error_display.dart';
 import '../widgets/app_app_bar.dart';
 import '../widgets/app_search_bar.dart';
+import '../widgets/pagination_bar.dart';
 import '../models/user_model.dart';
 import '../services/user_management_service.dart';
 import 'package:intl/intl.dart';
@@ -28,10 +30,7 @@ class _AdminUserManagementScreenState extends State<AdminUserManagementScreen>
   int? statusFilter;
 
   int currentPage = 1;
-  int pageSize = 10;
-  bool hasNextPage = false;
-  bool hasPreviousPage = false;
-  int totalCount = 0;
+  int totalPages = 1;
 
   @override
   void initState() {
@@ -82,16 +81,14 @@ class _AdminUserManagementScreenState extends State<AdminUserManagementScreen>
 
       final response = await UserManagementService.getUsers(
         page: currentPage,
-        pageSize: pageSize,
+        pageSize: AppConstants.detailListPageSize,
         search: searchQuery.isNotEmpty ? searchQuery : null,
         status: statusFilter,
       );
 
       setState(() {
         users = response.users;
-        hasNextPage = response.hasNext;
-        hasPreviousPage = response.hasPrevious;
-        totalCount = response.totalCount;
+        totalPages = response.totalPages;
         isLoading = false;
       });
     } catch (e) {
@@ -110,22 +107,9 @@ class _AdminUserManagementScreenState extends State<AdminUserManagementScreen>
     _loadUsers();
   }
 
-  void _nextPage() {
-    if (hasNextPage) {
-      setState(() {
-        currentPage++;
-      });
-      _loadUsers();
-    }
-  }
-
-  void _previousPage() {
-    if (hasPreviousPage) {
-      setState(() {
-        currentPage--;
-      });
-      _loadUsers();
-    }
+  void _onPageChanged(int page) {
+    setState(() => currentPage = page);
+    _loadUsers();
   }
 
   Future<void> _showBlacklistDialog(User user) async {
@@ -174,7 +158,6 @@ class _AdminUserManagementScreenState extends State<AdminUserManagementScreen>
               children: [_buildUserListView(), _buildUserListView()],
             ),
           ),
-          if (totalCount > pageSize) _buildPagination(),
         ],
       ),
     );
@@ -233,10 +216,19 @@ class _AdminUserManagementScreenState extends State<AdminUserManagementScreen>
       );
     }
 
+    final int paginationBarCount = totalPages > 1 ? 1 : 0;
+
     return ListView.builder(
       padding: const EdgeInsets.all(16),
-      itemCount: users.length,
+      itemCount: users.length + paginationBarCount,
       itemBuilder: (context, index) {
+        if (index >= users.length) {
+          return PaginationBar(
+            currentPage: currentPage,
+            totalPages: totalPages,
+            onPageChanged: _onPageChanged,
+          );
+        }
         final user = users[index];
         return _buildUserCard(user);
       },
@@ -451,32 +443,6 @@ class _AdminUserManagementScreenState extends State<AdminUserManagementScreen>
     }
   }
 
-  Widget _buildPagination() {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Text(
-            '총 $totalCount개 ($currentPage/${((totalCount - 1) / pageSize).ceil() + 1}페이지)',
-            style: AppTheme.bodySmallStyle,
-          ),
-          Row(
-            children: [
-              IconButton(
-                onPressed: hasPreviousPage ? _previousPage : null,
-                icon: const Icon(Icons.chevron_left),
-              ),
-              IconButton(
-                onPressed: hasNextPage ? _nextPage : null,
-                icon: const Icon(Icons.chevron_right),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
 }
 
 class _BlacklistBottomSheet extends StatefulWidget {

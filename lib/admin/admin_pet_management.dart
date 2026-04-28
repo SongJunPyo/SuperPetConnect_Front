@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 import 'dart:convert';
 import '../utils/app_theme.dart';
+import '../utils/app_constants.dart';
 import '../utils/config.dart';
 import '../utils/api_endpoints.dart';
 import '../services/auth_http_client.dart';
 import '../models/pet_model.dart';
 import '../widgets/app_search_bar.dart';
+import '../widgets/pagination_bar.dart';
 import '../widgets/pet_profile_image.dart';
 
 /// 관리자 반려동물 관리 페이지
@@ -59,7 +61,7 @@ class _AdminPetManagementState extends State<AdminPetManagement>
     });
 
     try {
-      var queryStr = '${Config.serverUrl}${ApiEndpoints.adminPets}?status=$_selectedStatus&page=$_currentPage&page_size=10';
+      var queryStr = '${Config.serverUrl}${ApiEndpoints.adminPets}?status=$_selectedStatus&page=$_currentPage&page_size=${AppConstants.detailListPageSize}';
       if (_searchQuery.isNotEmpty) {
         queryStr += '&search=${Uri.encodeComponent(_searchQuery)}';
       }
@@ -656,35 +658,9 @@ class _AdminPetManagementState extends State<AdminPetManagement>
     );
   }
 
-  Widget _buildPagination() {
-    if (_totalPages <= 1) return const SizedBox.shrink();
-    return Padding(
-      padding: const EdgeInsets.all(AppTheme.spacing16),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          IconButton(
-            onPressed: _currentPage > 1
-                ? () {
-                    setState(() => _currentPage--);
-                    _fetchPets();
-                  }
-                : null,
-            icon: const Icon(Icons.chevron_left),
-          ),
-          Text('$_currentPage / $_totalPages'),
-          IconButton(
-            onPressed: _currentPage < _totalPages
-                ? () {
-                    setState(() => _currentPage++);
-                    _fetchPets();
-                  }
-                : null,
-            icon: const Icon(Icons.chevron_right),
-          ),
-        ],
-      ),
-    );
+  void _onPageChanged(int page) {
+    setState(() => _currentPage = page);
+    _fetchPets();
   }
 
   @override
@@ -759,21 +735,23 @@ class _AdminPetManagementState extends State<AdminPetManagement>
                               style: const TextStyle(color: AppTheme.textTertiary),
                             ),
                           )
-                        : Column(
-                            children: [
-                              Expanded(
-                                child: RefreshIndicator(
-                                  onRefresh: _fetchPets,
-                                  child: ListView.builder(
-                                    padding: const EdgeInsets.symmetric(vertical: AppTheme.spacing8),
-                              itemCount: _pets.length,
-                              itemBuilder: (context, index) => _buildPetCard(_pets[index]),
+                        : RefreshIndicator(
+                            onRefresh: _fetchPets,
+                            child: ListView.builder(
+                              padding: const EdgeInsets.symmetric(vertical: AppTheme.spacing8),
+                              itemCount: _pets.length + (_totalPages > 1 ? 1 : 0),
+                              itemBuilder: (context, index) {
+                                if (index >= _pets.length) {
+                                  return PaginationBar(
+                                    currentPage: _currentPage,
+                                    totalPages: _totalPages,
+                                    onPageChanged: _onPageChanged,
+                                  );
+                                }
+                                return _buildPetCard(_pets[index]);
+                              },
                             ),
                           ),
-                        ),
-                        _buildPagination(),
-                      ],
-                    ),
           ),
         ],
       ),

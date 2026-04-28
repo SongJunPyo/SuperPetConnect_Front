@@ -17,6 +17,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../utils/app_constants.dart';
 import '../widgets/dashboard/dashboard_more_button.dart';
 import '../widgets/dashboard/dashboard_empty_state.dart';
+import '../widgets/post_list/board_list_header.dart';
 import '../widgets/post_list/board_list_row.dart';
 import '../widgets/post_list/notice_styling.dart';
 import '../widgets/association_footer.dart';
@@ -603,12 +604,14 @@ class _WelcomeScreenState extends State<WelcomeScreen>
     }
 
     return Container(
+      clipBehavior: Clip.antiAlias,
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(12),
       ),
       child: Column(
         children: [
+          const BoardListHeader(),
           // 공지사항 목록
           Expanded(
             child: ListView.separated(
@@ -685,12 +688,14 @@ class _WelcomeScreenState extends State<WelcomeScreen>
     }
 
     return Container(
+      clipBehavior: Clip.antiAlias,
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(12),
       ),
       child: Column(
         children: [
+          const BoardListHeader(),
           // 칼럼 목록
           Expanded(
             child: ListView.separated(

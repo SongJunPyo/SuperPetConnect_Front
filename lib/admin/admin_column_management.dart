@@ -4,8 +4,10 @@ import 'package:url_launcher/url_launcher.dart';
 import '../services/hospital_column_service.dart';
 import '../models/hospital_column_model.dart';
 import '../utils/app_theme.dart';
+import '../utils/app_constants.dart';
 import '../utils/error_display.dart';
 import '../widgets/app_search_bar.dart';
+import '../widgets/pagination_bar.dart';
 import '../widgets/rich_text_viewer.dart';
 import '../widgets/post_list/board_list_row.dart';
 import '../widgets/post_list/board_list_header.dart';
@@ -20,6 +22,7 @@ class AdminColumnManagement extends StatefulWidget {
 }
 
 class _AdminColumnManagementState extends State<AdminColumnManagement> {
+  final List<HospitalColumn> _allColumns = [];
   List<HospitalColumn> columns = [];
   bool isLoading = true;
   bool hasError = false;
@@ -28,6 +31,9 @@ class _AdminColumnManagementState extends State<AdminColumnManagement> {
   TextEditingController searchController = TextEditingController();
   DateTime? startDate;
   DateTime? endDate;
+  final ScrollController _scrollController = ScrollController();
+  int _currentPage = 1;
+  int _totalPages = 1;
 
   @override
   void initState() {
@@ -37,6 +43,7 @@ class _AdminColumnManagementState extends State<AdminColumnManagement> {
 
   @override
   void dispose() {
+    _scrollController.dispose();
     searchController.dispose();
     super.dispose();
   }
@@ -45,23 +52,36 @@ class _AdminColumnManagementState extends State<AdminColumnManagement> {
     setState(() {
       isLoading = true;
       hasError = false;
+      _currentPage = 1;
+      _allColumns.clear();
+      columns = [];
     });
 
     try {
-      final response = await HospitalColumnService.getAllColumns(
-        page: 1,
-        pageSize: 50,
-        startDate: startDate,
-        endDate: endDate,
-        search: searchQuery.isNotEmpty ? searchQuery : null,
-      );
+      // 서버 페이지네이션을 통해 모든 데이터를 순차적으로 가져옴
+      int page = 1;
+      bool hasMore = true;
+      const fetchSize = 50;
 
+      while (hasMore) {
+        final response = await HospitalColumnService.getAllColumns(
+          page: page,
+          pageSize: fetchSize,
+        );
+        _allColumns.addAll(response.columns);
+        hasMore = response.columns.length == fetchSize &&
+            page * fetchSize < response.totalCount;
+        page++;
+      }
+
+      if (!mounted) return;
       setState(() {
-        columns = response.columns;
+        columns = _paginateFiltered(_applyFilters(_allColumns));
         isLoading = false;
         hasError = false;
       });
     } catch (e) {
+      if (!mounted) return;
       setState(() {
         isLoading = false;
         hasError = true;
@@ -70,11 +90,66 @@ class _AdminColumnManagementState extends State<AdminColumnManagement> {
     }
   }
 
+  List<HospitalColumn> _paginateFiltered(List<HospitalColumn> filtered) {
+    const pageSize = AppConstants.detailListPageSize;
+    _totalPages = filtered.isEmpty ? 1 : (filtered.length / pageSize).ceil();
+    if (_currentPage > _totalPages) _currentPage = _totalPages;
+    final start = (_currentPage - 1) * pageSize;
+    final end = (start + pageSize).clamp(0, filtered.length);
+    return filtered.sublist(start, end);
+  }
+
+  List<HospitalColumn> _applyFilters(List<HospitalColumn> source) {
+    Iterable<HospitalColumn> filtered = source;
+
+    if (searchQuery.isNotEmpty) {
+      final lowered = searchQuery.toLowerCase();
+      filtered = filtered.where((column) {
+        final nickname = column.authorNickname ?? column.hospitalName;
+        return column.title.toLowerCase().contains(lowered) ||
+            column.content.toLowerCase().contains(lowered) ||
+            nickname.toLowerCase().contains(lowered);
+      });
+    }
+
+    if (startDate != null) {
+      filtered = filtered.where((column) {
+        return column.createdAt.isAfter(
+          startDate!.subtract(const Duration(days: 1)),
+        );
+      });
+    }
+
+    if (endDate != null) {
+      filtered = filtered.where((column) {
+        return column.createdAt.isBefore(
+          endDate!.add(const Duration(days: 1)),
+        );
+      });
+    }
+
+    final sorted = filtered.toList()
+      ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+
+    return sorted;
+  }
+
+  void _onPageChanged(int page) {
+    setState(() {
+      _currentPage = page;
+      columns = _paginateFiltered(_applyFilters(_allColumns));
+    });
+    if (_scrollController.hasClients) {
+      _scrollController.jumpTo(0);
+    }
+  }
+
   void _onSearchChanged(String query) {
     setState(() {
       searchQuery = query;
+      _currentPage = 1;
+      columns = _paginateFiltered(_applyFilters(_allColumns));
     });
-    _loadAllColumns();
   }
 
   Future<void> _selectDateRange() async {
@@ -102,8 +177,9 @@ class _AdminColumnManagementState extends State<AdminColumnManagement> {
       setState(() {
         startDate = picked.start;
         endDate = picked.end;
+        _currentPage = 1;
+        columns = _paginateFiltered(_applyFilters(_allColumns));
       });
-      _loadAllColumns();
     }
   }
 
@@ -111,8 +187,9 @@ class _AdminColumnManagementState extends State<AdminColumnManagement> {
     setState(() {
       startDate = null;
       endDate = null;
+      _currentPage = 1;
+      columns = _paginateFiltered(_applyFilters(_allColumns));
     });
-    _loadAllColumns();
   }
 
   Future<void> _togglePublishStatus(HospitalColumn column) async {
@@ -558,6 +635,8 @@ class _AdminColumnManagementState extends State<AdminColumnManagement> {
       );
     }
 
+    final int paginationBarCount = _totalPages > 1 ? 1 : 0;
+
     return Container(
       decoration: BoxDecoration(color: Colors.white),
       child: Column(
@@ -565,8 +644,9 @@ class _AdminColumnManagementState extends State<AdminColumnManagement> {
           const BoardListHeader(),
           Expanded(
             child: ListView.separated(
+        controller: _scrollController,
         padding: EdgeInsets.zero,
-        itemCount: columns.length,
+        itemCount: columns.length + paginationBarCount,
         separatorBuilder:
             (context, index) => Container(
               height: 1,
@@ -574,6 +654,13 @@ class _AdminColumnManagementState extends State<AdminColumnManagement> {
               margin: const EdgeInsets.symmetric(horizontal: 16),
             ),
         itemBuilder: (context, index) {
+          if (index >= columns.length) {
+            return PaginationBar(
+              currentPage: _currentPage,
+              totalPages: _totalPages,
+              onPageChanged: _onPageChanged,
+            );
+          }
           final column = columns[index];
           return _buildColumnItem(column, index);
         },

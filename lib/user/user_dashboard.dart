@@ -26,6 +26,7 @@ import '../widgets/marquee_text.dart';
 import '../widgets/post_type_badge.dart';
 import '../widgets/dashboard/dashboard_empty_state.dart';
 import '../widgets/dashboard/dashboard_more_button.dart';
+import '../widgets/post_list/board_list_header.dart';
 import '../widgets/post_list/board_list_row.dart';
 import '../widgets/post_list/notice_styling.dart';
 import '../services/auth_http_client.dart';
@@ -1183,12 +1184,14 @@ class _UserDashboardState extends State<UserDashboard>
     }
 
     return Container(
+      clipBehavior: Clip.antiAlias,
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(12),
       ),
       child: Column(
         children: [
+          const BoardListHeader(),
           // 칼럼 목록
           Expanded(
             child: ListView.separated(
@@ -1427,12 +1430,14 @@ class _UserDashboardState extends State<UserDashboard>
     }
 
     return Container(
+      clipBehavior: Clip.antiAlias,
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(12),
       ),
       child: Column(
         children: [
+          const BoardListHeader(),
           // 공지사항 목록
           Expanded(
             child: ListView.separated(

@@ -6,10 +6,12 @@ import 'package:url_launcher/url_launcher.dart';
 import '../services/hospital_column_service.dart';
 import '../utils/preferences_manager.dart';
 import '../models/hospital_column_model.dart';
+import '../utils/app_constants.dart';
 import '../utils/app_theme.dart';
 import '../utils/config.dart';
 import '../utils/error_display.dart';
 import '../widgets/app_app_bar.dart';
+import '../widgets/pagination_bar.dart';
 import '../widgets/rich_text_viewer.dart';
 import '../widgets/post_list/board_list_row.dart';
 import '../widgets/post_list/board_list_header.dart';
@@ -27,6 +29,7 @@ class HospitalColumnManagementScreen extends StatefulWidget {
 
 class _HospitalColumnManagementScreenState
     extends State<HospitalColumnManagementScreen> {
+  final List<HospitalColumn> _allColumns = [];
   List<HospitalColumn> columns = [];
   bool isLoading = true;
   bool hasError = false;
@@ -35,6 +38,9 @@ class _HospitalColumnManagementScreenState
   TextEditingController searchController = TextEditingController();
   DateTime? startDate;
   DateTime? endDate;
+  final ScrollController _scrollController = ScrollController();
+  int _currentPage = 1;
+  int _totalPages = 1;
 
   @override
   void initState() {
@@ -44,6 +50,7 @@ class _HospitalColumnManagementScreenState
 
   @override
   void dispose() {
+    _scrollController.dispose();
     searchController.dispose();
     super.dispose();
   }
@@ -52,56 +59,36 @@ class _HospitalColumnManagementScreenState
     setState(() {
       isLoading = true;
       hasError = false;
+      _currentPage = 1;
+      _allColumns.clear();
+      columns = [];
     });
 
     try {
-      var allColumns = await HospitalColumnService.getMyColumns(
-        page: 1,
-        pageSize: 50,
-      );
+      // 서버 페이지네이션을 통해 모든 데이터를 순차적으로 가져옴
+      int page = 1;
+      bool hasMore = true;
+      const fetchSize = 50;
 
-      var filteredColumns = allColumns.columns;
-
-      // 검색 필터링
-      if (searchQuery.isNotEmpty) {
-        filteredColumns =
-            filteredColumns.where((column) {
-              final nickname = column.authorNickname ?? column.hospitalName;
-              return column.title.toLowerCase().contains(
-                    searchQuery.toLowerCase(),
-                  ) ||
-                  column.content.toLowerCase().contains(
-                    searchQuery.toLowerCase(),
-                  ) ||
-                  nickname.toLowerCase().contains(searchQuery.toLowerCase());
-            }).toList();
+      while (hasMore) {
+        final response = await HospitalColumnService.getMyColumns(
+          page: page,
+          pageSize: fetchSize,
+        );
+        _allColumns.addAll(response.columns);
+        hasMore = response.columns.length == fetchSize &&
+            page * fetchSize < response.totalCount;
+        page++;
       }
 
-      // 날짜 범위 필터링
-      if (startDate != null) {
-        filteredColumns =
-            filteredColumns.where((column) {
-              return column.createdAt.isAfter(
-                startDate!.subtract(const Duration(days: 1)),
-              );
-            }).toList();
-      }
-
-      if (endDate != null) {
-        filteredColumns =
-            filteredColumns.where((column) {
-              return column.createdAt.isBefore(
-                endDate!.add(const Duration(days: 1)),
-              );
-            }).toList();
-      }
-
+      if (!mounted) return;
       setState(() {
-        columns = filteredColumns;
+        columns = _paginateFiltered(_applyFilters(_allColumns));
         isLoading = false;
         hasError = false;
       });
     } catch (e) {
+      if (!mounted) return;
       setState(() {
         isLoading = false;
         hasError = true;
@@ -110,11 +97,66 @@ class _HospitalColumnManagementScreenState
     }
   }
 
+  List<HospitalColumn> _paginateFiltered(List<HospitalColumn> filtered) {
+    const pageSize = AppConstants.detailListPageSize;
+    _totalPages = filtered.isEmpty ? 1 : (filtered.length / pageSize).ceil();
+    if (_currentPage > _totalPages) _currentPage = _totalPages;
+    final start = (_currentPage - 1) * pageSize;
+    final end = (start + pageSize).clamp(0, filtered.length);
+    return filtered.sublist(start, end);
+  }
+
+  List<HospitalColumn> _applyFilters(List<HospitalColumn> source) {
+    Iterable<HospitalColumn> filtered = source;
+
+    if (searchQuery.isNotEmpty) {
+      final lowered = searchQuery.toLowerCase();
+      filtered = filtered.where((column) {
+        final nickname = column.authorNickname ?? column.hospitalName;
+        return column.title.toLowerCase().contains(lowered) ||
+            column.content.toLowerCase().contains(lowered) ||
+            nickname.toLowerCase().contains(lowered);
+      });
+    }
+
+    if (startDate != null) {
+      filtered = filtered.where((column) {
+        return column.createdAt.isAfter(
+          startDate!.subtract(const Duration(days: 1)),
+        );
+      });
+    }
+
+    if (endDate != null) {
+      filtered = filtered.where((column) {
+        return column.createdAt.isBefore(
+          endDate!.add(const Duration(days: 1)),
+        );
+      });
+    }
+
+    final sorted = filtered.toList()
+      ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+
+    return sorted;
+  }
+
+  void _onPageChanged(int page) {
+    setState(() {
+      _currentPage = page;
+      columns = _paginateFiltered(_applyFilters(_allColumns));
+    });
+    if (_scrollController.hasClients) {
+      _scrollController.jumpTo(0);
+    }
+  }
+
   void _onSearchChanged(String query) {
     setState(() {
       searchQuery = query;
+      _currentPage = 1;
+      columns = _paginateFiltered(_applyFilters(_allColumns));
     });
-    _loadMyColumns();
   }
 
   Future<void> _selectDateRange() async {
@@ -142,8 +184,9 @@ class _HospitalColumnManagementScreenState
       setState(() {
         startDate = picked.start;
         endDate = picked.end;
+        _currentPage = 1;
+        columns = _paginateFiltered(_applyFilters(_allColumns));
       });
-      _loadMyColumns();
     }
   }
 
@@ -151,8 +194,9 @@ class _HospitalColumnManagementScreenState
     setState(() {
       startDate = null;
       endDate = null;
+      _currentPage = 1;
+      columns = _paginateFiltered(_applyFilters(_allColumns));
     });
-    _loadMyColumns();
   }
 
   Future<void> _increaseViewCountIfNeeded(int columnIdx) async {
@@ -822,6 +866,8 @@ class _HospitalColumnManagementScreenState
       );
     }
 
+    final int paginationBarCount = _totalPages > 1 ? 1 : 0;
+
     return Container(
       decoration: BoxDecoration(color: Colors.white),
       child: Column(
@@ -829,8 +875,9 @@ class _HospitalColumnManagementScreenState
           const BoardListHeader(),
           Expanded(
             child: ListView.separated(
+        controller: _scrollController,
         padding: EdgeInsets.zero,
-        itemCount: columns.length,
+        itemCount: columns.length + paginationBarCount,
         separatorBuilder:
             (context, index) => Container(
               height: 1,
@@ -838,6 +885,13 @@ class _HospitalColumnManagementScreenState
               margin: const EdgeInsets.symmetric(horizontal: 16),
             ),
         itemBuilder: (context, index) {
+          if (index >= columns.length) {
+            return PaginationBar(
+              currentPage: _currentPage,
+              totalPages: _totalPages,
+              onPageChanged: _onPageChanged,
+            );
+          }
           final column = columns[index];
           return _buildColumnItem(column, index);
         },

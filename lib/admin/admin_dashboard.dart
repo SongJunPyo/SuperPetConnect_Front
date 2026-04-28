@@ -29,6 +29,7 @@ import '../utils/number_format_util.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../widgets/dashboard/dashboard_empty_state.dart';
 import '../widgets/dashboard/dashboard_more_button.dart';
+import '../widgets/post_list/board_list_header.dart';
 import '../widgets/post_list/board_list_row.dart';
 import '../widgets/post_list/notice_styling.dart';
 import '../services/hospital_column_service.dart';
@@ -774,12 +775,14 @@ class _AdminDashboardState extends State<AdminDashboard>
     }
 
     return Container(
+      clipBehavior: Clip.antiAlias,
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(12),
       ),
       child: Column(
         children: [
+          const BoardListHeader(),
           // 공지사항 목록
           Expanded(
             child: ListView.separated(
@@ -842,12 +845,14 @@ class _AdminDashboardState extends State<AdminDashboard>
     }
 
     return Container(
+      clipBehavior: Clip.antiAlias,
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(12),
       ),
       child: Column(
         children: [
+          const BoardListHeader(),
           // 칼럼 목록
           Expanded(
             child: ListView.separated(

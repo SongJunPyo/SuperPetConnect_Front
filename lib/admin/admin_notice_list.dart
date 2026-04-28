@@ -1,10 +1,12 @@
 ﻿import 'package:flutter/material.dart';
 import '../utils/app_theme.dart';
+import '../utils/app_constants.dart';
 import '../models/notice_model.dart';
 import '../services/notice_service.dart';
 import 'admin_notice_create.dart';
 import 'package:intl/intl.dart';
 import '../widgets/app_search_bar.dart';
+import '../widgets/pagination_bar.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../widgets/post_list/board_list_row.dart';
 import '../widgets/post_list/board_list_header.dart';
@@ -18,7 +20,7 @@ class AdminNoticeListScreen extends StatefulWidget {
 }
 
 class _AdminNoticeListScreenState extends State<AdminNoticeListScreen> {
-  List<Notice> notices = [];
+  final List<Notice> _allNotices = [];
   List<Notice> filteredNotices = [];
   bool isLoading = true;
   String? errorMessage;
@@ -26,6 +28,9 @@ class _AdminNoticeListScreenState extends State<AdminNoticeListScreen> {
   TextEditingController searchController = TextEditingController();
   DateTime? startDate;
   DateTime? endDate;
+  final ScrollController _scrollController = ScrollController();
+  int _currentPage = 1;
+  int _totalPages = 1;
 
   @override
   void initState() {
@@ -35,27 +40,33 @@ class _AdminNoticeListScreenState extends State<AdminNoticeListScreen> {
 
   @override
   void dispose() {
+    _scrollController.dispose();
     searchController.dispose();
     super.dispose();
   }
 
   Future<void> _loadNotices() async {
-    try {
-      setState(() {
-        isLoading = true;
-        errorMessage = null;
-      });
+    setState(() {
+      isLoading = true;
+      errorMessage = null;
+      _currentPage = 1;
+      _allNotices.clear();
+      filteredNotices = [];
+    });
 
+    try {
       final allNotices = await NoticeService.getAdminNotices(
         activeOnly: false, // 관리자용 API - 모든 공지글 포함
       );
 
+      if (!mounted) return;
       setState(() {
-        notices = allNotices;
-        _updateFilteredNotices();
+        _allNotices.addAll(allNotices);
+        filteredNotices = _paginateFiltered(_applyFilters(_allNotices));
         isLoading = false;
       });
     } catch (e) {
+      if (!mounted) return;
       setState(() {
         errorMessage = e.toString();
         isLoading = false;
@@ -63,62 +74,72 @@ class _AdminNoticeListScreenState extends State<AdminNoticeListScreen> {
     }
   }
 
-  // 필터링된 공지사항 업데이트
-  void _updateFilteredNotices() {
-    List<Notice> filtered = notices;
-
-    // 검색 필터링
-    if (searchQuery.isNotEmpty) {
-      filtered =
-          filtered.where((notice) {
-            final titleMatch = notice.title.toLowerCase().contains(
-              searchQuery.toLowerCase(),
-            );
-            final authorMatch = (notice.authorNickname ?? notice.authorName)
-                .toLowerCase()
-                .contains(searchQuery.toLowerCase());
-            return titleMatch || authorMatch;
-          }).toList();
-    }
-
-    // 날짜 범위 필터
-    if (startDate != null && endDate != null) {
-      filtered =
-          filtered.where((notice) {
-            final createdAt = notice.createdAt;
-            return !createdAt.isBefore(startDate!) &&
-                !createdAt.isAfter(endDate!.add(const Duration(days: 1)));
-          }).toList();
-    }
-
-    // 색 그룹 우선순위 → 같은 그룹 내 작성일 역순
-    filtered.sort((a, b) {
-      final ar = NoticeStyling.priorityRank(
-        targetAudience: a.targetAudience,
-        noticeImportant: a.noticeImportant,
-      );
-      final br = NoticeStyling.priorityRank(
-        targetAudience: b.targetAudience,
-        noticeImportant: b.noticeImportant,
-      );
-      if (ar != br) return ar - br;
-      return b.createdAt.compareTo(a.createdAt);
-    });
-
-    setState(() {
-      filteredNotices = filtered;
-    });
+  List<Notice> _paginateFiltered(List<Notice> filtered) {
+    const pageSize = AppConstants.detailListPageSize;
+    _totalPages = filtered.isEmpty ? 1 : (filtered.length / pageSize).ceil();
+    if (_currentPage > _totalPages) _currentPage = _totalPages;
+    final start = (_currentPage - 1) * pageSize;
+    final end = (start + pageSize).clamp(0, filtered.length);
+    return filtered.sublist(start, end);
   }
 
-  // 검색 처리
+  List<Notice> _applyFilters(List<Notice> source) {
+    Iterable<Notice> filtered = source;
+
+    if (searchQuery.isNotEmpty) {
+      final lowered = searchQuery.toLowerCase();
+      filtered = filtered.where((notice) {
+        final titleMatch = notice.title.toLowerCase().contains(lowered);
+        final authorMatch = (notice.authorNickname ?? notice.authorName)
+            .toLowerCase()
+            .contains(lowered);
+        return titleMatch || authorMatch;
+      });
+    }
+
+    if (startDate != null && endDate != null) {
+      filtered = filtered.where((notice) {
+        final createdAt = notice.createdAt;
+        return !createdAt.isBefore(startDate!) &&
+            !createdAt.isAfter(endDate!.add(const Duration(days: 1)));
+      });
+    }
+
+    final sorted = filtered.toList()
+      ..sort((a, b) {
+        final ar = NoticeStyling.priorityRank(
+          targetAudience: a.targetAudience,
+          noticeImportant: a.noticeImportant,
+        );
+        final br = NoticeStyling.priorityRank(
+          targetAudience: b.targetAudience,
+          noticeImportant: b.noticeImportant,
+        );
+        if (ar != br) return ar - br;
+        return b.createdAt.compareTo(a.createdAt);
+      });
+
+    return sorted;
+  }
+
+  void _onPageChanged(int page) {
+    setState(() {
+      _currentPage = page;
+      filteredNotices = _paginateFiltered(_applyFilters(_allNotices));
+    });
+    if (_scrollController.hasClients) {
+      _scrollController.jumpTo(0);
+    }
+  }
+
   void _onSearchChanged(String value) {
     setState(() {
       searchQuery = value;
+      _currentPage = 1;
+      filteredNotices = _paginateFiltered(_applyFilters(_allNotices));
     });
-    _updateFilteredNotices();
   }
 
-  // 날짜 범위 선택
   Future<void> _selectDateRange() async {
     final DateTimeRange? picked = await showDateRangePicker(
       context: context,
@@ -144,18 +165,19 @@ class _AdminNoticeListScreenState extends State<AdminNoticeListScreen> {
       setState(() {
         startDate = picked.start;
         endDate = picked.end;
+        _currentPage = 1;
+        filteredNotices = _paginateFiltered(_applyFilters(_allNotices));
       });
-      _updateFilteredNotices();
     }
   }
 
-  // 날짜 범위 초기화
   void _clearDateRange() {
     setState(() {
       startDate = null;
       endDate = null;
+      _currentPage = 1;
+      filteredNotices = _paginateFiltered(_applyFilters(_allNotices));
     });
-    _updateFilteredNotices();
   }
 
   Future<void> _deleteNotice(Notice notice) async {
@@ -707,6 +729,8 @@ class _AdminNoticeListScreenState extends State<AdminNoticeListScreen> {
       );
     }
 
+    final int paginationBarCount = _totalPages > 1 ? 1 : 0;
+
     return Container(
       decoration: BoxDecoration(color: Colors.white),
       child: Column(
@@ -714,8 +738,9 @@ class _AdminNoticeListScreenState extends State<AdminNoticeListScreen> {
           const BoardListHeader(),
           Expanded(
             child: ListView.separated(
+        controller: _scrollController,
         padding: EdgeInsets.zero,
-        itemCount: filteredNotices.length,
+        itemCount: filteredNotices.length + paginationBarCount,
         separatorBuilder:
             (context, index) => Container(
               height: 1,
@@ -723,6 +748,14 @@ class _AdminNoticeListScreenState extends State<AdminNoticeListScreen> {
               margin: const EdgeInsets.symmetric(horizontal: 16),
             ),
         itemBuilder: (context, index) {
+          if (index >= filteredNotices.length) {
+            return PaginationBar(
+              currentPage: _currentPage,
+              totalPages: _totalPages,
+              onPageChanged: _onPageChanged,
+            );
+          }
+
           final notice = filteredNotices[index];
 
           return GestureDetector(

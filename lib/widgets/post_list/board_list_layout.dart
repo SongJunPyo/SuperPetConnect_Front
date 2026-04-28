@@ -6,7 +6,9 @@ class BoardListLayout {
   BoardListLayout._();
 
   /// 구분(번호) 컬럼 너비.
-  static const double indexWidth = 20;
+  /// "구분" 헤더 텍스트가 한 줄로 들어가야 하며, 페이지네이션 없는
+  /// 화면(admin_notice_list)에서 4자리 인덱스도 표시될 수 있도록 확보.
+  static const double indexWidth = 44;
 
   /// 작성일 컬럼 너비. "yy.MM.dd"(예: "26.04.28") 표시용.
   static const double dateWidth = 70;
