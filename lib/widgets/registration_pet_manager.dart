@@ -5,10 +5,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+import 'package:image_picker/image_picker.dart';
 import '../utils/app_theme.dart';
 import '../utils/blood_type_constants.dart';
 
 /// 가입 과정에서 수집하는 반려동물 데이터
+///
+/// [profileImage]는 가입 폼에서 선택한 프로필 사진을 메모리로 보관하기 위한 필드.
+/// 가입 응답의 `pet_idxs[i]`와 매칭해 `POST /api/pets/{pet_idx}/profile-image`로
+/// multipart 업로드. 직렬화 대상 아니므로 [toJson]에는 포함되지 않음.
 class RegistrationPetData {
   String name;
   String species; // '강아지' or '고양이'
@@ -27,6 +32,7 @@ class RegistrationPetData {
   DateTime? neuteredDate;
   bool hasPreventiveMedication;
   DateTime? prevDonationDate;
+  XFile? profileImage;
 
   RegistrationPetData({
     required this.name,
@@ -46,6 +52,7 @@ class RegistrationPetData {
     this.neuteredDate,
     this.hasPreventiveMedication = false,
     this.prevDonationDate,
+    this.profileImage,
   });
 
   Map<String, dynamic> toJson() {
@@ -427,6 +434,8 @@ class _PetRegistrationFormState extends State<_PetRegistrationForm> {
   DateTime? _neuteredDate;
   bool _hasPreventiveMedication = false;
   DateTime? _prevDonationDate;
+  XFile? _profileImage;
+  Uint8List? _profileImageBytes; // 미리보기용 (웹/모바일 공통, MemoryImage)
 
   @override
   void dispose() {
@@ -434,6 +443,67 @@ class _PetRegistrationFormState extends State<_PetRegistrationForm> {
     _breedController.dispose();
     _weightController.dispose();
     super.dispose();
+  }
+
+  Future<void> _pickProfileImage({bool fromCamera = false}) async {
+    final picker = ImagePicker();
+    final pickedFile = await picker.pickImage(
+      source: fromCamera ? ImageSource.camera : ImageSource.gallery,
+      maxWidth: 1920,
+      maxHeight: 1920,
+      imageQuality: 85,
+    );
+    if (pickedFile != null && mounted) {
+      // 웹/모바일 공통 미리보기를 위해 bytes를 즉시 로드.
+      // 업로드 시점에 다시 readAsBytes()하기보다 한 번만 읽고 재사용.
+      final bytes = await pickedFile.readAsBytes();
+      if (mounted) {
+        setState(() {
+          _profileImage = pickedFile;
+          _profileImageBytes = bytes;
+        });
+      }
+    }
+  }
+
+  void _showProfileImageOptions() {
+    showModalBottomSheet(
+      context: context,
+      builder: (context) => SafeArea(
+        child: Wrap(
+          children: [
+            ListTile(
+              leading: const Icon(Icons.photo_library),
+              title: const Text('갤러리에서 선택'),
+              onTap: () {
+                Navigator.pop(context);
+                _pickProfileImage(fromCamera: false);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.camera_alt),
+              title: const Text('카메라로 촬영'),
+              onTap: () {
+                Navigator.pop(context);
+                _pickProfileImage(fromCamera: true);
+              },
+            ),
+            if (_profileImage != null)
+              ListTile(
+                leading: const Icon(Icons.delete_outline, color: AppTheme.error),
+                title: const Text('사진 삭제', style: TextStyle(color: AppTheme.error)),
+                onTap: () {
+                  Navigator.pop(context);
+                  setState(() {
+                    _profileImage = null;
+                    _profileImageBytes = null;
+                  });
+                },
+              ),
+          ],
+        ),
+      ),
+    );
   }
 
   bool _isValid() {
@@ -468,6 +538,7 @@ class _PetRegistrationFormState extends State<_PetRegistrationForm> {
       neuteredDate: _neuteredDate,
       hasPreventiveMedication: _hasPreventiveMedication,
       prevDonationDate: _prevDonationDate,
+      profileImage: _profileImage,
     );
 
     Navigator.pop(context, pet);
@@ -487,6 +558,10 @@ class _PetRegistrationFormState extends State<_PetRegistrationForm> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            // 프로필 사진 선택 (선택사항)
+            Center(child: _buildProfileImagePicker()),
+            const SizedBox(height: AppTheme.spacing24),
+
             // 이름
             _buildTextField(
               controller: _nameController,
@@ -604,6 +679,47 @@ class _PetRegistrationFormState extends State<_PetRegistrationForm> {
   }
 
   // === 공통 위젯 ===
+
+  /// 프로필 사진 선택 (선택사항). XFile은 가입 응답 후 multipart 업로드용.
+  Widget _buildProfileImagePicker() {
+    return GestureDetector(
+      onTap: _showProfileImageOptions,
+      child: Stack(
+        children: [
+          CircleAvatar(
+            radius: 48,
+            backgroundColor: AppTheme.veryLightGray,
+            backgroundImage:
+                _profileImageBytes != null ? MemoryImage(_profileImageBytes!) : null,
+            child: _profileImageBytes == null
+                ? const Icon(
+                    Icons.pets,
+                    size: 36,
+                    color: AppTheme.textTertiary,
+                  )
+                : null,
+          ),
+          Positioned(
+            right: 0,
+            bottom: 0,
+            child: Container(
+              padding: const EdgeInsets.all(4),
+              decoration: BoxDecoration(
+                color: AppTheme.primaryBlue,
+                shape: BoxShape.circle,
+                border: Border.all(color: Colors.white, width: 2),
+              ),
+              child: const Icon(
+                Icons.camera_alt,
+                size: 14,
+                color: Colors.white,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 
   Widget _buildTextField({
     required TextEditingController controller,

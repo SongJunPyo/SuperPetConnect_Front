@@ -15,6 +15,7 @@ import '../utils/preferences_manager.dart';
 import '../utils/kakao_postcode_stub.dart'
     if (dart.library.html) '../utils/kakao_postcode_web.dart';
 import '../services/auth_http_client.dart';
+import '../services/registration_pet_uploader.dart';
 import '../widgets/app_app_bar.dart';
 import '../widgets/app_button.dart';
 import '../widgets/registration_pet_manager.dart';
@@ -144,6 +145,27 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     setState(() => _currentStep = 0);
   }
 
+  /// 온보딩 응답의 `pet_idxs[]`와 `_pets[]`를 매칭해 사진 일괄 업로드.
+  /// 네이버 토큰이 살아있어 토큰 저장은 불필요.
+  Future<RegistrationPetPhotoUploadResult?> _uploadPetPhotosFromOnboarding(
+    dynamic response,
+  ) async {
+    Map<String, dynamic> body = const {};
+    try {
+      body = jsonDecode(utf8.decode(response.bodyBytes)) as Map<String, dynamic>;
+    } catch (_) {
+      return null;
+    }
+    final rawIdxs = body['pet_idxs'];
+    final petIdxs = (rawIdxs is List)
+        ? rawIdxs.whereType<int>().toList()
+        : <int>[];
+    if (petIdxs.isEmpty) return null;
+    if (!_pets.any((p) => p.profileImage != null)) return null;
+
+    return uploadRegistrationPetPhotos(pets: _pets, petIdxs: petIdxs);
+  }
+
   // 온보딩 완료 API 호출
   Future<void> _submitOnboarding() async {
     if (_isSubmitting) return;
@@ -167,9 +189,20 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
         // 온보딩 완료 상태 저장
         await PreferencesManager.setOnboardingCompleted(true);
 
+        // 사진 업로드 — 네이버 토큰이 이미 살아있어 그대로 multipart 호출 가능.
+        // pet_idxs[i] ↔ _pets[i] 인덱스 매칭 (CLAUDE.md "회원가입 응답 펫 인덱스 contract").
+        final uploadResult = await _uploadPetPhotosFromOnboarding(response);
+
         if (mounted) {
           // 승인 대기 안내 — 로그아웃 처리 후 로그인 화면으로 이동
           await PreferencesManager.clearAll();
+
+          if (uploadResult != null && uploadResult.hasFailure) {
+            _showError(
+              '일부 반려동물 사진 업로드에 실패했습니다. (${uploadResult.failed}/${uploadResult.total})\n'
+              '승인 후 "프로필 > 반려동물"에서 다시 등록해주세요.',
+            );
+          }
 
           if (mounted) {
             showDialog(

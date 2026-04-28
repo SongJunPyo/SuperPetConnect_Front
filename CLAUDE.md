@@ -618,6 +618,30 @@ New notification type:
 **호환성 메모**
 `POST /api/register` 응답은 2026-04 이전까지 **빈 body**였음. 새 필드 추가는 순수 추가라 기존 코드 영향 없음 (프론트는 응답 body 미사용). status code 201 유지.
 
+**가입 직후 access_token 정책 (계약 확정 2026-04-28)**
+
+이메일/네이버 가입 흐름을 통일하기 위해 `POST /api/register` 응답에도 access_token이 포함됨. 사진 업로드 endpoint를 인증 후 호출할 수 있게 함이 목적.
+
+| 필드 | 값 | 비고 |
+|------|---|------|
+| `access_token` | string (15분 유효) | 정식 로그인 토큰과 동일 만료시간. `lib/auth/login.dart`의 토큰과 같은 저장소(`PreferencesManager.setAuthToken`)에 저장 |
+| `token_type` | `"bearer"` | |
+| `refresh_token` | **미발급** | 미승인 상태에서 7일 세션은 부적절. 사진 업로드 후 만료시키고 승인 + 정식 로그인으로 재발급 |
+
+**미승인 토큰의 권한 범위** (백엔드 `_get_own_pet()` ownership 검증):
+- ✅ `POST /api/pets/{pet_idx}/profile-image` — 본인 소유 펫만
+- ✅ `DELETE /api/pets/{pet_idx}/profile-image` — 본인 소유 펫만
+- ❌ 그 외 모든 endpoint → 400 `UNAPPROVED_USER`로 차단 (`get_current_active_account` 가드 그대로)
+
+**프론트 처리 (계약 확정)**:
+- 가입 응답 수신 즉시 `setAuthToken(access_token)`만 저장 (`setRefreshToken` 호출 금지 — refresh_token 응답에 없음)
+- `pet_idxs[i]` ↔ 폼의 `pets[i].profileImage` 매칭 루프로 `POST /api/pets/{pet_idx}/profile-image` 호출
+- 업로드 종료 후 `PreferencesManager.clearAll()` — 토큰을 즉시 클리어해 다음 로그인 시점까지 정리. (백엔드는 "그대로 두고 만료" / "즉시 클리어" 둘 다 허용했지만 명시적 정리가 깔끔)
+- 사진 업로드는 **PENDING 상태 펫이라 200 즉시 반영** — 검토 워크플로우 진입 안 함 (CLAUDE.md "펫 프로필 사진 검토 워크플로우" 섹션 참고)
+- 부분 실패(가입 OK / 사진 일부 실패) 시 사용자에게 "프로필 > 반려동물에서 다시 등록해주세요" 안내 후 WelcomeScreen 진행. 펫 자체는 등록되어 있어 승인 후 재업로드 가능.
+
+**호환성**: 기존 필드(`account_idx`, `pet_idx`, `pet_idxs`, `message`)는 그대로. 신규 필드 추가일 뿐이라 기존 코드 영향 없음.
+
 ### 펫 프로필 사진 검토 워크플로우 (계약 확정 2026-04-28)
 
 APPROVED 펫의 프로필 사진 변경에 한해 관리자 검토를 거치는 2단계 플로우. PENDING/REJECTED 펫의 사진 변경은 즉시 반영(200)되고 검토 대상이 아님. [pet_model.dart](lib/models/pet_model.dart)의 `pendingProfileImage` / `pendingImageStatus` / `pendingImageRejectionReason` 3개 필드가 이 contract의 프론트 측 단일 원천.

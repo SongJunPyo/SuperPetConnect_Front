@@ -5,10 +5,12 @@ import 'package:kpostal/kpostal.dart';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:firebase_messaging/firebase_messaging.dart';
+import '../services/registration_pet_uploader.dart';
 import '../utils/app_theme.dart';
 import '../utils/config.dart';
 import '../utils/kakao_postcode_stub.dart'
     if (dart.library.html) '../utils/kakao_postcode_web.dart';
+import '../utils/preferences_manager.dart';
 import '../widgets/registration_pet_manager.dart';
 import 'welcome.dart';
 
@@ -121,6 +123,47 @@ class _RegisterScreenState extends State<RegisterScreen> {
     }
   }
 
+  /// 가입 응답의 access_token을 저장한 뒤 `pet_idxs[]`와 `_pets[]`를
+  /// 인덱스 매칭으로 사진 업로드. 부분 실패는 안내만 하고 흐름 진행.
+  /// 업로드가 끝나면 토큰을 즉시 클리어 (어차피 미승인이라 다른 API 호출 불가).
+  Future<void> _uploadPetPhotosAfterRegister(http.Response response) async {
+    Map<String, dynamic> body = const {};
+    try {
+      body = jsonDecode(response.body) as Map<String, dynamic>;
+    } catch (_) {
+      // 응답 파싱 실패 시 사진 업로드 스킵. 가입 자체는 성공.
+      return;
+    }
+
+    final accessToken = body['access_token'] as String?;
+    final rawIdxs = body['pet_idxs'];
+    final petIdxs = (rawIdxs is List)
+        ? rawIdxs.whereType<int>().toList()
+        : <int>[];
+
+    if (accessToken == null || petIdxs.isEmpty) return;
+    final hasAnyPhoto = _pets.any((p) => p.profileImage != null);
+    if (!hasAnyPhoto) return;
+
+    await PreferencesManager.setAuthToken(accessToken);
+
+    final result = await uploadRegistrationPetPhotos(
+      pets: _pets,
+      petIdxs: petIdxs,
+    );
+
+    // 업로드 종료 후 토큰 클리어 — 미승인 상태에서 토큰을 남겨둘 이유 없음.
+    await PreferencesManager.clearAll();
+
+    if (!mounted) return;
+    if (result.hasFailure) {
+      _showSnackBar(
+        '일부 반려동물 사진 업로드에 실패했습니다. (${result.failed}/${result.total})\n'
+        '승인 후 "프로필 > 반려동물"에서 다시 등록해주세요.',
+      );
+    }
+  }
+
   // 회원가입 API 호출
   Future<void> _submitRegistration() async {
     if (_isSubmitting) return;
@@ -150,6 +193,11 @@ class _RegisterScreenState extends State<RegisterScreen> {
       if (!mounted) return;
 
       if (response.statusCode == 201) {
+        // 가입 직후 사진 업로드를 위해 access_token 저장 + 펫 사진 일괄 업로드.
+        // refresh_token은 응답에 없음 (CLAUDE.md "가입 직후 access_token 정책" 참고).
+        await _uploadPetPhotosAfterRegister(response);
+        if (!mounted) return;
+
         _showSnackBar('회원가입이 완료되었습니다. 관리자 승인까지 기다려주세요.',
             isSuccess: true);
         Navigator.pushReplacement(
