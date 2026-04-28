@@ -47,21 +47,13 @@ class AssociationFooter extends StatelessWidget {
           ),
           const SizedBox(height: AppTheme.spacing8),
           Text(
-            '한국헌혈견협회 | 대표자 : 강부성',
+            '한국헌혈견협회 대표자 : 강부성, 사업자 등록번호 : 134-82-82524',
             style: TextStyle(
               fontSize: 12,
               color: AppTheme.textSecondary,
               height: 1.4,
             ),
-          ),
-          const SizedBox(height: 2),
-          Text(
-            '사업자등록번호 : 134-82-82524',
-            style: TextStyle(
-              fontSize: 12,
-              color: AppTheme.textSecondary,
-              height: 1.4,
-            ),
+            textAlign: TextAlign.center,
           ),
           const SizedBox(height: AppTheme.spacing8),
           GestureDetector(

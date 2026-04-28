@@ -95,18 +95,166 @@ class _UserDonationPostsListScreenState
   }
 
   // SharedPreferences에서 선호 지역 불러오기
+  // 신규 사용자(처음 진입 + 로컬 지역 없음)인 경우 프로필 API에서
+  // 서버 preferred_location 또는 가입 주소 기반 자동 설정 시도.
   Future<void> _loadPreferredRegions() async {
+    var isRegionInitialized = await PreferencesManager.isRegionInitialized();
+
     final largeRegionCodes = await PreferencesManager.getPreferredLargeRegions();
     final loadedRegions = <Region>[];
     for (final code in largeRegionCodes) {
       final region = RegionData.regions.where((r) => r.code == code).firstOrNull;
       if (region != null) loadedRegions.add(region);
     }
+
+    // 로컬 지역이 비어있고 한 번도 초기화 안 된 신규 사용자만 프로필 API 호출
+    String? userAddress;
+    if (loadedRegions.isEmpty && !isRegionInitialized) {
+      final profile = await _fetchProfileForRegionInit();
+      final serverPreferredLocation = profile?['preferred_location'] as String?;
+      userAddress = profile?['address'] as String?;
+
+      // 서버에 지역이 있으면 로컬 초기화 (다른 기기 지원)
+      if (serverPreferredLocation != null &&
+          serverPreferredLocation.isNotEmpty &&
+          serverPreferredLocation != '전체') {
+        final serverRegions =
+            _parseServerPreferredLocation(serverPreferredLocation);
+        if (serverRegions.isNotEmpty) {
+          loadedRegions.addAll(serverRegions);
+          final codes = serverRegions.map((r) => r.code).toList();
+          await PreferencesManager.setPreferredLargeRegions(codes);
+          await PreferencesManager.setRegionInitialized(true);
+          isRegionInitialized = true;
+        }
+      }
+
+      // "전체"인 경우에도 초기화 완료로 표시 (주소 기반 자동 설정 방지)
+      if (serverPreferredLocation == '전체' && !isRegionInitialized) {
+        await PreferencesManager.setRegionInitialized(true);
+        isRegionInitialized = true;
+      }
+    }
+
     if (mounted) {
       setState(() {
         selectedLargeRegions = loadedRegions;
       });
     }
+
+    // 선호 지역을 한 번도 설정하지 않은 경우 → 가입 주소 기반 기본 시/도 자동 설정
+    if (!isRegionInitialized &&
+        loadedRegions.isEmpty &&
+        userAddress != null) {
+      await _setDefaultRegionFromAddress(userAddress);
+    }
+  }
+
+  // 프로필 API에서 address / preferred_location만 조회 (region 초기화 전용)
+  Future<Map<String, dynamic>?> _fetchProfileForRegionInit() async {
+    try {
+      final response = await AuthHttpClient.get(
+        Uri.parse('${Config.serverUrl}/api/auth/profile'),
+      );
+      if (response.statusCode == 200) {
+        return json.decode(utf8.decode(response.bodyBytes))
+            as Map<String, dynamic>;
+      }
+    } catch (e) {
+      debugPrint('[UserDonationPostsList] 프로필 조회 실패: $e');
+    }
+    return null;
+  }
+
+  // 서버 preferred_location 문자열을 Region 객체 리스트로 변환
+  // 예: "서울,경기,인천" → [Region(seoul), Region(gyeonggi), Region(incheon)]
+  List<Region> _parseServerPreferredLocation(String preferredLocation) {
+    const simpleNameToCode = {
+      '서울': 'seoul',
+      '부산': 'busan',
+      '대구': 'daegu',
+      '인천': 'incheon',
+      '광주': 'gwangju',
+      '대전': 'daejeon',
+      '울산': 'ulsan',
+      '세종': 'sejong',
+      '경기': 'gyeonggi',
+      '강원': 'gangwon',
+      '충북': 'chungbuk',
+      '충남': 'chungnam',
+      '전북': 'jeonbuk',
+      '전남': 'jeonnam',
+      '경북': 'gyeongbuk',
+      '경남': 'gyeongnam',
+      '제주': 'jeju',
+    };
+
+    final regions = <Region>[];
+    final names = preferredLocation
+        .split(',')
+        .map((s) => s.trim())
+        .where((s) => s.isNotEmpty);
+
+    for (final name in names) {
+      final code = simpleNameToCode[name];
+      if (code != null) {
+        final region =
+            RegionData.regions.where((r) => r.code == code).firstOrNull;
+        if (region != null) regions.add(region);
+      }
+    }
+    return regions;
+  }
+
+  // 주소에서 해당 시/도를 판별하여 기본 지역 1개 자동 설정
+  Future<void> _setDefaultRegionFromAddress(String address) async {
+    const addressToRegionCode = {
+      '서울': 'seoul',
+      '부산': 'busan',
+      '대구': 'daegu',
+      '인천': 'incheon',
+      '광주': 'gwangju',
+      '대전': 'daejeon',
+      '울산': 'ulsan',
+      '세종': 'sejong',
+      '경기': 'gyeonggi',
+      '강원': 'gangwon',
+      '충북': 'chungbuk',
+      '충청북': 'chungbuk',
+      '충남': 'chungnam',
+      '충청남': 'chungnam',
+      '전북': 'jeonbuk',
+      '전라북': 'jeonbuk',
+      '전남': 'jeonnam',
+      '전라남': 'jeonnam',
+      '경북': 'gyeongbuk',
+      '경상북': 'gyeongbuk',
+      '경남': 'gyeongnam',
+      '경상남': 'gyeongnam',
+      '제주': 'jeju',
+    };
+
+    String? regionCode;
+    for (final entry in addressToRegionCode.entries) {
+      if (address.startsWith(entry.key)) {
+        regionCode = entry.value;
+        break;
+      }
+    }
+    if (regionCode == null) return;
+
+    final region =
+        RegionData.regions.where((r) => r.code == regionCode).firstOrNull;
+    if (region == null || !mounted) return;
+
+    setState(() {
+      selectedLargeRegions = [region];
+    });
+
+    final codes = [region.code];
+    await PreferencesManager.setPreferredLargeRegions(codes);
+    await PreferencesManager.setRegionInitialized(true);
+    _syncPreferredLocationToServer();
   }
 
   // 지역 선택 바텀시트

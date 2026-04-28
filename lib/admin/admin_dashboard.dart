@@ -27,9 +27,7 @@ import '../models/hospital_column_model.dart';
 import '../models/notice_model.dart';
 import '../utils/number_format_util.dart';
 import 'package:url_launcher/url_launcher.dart';
-import '../widgets/dashboard/dashboard_empty_state.dart';
-import '../widgets/dashboard/dashboard_more_button.dart';
-import '../widgets/post_list/board_list_header.dart';
+import '../widgets/dashboard/board_section.dart';
 import '../widgets/post_list/board_list_row.dart';
 import '../widgets/post_list/notice_styling.dart';
 import '../services/hospital_column_service.dart';
@@ -243,11 +241,6 @@ class _AdminDashboardState extends State<AdminDashboard>
       // 칼럼 정렬 (중요 공지 우선, 그 다음 최신순)
       final sortedColumns =
           columnPosts.map((column) {
-            final displayNickname =
-                (column.authorNickname.toLowerCase() != '닉네임 없음')
-                    ? column.authorNickname
-                    : column.authorName;
-
             return HospitalColumn(
               columnIdx: column.columnIdx,
               title: column.title,
@@ -258,7 +251,7 @@ class _AdminDashboardState extends State<AdminDashboard>
               viewCount: column.viewCount,
               createdAt: column.createdAt,
               updatedAt: column.updatedAt,
-              authorNickname: displayNickname,
+              authorNickname: column.authorNickname,
               hospitalProfileImage: column.hospitalProfileImage,
               columnUrl: column.columnUrl,
             );
@@ -274,11 +267,6 @@ class _AdminDashboardState extends State<AdminDashboard>
       // 공지사항 정렬 (관리자는 모든 공지사항을 볼 수 있음)
       final sortedNotices =
           noticePosts.map((notice) {
-            final displayNickname =
-                (notice.authorNickname.toLowerCase() != '닉네임 없음')
-                    ? notice.authorNickname
-                    : notice.authorName;
-
             return Notice(
               noticeIdx: notice.noticeIdx,
               accountIdx: 0,
@@ -290,7 +278,7 @@ class _AdminDashboardState extends State<AdminDashboard>
               updatedAt: notice.updatedAt,
               authorEmail: notice.authorEmail,
               authorName: notice.authorName,
-              authorNickname: displayNickname,
+              authorNickname: notice.authorNickname,
               authorProfileImage: notice.authorProfileImage,
               viewCount: notice.viewCount,
               targetAudience: notice.targetAudience,
@@ -763,141 +751,56 @@ class _AdminDashboardState extends State<AdminDashboard>
 
   // 공지사항 게시판 위젯을 생성합니다.
   Widget _buildNoticeBoard() {
-    if (isLoadingNotices) {
-      return const Center(child: CircularProgressIndicator());
-    }
-
-    if (notices.isEmpty) {
-      return const DashboardEmptyState(
-        icon: Icons.announcement_outlined,
-        message: '공지사항이 없습니다',
-      );
-    }
-
-    return Container(
-      clipBehavior: Clip.antiAlias,
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Column(
-        children: [
-          const BoardListHeader(),
-          // 공지사항 목록
-          Expanded(
-            child: ListView.separated(
-              padding: EdgeInsets.zero,
-              itemCount: notices.length + 1, // ... 아이템 추가를 위해 +1
-              separatorBuilder:
-                  (context, index) => Container(
-                    height: 1,
-                    color: AppTheme.lightGray.withValues(alpha: 0.2),
-                    margin: const EdgeInsets.symmetric(horizontal: 16),
-                  ),
-              itemBuilder: (context, index) {
-                // 마지막 아이템은 ... 버튼
-                if (index == notices.length) {
-                  return DashboardMoreButton(
-                    onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => const AdminNoticeListScreen(),
-                        ),
-                      );
-                    },
-                  );
-                }
-
-                final notice = notices[index];
-
-                return BoardListRow(
-                  index: index + 1,
-                  title: notice.title,
-                  titleColor: NoticeStyling.titleColor(
-                    targetAudience: notice.targetAudience,
-                    noticeImportant: notice.noticeImportant,
-                  ),
-                  authorName: notice.authorNickname ?? notice.authorName,
-                  authorProfileImage: notice.authorProfileImage,
-                  createdAt: notice.createdAt,
-                  onTap: () => _showNoticeBottomSheet(context, notice),
-                );
-              },
-            ),
+    return BoardSection<Notice>(
+      isLoading: isLoadingNotices,
+      items: notices,
+      emptyIcon: Icons.announcement_outlined,
+      emptyMessage: '공지사항이 없습니다',
+      onMoreTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => const AdminNoticeListScreen(),
           ),
-        ],
+        );
+      },
+      itemBuilder: (context, index, notice) => BoardListRow(
+        index: index + 1,
+        title: notice.title,
+        titleColor: NoticeStyling.titleColor(
+          targetAudience: notice.targetAudience,
+          noticeImportant: notice.noticeImportant,
+        ),
+        authorName: notice.authorNickname!,
+        authorProfileImage: notice.authorProfileImage,
+        createdAt: notice.createdAt,
+        onTap: () => _showNoticeBottomSheet(context, notice),
       ),
     );
   }
 
   // 칼럼 게시판 위젯을 생성합니다.
   Widget _buildColumnBoard() {
-    if (isLoadingColumns) {
-      return const Center(child: CircularProgressIndicator());
-    }
-
-    if (columns.isEmpty) {
-      return const DashboardEmptyState(
-        icon: Icons.article_outlined,
-        message: '공개된 칼럼이 없습니다',
-      );
-    }
-
-    return Container(
-      clipBehavior: Clip.antiAlias,
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Column(
-        children: [
-          const BoardListHeader(),
-          // 칼럼 목록
-          Expanded(
-            child: ListView.separated(
-              padding: EdgeInsets.zero,
-              itemCount: columns.length + 1, // ... 아이템 추가를 위해 +1
-              separatorBuilder:
-                  (context, index) => Container(
-                    height: 1,
-                    color: AppTheme.lightGray.withValues(alpha: 0.2),
-                    margin: const EdgeInsets.symmetric(horizontal: 16),
-                  ),
-              itemBuilder: (context, index) {
-                // 마지막 아이템은 ... 버튼
-                if (index == columns.length) {
-                  return DashboardMoreButton(
-                    onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => const AdminColumnManagement(),
-                        ),
-                      );
-                    },
-                  );
-                }
-
-                final column = columns[index];
-                final nickname =
-                    (column.authorNickname != null &&
-                            column.authorNickname!.toLowerCase() != '닉네임 없음')
-                        ? column.authorNickname!
-                        : column.hospitalName;
-
-                return BoardListRow(
-                  index: index + 1,
-                  title: column.title,
-                  authorName: nickname,
-                  authorProfileImage: column.hospitalProfileImage,
-                  createdAt: column.createdAt,
-                  onTap: () => _showColumnBottomSheet(column),
-                );
-              },
-            ),
+    return BoardSection<HospitalColumn>(
+      isLoading: isLoadingColumns,
+      items: columns,
+      emptyIcon: Icons.article_outlined,
+      emptyMessage: '공개된 칼럼이 없습니다',
+      onMoreTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => const AdminColumnManagement(),
           ),
-        ],
+        );
+      },
+      itemBuilder: (context, index, column) => BoardListRow(
+        index: index + 1,
+        title: column.title,
+        authorName: column.authorNickname!,
+        authorProfileImage: column.hospitalProfileImage,
+        createdAt: column.createdAt,
+        onTap: () => _showColumnBottomSheet(column),
       ),
     );
   }
@@ -930,11 +833,7 @@ class _AdminDashboardState extends State<AdminDashboard>
       }
     });
 
-    final displayNickname =
-        (detailColumn.authorNickname != null &&
-                detailColumn.authorNickname!.toLowerCase() != '닉네임 없음')
-            ? detailColumn.authorNickname!
-            : detailColumn.hospitalName;
+    final displayNickname = detailColumn.authorNickname!;
 
     showModalBottomSheet(
       context: context,
@@ -1156,12 +1055,6 @@ class _AdminDashboardState extends State<AdminDashboard>
       setState(() {
         final idx = notices.indexWhere((n) => n.noticeIdx == notice.noticeIdx);
         if (idx != -1) {
-          final nickname = fetchedDetail.authorNickname;
-          final displayNickname =
-              (nickname.toLowerCase() != '닉네임 없음')
-                  ? nickname
-                  : fetchedDetail.authorName;
-
           notices[idx] = Notice(
             noticeIdx: notices[idx].noticeIdx,
             accountIdx: notices[idx].accountIdx,
@@ -1173,7 +1066,7 @@ class _AdminDashboardState extends State<AdminDashboard>
             updatedAt: fetchedDetail.updatedAt,
             authorEmail: fetchedDetail.authorEmail,
             authorName: fetchedDetail.authorName,
-            authorNickname: displayNickname,
+            authorNickname: fetchedDetail.authorNickname,
             authorProfileImage: fetchedDetail.authorProfileImage ?? notices[idx].authorProfileImage,
             viewCount: fetchedDetail.viewCount,
             targetAudience: fetchedDetail.targetAudience,
@@ -1190,11 +1083,8 @@ class _AdminDashboardState extends State<AdminDashboard>
     final DateTime createdAt = fetchedDetail?.createdAt ?? notice.createdAt;
     final DateTime updatedAt = fetchedDetail?.updatedAt ?? notice.updatedAt;
     final int viewCount = fetchedDetail?.viewCount ?? notice.viewCount ?? 0;
-    final detailNickname = fetchedDetail?.authorNickname;
     final String authorName =
-        (detailNickname != null && detailNickname.toLowerCase() != '닉네임 없음')
-            ? detailNickname
-            : notice.authorNickname ?? notice.authorName;
+        (fetchedDetail?.authorNickname ?? notice.authorNickname)!;
     final String title = fetchedDetail?.title ?? notice.title;
     final String content = fetchedDetail?.contentPreview ?? notice.content;
     final String? noticeUrl = fetchedDetail?.noticeUrl ?? notice.noticeUrl;

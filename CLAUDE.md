@@ -594,6 +594,42 @@ New notification type:
 - 백엔드는 **상대 경로**로 반환 (예: `/uploads/posts/abc.jpg`).
 - 프론트는 `DonationPostImageService.getFullImageUrl()`이 `http`로 시작하지 않으면 `Config.serverUrl`을 prefix로 붙임. CDN 전환해서 절대 URL을 반환해도 안전.
 
+### Nickname contract (계약 확정 2026-04-28)
+
+`accounts.nickname`은 **DB NOT NULL** 컬럼이며 회원가입 시 백엔드가 자동 조합으로 채움. 형식: `{대표 펫}|{지역}|{입력별명}({성명})`. 예: `"초코|서울 강남|비타민(홍길동)"`. account_type 1/2/3 모두 동일.
+
+**응답 보장 — 다음 4개 필드는 백엔드가 non-null 보장 (Pydantic schema-level enforcement)**
+
+| Schema | 필드 |
+|--------|------|
+| `NoticeResponse` | `author_nickname` |
+| `PublicNoticeResponse` | `author_nickname` |
+| `HospitalColumnResponse` | `hospital_nickname` |
+| `DonationPostWithHospitalResponse` | `hospital_nickname` |
+
+→ 백엔드 e25f865에서 `Optional[str] = None` → `str` 좁힘 완료. 향후 누군가 None 응답을 만들면 Pydantic ValidationError로 즉시 차단됨.
+
+**금지 사항**
+- 백엔드는 `"닉네임 없음"`, `""` 같은 placeholder 문자열을 **절대 emit 안 함**. 코드베이스 전체 검색 0건 확인.
+- 프론트는 `?? hospitalName` / `?? authorName` / `.toLowerCase() != '닉네임 없음'` 같은 fallback 로직 **불필요**. dead defensive code로 분류.
+
+**프론트 사용 패턴**
+위 4개 응답 필드 사용처에서는 nickname을 직접 노출:
+```dart
+authorName: column.authorNickname  // ✅ ?? fallback 없음
+authorName: notice.authorNickname  // ✅ ?? fallback 없음
+```
+
+**예외 — 여전히 nullable 처리 필요한 2건**
+다음은 위 contract에 포함되지 않으며 nullable 유지 필요:
+1. **헌혈 history 응답** (`pet_donation_history_schema::hospital_nickname`) — 시스템 기록(completed_donation snapshot) 기반. 과거 삭제된 병원의 historical 기록은 NULL 가능
+2. **`hospital_post_schema`의 nickname류 필드** (`hospital_nickname`, `user_nickname`, `nickname`) — 같은 schema의 다른 필드(`hospital_name`, `userName` 등)도 모두 Optional인 mixed-purpose schema. 단독 정정 위험
+
+→ 위 2건에서 받는 nickname은 `?? fallback` 유지. NotificationModel/applied_donation 등 다른 응답에서 받는 nickname도 위 4개 응답 필드 contract와 별개이므로 응답 schema 재확인 후 결정.
+
+**모델 nullability 정책 (프론트 측 결정)**
+프론트 모델 클래스(`HospitalColumn`, `Notice`, `ColumnPost`, `NoticePost`)의 `authorNickname` 필드는 **현재도 `String?` 유지**. 백엔드가 NOT NULL 보장하더라도 fromJson 단에서 응답 누락 시 즉시 크래시되는 것보다는 nullable로 받고 호출부에서 직접 사용하는 패턴이 안전. 백엔드 응답이 1년간 안정적이면 추후 `String`으로 좁히는 라운드 별도 진행 가능.
+
 ### 회원가입 응답 펫 인덱스 contract (계약 확정)
 이메일 가입(`POST /api/register`)과 네이버 온보딩(`POST /api/auth/onboarding`) **모두 동일 규약**. 가입 시 함께 받은 펫 사진을 가입 직후 `POST /api/pets/{pet_idx}/profile-image`로 multipart 자동 업로드하는 흐름의 기반.
 

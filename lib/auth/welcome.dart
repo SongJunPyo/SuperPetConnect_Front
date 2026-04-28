@@ -15,9 +15,7 @@ import '../utils/number_format_util.dart';
 import '../services/hospital_column_service.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../utils/app_constants.dart';
-import '../widgets/dashboard/dashboard_more_button.dart';
-import '../widgets/dashboard/dashboard_empty_state.dart';
-import '../widgets/post_list/board_list_header.dart';
+import '../widgets/dashboard/board_section.dart';
 import '../widgets/post_list/board_list_row.dart';
 import '../widgets/post_list/notice_styling.dart';
 import '../widgets/association_footer.dart';
@@ -115,12 +113,7 @@ class _WelcomeScreenState extends State<WelcomeScreen>
 
                 final detailColumn = snapshot.data!;
 
-                final displayNickname =
-                    (detailColumn.authorNickname != null &&
-                            detailColumn.authorNickname!.toLowerCase() !=
-                                '닉네임 없음')
-                        ? detailColumn.authorNickname!
-                        : detailColumn.hospitalName;
+                final displayNickname = detailColumn.authorNickname!;
 
                 return Padding(
                   padding: const EdgeInsets.symmetric(
@@ -335,11 +328,6 @@ class _WelcomeScreenState extends State<WelcomeScreen>
       // 칼럼 변환 (칼럼에는 target_audience 필드 없음 - 필터링 불필요)
       final sortedColumns =
           columnPosts.map((column) {
-                final displayNickname =
-                    column.authorNickname.toLowerCase() != '닉네임 없음'
-                        ? column.authorNickname
-                        : column.authorName;
-
                 return HospitalColumn(
                   columnIdx: column.columnIdx,
                   title: column.title,
@@ -350,7 +338,7 @@ class _WelcomeScreenState extends State<WelcomeScreen>
                   viewCount: column.viewCount,
                   createdAt: column.createdAt,
                   updatedAt: column.updatedAt,
-                  authorNickname: displayNickname,
+                  authorNickname: column.authorNickname,
                   hospitalProfileImage: column.hospitalProfileImage,
                   columnUrl: column.columnUrl,
                 );
@@ -372,11 +360,6 @@ class _WelcomeScreenState extends State<WelcomeScreen>
                     notice.targetAudience == AppConstants.noticeTargetAll,
               )
               .map((notice) {
-                final displayNickname =
-                    notice.authorNickname.toLowerCase() != '닉네임 없음'
-                        ? notice.authorNickname
-                        : notice.authorName;
-
                 return Notice(
                   noticeIdx: notice.noticeIdx,
                   accountIdx: 0, // DashboardService에서 제공하지 않는 필드
@@ -388,7 +371,7 @@ class _WelcomeScreenState extends State<WelcomeScreen>
                   updatedAt: notice.updatedAt,
                   authorEmail: notice.authorEmail,
                   authorName: notice.authorName,
-                  authorNickname: displayNickname,
+                  authorNickname: notice.authorNickname,
                   authorProfileImage: notice.authorProfileImage,
                   viewCount: notice.viewCount,
                   targetAudience: notice.targetAudience,
@@ -578,164 +561,56 @@ class _WelcomeScreenState extends State<WelcomeScreen>
 
   // 공지사항 게시판 위젯을 생성합니다.
   Widget _buildNoticeBoard() {
-    if (isLoadingNotices) {
-      return ListView(
-        children: [
-          SizedBox(
-            height: MediaQuery.of(context).size.height * 0.4,
-            child: const Center(child: CircularProgressIndicator()),
+    return BoardSection<Notice>(
+      isLoading: isLoadingNotices,
+      items: notices,
+      emptyIcon: Icons.announcement_outlined,
+      emptyMessage: '공지사항이 없습니다',
+      onMoreTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => const UserNoticeListScreen(isPublic: true),
           ),
-        ],
-      );
-    }
-
-    if (notices.isEmpty) {
-      return ListView(
-        children: [
-          SizedBox(
-            height: MediaQuery.of(context).size.height * 0.4,
-            child: const DashboardEmptyState(
-              icon: Icons.announcement_outlined,
-              message: '공지사항이 없습니다',
-            ),
-          ),
-        ],
-      );
-    }
-
-    return Container(
-      clipBehavior: Clip.antiAlias,
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Column(
-        children: [
-          const BoardListHeader(),
-          // 공지사항 목록
-          Expanded(
-            child: ListView.separated(
-              padding: EdgeInsets.zero,
-              itemCount: notices.length + 1, // ... 아이템 추가를 위해 +1
-              separatorBuilder:
-                  (context, index) => Container(
-                    height: 1,
-                    color: AppTheme.lightGray.withValues(alpha: 0.2),
-                    margin: const EdgeInsets.symmetric(horizontal: 16),
-                  ),
-              itemBuilder: (context, index) {
-                // 마지막 아이템은 ... 버튼
-                if (index == notices.length) {
-                  return DashboardMoreButton(
-                    onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => const UserNoticeListScreen(isPublic: true),
-                        ),
-                      );
-                    },
-                  );
-                }
-
-                final notice = notices[index];
-
-                return BoardListRow(
-                  index: index + 1,
-                  title: notice.title,
-                  titleColor: NoticeStyling.titleColor(
-                    targetAudience: notice.targetAudience,
-                    noticeImportant: notice.noticeImportant,
-                  ),
-                  authorName: notice.authorNickname ?? notice.authorName,
-                  authorProfileImage: notice.authorProfileImage,
-                  createdAt: notice.createdAt,
-                  onTap: () => _showNoticeBottomSheet(context, notice),
-                );
-              },
-            ),
-          ),
-        ],
+        );
+      },
+      itemBuilder: (context, index, notice) => BoardListRow(
+        index: index + 1,
+        title: notice.title,
+        titleColor: NoticeStyling.titleColor(
+          targetAudience: notice.targetAudience,
+          noticeImportant: notice.noticeImportant,
+        ),
+        authorName: notice.authorNickname!,
+        authorProfileImage: notice.authorProfileImage,
+        createdAt: notice.createdAt,
+        onTap: () => _showNoticeBottomSheet(context, notice),
       ),
     );
   }
 
   // 칼럼 게시판 위젯을 생성합니다.
   Widget _buildColumnBoard() {
-    if (isLoadingColumns) {
-      return ListView(
-        children: [
-          SizedBox(
-            height: MediaQuery.of(context).size.height * 0.4,
-            child: const Center(child: CircularProgressIndicator()),
+    return BoardSection<HospitalColumn>(
+      isLoading: isLoadingColumns,
+      items: columns,
+      emptyIcon: Icons.article_outlined,
+      emptyMessage: '공개된 칼럼이 없습니다',
+      onMoreTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => const UserColumnListScreen(),
           ),
-        ],
-      );
-    }
-
-    if (columns.isEmpty) {
-      return ListView(
-        children: [
-          SizedBox(
-            height: MediaQuery.of(context).size.height * 0.4,
-            child: const DashboardEmptyState(
-              icon: Icons.article_outlined,
-              message: '공개된 칼럼이 없습니다',
-            ),
-          ),
-        ],
-      );
-    }
-
-    return Container(
-      clipBehavior: Clip.antiAlias,
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Column(
-        children: [
-          const BoardListHeader(),
-          // 칼럼 목록
-          Expanded(
-            child: ListView.separated(
-              padding: EdgeInsets.zero,
-              itemCount: columns.length + 1, // ... 아이템 추가를 위해 +1
-              separatorBuilder:
-                  (context, index) => Container(
-                    height: 1,
-                    color: AppTheme.lightGray.withValues(alpha: 0.2),
-                    margin: const EdgeInsets.symmetric(horizontal: 16),
-                  ),
-              itemBuilder: (context, index) {
-                // 마지막 아이템은 ... 버튼
-                if (index == columns.length) {
-                  return DashboardMoreButton(
-                    onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => const UserColumnListScreen(),
-                        ),
-                      );
-                    },
-                  );
-                }
-
-                final column = columns[index];
-
-                return BoardListRow(
-                  index: index + 1,
-                  title: column.title,
-                  authorName: column.authorNickname ?? column.hospitalName,
-                  authorProfileImage: column.hospitalProfileImage,
-                  createdAt: column.createdAt,
-                  onTap: () => _showColumnBottomSheet(column),
-                );
-              },
-            ),
-          ),
-        ],
+        );
+      },
+      itemBuilder: (context, index, column) => BoardListRow(
+        index: index + 1,
+        title: column.title,
+        authorName: column.authorNickname!,
+        authorProfileImage: column.hospitalProfileImage,
+        createdAt: column.createdAt,
+        onTap: () => _showColumnBottomSheet(column),
       ),
     );
   }
@@ -751,16 +626,10 @@ class _WelcomeScreenState extends State<WelcomeScreen>
       setState(() {
         final idx = notices.indexWhere((n) => n.noticeIdx == notice.noticeIdx);
         if (idx != -1) {
-          final detailNickname = noticeDetail!.authorNickname;
-          final displayNickname =
-              (detailNickname.toLowerCase() != '닉네임 없음')
-                  ? detailNickname
-                  : noticeDetail.authorName;
-
           notices[idx] = Notice(
             noticeIdx: notices[idx].noticeIdx,
             accountIdx: notices[idx].accountIdx,
-            title: noticeDetail.title,
+            title: noticeDetail!.title,
             content: noticeDetail.contentPreview,
             noticeImportant: noticeDetail.noticeImportant,
             noticeActive: notices[idx].noticeActive,
@@ -768,7 +637,7 @@ class _WelcomeScreenState extends State<WelcomeScreen>
             updatedAt: noticeDetail.updatedAt,
             authorEmail: noticeDetail.authorEmail,
             authorName: noticeDetail.authorName,
-            authorNickname: displayNickname,
+            authorNickname: noticeDetail.authorNickname,
             authorProfileImage: noticeDetail.authorProfileImage ?? notices[idx].authorProfileImage,
             viewCount: noticeDetail.viewCount,
             targetAudience: noticeDetail.targetAudience,
@@ -785,13 +654,8 @@ class _WelcomeScreenState extends State<WelcomeScreen>
     final DateTime createdAt = noticeDetail?.createdAt ?? notice.createdAt;
     final DateTime updatedAt = noticeDetail?.updatedAt ?? notice.updatedAt;
     final int viewCount = noticeDetail?.viewCount ?? notice.viewCount ?? 0;
-    final detailNickname = noticeDetail?.authorNickname;
     final String authorName =
-        (detailNickname != null && detailNickname.toLowerCase() != '닉네임 없음')
-            ? detailNickname
-            : noticeDetail?.authorName ??
-                notice.authorNickname ??
-                notice.authorName;
+        (noticeDetail?.authorNickname ?? notice.authorNickname)!;
     final String title = noticeDetail?.title ?? notice.title;
     final String content = noticeDetail?.contentPreview ?? notice.content;
     final String? noticeUrl = noticeDetail?.noticeUrl ?? notice.noticeUrl;
