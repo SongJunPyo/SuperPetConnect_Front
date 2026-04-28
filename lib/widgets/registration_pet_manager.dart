@@ -983,9 +983,28 @@ class _PetRegistrationFormState extends State<_PetRegistrationForm> {
               style: AppTheme.bodySmallStyle.copyWith(color: AppTheme.textSecondary),
             ),
             const SizedBox(height: AppTheme.spacing12),
-            _buildPregnancyBirthRadio(0, '해당 없음', isMale),
-            _buildPregnancyBirthRadio(1, '현재 임신중', isMale),
-            _buildPregnancyBirthRadio(2, '출산 이력 있음', isMale),
+            // RadioGroup으로 groupValue/onChanged 관리 (Flutter 3.32+ 신규 API).
+            // onChanged는 non-nullable이라 disabled는 콜백 내부에서 처리.
+            RadioGroup<int>(
+              groupValue: _pregnancyBirthStatus,
+              onChanged: (v) {
+                if (isMale) return; // 수컷은 변경 불가
+                setState(() {
+                  _pregnancyBirthStatus = v ?? 0;
+                  if (_pregnancyBirthStatus != 2) {
+                    _lastPregnancyEndDate = null;
+                  }
+                });
+              },
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _buildPregnancyBirthRadio(0, '해당 없음', isMale),
+                  _buildPregnancyBirthRadio(1, '현재 임신중', isMale),
+                  _buildPregnancyBirthRadio(2, '출산 이력 있음', isMale),
+                ],
+              ),
+            ),
             if (_pregnancyBirthStatus == 2) ...[
               const SizedBox(height: AppTheme.spacing8),
               _buildLastPregnancyEndDatePicker(),
@@ -997,6 +1016,7 @@ class _PetRegistrationFormState extends State<_PetRegistrationForm> {
   }
 
   Widget _buildPregnancyBirthRadio(int value, String label, bool disabled) {
+    // groupValue/onChanged는 부모 RadioGroup에서 관리. InkWell 탭으로도 선택 가능.
     return InkWell(
       onTap: disabled
           ? null
@@ -1010,15 +1030,6 @@ class _PetRegistrationFormState extends State<_PetRegistrationForm> {
           children: [
             Radio<int>(
               value: value,
-              groupValue: _pregnancyBirthStatus,
-              onChanged: disabled
-                  ? null
-                  : (v) => setState(() {
-                        _pregnancyBirthStatus = v ?? 0;
-                        if (_pregnancyBirthStatus != 2) {
-                          _lastPregnancyEndDate = null;
-                        }
-                      }),
               activeColor: AppTheme.primaryBlue,
             ),
             Expanded(
