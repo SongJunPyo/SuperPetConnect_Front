@@ -8,6 +8,7 @@ import 'package:provider/provider.dart';
 import '../admin/admin_column_management.dart';
 import '../admin/admin_donation_approval_page.dart';
 import '../admin/admin_pet_management.dart';
+import '../admin/admin_post_check.dart';
 import '../admin/admin_signup_management.dart';
 import '../hospital/hospital_post_check.dart';
 import '../providers/notification_provider.dart';
@@ -70,6 +71,8 @@ class NotificationService {
           _navigateToAdminPetManagement(parsedData);
         } else if (message.data['type'] == 'new_user_registration') {
           _navigateToSignupManagement(parsedData);
+        } else if (message.data['type'] == 'new_donation_application') {
+          _navigateForNewDonationApplication(message.data);
         } else if (message.data['type'] == 'column_approval') {
           _navigateToAdminColumnManagement(parsedData);
         } else if (message.data['type'] == 'column_rejected') {
@@ -139,6 +142,8 @@ class NotificationService {
               _navigateToAdminPetManagement(parsedData);
             } else if (message.data['type'] == 'new_user_registration') {
               _navigateToSignupManagement(parsedData);
+            } else if (message.data['type'] == 'new_donation_application') {
+              _navigateForNewDonationApplication(message.data);
             } else if (message.data['type'] == 'column_approval') {
               _navigateToAdminColumnManagement(parsedData);
             } else if (message.data['type'] == 'column_rejected') {
@@ -212,6 +217,9 @@ class NotificationService {
         case 'new_user_registration':
           final parsedData = _parseNotificationData(data);
           _navigateToSignupManagement(parsedData);
+          break;
+        case 'new_donation_application':
+          _navigateForNewDonationApplication(data);
           break;
         case 'column_approval':
           final parsedData = _parseNotificationData(data);
@@ -456,6 +464,30 @@ class NotificationService {
       );
     } catch (e) {
       debugPrint('[NotificationService] 칼럼 관리 네비게이션 실패: $e');
+    }
+  }
+
+  /// new_donation_application(admin only) 알림 클릭 시 진입 (2-5a).
+  /// AdminPostCheck의 헌혈모집 탭(index=1)으로 자동 이동. post_idx는 받아두지만
+  /// 현재는 활용 보류 — 탭 분리 리팩토링 후 2-5b에서 단건 fetch + 신청자
+  /// 바텀시트 자동 오픈으로 보강 예정.
+  static void _navigateForNewDonationApplication(Map<String, dynamic> data) {
+    final context = navigatorKey.currentContext;
+    if (context == null) return;
+    try {
+      final raw = data['post_idx'] ?? data['post_id'];
+      final postIdx = raw is int ? raw : int.tryParse(raw?.toString() ?? '');
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => AdminPostCheck(
+            initialPostIdx: postIdx,
+            initialTabIndex: 1,
+          ),
+        ),
+      );
+    } catch (e) {
+      debugPrint('[NotificationService] 헌혈 신청 검토 네비게이션 실패: $e');
     }
   }
 

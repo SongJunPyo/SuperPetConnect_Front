@@ -28,7 +28,20 @@ import '../widgets/pagination_bar.dart';
 import '../widgets/info_row.dart';
 
 class AdminPostCheck extends StatefulWidget {
-  const AdminPostCheck({super.key});
+  /// 알림 탭 등 외부 진입 시 강조할 게시글 post_idx.
+  /// 2-5a에서는 받아두기만 하고 활용 보류 — 탭 분리 리팩토링 후 2-5b에서
+  /// 단건 fetch + 신청자 바텀시트 자동 오픈 보강 예정.
+  final int? initialPostIdx;
+
+  /// 알림 탭 진입 시 보일 초기 탭 (0~4). null이면 default 탭(0=모집대기).
+  /// new_donation_application은 1=헌혈모집 탭으로 보냄.
+  final int? initialTabIndex;
+
+  const AdminPostCheck({
+    super.key,
+    this.initialPostIdx,
+    this.initialTabIndex,
+  });
 
   @override
   State createState() => _AdminPostCheckState();
@@ -56,9 +69,28 @@ class _AdminPostCheckState extends State<AdminPostCheck>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 5, vsync: this);
+    final initialIndex = (widget.initialTabIndex ?? 0).clamp(0, 4);
+    _tabController = TabController(
+      length: 5,
+      vsync: this,
+      initialIndex: initialIndex,
+    );
     _tabController!.addListener(_handleTabChange);
-    fetchPosts();
+    _currentTabIndex = initialIndex;
+
+    // 초기 탭에 맞는 데이터 로드 (default 탭 0이 아닌 경우 알림 진입 케이스).
+    // _handleTabChange는 인덱스 변경 시에만 호출되므로 초기 fetch는 직접 분기.
+    if (initialIndex == 1) {
+      fetchAppliedDonations();
+    } else if (initialIndex == 2) {
+      fetchPendingCompletions();
+    } else if (initialIndex == 3) {
+      fetchCompletedDonations();
+    } else if (initialIndex == 4) {
+      fetchCancelledDonations();
+    } else {
+      fetchPosts();
+    }
   }
 
   void _handleTabChange() {
