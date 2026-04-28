@@ -534,7 +534,7 @@ class _AdminPostCheckState extends State<AdminPostCheck>
                     'pet_blood_type': app['pet']?['blood_type'],
                     'applicantCount': 1, // 완료된 헌혈은 1건
                     'description': app['description'],
-                    'contentDelta': app['content_delta'] ?? app['contentDelta'],
+                    'contentDelta': app['content_delta'],
                     'blood_volume': app['blood_volume'],
                     'status': 7, // 헌혈완료 상태
                     'pet_name': app['pet']?['name'] ?? app['pet_name'] ?? '',
@@ -726,7 +726,7 @@ class _AdminPostCheckState extends State<AdminPostCheck>
             'pet_blood_type': app['pet']?['blood_type'],
             'applicantCount': 1, // 취소된 헌혈은 1건
             'description': app['description'],
-            'contentDelta': app['content_delta'] ?? app['contentDelta'],
+            'contentDelta': app['content_delta'],
             'blood_volume': app['blood_volume'],
             'status': 4, // 헌혈취소 상태
             'pet_name': app['pet']?['name'] ?? app['pet_name'] ?? '',
@@ -3920,12 +3920,12 @@ class _AdminPostCheckState extends State<AdminPostCheck>
                                           return InfoRow(icon: Icons.cake, label: '생년월일', value: birthText);
                                         }(),
                                       ],
-                                      if ((post['pet_blood_type'] ?? post['bloodType'] ?? post['blood_type']) != null) ...[
+                                      if (post['pet_blood_type'] != null) ...[
                                         const SizedBox(height: 12),
                                         InfoRow(
                                           icon: Icons.bloodtype,
                                           label: '혈액형',
-                                          value: (post['pet_blood_type'] ?? post['bloodType'] ?? post['blood_type']).toString(),
+                                          value: post['pet_blood_type'].toString(),
                                         ),
                                       ],
                                       // 헌혈량 표시 (헌혈완료 시)

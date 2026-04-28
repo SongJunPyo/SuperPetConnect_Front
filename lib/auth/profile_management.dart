@@ -41,6 +41,9 @@ class _ProfileManagementState extends State<ProfileManagement> {
   String loginType = 'email'; // 가입 방식: "email" 또는 "naver"
   String profileTitle = "프로필 관리";
   String? profileImage; // 대표 반려동물 프로필 사진
+  // 같은 경로에 새 사진을 덮어쓴 직후에도 즉시 갱신되도록 NetworkImage 캐시를
+  // 우회하는 cache buster. 업로드/삭제 시 증가시켜 PetProfileImage에 전달.
+  int _imageRefreshKey = 0;
 
   @override
   void initState() {
@@ -349,7 +352,10 @@ class _ProfileManagementState extends State<ProfileManagement> {
       if (mounted) {
         if (response.statusCode == 200) {
           final data = jsonDecode(response.body);
-          setState(() => profileImage = data['profile_image']);
+          setState(() {
+            profileImage = data['profile_image'];
+            _imageRefreshKey++;
+          });
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('프로필 사진이 등록되었습니다.'), behavior: SnackBarBehavior.floating),
           );
@@ -379,7 +385,10 @@ class _ProfileManagementState extends State<ProfileManagement> {
       );
       if (mounted) {
         if (response.statusCode == 200) {
-          setState(() => profileImage = null);
+          setState(() {
+            profileImage = null;
+            _imageRefreshKey++;
+          });
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('프로필 사진이 삭제되었습니다.'), behavior: SnackBarBehavior.floating),
           );
@@ -491,6 +500,7 @@ class _ProfileManagementState extends State<ProfileManagement> {
                   PetProfileImage(
                     profileImage: profileImage,
                     radius: 48,
+                    cacheBuster: _imageRefreshKey,
                   ),
                   if (!isRegularUser)
                     Positioned(

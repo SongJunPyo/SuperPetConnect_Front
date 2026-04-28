@@ -9,11 +9,14 @@ import '../utils/app_theme.dart';
 /// [species] "강아지" 또는 "고양이" (아이콘 fallback용)
 /// [radius] CircleAvatar 반지름
 /// [onTap] 클릭 시 원본 크게 보기
+/// [cacheBuster] 같은 경로에 새 사진을 덮어쓴 직후에도 즉시 갱신되도록
+///   `?v={cacheBuster}` 쿼리를 URL에 부가. 호출 측에서 업로드/삭제 후 값을 증가시키면 됨.
 class PetProfileImage extends StatelessWidget {
   final String? profileImage;
   final String? species;
   final double radius;
   final VoidCallback? onTap;
+  final int? cacheBuster;
 
   const PetProfileImage({
     super.key,
@@ -21,12 +24,17 @@ class PetProfileImage extends StatelessWidget {
     this.species,
     this.radius = 24,
     this.onTap,
+    this.cacheBuster,
   });
 
   String? get _fullImageUrl {
     if (profileImage == null || profileImage!.isEmpty) return null;
-    if (profileImage!.startsWith('http')) return profileImage;
-    return '${Config.serverUrl}$profileImage';
+    final base = profileImage!.startsWith('http')
+        ? profileImage!
+        : '${Config.serverUrl}$profileImage';
+    if (cacheBuster == null) return base;
+    final separator = base.contains('?') ? '&' : '?';
+    return '$base${separator}v=$cacheBuster';
   }
 
   @override
