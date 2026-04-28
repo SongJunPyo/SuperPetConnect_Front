@@ -16,14 +16,12 @@ import 'package:intl/intl.dart';
 import '../services/admin_completed_donation_service.dart';
 import '../services/dashboard_service.dart';
 import '../widgets/post_detail/post_detail_header.dart';
-import '../widgets/post_detail/post_detail_description.dart';
 import '../utils/time_format_util.dart';
 import 'admin_post_edit.dart';
 import '../widgets/pagination_bar.dart';
-import '../widgets/info_row.dart';
-import '../widgets/donation_history_sheet.dart';
 import '../widgets/admin/applicant_detail_sheet.dart';
 import '../widgets/admin/post_detail_sheet.dart';
+import '../widgets/admin/completion_applicant_sheet.dart';
 
 class AdminPostCheck extends StatefulWidget {
   /// 알림 탭 등 외부 진입 시 강조할 게시글 post_idx.
@@ -2009,7 +2007,7 @@ class _AdminPostCheckState extends State<AdminPostCheck>
         // 헌혈완료/취소 탭 또는 완료대기/중단대기는 바로 신청자 상세 표시
         if (_currentTabIndex == 3 || _currentTabIndex == 4 ||
             post['is_completion_pending'] == true) {
-          _showCompletionApplicantInfo(post);
+          _openCompletionApplicantSheet(post);
         } else {
           _openPostDetailSheet(
             post,
@@ -2050,6 +2048,22 @@ class _AdminPostCheckState extends State<AdminPostCheck>
             _showClosePostConfirmationSheet(post, setState),
         onReopenPost: (setState) =>
             _showReopenPostConfirmationSheet(post, setState),
+      ),
+    );
+  }
+
+  /// 헌혈완료/취소 신청자 시트를 열기 위한 진입점.
+  /// 시트 자체는 [showCompletionApplicantSheet]
+  /// (lib/widgets/admin/completion_applicant_sheet.dart)에 있고,
+  /// 여기서는 상태별 액션 콜백을 본 화면 컨텍스트에 묶어 전달.
+  void _openCompletionApplicantSheet(Map<String, dynamic> post) {
+    showCompletionApplicantSheet(
+      context,
+      post: post,
+      actions: CompletionApplicantSheetActions(
+        onFinalApproveCompletion: _finalApproveCompletion,
+        onRequestDocuments: _requestDocuments,
+        onRejectCompletion: _rejectCompletion,
       ),
     );
   }
@@ -2143,11 +2157,11 @@ class _AdminPostCheckState extends State<AdminPostCheck>
                           onTap: () async {
                             // 헌혈마감 탭에서는 신청자 정보 표시, 다른 탭에서는 기존 로직
                             if (post['is_completion_pending'] == true) {
-                              _showCompletionApplicantInfo(post);
+                              _openCompletionApplicantSheet(post);
                             } else if (_currentTabIndex == 3 ||
                                 _currentTabIndex == 4) {
                               // 헌혈완료/취소 탭에서도 신청자 정보 표시
-                              _showCompletionApplicantInfo(post);
+                              _openCompletionApplicantSheet(post);
                             } else if (isActive) {
                               await _showTimeSlotApplicants(
                                 post['id'],
@@ -3213,418 +3227,6 @@ class _AdminPostCheckState extends State<AdminPostCheck>
   }
 
   // 헌혈마감 탭에서 신청자 및 반려견 정보 표시
-  void _showCompletionApplicantInfo(Map<String, dynamic> post) {
-    // applications 배열에서 첫 번째 신청자 정보 가져오기 (헌혈완료/취소는 1건)
-    final applications = post['applications'] as List<dynamic>? ?? [];
-    final applicant =
-        applications.isNotEmpty
-            ? applications.first as Map<String, dynamic>? ?? {}
-            : <String, dynamic>{};
-
-    // pet_idx 가져오기 (post 또는 applicant에서) - 타입 변환 처리
-    int? petIdx;
-    final postPetIdx = post['pet_idx'];
-    final applicantPetIdx = applicant['pet_idx'];
-
-    if (postPetIdx != null) {
-      petIdx =
-          postPetIdx is int ? postPetIdx : int.tryParse(postPetIdx.toString());
-    } else if (applicantPetIdx != null) {
-      petIdx =
-          applicantPetIdx is int
-              ? applicantPetIdx
-              : int.tryParse(applicantPetIdx.toString());
-    }
-
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder:
-          (context) => DraggableScrollableSheet(
-            initialChildSize: 0.75,
-            minChildSize: 0.4,
-            maxChildSize: 0.95,
-            expand: false,
-            builder:
-                (context, scrollController) => Container(
-                  decoration: const BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.vertical(
-                      top: Radius.circular(20),
-                    ),
-                  ),
-                  child: Column(
-                    children: [
-                      // 핸들 바
-                      Container(
-                        width: 40,
-                        height: 4,
-                        margin: const EdgeInsets.symmetric(vertical: 12),
-                        decoration: BoxDecoration(
-                          color: Colors.grey[300],
-                          borderRadius: BorderRadius.circular(2),
-                        ),
-                      ),
-
-                      // 헤더
-                      Container(
-                        padding: const EdgeInsets.fromLTRB(20, 8, 20, 16),
-                        child: Row(
-                          children: [
-                            if (post['hospitalProfileImage'] != null || post['hospital_profile_image'] != null) ...[
-                              PetProfileImage(
-                                profileImage: post['hospitalProfileImage'] ?? post['hospital_profile_image'],
-                                radius: 20,
-                              ),
-                              const SizedBox(width: 12),
-                            ],
-                            Expanded(
-                              child: Text(
-                                post['title'] ?? '제목 없음',
-                                style: AppTheme.h3Style.copyWith(
-                                  color: post['types'] == 0
-                                      ? Colors.red
-                                      : AppTheme.textPrimary,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                                maxLines: 2,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ),
-                            IconButton(
-                              icon: const Icon(Icons.close, color: Colors.black),
-                              onPressed: () => Navigator.of(context).pop(),
-                              tooltip: '닫기',
-                            ),
-                          ],
-                        ),
-                      ),
-
-                      const Divider(),
-
-                      // 내용
-                      Expanded(
-                        child: SingleChildScrollView(
-                          controller: scrollController,
-                          padding: const EdgeInsets.all(20),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              // 병원명과 등록일
-                              Row(
-                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                children: [
-                                  Row(
-                                    children: [
-                                      Icon(
-                                        Icons.business,
-                                        size: 16,
-                                        color: AppTheme.textSecondary,
-                                      ),
-                                      const SizedBox(width: 8),
-                                      Text(
-                                        '병원명: ',
-                                        style: AppTheme.bodyMediumStyle.copyWith(
-                                          fontWeight: FontWeight.w500,
-                                          color: AppTheme.textPrimary,
-                                        ),
-                                      ),
-                                      Text(
-                                        post['nickname'] ?? '병원',
-                                        style: AppTheme.bodyMediumStyle.copyWith(
-                                          fontWeight: FontWeight.w600,
-                                          color: AppTheme.textPrimary,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                  Text(
-                                    post['created_date'] ?? '',
-                                    style: AppTheme.bodySmallStyle.copyWith(
-                                      color: AppTheme.textSecondary,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                              const SizedBox(height: 8),
-                              // 주소
-                              Row(
-                                children: [
-                                  Icon(
-                                    Icons.location_on,
-                                    size: 16,
-                                    color: AppTheme.textSecondary,
-                                  ),
-                                  const SizedBox(width: 8),
-                                  Text(
-                                    '주소: ',
-                                    style: AppTheme.bodyMediumStyle.copyWith(
-                                      fontWeight: FontWeight.w600,
-                                      color: AppTheme.textPrimary,
-                                    ),
-                                  ),
-                                  Expanded(
-                                    child: Text(
-                                      post['location'] ?? '주소 정보 없음',
-                                      style: AppTheme.bodyMediumStyle.copyWith(
-                                        color: AppTheme.textPrimary,
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                              const SizedBox(height: 8),
-                              // 헌혈 날짜
-                              if (post['donation_date'] != null &&
-                                  post['donation_date'].toString().isNotEmpty) ...[
-                                Row(
-                                  children: [
-                                    Icon(
-                                      Icons.calendar_today,
-                                      size: 16,
-                                      color: AppTheme.textSecondary,
-                                    ),
-                                    const SizedBox(width: 8),
-                                    Text(
-                                      '헌혈 일정: ',
-                                      style: AppTheme.bodyMediumStyle.copyWith(
-                                        fontWeight: FontWeight.w500,
-                                        color: AppTheme.textPrimary,
-                                      ),
-                                    ),
-                                    Expanded(
-                                      child: Text(
-                                        TimeFormatUtils.formatKoreanDateTimeWithWeekday(
-                                          post['donation_date'],
-                                        ),
-                                        style: AppTheme.bodyMediumStyle.copyWith(
-                                          fontWeight: FontWeight.w600,
-                                          color: AppTheme.textPrimary,
-                                        ),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ],
-
-                              // 게시글 내용 (리치텍스트)
-                              PostDetailDescription(
-                                contentDelta: post['contentDelta']?.toString(),
-                                plainText: post['description']?.toString(),
-                              ),
-
-                              // 신청자 정보
-                              if (post['user_nickname'] != null &&
-                                  post['user_nickname'].toString().isNotEmpty) ...[
-                                const SizedBox(height: 20),
-                                Text('신청자 정보', style: AppTheme.h4Style),
-                                const SizedBox(height: 12),
-                                Container(
-                                  padding: const EdgeInsets.all(16),
-                                  decoration: BoxDecoration(
-                                    color: Colors.grey.shade50,
-                                    borderRadius: BorderRadius.circular(12),
-                                    border: Border.all(
-                                      color: Colors.grey.shade200,
-                                    ),
-                                  ),
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      if (post['user_name'] != null && post['user_name'].toString().isNotEmpty)
-                                        InfoRow(
-                                          icon: Icons.person,
-                                          label: '이름',
-                                          value: post['user_name'].toString(),
-                                        ),
-                                      if (post['user_nickname'] != null && post['user_nickname'].toString().isNotEmpty) ...[
-                                        const SizedBox(height: 12),
-                                        InfoRow(
-                                          icon: Icons.badge,
-                                          label: '닉네임',
-                                          value: post['user_nickname'].toString(),
-                                        ),
-                                      ],
-                                      if (post['pet_name'] != null &&
-                                          post['pet_name'].toString().isNotEmpty) ...[
-                                        const SizedBox(height: 12),
-                                        InfoRow(
-                                          icon: Icons.pets,
-                                          label: '반려동물',
-                                          value: post['pet_breed'] != null && post['pet_breed'].toString().isNotEmpty
-                                              ? '${post['pet_name']} (${post['pet_breed']})'
-                                              : post['pet_name'],
-                                        ),
-                                      ],
-                                      if (post['pet_birth_date'] != null && post['pet_birth_date'].toString().isNotEmpty) ...[
-                                        const SizedBox(height: 12),
-                                        () {
-                                          final birthDate = DateTime.tryParse(post['pet_birth_date'].toString());
-                                          String birthText = post['pet_birth_date'].toString().split('T')[0].replaceAll('-', '.');
-                                          if (birthDate != null) {
-                                            final months = (DateTime.now().year - birthDate.year) * 12 + (DateTime.now().month - birthDate.month);
-                                            final ageText = months < 12 ? '$months개월' : '${months ~/ 12}살';
-                                            birthText = '$birthText ($ageText)';
-                                          }
-                                          return InfoRow(icon: Icons.cake, label: '생년월일', value: birthText);
-                                        }(),
-                                      ],
-                                      if (post['pet_blood_type'] != null) ...[
-                                        const SizedBox(height: 12),
-                                        InfoRow(
-                                          icon: Icons.bloodtype,
-                                          label: '혈액형',
-                                          value: post['pet_blood_type'].toString(),
-                                        ),
-                                      ],
-                                      // 헌혈량 표시 (헌혈완료 시)
-                                      if (post['blood_volume'] != null) ...[
-                                        const SizedBox(height: 12),
-                                        InfoRow(
-                                          icon: Icons.water_drop,
-                                          label: '헌혈량',
-                                          value: '${post['blood_volume']} mL',
-                                        ),
-                                      ],
-                                    ],
-                                  ),
-                                ),
-                              ],
-
-                              // 중단 사유 표시 (Status 4 또는 6인 경우)
-                              if ((post['status'] == 4 ||
-                                      post['status'] == 6) &&
-                                  post['cancelled_reason'] != null &&
-                                  post['cancelled_reason']
-                                      .toString()
-                                      .isNotEmpty) ...[
-                                const SizedBox(height: 24),
-                                Text('중단 사유', style: AppTheme.h4Style),
-                                const SizedBox(height: 12),
-                                Container(
-                                  width: double.infinity,
-                                  padding: const EdgeInsets.all(16),
-                                  decoration: BoxDecoration(
-                                    color: Colors.orange[50],
-                                    borderRadius: BorderRadius.circular(12),
-                                    border: Border.all(
-                                      color: Colors.orange[200]!,
-                                    ),
-                                  ),
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        post['cancelled_reason'],
-                                        style: AppTheme.bodyMediumStyle
-                                            .copyWith(height: 1.4),
-                                      ),
-                                      if (post['cancelled_at'] != null) ...[
-                                        const SizedBox(height: 8),
-                                        Text(
-                                          '중단 시간: ${TimeFormatUtils.formatKoreanDateTime(post['cancelled_at'])}',
-                                          style: AppTheme.bodySmallStyle
-                                              .copyWith(
-                                                color: Colors.grey[600],
-                                              ),
-                                        ),
-                                      ],
-                                    ],
-                                  ),
-                                ),
-                              ],
-
-                              // 헌혈 이력 섹션 (완료대기/중단대기에서는 미표시)
-                              if (post['status'] != 5 && post['status'] != 6) ...[
-                                const SizedBox(height: 24),
-                                DonationHistorySection(petIdx: petIdx),
-                              ],
-
-                              // 완료대기/중단대기 — 관리자 최종 확인 버튼
-                              if (post['status'] == 5) ...[
-                                const SizedBox(height: 24),
-                                SizedBox(
-                                  width: double.infinity,
-                                  child: OutlinedButton(
-                                    onPressed: () {
-                                      Navigator.of(context).pop();
-                                      _finalApproveCompletion(
-                                        post['application_id'] ?? post['id'] ?? 0,
-                                      );
-                                    },
-                                    style: OutlinedButton.styleFrom(
-                                      foregroundColor: Colors.green,
-                                      side: const BorderSide(color: Colors.green),
-                                      padding: const EdgeInsets.symmetric(vertical: 12),
-                                      shape: RoundedRectangleBorder(
-                                        borderRadius: BorderRadius.circular(8),
-                                      ),
-                                    ),
-                                    child: const Text('헌혈 마감'),
-                                  ),
-                                ),
-                              ],
-                              // 헌혈완료 — 자료 요청 버튼
-                              if (post['status'] == 7) ...[
-                                const SizedBox(height: 24),
-                                SizedBox(
-                                  width: double.infinity,
-                                  child: OutlinedButton.icon(
-                                    onPressed: () => _requestDocuments(
-                                      applicant['applied_donation_idx'] as int? ??
-                                      post['applied_donation_idx'] as int? ?? 0,
-                                    ),
-                                    icon: const Icon(Icons.description_outlined, size: 18),
-                                    label: const Text('헌혈 자료 요청'),
-                                    style: OutlinedButton.styleFrom(
-                                      foregroundColor: AppTheme.textPrimary,
-                                      side: BorderSide(color: AppTheme.mediumGray),
-                                      padding: const EdgeInsets.symmetric(vertical: 12),
-                                      shape: RoundedRectangleBorder(
-                                        borderRadius: BorderRadius.circular(8),
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                              ],
-                              if (post['status'] == 6) ...[
-                                const SizedBox(height: 24),
-                                SizedBox(
-                                  width: double.infinity,
-                                  child: OutlinedButton(
-                                    onPressed: () {
-                                      Navigator.of(context).pop();
-                                      _rejectCompletion(
-                                        post['application_id'] ?? post['id'] ?? 0,
-                                      );
-                                    },
-                                    style: OutlinedButton.styleFrom(
-                                      foregroundColor: Colors.red,
-                                      side: const BorderSide(color: Colors.red),
-                                      padding: const EdgeInsets.symmetric(vertical: 12),
-                                      shape: RoundedRectangleBorder(
-                                        borderRadius: BorderRadius.circular(8),
-                                      ),
-                                    ),
-                                    child: const Text('헌혈 중단'),
-                                  ),
-                                ),
-                              ],
-                            ],
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-          ),
-    );
-  }
-
   /// 헌혈 자료 요청
   Future<void> _requestDocuments(int applicationId) async {
     try {
