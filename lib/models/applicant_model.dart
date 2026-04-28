@@ -91,12 +91,6 @@ class ApplicantInfo {
   /// 승인 상태인지 확인
   bool get isApproved => status == 1;
 
-  /// 미승인 상태인지 확인
-  bool get isRejected => status == 2;
-
-  /// 취소 상태인지 확인
-  bool get isCancelled => status == 3;
-
   /// 직전 헌혈일 포맷 (YYYY.MM.DD)
   String get formattedLastDonationDate {
     if (lastDonationDate.isEmpty) return '-';

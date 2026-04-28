@@ -1317,7 +1317,6 @@ class _ActiveUserBottomSheetState extends State<ActiveUserBottomSheet>
                       spacing: 8,
                       children: [
                         _statChip(Icons.check_circle, '완료 ${petApplications.where((a) => a['status'] == 7).length}건'),
-                        _statChip(Icons.cancel, '취소 ${petApplications.where((a) => a['status'] == 4).length}건'),
                         if (totalBloodVolume > 0)
                           _statChip(Icons.bloodtype, '총 ${totalBloodVolume}ml'),
                       ],
@@ -1357,7 +1356,7 @@ class _ActiveUserBottomSheetState extends State<ActiveUserBottomSheet>
           final petData = app['pet'] as Map<String, dynamic>?;
           final appPetIdx = petData?['pet_idx'] as int?;
           final status = app['status'] as int?;
-          return appPetIdx == petIdx && (status == 7 || status == 4);
+          return appPetIdx == petIdx && status == 7;
         }).toList();
       }
     } catch (_) {}

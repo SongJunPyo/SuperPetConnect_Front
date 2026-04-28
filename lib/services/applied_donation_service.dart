@@ -285,16 +285,6 @@ class AppliedDonationService {
     }
   }
 
-  // 14. 신청 취소 (사용자용)
-  static Future<AppliedDonation> cancelApplication(
-    int appliedDonationIdx,
-  ) async {
-    return await updateApplicationStatus(
-      appliedDonationIdx,
-      AppliedDonationStatus.cancelled,
-    );
-  }
-
   // 15. 신청 완료 처리 (병원용)
   static Future<AppliedDonation> completeApplication(
     int appliedDonationIdx,

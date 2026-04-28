@@ -501,7 +501,7 @@ class _UserDonationApplicationsScreenState
 
   Future<void> _cancelApplication(AppliedDonation application) async {
     try {
-      await AppliedDonationService.cancelApplication(
+      await AppliedDonationService.deleteApplication(
         application.appliedDonationIdx!,
       );
 

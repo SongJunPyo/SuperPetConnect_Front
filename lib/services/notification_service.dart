@@ -57,15 +57,12 @@ class NotificationService {
           _navigateToHospitalPosts(parsedData);
         } else if (message.data['type'] == 'column_approved') {
           _navigateToHospitalColumns(parsedData);
-        } else if (message.data['type'] == 'donation_application_approved' ||
-            message.data['type'] == 'donation_application_rejected') {
+        } else if (message.data['type'] == 'donation_application_approved') {
           _navigateToDonationHistory(message.data);
         } else if (message.data['type'] == 'recruitment_closed') {
           _navigateForRecruitmentClosed(message.data);
         } else if (message.data['type'] == 'donation_completed') {
           _navigateForDonationCompleted(message.data);
-        } else if (message.data['type'] == 'donation_completion_rejected') {
-          _navigateToDonationHistory(message.data);
         } else if (message.data['type'] == 'new_donation_post') {
           _navigateToNewDonationPost(parsedData);
         } else if (message.data['type'] == 'new_pet_registration' ||
@@ -129,15 +126,12 @@ class NotificationService {
             } else if (message.data['type'] == 'column_approved') {
               _navigateToHospitalColumns(parsedData);
             } else if (message.data['type'] ==
-                    'donation_application_approved' ||
-                message.data['type'] == 'donation_application_rejected') {
+                'donation_application_approved') {
               _navigateToDonationHistory(message.data);
             } else if (message.data['type'] == 'recruitment_closed') {
               _navigateForRecruitmentClosed(message.data);
             } else if (message.data['type'] == 'donation_completed') {
               _navigateForDonationCompleted(message.data);
-            } else if (message.data['type'] == 'donation_completion_rejected') {
-              _navigateToDonationHistory(message.data);
             } else if (message.data['type'] == 'new_donation_post') {
               _navigateToNewDonationPost(parsedData);
             } else if (message.data['type'] == 'new_pet_registration' ||
@@ -198,7 +192,6 @@ class NotificationService {
           _navigateToHospitalColumns(parsedData);
           break;
         case 'donation_application_approved':
-        case 'donation_application_rejected':
           _navigateToDonationHistory(data);
           break;
         case 'recruitment_closed':
@@ -206,9 +199,6 @@ class NotificationService {
           break;
         case 'donation_completed':
           _navigateForDonationCompleted(data);
-          break;
-        case 'donation_completion_rejected':
-          _navigateToDonationHistory(data);
           break;
         case 'new_donation_post':
           final parsedData = _parseNotificationData(data);

@@ -62,7 +62,6 @@ enum UserNotificationType {
   recruitmentClosed, // 모집 마감 알림
   donationCompleted, // 헌혈 완료 알림
   applicationApproved, // 헌혈 신청 승인
-  applicationRejected, // 헌혈 신청 미승인
   newDonationPost, // 새 헌혈 모집 게시글 알림
   petApproved, // 반려동물 승인
   petRejected, // 반려동물 거절
@@ -106,7 +105,6 @@ class NotificationTypeNames {
     UserNotificationType.recruitmentClosed: '모집 마감',
     UserNotificationType.donationCompleted: '헌혈 완료',
     UserNotificationType.applicationApproved: '신청 승인',
-    UserNotificationType.applicationRejected: '신청 미승인',
     UserNotificationType.newDonationPost: '새 헌혈 모집',
     UserNotificationType.petApproved: '반려동물 승인',
     UserNotificationType.petRejected: '반려동물 거절',
@@ -151,7 +149,6 @@ class NotificationTypeIcons {
     UserNotificationType.recruitmentClosed: '⏰',
     UserNotificationType.donationCompleted: '✅',
     UserNotificationType.applicationApproved: '✅',
-    UserNotificationType.applicationRejected: '❌',
     UserNotificationType.newDonationPost: '🩸',
     UserNotificationType.petApproved: '🐾',
     UserNotificationType.petRejected: '🚫',
@@ -201,7 +198,6 @@ class NotificationPriority {
     UserNotificationType.recruitmentClosed: high,
     UserNotificationType.donationCompleted: high,
     UserNotificationType.applicationApproved: high,
-    UserNotificationType.applicationRejected: high,
     UserNotificationType.newDonationPost: high,
     UserNotificationType.petApproved: high,
     UserNotificationType.petRejected: high,
@@ -246,7 +242,6 @@ class NotificationTypeIds {
     UserNotificationType.recruitmentClosed: 302,
     UserNotificationType.donationCompleted: 303,
     UserNotificationType.applicationApproved: 304,
-    UserNotificationType.applicationRejected: 305,
     UserNotificationType.newDonationPost: 306,
     UserNotificationType.petApproved: 307,
     UserNotificationType.petRejected: 308,

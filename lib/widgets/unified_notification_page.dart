@@ -901,7 +901,6 @@ class _UnifiedNotificationPageState extends State<UnifiedNotificationPage> {
         case UserNotificationType.applicationApproved:
         case UserNotificationType.donationCompleted:
           return AppTheme.success;
-        case UserNotificationType.applicationRejected:
         case UserNotificationType.petRejected:
         case UserNotificationType.petPhotoRejected:
           return AppTheme.error;
@@ -1069,10 +1068,9 @@ class _UnifiedNotificationPageState extends State<UnifiedNotificationPage> {
   void _handleUserNotificationTap(NotificationModel notification) {
     if (notification is UserNotificationModel) {
       switch (notification.userType) {
-        // 모집 마감, 신청 승인/거절, 헌혈 완료 → 내 신청 내역 페이지
+        // 모집 마감, 신청 승인, 헌혈 완료 → 내 신청 내역 페이지
         case UserNotificationType.recruitmentClosed:
         case UserNotificationType.applicationApproved:
-        case UserNotificationType.applicationRejected:
         case UserNotificationType.donationCompleted:
           _navigateToUserPostDetail(notification);
           break;
@@ -1243,8 +1241,6 @@ class _UnifiedNotificationPageState extends State<UnifiedNotificationPage> {
         return Icons.check_circle;
       case UserNotificationType.applicationApproved:
         return Icons.thumb_up;
-      case UserNotificationType.applicationRejected:
-        return Icons.thumb_down;
       case UserNotificationType.newDonationPost:
         return Icons.bloodtype;
       case UserNotificationType.petApproved:
