@@ -14,7 +14,8 @@ import '../providers/notification_provider.dart';
 import '../user/pet_management.dart';
 import '../utils/config.dart';
 import '../utils/preferences_manager.dart';
-import '../web/web_storage_helper.dart';
+import '../web/web_storage_helper_stub.dart'
+    if (dart.library.html) '../web/web_storage_helper.dart';
 import 'fcm_handler.dart';
 
 class NotificationService {
@@ -520,9 +521,16 @@ class NotificationService {
           MaterialPageRoute(builder: (_) => const AdminDonationApprovalPage()),
         );
       } else if (accountType == 2) {
+        // 2-3b: post_idx 전달하여 HospitalPostCheck initState에서 단건 fetch
+        // → _showPostBottomSheet 자동 호출. 백엔드 GET /api/hospital/posts/{post_idx}
+        // 가 status 제한 없어 status=4(COMPLETED)인 시점에도 정상 동작.
+        final raw = data['post_idx'] ?? data['post_id'];
+        final postIdx = raw is int ? raw : int.tryParse(raw?.toString() ?? '');
         Navigator.push(
           context,
-          MaterialPageRoute(builder: (_) => const HospitalPostCheck()),
+          MaterialPageRoute(
+            builder: (_) => HospitalPostCheck(initialPostIdx: postIdx),
+          ),
         );
       } else {
         _navigateToDonationHistory(data);

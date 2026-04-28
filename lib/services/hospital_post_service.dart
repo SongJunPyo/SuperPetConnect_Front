@@ -59,6 +59,30 @@ class HospitalPostService {
     }
   }
 
+  /// 병원 게시글 단건 조회.
+  /// 백엔드 사양: GET /api/hospital/posts/{post_idx}
+  /// - 권한: 본인 병원 게시글만 (백엔드에서 hospital_idx 검증)
+  /// - status 제한 없음 (0~5 모두 조회 가능, status=4 COMPLETED 포함)
+  /// - 알림 탭 시 자동 게시글 진입(_showPostBottomSheet)에 사용.
+  static Future<UnifiedPostModel?> getPostByIdx(int postIdx) async {
+    try {
+      final response = await AuthHttpClient.get(
+        Uri.parse('${Config.serverUrl}${ApiEndpoints.hospitalPost(postIdx)}'),
+      );
+
+      if (response.statusCode == 200) {
+        final data = response.parseJsonDynamic();
+        if (data is Map<String, dynamic>) {
+          return UnifiedPostModel.fromJson(data);
+        }
+      }
+      return null;
+    } catch (e) {
+      debugPrint('Failed to fetch hospital post by idx: $e');
+      return null;
+    }
+  }
+
   // 현재 병원 사용자의 게시글만 조회
   static Future<List<UnifiedPostModel>> getUnifiedPostModelsForCurrentUser() async {
     try {

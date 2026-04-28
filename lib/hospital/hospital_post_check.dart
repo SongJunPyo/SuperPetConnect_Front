@@ -25,7 +25,11 @@ import '../widgets/post_list/post_list_header.dart';
 import '../widgets/post_list/post_list_row.dart';
 
 class HospitalPostCheck extends StatefulWidget {
-  const HospitalPostCheck({super.key});
+  /// 알림 탭 등 외부에서 진입 시 자동으로 열 게시글의 post_idx.
+  /// null이면 일반 진입 (자동 오픈 없음).
+  final int? initialPostIdx;
+
+  const HospitalPostCheck({super.key, this.initialPostIdx});
 
   @override
   State createState() => _HospitalPostCheckState();
@@ -62,6 +66,21 @@ class _HospitalPostCheckState extends State<HospitalPostCheck>
     _tabController!.addListener(_handleTabChange);
     _searchController.addListener(_onSearchChanged);
     _loadPosts();
+
+    // 알림 탭 진입 시 자동으로 해당 게시글 바텀시트 오픈.
+    // 백엔드 단건 fetch API가 status 0~5 모두 지원하므로 어느 탭이든 무관하게
+    // post_idx로 즉시 인스턴스 확보 → _showPostBottomSheet 호출.
+    if (widget.initialPostIdx != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) async {
+        final post = await HospitalPostService.getPostByIdx(
+          widget.initialPostIdx!,
+        );
+        if (!mounted) return;
+        if (post != null) {
+          _showPostBottomSheet(post);
+        }
+      });
+    }
   }
 
   void _handleTabChange() {
