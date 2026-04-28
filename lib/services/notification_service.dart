@@ -15,7 +15,6 @@ import '../providers/notification_provider.dart';
 import '../user/donation_history_screen.dart';
 import '../user/my_applications_screen.dart';
 import '../user/pet_management.dart';
-import '../user/user_dashboard.dart';
 import '../user/user_donation_posts_list.dart';
 import '../utils/config.dart';
 import '../utils/preferences_manager.dart';
@@ -58,10 +57,9 @@ class NotificationService {
           _navigateToHospitalPosts(parsedData);
         } else if (message.data['type'] == 'column_approved') {
           _navigateToHospitalColumns(parsedData);
-        } else if (message.data['type'] == 'donation_application_approved') {
-          _navigateToUserDashboard(parsedData);
-        } else if (message.data['type'] == 'donation_application_rejected') {
-          _navigateToUserDashboard(parsedData);
+        } else if (message.data['type'] == 'donation_application_approved' ||
+            message.data['type'] == 'donation_application_rejected') {
+          _navigateToDonationHistory(message.data);
         } else if (message.data['type'] == 'recruitment_closed') {
           _navigateForRecruitmentClosed(message.data);
         } else if (message.data['type'] == 'donation_completed') {
@@ -131,11 +129,9 @@ class NotificationService {
             } else if (message.data['type'] == 'column_approved') {
               _navigateToHospitalColumns(parsedData);
             } else if (message.data['type'] ==
-                'donation_application_approved') {
-              _navigateToUserDashboard(parsedData);
-            } else if (message.data['type'] ==
-                'donation_application_rejected') {
-              _navigateToUserDashboard(parsedData);
+                    'donation_application_approved' ||
+                message.data['type'] == 'donation_application_rejected') {
+              _navigateToDonationHistory(message.data);
             } else if (message.data['type'] == 'recruitment_closed') {
               _navigateForRecruitmentClosed(message.data);
             } else if (message.data['type'] == 'donation_completed') {
@@ -203,8 +199,7 @@ class NotificationService {
           break;
         case 'donation_application_approved':
         case 'donation_application_rejected':
-          final parsedData = _parseNotificationData(data);
-          _navigateToUserDashboard(parsedData);
+          _navigateToDonationHistory(data);
           break;
         case 'recruitment_closed':
           _navigateForRecruitmentClosed(data);
@@ -380,22 +375,6 @@ class NotificationService {
     } catch (e) {
       // 오류 발생 시 기본 병원 대시보드로 이동
       Navigator.pushNamed(context, '/hospital/dashboard');
-    }
-  }
-
-  // 사용자 대시보드로 이동 (헌혈 신청 승인/거절 알림용)
-  // 직접 push 단순 통일 — mobile main.dart에 '/user/dashboard' 미등록.
-  // highlight 인자 전달은 추후 UserDashboard 생성자 확장 시 보강 예정.
-  static void _navigateToUserDashboard(Map<String, dynamic> data) {
-    final context = navigatorKey.currentContext;
-    if (context == null) return;
-    try {
-      Navigator.push(
-        context,
-        MaterialPageRoute(builder: (_) => const UserDashboard()),
-      );
-    } catch (e) {
-      debugPrint('[NotificationService] 사용자 대시보드 네비게이션 실패: $e');
     }
   }
 
