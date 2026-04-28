@@ -11,6 +11,7 @@ import '../admin/admin_pet_management.dart';
 import '../admin/admin_signup_management.dart';
 import '../hospital/hospital_post_check.dart';
 import '../providers/notification_provider.dart';
+import '../user/pet_management.dart';
 import '../utils/config.dart';
 import '../utils/preferences_manager.dart';
 import '../web/web_storage_helper.dart';
@@ -76,9 +77,15 @@ class NotificationService {
             message.data['type'] == 'post_suspended' ||
             message.data['type'] == 'post_resumed') {
           _navigateToHospitalPosts(parsedData);
+        } else if (message.data['type'] == 'pet_approved' ||
+            message.data['type'] == 'pet_rejected') {
+          _navigateToUserPetManagement(parsedData);
         } else if (message.data['type'] == 'account_suspended' ||
             message.data['type'] == 'account_status_changed') {
           _navigateForAccountStatus(message.data);
+        } else if (message.data['type'] == 'timeslot_filled') {
+          // 의도된 dead-end — 정보 알림이라 화면 이동 불필요.
+          // CLAUDE.md "알림 다중 수신 라우팅" 정책.
         }
       } catch (e) {
         // 파싱 실패 시 기본 데이터로 처리
@@ -139,9 +146,14 @@ class NotificationService {
                 message.data['type'] == 'post_suspended' ||
                 message.data['type'] == 'post_resumed') {
               _navigateToHospitalPosts(parsedData);
+            } else if (message.data['type'] == 'pet_approved' ||
+                message.data['type'] == 'pet_rejected') {
+              _navigateToUserPetManagement(parsedData);
             } else if (message.data['type'] == 'account_suspended' ||
                 message.data['type'] == 'account_status_changed') {
               _navigateForAccountStatus(message.data);
+            } else if (message.data['type'] == 'timeslot_filled') {
+              // 의도된 dead-end — 정보 알림이라 화면 이동 불필요.
             }
           } catch (e) {
             // 파싱 실패 시 기본 데이터로 처리
@@ -214,9 +226,17 @@ class NotificationService {
           final parsedData = _parseNotificationData(data);
           _navigateToHospitalPosts(parsedData);
           break;
+        case 'pet_approved':
+        case 'pet_rejected':
+          final parsedData = _parseNotificationData(data);
+          _navigateToUserPetManagement(parsedData);
+          break;
         case 'account_suspended':
         case 'account_status_changed':
           _navigateForAccountStatus(data);
+          break;
+        case 'timeslot_filled':
+          // 의도된 dead-end — 정보 알림이라 화면 이동 불필요.
           break;
         default:
       }
@@ -435,6 +455,21 @@ class NotificationService {
       );
     } catch (e) {
       debugPrint('[NotificationService] 칼럼 관리 네비게이션 실패: $e');
+    }
+  }
+
+  /// pet_approved / pet_rejected 알림 클릭 시 사용자 반려동물 관리 화면 진입.
+  /// 향후 pet_idx 기반 highlight는 PetManagementScreen 생성자 확장 시 보강 가능.
+  static void _navigateToUserPetManagement(Map<String, dynamic> data) {
+    final context = navigatorKey.currentContext;
+    if (context == null) return;
+    try {
+      Navigator.push(
+        context,
+        MaterialPageRoute(builder: (_) => const PetManagementScreen()),
+      );
+    } catch (e) {
+      debugPrint('[NotificationService] 사용자 반려동물 관리 네비게이션 실패: $e');
     }
   }
 
