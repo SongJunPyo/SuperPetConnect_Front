@@ -12,7 +12,11 @@ import '../admin/admin_post_check.dart';
 import '../admin/admin_signup_management.dart';
 import '../hospital/hospital_post_check.dart';
 import '../providers/notification_provider.dart';
+import '../user/donation_history_screen.dart';
+import '../user/my_applications_screen.dart';
 import '../user/pet_management.dart';
+import '../user/user_dashboard.dart';
+import '../user/user_donation_posts_list.dart';
 import '../utils/config.dart';
 import '../utils/preferences_manager.dart';
 import '../web/web_storage_helper_stub.dart'
@@ -81,6 +85,9 @@ class NotificationService {
             message.data['type'] == 'post_suspended' ||
             message.data['type'] == 'post_resumed') {
           _navigateToHospitalPosts(parsedData);
+        } else if (message.data['type'] == 'donation_post_rejected' ||
+            message.data['type'] == 'document_request') {
+          _navigateToHospitalPostCheck(message.data);
         } else if (message.data['type'] == 'pet_approved' ||
             message.data['type'] == 'pet_rejected') {
           _navigateToUserPetManagement(parsedData);
@@ -152,6 +159,9 @@ class NotificationService {
                 message.data['type'] == 'post_suspended' ||
                 message.data['type'] == 'post_resumed') {
               _navigateToHospitalPosts(parsedData);
+            } else if (message.data['type'] == 'donation_post_rejected' ||
+                message.data['type'] == 'document_request') {
+              _navigateToHospitalPostCheck(message.data);
             } else if (message.data['type'] == 'pet_approved' ||
                 message.data['type'] == 'pet_rejected') {
               _navigateToUserPetManagement(parsedData);
@@ -234,6 +244,10 @@ class NotificationService {
         case 'post_resumed':
           final parsedData = _parseNotificationData(data);
           _navigateToHospitalPosts(parsedData);
+          break;
+        case 'donation_post_rejected':
+        case 'document_request':
+          _navigateToHospitalPostCheck(data);
           break;
         case 'pet_approved':
         case 'pet_rejected':
@@ -370,53 +384,38 @@ class NotificationService {
   }
 
   // 사용자 대시보드로 이동 (헌혈 신청 승인/거절 알림용)
+  // 직접 push 단순 통일 — mobile main.dart에 '/user/dashboard' 미등록.
+  // highlight 인자 전달은 추후 UserDashboard 생성자 확장 시 보강 예정.
   static void _navigateToUserDashboard(Map<String, dynamic> data) {
     final context = navigatorKey.currentContext;
     if (context == null) return;
-
     try {
-      final navigation = data['navigation'] ?? data;
-      final postId = navigation['post_id'];
-      final applicationId = navigation['application_id'];
-
-      // 사용자 대시보드로 이동 (헌혈 신청 내역 탭으로)
-      Navigator.pushNamed(
+      Navigator.push(
         context,
-        '/user/dashboard',
-        arguments: {
-          'highlightPostId': postId is String ? int.tryParse(postId) : postId,
-          'highlightApplicationId':
-              applicationId is String
-                  ? int.tryParse(applicationId)
-                  : applicationId,
-          'initialTab': 'donation_history',
-        },
+        MaterialPageRoute(builder: (_) => const UserDashboard()),
       );
     } catch (e) {
-      // 오류 발생 시 기본 사용자 대시보드로 이동
-      Navigator.pushNamed(context, '/user/dashboard');
+      debugPrint('[NotificationService] 사용자 대시보드 네비게이션 실패: $e');
     }
   }
 
-  // 모집 마감 알림 클릭 시 네비게이션
+  // 모집 마감 알림 클릭 시 네비게이션 (직접 push 단순 통일).
+  // is_selected="true" → MyApplicationsScreen, 그 외 → UserDonationPostsListScreen.
   static void _navigateForRecruitmentClosed(Map<String, dynamic> data) {
     final context = navigatorKey.currentContext;
     if (context == null) return;
-
     try {
       final isSelected = data['is_selected'] == 'true';
-
-      if (isSelected) {
-        // 선정된 사용자 - 내 신청 내역 페이지로 이동
-        Navigator.pushNamed(context, '/user/my-applications');
-      } else {
-        // 미선정 사용자 - 헌혈 게시글 목록으로 이동
-        Navigator.pushNamed(context, '/user/donation-posts');
-      }
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => isSelected
+              ? const MyApplicationsScreen()
+              : const UserDonationPostsListScreen(),
+        ),
+      );
     } catch (e) {
       debugPrint('[NotificationService] 모집 마감 네비게이션 실패: $e');
-      // 오류 발생 시 사용자 대시보드로 이동
-      Navigator.pushNamed(context, '/user/dashboard');
     }
   }
 
@@ -491,6 +490,22 @@ class NotificationService {
     }
   }
 
+  /// donation_post_rejected / document_request 알림 클릭 시 병원 게시글 관리 진입.
+  /// 직접 push 단순 통일 — 라우트 등록 의존 없이 mobile/web 양쪽 동작.
+  /// 상세 highlight는 추후 보강 예정.
+  static void _navigateToHospitalPostCheck(Map<String, dynamic> data) {
+    final context = navigatorKey.currentContext;
+    if (context == null) return;
+    try {
+      Navigator.push(
+        context,
+        MaterialPageRoute(builder: (_) => const HospitalPostCheck()),
+      );
+    } catch (e) {
+      debugPrint('[NotificationService] 병원 게시글 관리 네비게이션 실패: $e');
+    }
+  }
+
   /// pet_approved / pet_rejected 알림 클릭 시 사용자 반려동물 관리 화면 진입.
   /// 향후 pet_idx 기반 highlight는 PetManagementScreen 생성자 확장 시 보강 가능.
   static void _navigateToUserPetManagement(Map<String, dynamic> data) {
@@ -506,28 +521,21 @@ class NotificationService {
     }
   }
 
-  // 새 헌혈 모집 게시글 알림 클릭 시 네비게이션
+  // 새 헌혈 모집 게시글 알림 클릭 시 네비게이션 (직접 push 단순 통일).
+  // post_idx 기반 highlight는 추후 UserDonationPostsListScreen에 별도 생성자 인자
+  // (initialPostIdx 등) 추가 후 보강.
   static void _navigateToNewDonationPost(Map<String, dynamic> data) {
     final context = navigatorKey.currentContext;
     if (context == null) return;
-
     try {
-      // 알림 data에서 post_idx 추출
-      final postIdx = data['post_idx'] ?? data['data']?['post_idx'];
-
-      // 사용자 헌혈 게시물 목록으로 이동
-      Navigator.pushNamed(
+      Navigator.push(
         context,
-        '/user/donation-posts',
-        arguments: {
-          'highlightPostId':
-              postIdx is String ? int.tryParse(postIdx) : postIdx,
-        },
+        MaterialPageRoute(
+          builder: (_) => const UserDonationPostsListScreen(),
+        ),
       );
     } catch (e) {
       debugPrint('[NotificationService] 새 헌혈 모집 네비게이션 실패: $e');
-      // 오류 발생 시 헌혈 게시글 목록으로 이동
-      Navigator.pushNamed(context, '/user/donation-posts');
     }
   }
 
@@ -572,27 +580,18 @@ class NotificationService {
     }
   }
 
-  // 헌혈 완료 알림 클릭 시 네비게이션
+  // 헌혈 완료 알림 클릭 시 네비게이션 (직접 push 단순 통일).
+  // application_id 기반 highlight는 추후 DonationHistoryScreen 생성자 확장 시 보강.
   static void _navigateToDonationHistory(Map<String, dynamic> data) {
     final context = navigatorKey.currentContext;
     if (context == null) return;
-
     try {
-      // 헌혈 내역 페이지로 이동
-      Navigator.pushNamed(
+      Navigator.push(
         context,
-        '/user/donation-history',
-        arguments: {
-          'applicationId':
-              data['application_id'] is String
-                  ? int.tryParse(data['application_id'])
-                  : data['application_id'],
-        },
+        MaterialPageRoute(builder: (_) => const DonationHistoryScreen()),
       );
     } catch (e) {
       debugPrint('[NotificationService] 헌혈 완료 네비게이션 실패: $e');
-      // 오류 발생 시 사용자 대시보드로 이동
-      Navigator.pushNamed(context, '/user/dashboard');
     }
   }
 
