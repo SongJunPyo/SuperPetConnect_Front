@@ -618,6 +618,84 @@ New notification type:
 **호환성 메모**
 `POST /api/register` 응답은 2026-04 이전까지 **빈 body**였음. 새 필드 추가는 순수 추가라 기존 코드 영향 없음 (프론트는 응답 body 미사용). status code 201 유지.
 
+### 펫 프로필 사진 검토 워크플로우 (계약 확정 2026-04-28)
+
+APPROVED 펫의 프로필 사진 변경에 한해 관리자 검토를 거치는 2단계 플로우. PENDING/REJECTED 펫의 사진 변경은 즉시 반영(200)되고 검토 대상이 아님. [pet_model.dart](lib/models/pet_model.dart)의 `pendingProfileImage` / `pendingImageStatus` / `pendingImageRejectionReason` 3개 필드가 이 contract의 프론트 측 단일 원천.
+
+**사용자 측 — 사진 업로드 응답 분기** (`POST /api/pets/{pet_idx}/profile-image`)
+
+| 펫 상태 | status | 응답 body | 의미 |
+|---------|--------|----------|------|
+| APPROVED (`approval_status=1`) | **202** | `{message, pending_profile_image, profile_image?}` | 검토 대기 등록. 기존 `profile_image`는 그대로, `pending_profile_image`만 신규 |
+| PENDING/REJECTED (`approval_status=0|2`) | **200** | `{message, profile_image}` | 즉시 반영, 검토 대기 없음 |
+
+펫당 검토 슬롯은 **1개**. 사용자가 검토 중에 사진을 다시 올리면 이전 `pending_profile_image` 파일이 자동 삭제되고 새 사진으로 덮어쓰기. "낡은 pending" 개념 없음 → 동시성 409 없음.
+
+**관리자 측 — 검토 API 3종**
+
+| 메서드 | 경로 | 비고 |
+|--------|------|------|
+| GET | `/api/admin/pets/profile-images/pending` | query: `page`(≥1, default 1), `page_size`(1~50, default 20). search 미지원. 정렬은 `pet_idx desc` |
+| POST | `/api/admin/pets/{pet_idx}/profile-image/approve` | body 없음. 200 응답: `{message, pet_idx, pet_name, profile_image}` |
+| POST | `/api/admin/pets/{pet_idx}/profile-image/reject` | body: `{rejection_reason?: string}` (optional, snake_case 정확). 200 응답: `{message, pet_idx, pet_name, rejection_reason}` |
+
+**목록 응답 스키마** (`GET .../pending`)
+
+```json
+{
+  "pets": [
+    {
+      "pet_idx": 1,
+      "name": "초코",
+      "species": "강아지",
+      "breed": "골든리트리버",
+      "animal_type": 0,
+      "profile_image": "/uploads/pet_profiles/.../current.jpg",
+      "pending_profile_image": "/uploads/pet_profiles/.../new.jpg",
+      "pending_image_status": 0,
+      "owner": { "account_idx": 5, "name": "홍길동", "nickname": "...", "email": "..." }
+    }
+  ],
+  "total_count": 1, "current_page": 1, "page_size": 20,
+  "total_pages": 1, "has_next": false, "has_previous": false
+}
+```
+
+- `profile_image`: **nullable** (가입 후 사진 없이 승인된 펫이 첫 사진 올린 경우 NULL).
+- `pending_image_status`: 이 목록에서는 항상 **0**. 거절(2)은 즉시 정리되어 응답에 등장 안 함.
+- `requested_at` 필드 **없음** — 정렬은 `pet_idx desc`.
+- 빈 결과: `pets: []`, `total_count: 0` 보장 (null 불가).
+
+**거절 시 DB 정리 정책**
+
+거절 즉시:
+- `pending_profile_image` 파일을 디스크에서 삭제
+- `pending_profile_image` / `pending_image_status` / `pending_image_rejection_reason` **3개 컬럼 모두 NULL**로 정리
+- 기존 `profile_image`는 변경 없이 유지
+
+→ DB에 거절 사유는 보관되지 않음. 사유는 푸시 알림 body에만 들어감. 펫 상세 화면에서 사유를 보여주려면 알림 body 자체를 활용해야 함 (`pendingImageRejectionReason` 필드는 사실상 항상 NULL).
+
+**푸시 알림 type/data**
+
+| 시점 | type | data | 수신자 | body |
+|------|------|------|--------|------|
+| 사용자가 APPROVED 펫 사진 변경 (202 응답 후) | `pet_profile_image_review_request` | `{pet_idx}` | admin **only** (hospital 발송 안 됨) | — |
+| 관리자 승인 | `pet_profile_image_approved` | `{pet_idx}` | user | 정형 메시지 |
+| 관리자 거절 | `pet_profile_image_rejected` | `{pet_idx}` | user | "반려동물 'X'의 새 프로필 사진이 거절되었습니다." (사유 있으면 ` 사유: {reason}` append). **`rejection_reason`은 data에 없음** — body 텍스트로만 전달 |
+
+프론트 [notification_mapping.dart](lib/models/notification_mapping.dart)의 `serverToClientMapping`은 `pet_profile_image_review_request`를 `UserType.admin`에만 매핑 (hospital 매핑 없음 — 발송 자체가 안 되므로 dual-sync 누락 아님).
+
+**정보 수정 ↔ 사진 검토는 별개 결정 단위**
+
+두 워크플로우는 서로 다른 컬럼을 사용하고 서로 다른 API로 처리됨.
+
+| 워크플로우 | 식별 컬럼 | 결정 API |
+|-----------|----------|---------|
+| 정보 수정 (재심사 포함) | `approval_status`(0/1/2) + `previous_values` JSON | `POST /api/admin/pets/{idx}/approve` / `/reject` |
+| 사진 검토 | `pending_profile_image` + `pending_image_status`(NULL/0) | `POST /api/admin/pets/{idx}/profile-image/approve` / `/reject` |
+
+→ 정보는 승인하면서 사진은 거절하는 **분리 결정 가능**. 묶음 처리 단일 endpoint는 백엔드가 제공하지 않음. 프론트가 통합 카드 UI를 원하면 두 목록(`GET /api/admin/pets?status=0` + `GET .../profile-images/pending`)을 각각 호출해서 `pet_idx` 기준으로 merge한 뒤 카드 1개에 두 결정 버튼 세트를 같이 노출하는 방식으로 처리.
+
 ### 공지사항(Notice) 정책 (계약 확정 2026-04-28)
 
 운영 정책 변경: 활성/비활성 토글 워크플로우를 폐기하고 "잘못 작성된 공지는 수정 또는 삭제로 처리"하는 정책으로 단순화. 사용자 전용 공지(USER_ONLY)도 운영상 의미가 없어 폐기.

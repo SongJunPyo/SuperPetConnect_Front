@@ -380,6 +380,20 @@ class ApiEndpoints {
   /// 반려동물 승인 대기로 변경: POST /api/admin/pets/{petIdx}/reset-pending
   static String adminPetResetPending(int petIdx) => '$adminPets/$petIdx/reset-pending';
 
+  /// 사진 검토 대기 목록: GET /api/admin/pets/profile-images/pending
+  /// query: page (≥1, default 1), page_size (1~50, default 20). search 미지원, 정렬 pet_idx desc.
+  static const String adminPetsProfileImagesPending =
+      '$adminPets/profile-images/pending';
+
+  /// 사진 검토 승인: POST /api/admin/pets/{petIdx}/profile-image/approve
+  static String adminPetProfileImageApprove(int petIdx) =>
+      '$adminPets/$petIdx/profile-image/approve';
+
+  /// 사진 검토 거절: POST /api/admin/pets/{petIdx}/profile-image/reject
+  /// body: { rejection_reason?: string } (optional)
+  static String adminPetProfileImageReject(int petIdx) =>
+      '$adminPets/$petIdx/profile-image/reject';
+
   /// 관리자 - 사용자별 헌혈 신청내역: GET /api/admin/users/{accountIdx}/applications
   static String adminUserApplications(int accountIdx) =>
       '$adminUsers/$accountIdx/applications';
