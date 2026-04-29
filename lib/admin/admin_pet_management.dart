@@ -612,32 +612,11 @@ class _AdminPetManagementState extends State<AdminPetManagement>
                     _buildBoolRow('중성화', pet.isNeutered),
                     _buildBoolRow('예방약 복용', pet.hasPreventiveMedication, failIfFalse: true),
                     if (adminPet.isReview && adminPet.previousValues != null && adminPet.previousValues!.isNotEmpty) ...[
-                      const Divider(),
-                      const Text('변경 내역', style: TextStyle(fontSize: AppTheme.bodyMedium, fontWeight: FontWeight.w600)),
-                      const SizedBox(height: AppTheme.spacing8),
-                      ...adminPet.previousValues!.entries.map((entry) {
-                        final fieldName = _AdminPet.fieldNameMap[entry.key] ?? entry.key;
-                        final prevValue = _AdminPet.formatValue(entry.key, entry.value);
-                        final currentValue = _getCurrentValue(pet, entry.key);
-                        final formattedCurrent = _AdminPet.formatValue(entry.key, currentValue);
-                        return Padding(
-                          padding: const EdgeInsets.symmetric(vertical: 2),
-                          child: Row(
-                            children: [
-                              SizedBox(
-                                width: 100,
-                                child: Text(fieldName, style: const TextStyle(fontSize: AppTheme.bodyMedium, color: AppTheme.textSecondary)),
-                              ),
-                              Text(prevValue, style: const TextStyle(fontSize: AppTheme.bodyMedium, color: AppTheme.textTertiary, decoration: TextDecoration.lineThrough)),
-                              const Text(' → ', style: TextStyle(fontSize: AppTheme.bodyMedium, color: AppTheme.textSecondary)),
-                              Text(formattedCurrent, style: const TextStyle(fontSize: AppTheme.bodyMedium, fontWeight: FontWeight.w600)),
-                            ],
-                          ),
-                        );
-                      }),
+                      const SizedBox(height: AppTheme.spacing16),
+                      _buildChangeHistoryCard(pet, adminPet.previousValues!),
                     ] else if (adminPet.isReview) ...[
-                      const Divider(),
-                      _buildDetailRow('구분', '정보 수정 (재심사)'),
+                      const SizedBox(height: AppTheme.spacing16),
+                      _buildChangeHistoryCard(pet, const {}),
                     ],
                     if (pet.rejectionReason != null) ...[
                       const Divider(),
@@ -858,6 +837,149 @@ class _AdminPetManagementState extends State<AdminPetManagement>
                     ),
                   ),
                 ],
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// 정보 수정 재심사 변경 내역 카드.
+  /// [previousValues]가 비어있어도 "변경 내역 없음" 안내 카드로 표시.
+  Widget _buildChangeHistoryCard(Pet pet, Map<String, dynamic> previousValues) {
+    final hasChanges = previousValues.isNotEmpty;
+    return Container(
+      decoration: BoxDecoration(
+        color: AppTheme.warning.withValues(alpha: 0.05),
+        borderRadius: BorderRadius.circular(AppTheme.radius12),
+        border: Border.all(color: AppTheme.warning.withValues(alpha: 0.3)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          // 헤더
+          Container(
+            padding: const EdgeInsets.symmetric(
+              horizontal: AppTheme.spacing12,
+              vertical: AppTheme.spacing8,
+            ),
+            decoration: BoxDecoration(
+              color: AppTheme.warning.withValues(alpha: 0.12),
+              borderRadius: const BorderRadius.only(
+                topLeft: Radius.circular(AppTheme.radius12),
+                topRight: Radius.circular(AppTheme.radius12),
+              ),
+            ),
+            child: Row(
+              children: [
+                Icon(Icons.history, size: 16, color: AppTheme.warning),
+                const SizedBox(width: 6),
+                Text(
+                  hasChanges
+                      ? '정보 수정 재심사 · ${previousValues.length}건 변경'
+                      : '정보 수정 재심사',
+                  style: AppTheme.bodyMediumStyle.copyWith(
+                    fontWeight: FontWeight.w600,
+                    color: AppTheme.warning,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          // 항목들 (또는 빈 상태)
+          if (hasChanges)
+            ...previousValues.entries.map((entry) {
+              final fieldName = _AdminPet.fieldNameMap[entry.key] ?? entry.key;
+              final prevValue = _AdminPet.formatValue(entry.key, entry.value);
+              final currentValue = _getCurrentValue(pet, entry.key);
+              final formattedCurrent =
+                  _AdminPet.formatValue(entry.key, currentValue);
+              return _buildChangeRow(fieldName, prevValue, formattedCurrent);
+            })
+          else
+            Padding(
+              padding: const EdgeInsets.all(AppTheme.spacing12),
+              child: Text(
+                '변경 내역 정보가 없습니다.',
+                style: AppTheme.bodySmallStyle.copyWith(
+                  color: AppTheme.textTertiary,
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  /// 변경 내역 한 행: 필드명 위, 이전→새 값을 박스로 비교.
+  Widget _buildChangeRow(String label, String before, String after) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppTheme.spacing12,
+        vertical: AppTheme.spacing8,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            label,
+            style: AppTheme.bodySmallStyle.copyWith(
+              color: AppTheme.textSecondary,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              // 이전 값 (회색 + 취소선)
+              Flexible(
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 5,
+                  ),
+                  decoration: BoxDecoration(
+                    color: AppTheme.lightGray.withValues(alpha: 0.6),
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: Text(
+                    before,
+                    style: AppTheme.bodySmallStyle.copyWith(
+                      color: AppTheme.textTertiary,
+                      decoration: TextDecoration.lineThrough,
+                    ),
+                  ),
+                ),
+              ),
+              const Padding(
+                padding: EdgeInsets.symmetric(horizontal: 8),
+                child: Icon(
+                  Icons.arrow_forward,
+                  size: 14,
+                  color: AppTheme.textSecondary,
+                ),
+              ),
+              // 새 값 (파랑 + 강조)
+              Flexible(
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 5,
+                  ),
+                  decoration: BoxDecoration(
+                    color: AppTheme.primaryBlue.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: Text(
+                    after,
+                    style: AppTheme.bodySmallStyle.copyWith(
+                      color: AppTheme.primaryBlue,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
               ),
             ],
           ),
