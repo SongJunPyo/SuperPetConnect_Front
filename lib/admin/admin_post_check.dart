@@ -14,9 +14,9 @@ import '../widgets/post_list/post_list_header.dart';
 import '../widgets/post_list/post_list_row.dart';
 import 'package:intl/intl.dart';
 import '../services/admin_completed_donation_service.dart';
-import '../services/dashboard_service.dart';
 import '../widgets/post_detail/post_detail_header.dart';
 import '../utils/time_format_util.dart';
+import 'admin_pending_posts_tab.dart';
 import 'admin_post_edit.dart';
 import '../widgets/pagination_bar.dart';
 import '../widgets/admin/applicant_detail_sheet.dart';
@@ -62,6 +62,10 @@ class _AdminPostCheckState extends State<AdminPostCheck>
   TabController? _tabController;
   int _currentTabIndex = 0;
 
+  // Tab 0(모집대기) 분리 위젯의 refresh 호출용 키.
+  // 승인/거절 API 성공 후 부모가 자식 위젯의 fetchPosts를 트리거.
+  final GlobalKey<AdminPendingPostsTabState> _pendingTabKey = GlobalKey();
+
   @override
   void initState() {
     super.initState();
@@ -76,14 +80,13 @@ class _AdminPostCheckState extends State<AdminPostCheck>
 
     // 초기 탭에 맞는 데이터 로드 (default 탭 0이 아닌 경우 알림 진입 케이스).
     // _handleTabChange는 인덱스 변경 시에만 호출되므로 초기 fetch는 직접 분기.
+    // Tab 0은 자식 위젯이 자체 initState에서 fetch하므로 여기서 호출 안 함.
     if (initialIndex == 1) {
       fetchAppliedDonations();
     } else if (initialIndex == 2) {
       fetchPendingCompletions();
     } else if (initialIndex == 3) {
       fetchCompletedDonations();
-    } else {
-      fetchPosts();
     }
   }
 
@@ -108,8 +111,9 @@ class _AdminPostCheckState extends State<AdminPostCheck>
         // 헌혈완료 탭 - 최종 승인된 헌혈들 조회
         fetchCompletedDonations();
       } else {
-        // 모집대기(0) 탭 - donation_posts 기반 조회
-        fetchPosts();
+        // 모집대기(0) 탭 - 자식 위젯에 위임. 위젯이 살아 있으면 refresh,
+        // 아직 build 전이면 자식의 initState에서 자동 fetch.
+        _pendingTabKey.currentState?.refresh();
       }
     }
   }
@@ -122,16 +126,11 @@ class _AdminPostCheckState extends State<AdminPostCheck>
     super.dispose();
   }
 
-  /// 페이지 변경 핸들러 (전체 탭 공용)
+  /// 페이지 변경 핸들러 (탭 1~3 공용. 탭 0은 자식 위젯 내부에서 처리)
   void _onPageChanged(int page) {
     _currentPage = page;
-    if (_currentTabIndex == 0) {
-      // 탭 0: 서버 페이지네이션
-      fetchPosts();
-    } else {
-      // 탭 1~3: 클라이언트 페이지네이션 (setState로 filteredPosts 재계산)
-      setState(() {});
-    }
+    // 탭 1~3: 클라이언트 페이지네이션 (setState로 filteredPosts 재계산)
+    setState(() {});
     if (_scrollController.hasClients) {
       _scrollController.jumpTo(0);
     }
@@ -234,62 +233,37 @@ class _AdminPostCheckState extends State<AdminPostCheck>
     }
   }
 
-  // 게시글 필터링 함수
+  // 게시글 필터링 함수 (탭 1~3 전용. 탭 0은 자식 위젯이 자체 관리)
   List<dynamic> get filteredPosts {
-    List<dynamic> filtered;
-    switch (_currentTabIndex) {
-      case 0:
-        // 모집대기 탭: 서버에서 status=대기로 이미 필터링 + 페이지네이션됨
-        filtered = posts;
-        break;
-      case 1:
-        // 헌혈모집 탭: 관리자 승인 후 (status 0 = 진행, status 1 = 마감)
-        filtered = posts;
-        break;
-      case 2:
-        // 헌혈마감 탭: 완료대기 게시글 표시
-        filtered = posts;
-        break;
-      case 3:
-        // 헌혈완료 탭: 완료된 헌혈만 표시
-        filtered = posts;
-        break;
-      default:
-        filtered = [];
+    List<dynamic> filtered = posts;
+
+    // 검색어 필터링 (탭 1~3 클라이언트 필터)
+    if (searchQuery.isNotEmpty) {
+      filtered = filtered.where((post) {
+        final title = post['title']?.toString().toLowerCase() ?? '';
+        final content = post['content']?.toString().toLowerCase() ?? '';
+        final hospitalName =
+            post['hospital_name']?.toString().toLowerCase() ?? '';
+        final query = searchQuery.toLowerCase();
+
+        return title.contains(query) ||
+            content.contains(query) ||
+            hospitalName.contains(query);
+      }).toList();
     }
 
-    // 검색어 필터링 (탭 1~3에서 클라이언트 필터)
-    if (_currentTabIndex != 0 && searchQuery.isNotEmpty) {
-      filtered =
-          filtered.where((post) {
-            final title = post['title']?.toString().toLowerCase() ?? '';
-            final content = post['content']?.toString().toLowerCase() ?? '';
-            final hospitalName =
-                post['hospital_name']?.toString().toLowerCase() ?? '';
-            final query = searchQuery.toLowerCase();
+    // 날짜 필터링
+    if (startDate != null && endDate != null) {
+      filtered = filtered.where((post) {
+        final createdAt = DateTime.tryParse(post['created_at'] ?? '');
+        if (createdAt == null) return false;
 
-            return title.contains(query) ||
-                content.contains(query) ||
-                hospitalName.contains(query);
-          }).toList();
+        return createdAt.isAfter(startDate!) &&
+            createdAt.isBefore(endDate!.add(const Duration(days: 1)));
+      }).toList();
     }
 
-    // 날짜 필터링 (탭 1~3에서 클라이언트 필터)
-    if (_currentTabIndex != 0 && startDate != null && endDate != null) {
-      filtered =
-          filtered.where((post) {
-            final createdAt = DateTime.tryParse(post['created_at'] ?? '');
-            if (createdAt == null) return false;
-
-            return createdAt.isAfter(startDate!) &&
-                createdAt.isBefore(endDate!.add(const Duration(days: 1)));
-          }).toList();
-    }
-
-    // 탭 0: 서버 페이지네이션 → 그대로 반환
-    if (_currentTabIndex == 0) return filtered;
-
-    // 탭 1~3: 클라이언트 측 페이지네이션
+    // 클라이언트 측 페이지네이션
     const pageSize = AppConstants.detailListPageSize;
     _totalPages = filtered.isEmpty ? 1 : (filtered.length / pageSize).ceil();
     if (_currentPage > _totalPages) _currentPage = _totalPages;
@@ -787,51 +761,8 @@ class _AdminPostCheckState extends State<AdminPostCheck>
     }
   }
 
-  // 모집대기 탭: donation_posts 기반 조회 (페이징)
-  Future<void> fetchPosts({int? page}) async {
-    final targetPage = page ?? _currentPage;
-    try {
-      if (mounted) {
-        setState(() {
-          isLoading = true;
-          errorMessage = '';
-        });
-      }
-
-      final result = await DashboardService.fetchAdminPostsPageRaw(
-        page: targetPage,
-        pageSize: AppConstants.detailListPageSize,
-        status: '대기',
-        search: searchQuery.isNotEmpty ? searchQuery : null,
-        startDate: startDate != null
-            ? DateFormat('yyyy-MM-dd').format(startDate!)
-            : null,
-        endDate: endDate != null
-            ? DateFormat('yyyy-MM-dd').format(endDate!)
-            : null,
-      );
-
-      final pagination = result.pagination;
-
-      if (mounted) {
-        setState(() {
-          posts = List.from(result.posts);
-          isLoading = false;
-          _currentPage = pagination.currentPage;
-          _totalPages = pagination.totalPages;
-        });
-      }
-    } catch (e) {
-      if (mounted) {
-        setState(() {
-          errorMessage = '오류가 발생했습니다: $e';
-          isLoading = false;
-        });
-      }
-    }
-  }
-
-  // 현재 탭에 맞는 데이터 조회 함수 호출
+  // 현재 탭에 맞는 데이터 조회 함수 호출.
+  // 탭 0(모집대기)은 자식 위젯이 보유하므로 GlobalKey로 refresh를 위임.
   Future<void> _fetchDataForCurrentTab() async {
     if (_currentTabIndex == 1) {
       await fetchAppliedDonations();
@@ -840,7 +771,7 @@ class _AdminPostCheckState extends State<AdminPostCheck>
     } else if (_currentTabIndex == 3) {
       await fetchCompletedDonations();
     } else {
-      await fetchPosts();
+      await _pendingTabKey.currentState?.refresh();
     }
   }
 
@@ -1544,6 +1475,21 @@ class _AdminPostCheckState extends State<AdminPostCheck>
   }
 
   Widget _buildContent() {
+    // Tab 0(모집대기)는 분리된 자식 위젯으로 위임. 검색/날짜 필터를 props로 전달.
+    if (_currentTabIndex == 0) {
+      return AdminPendingPostsTab(
+        key: _pendingTabKey,
+        searchQuery: searchQuery,
+        startDate: startDate,
+        endDate: endDate,
+        onTapPost: (post) {
+          final postStatus = _getPostStatus(post['status']);
+          final postType = _getPostType(post);
+          _openPostDetailSheet(post, postStatus, postType);
+        },
+      );
+    }
+
     if (isLoading) {
       return const Center(
         child: Column(
@@ -1592,11 +1538,9 @@ class _AdminPostCheckState extends State<AdminPostCheck>
     }
 
     if (filteredPosts.isEmpty) {
+      // 탭 0은 위 early return 분기에서 자식 위젯이 처리하므로 여기 도달 불가.
       String emptyMessage;
       switch (_currentTabIndex) {
-        case 0:
-          emptyMessage = '승인 대기 중인 게시글이 없습니다.';
-          break;
         case 1:
           emptyMessage = '헌혈 모집 게시글이 없습니다.';
           break;
@@ -1605,9 +1549,6 @@ class _AdminPostCheckState extends State<AdminPostCheck>
           break;
         case 3:
           emptyMessage = '완료된 헌혈이 없습니다.';
-          break;
-        case 4:
-          emptyMessage = '취소된 헌혈이 없습니다.';
           break;
         default:
           emptyMessage = '게시글이 없습니다.';
