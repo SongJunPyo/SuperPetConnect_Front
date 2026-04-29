@@ -856,14 +856,62 @@ APPROVED 펫의 프로필 사진 변경에 한해 관리자 검토를 거치는 
 - `action: "cancel"` 또는 그 외 값 전송 시 → 400 + `ErrorMsg.FINAL_APPROVAL_INVALID_ACTION`
 - 정식 완료(`COMPLETED`, status=3) 처리 + `prev_donation_date` 갱신 (헌혈 간격 카운트 시작점)
 
-**관련 응답 필드 변경 (2026-04-29)**
+**관련 응답 스키마 (2026-04-29 확정)**
 
-| 엔드포인트 | 변경 |
-|------------|------|
-| `GET /api/admin/pending_donations` (`PendingDonationResponse`) | 삭제: `cancelled_reason` / 추가: `incompletion_reason` (Optional[str], 0L 의료진 사유) |
-| `GET /api/admin/donation_approval_stats` (`DonationApprovalStatsResponse`) | 삭제: `today_pending_cancellation`, `total_pending_cancellation`. 유지: `today_pending_completion`, `total_pending_completion`, `today_processed`, `total_processed` |
+`GET /api/admin/pending_donations?date=YYYY-MM-DD` — **시간대 grouping 응답** (option A 채택)
 
-**프론트 동기화 (50e3543 commit)**
+```json
+{
+  "pending_by_time_slot": [
+    {
+      "post_times_idx": 5,
+      "donation_date": "2026-05-02",
+      "donation_time": "14:00",
+      "post_idx": 12,
+      "post_title": "...",
+      "hospital_name": "...",
+      "pending_completions": 2,
+      "applications": [
+        {
+          "applied_donation_idx": 1,
+          "pet_name": "...", "pet_blood_type": "...",
+          "owner_name": "...", "owner_phone": "...",
+          "status": 2, "status_text": "완료대기",
+          "blood_volume": 0.0,
+          "incompletion_reason": "..."
+        }
+      ]
+    }
+  ]
+}
+```
+
+- 시간대 단위 필드는 슬롯 레벨 (`donation_date`/`donation_time`/`post_times_idx`/`post_title`/`hospital_name`/`pending_completions`)
+- 신청 단위 필드는 `applications[]` 안 (`applied_donation_idx`/`pet_*`/`owner_*`/`status*`/`blood_volume`/`incompletion_reason`)
+- 시간 → 신청 ID 순 정렬
+- 빈 배열 (`{"pending_by_time_slot": []}`) 보장 (null 불가)
+
+`GET /api/admin/donation_approval_stats` 응답 키 (단수형 — **복수형 아님**):
+
+| 키 | 타입 | 의미 |
+|----|------|------|
+| `today_pending_completion` | int | 오늘 완료 대기 |
+| `total_pending_completion` | int | 전체 완료 대기 |
+| `today_processed` | int | 오늘 처리 완료 |
+| `total_processed` | int | 전체 처리 완료 |
+
+→ ~~`today_pending_cancellation`~~ / ~~`total_pending_cancellation`~~ / ~~`week_stats`~~는 응답에 없음.
+
+**`failed_conditions[*].message` 포맷 (2026-04-29 통일)**
+
+`donationInterval` condition만 적용. 백엔드 `messages.py::ELIGIBILITY_INTERVAL_TOO_SHORT`:
+```
+{remaining}일 후 가능 (현재 {current}일 경과, 최소 {required}일 필요)
+```
+
+프론트 자체 검증([donation_eligibility.dart:_checkDonationInterval](lib/utils/donation_eligibility.dart))도 동일 포맷. 두 출처가 같은 톤으로 사용자에게 노출.
+
+**프론트 동기화 (50e3543, bf44ca3 commit)**
 
 - [admin_donation_approval_page.dart](lib/admin/admin_donation_approval_page.dart): "취소 승인" 버튼/통계 카드 제거, action 분기 제거
 - [admin_donation_approval_service.dart](lib/services/admin_donation_approval_service.dart): `finalApproval`/`batchFinalApproval` action 파라미터 제거, `pendingCancellations`/`totalPendingCancellations`/`todayPendingCancellations` 응답 파싱 제거

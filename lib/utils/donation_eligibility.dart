@@ -658,7 +658,9 @@ class DonationEligibility {
       conditionName: '헌혈 간격',
       description: '이전 헌혈 후 $intervalWeeks주 이상',
       status: EligibilityStatus.ineligible,
-      message: '$remainingDays일 후 가능 (현재 $daysSince일 경과)',
+      // 백엔드 messages.py::ELIGIBILITY_INTERVAL_TOO_SHORT와 1:1 동기화 (2026-04-29)
+      message:
+          '$remainingDays일 후 가능 (현재 $daysSince일 경과, 최소 $intervalDays일 필요)',
     );
   }
 

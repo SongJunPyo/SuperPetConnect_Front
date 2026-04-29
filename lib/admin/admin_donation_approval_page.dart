@@ -175,6 +175,11 @@ class _AdminDonationApprovalPageState extends State<AdminDonationApprovalPage> {
                                 .toString(),
                             Colors.purple,
                           ),
+                          _buildStatItem(
+                            '오늘 처리 완료',
+                            (statsData!['todayProcessed'] ?? 0).toString(),
+                            AppTheme.success,
+                          ),
                         ],
                       ),
                     ],
@@ -288,7 +293,8 @@ class _AdminDonationApprovalPageState extends State<AdminDonationApprovalPage> {
       itemBuilder: (context, index) {
         final slot = timeSlots[index];
         final postTimesIdx = slot['post_times_idx'];
-        final time = slot['time'] ?? '';
+        // 백엔드 동기화 2026-04-29: time → donation_time / donation_date 분리
+        final donationTime = slot['donation_time'] ?? '';
         final postTitle = slot['post_title'] ?? '';
         final hospitalName = slot['hospital_name'] ?? '';
         final pendingCompletions = slot['pending_completions'] ?? 0;
@@ -298,7 +304,7 @@ class _AdminDonationApprovalPageState extends State<AdminDonationApprovalPage> {
           margin: const EdgeInsets.only(bottom: AppTheme.spacing16),
           child: ExpansionTile(
             title: Text(
-              '$time - $postTitle',
+              '$donationTime - $postTitle',
               style: AppTheme.bodyLargeStyle.copyWith(
                 fontWeight: FontWeight.bold,
               ),

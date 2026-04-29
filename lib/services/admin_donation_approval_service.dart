@@ -158,11 +158,14 @@ class AdminDonationApprovalService {
 
       if (response.statusCode == 200) {
         final data = response.parseJson();
+        // 백엔드 응답 키는 단수형 (today_pending_completion / total_pending_completion).
+        // 백엔드 동기화 2026-04-29 — week_stats 폐기, today_processed/total_processed 추가.
         return {
           'success': true,
-          'totalPendingCompletions': data['total_pending_completions'] ?? 0,
-          'todayPendingCompletions': data['today_pending_completions'] ?? 0,
-          'weekStats': data['week_stats'] ?? [],
+          'totalPendingCompletions': data['total_pending_completion'] ?? 0,
+          'todayPendingCompletions': data['today_pending_completion'] ?? 0,
+          'todayProcessed': data['today_processed'] ?? 0,
+          'totalProcessed': data['total_processed'] ?? 0,
         };
       } else {
         return {
