@@ -1158,9 +1158,9 @@ class _AdminPetManagementState extends State<AdminPetManagement>
         bottom: TabBar(
           controller: _tabController,
           tabs: const [
-            Tab(text: '승인 대기'),
-            Tab(text: '승인됨'),
-            Tab(text: '거절됨'),
+            Tab(text: '대기'),
+            Tab(text: '승인'),
+            Tab(text: '거절'),
           ],
           labelColor: AppTheme.textPrimary,
           unselectedLabelColor: AppTheme.textTertiary,
@@ -1215,7 +1215,7 @@ class _AdminPetManagementState extends State<AdminPetManagement>
                               _searchQuery.isNotEmpty
                                   ? '검색 결과가 없습니다.'
                                   : _selectedStatus == 0
-                                      ? '승인 대기 중인 반려동물이 없습니다.'
+                                      ? '대기 중인 반려동물이 없습니다.'
                                       : _selectedStatus == 1
                                           ? '승인된 반려동물이 없습니다.'
                                           : '거절된 반려동물이 없습니다.',
