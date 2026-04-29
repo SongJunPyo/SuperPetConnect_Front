@@ -16,6 +16,7 @@ import 'package:intl/intl.dart';
 import '../services/admin_completed_donation_service.dart';
 import '../widgets/post_detail/post_detail_header.dart';
 import '../utils/time_format_util.dart';
+import 'admin_active_posts_tab.dart';
 import 'admin_completed_donations_tab.dart';
 import 'admin_pending_posts_tab.dart';
 import 'admin_post_edit.dart';
@@ -71,6 +72,9 @@ class _AdminPostCheckState extends State<AdminPostCheck>
   final GlobalKey<AdminCompletedDonationsTabState> _completedTabKey =
       GlobalKey();
 
+  // Tab 1(헌혈모집) 분리 위젯 키. 시간대 마감/재오픈/대기 변경/삭제 후 갱신용.
+  final GlobalKey<AdminActivePostsTabState> _activeTabKey = GlobalKey();
+
   @override
   void initState() {
     super.initState();
@@ -85,10 +89,8 @@ class _AdminPostCheckState extends State<AdminPostCheck>
 
     // 초기 탭에 맞는 데이터 로드 (default 탭 0이 아닌 경우 알림 진입 케이스).
     // _handleTabChange는 인덱스 변경 시에만 호출되므로 초기 fetch는 직접 분기.
-    // Tab 0/3은 자식 위젯이 자체 initState에서 fetch하므로 여기서 호출 안 함.
-    if (initialIndex == 1) {
-      fetchAppliedDonations();
-    } else if (initialIndex == 2) {
+    // Tab 0/1/3은 자식 위젯이 자체 initState에서 fetch하므로 여기서 호출 안 함.
+    if (initialIndex == 2) {
       fetchPendingCompletions();
     }
   }
@@ -105,8 +107,8 @@ class _AdminPostCheckState extends State<AdminPostCheck>
 
       // 탭에 따라 다른 API 호출
       if (_currentTabIndex == 1) {
-        // 헌혈모집 탭 - applied_donation 기반 조회
-        fetchAppliedDonations();
+        // 헌혈모집 탭 - 자식 위젯에 위임. build 전이면 자식 initState에서 자동 fetch.
+        _activeTabKey.currentState?.refresh();
       } else if (_currentTabIndex == 2) {
         // 헌혈마감 탭 - 병원이 1차 완료한 것들 조회
         fetchPendingCompletions();
@@ -493,83 +495,11 @@ class _AdminPostCheckState extends State<AdminPostCheck>
     }
   }
 
-  // 헌혈모집 탭: donation_posts 기반 조회 (status 1, 3)
-  Future<void> fetchAppliedDonations() async {
-    if (mounted) {
-      setState(() {
-        isLoading = true;
-        errorMessage = '';
-      });
-    }
-
-    try {
-      // 서버에서 제공하는 헌혈모집 API 호출
-      // donation_posts.status IN (1, 3) & applied_donation.status NOT IN (PENDING_COMPLETION, COMPLETED)
-      String apiUrl = '${Config.serverUrl}/api/admin/posts';
-      List<String> queryParams = ['status=모집중', 'page_size=100'];
-
-      // 날짜 필터
-      if (startDate != null) {
-        queryParams.add(
-          'start_date=${DateFormat('yyyy-MM-dd').format(startDate!)}',
-        );
-      }
-
-      if (endDate != null) {
-        queryParams.add(
-          'end_date=${DateFormat('yyyy-MM-dd').format(endDate!)}',
-        );
-      }
-
-      // 검색 필터
-      if (searchQuery.isNotEmpty) {
-        queryParams.add('search=${Uri.encodeComponent(searchQuery)}');
-      }
-
-      if (queryParams.isNotEmpty) {
-        apiUrl += '?${queryParams.join('&')}';
-      }
-
-      final response = await AuthHttpClient.get(Uri.parse(apiUrl));
-
-      if (response.statusCode == 200) {
-        final data = json.decode(utf8.decode(response.bodyBytes));
-
-        if (mounted) {
-          setState(() {
-            if (data is Map) {
-              posts = (data['items'] ?? data['posts'] ?? []) as List;
-            } else if (data is List) {
-              posts = data;
-            } else {
-              posts = [];
-            }
-            isLoading = false;
-          });
-        }
-      } else {
-        if (mounted) {
-          setState(() {
-            errorMessage = '헌혈모집 목록을 불러오는데 실패했습니다: ${response.statusCode}';
-            isLoading = false;
-          });
-        }
-      }
-    } catch (e) {
-      if (mounted) {
-        setState(() {
-          errorMessage = '오류가 발생했습니다: $e';
-          isLoading = false;
-        });
-      }
-    }
-  }
-
   // 현재 탭에 맞는 데이터 조회 함수 호출.
-  // 탭 0/3은 자식 위젯이 보유하므로 GlobalKey로 refresh를 위임.
+  // 탭 0/1/3은 자식 위젯이 보유하므로 GlobalKey로 refresh를 위임.
   Future<void> _fetchDataForCurrentTab() async {
     if (_currentTabIndex == 1) {
-      await fetchAppliedDonations();
+      await _activeTabKey.currentState?.refresh();
     } else if (_currentTabIndex == 2) {
       await fetchPendingCompletions();
     } else if (_currentTabIndex == 3) {
@@ -1294,6 +1224,21 @@ class _AdminPostCheckState extends State<AdminPostCheck>
       );
     }
 
+    // Tab 1(헌혈모집)도 분리된 자식 위젯으로 위임. 행 탭 시 부모의 상세 시트를 연다.
+    if (_currentTabIndex == 1) {
+      return AdminActivePostsTab(
+        key: _activeTabKey,
+        searchQuery: searchQuery,
+        startDate: startDate,
+        endDate: endDate,
+        onTapPost: (post) {
+          final postStatus = _getPostStatus(post['status']);
+          final postType = _getPostType(post);
+          _openPostDetailSheet(post, postStatus, postType);
+        },
+      );
+    }
+
     // Tab 3(헌혈완료)도 분리된 자식 위젯으로 위임. 행 탭 시 신청자 시트를 연다.
     if (_currentTabIndex == 3) {
       return AdminCompletedDonationsTab(
@@ -1353,18 +1298,9 @@ class _AdminPostCheckState extends State<AdminPostCheck>
     }
 
     if (filteredPosts.isEmpty) {
-      // 탭 0/3은 위 early return 분기에서 자식 위젯이 처리하므로 여기 도달 불가.
-      String emptyMessage;
-      switch (_currentTabIndex) {
-        case 1:
-          emptyMessage = '헌혈 모집 게시글이 없습니다.';
-          break;
-        case 2:
-          emptyMessage = '마감이 필요한 게시글이 없습니다.';
-          break;
-        default:
-          emptyMessage = '게시글이 없습니다.';
-      }
+      // 탭 0/1/3은 위 early return 분기에서 자식 위젯이 처리하므로 여기 도달 불가.
+      // 탭 2(헌혈마감)만 도달.
+      const emptyMessage = '마감이 필요한 게시글이 없습니다.';
 
       return Center(
         child: Padding(
@@ -2769,9 +2705,10 @@ class _AdminPostCheckState extends State<AdminPostCheck>
         // 게시글 상세 바텀시트 닫기
         if (mounted) Navigator.of(context).pop();
 
-        // 마감 처리 후 현재 탭 데이터 새로고침
+        // 마감 처리 후 현재 탭 데이터 새로고침. _closeEntirePost는 Tab 1 시트에서만
+        // 호출되므로 _activeTabKey로 위임.
         if (mounted) {
-          await fetchAppliedDonations();
+          await _activeTabKey.currentState?.refresh();
           if (!mounted) return;
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
