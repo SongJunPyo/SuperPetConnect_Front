@@ -1282,12 +1282,16 @@ class _AdminPet {
   /// 정보 검토 응답(`/api/admin/pets?status=...`)에서 변환.
   factory _AdminPet.fromInfoReviewJson(Map<String, dynamic> json) {
     final owner = json['owner'] as Map<String, dynamic>? ?? {};
+    final pet = Pet.fromJson(json);
     return _AdminPet(
-      pet: Pet.fromJson(json),
+      pet: pet,
       ownerName: owner['name'] ?? '',
       ownerNickname: owner['nickname'] ?? '',
       ownerEmail: owner['email'] ?? '',
-      hasInfoReview: true,
+      // 정보 검토는 PENDING(0) 상태에서만 결정 대상. 승인/거절 탭의 펫은
+      // 이미 결정된 상태이므로 결정 버튼/배지 노출 안 함 (PopupMenu의
+      // "거절로 변경" / "승인 대기로 변경"으로 상태 전환은 가능).
+      hasInfoReview: pet.approvalStatus == 0,
       isReview: json['is_review'] == true,
       previousValues: json['previous_values'] as Map<String, dynamic>?,
       hasPhotoReview: false,
