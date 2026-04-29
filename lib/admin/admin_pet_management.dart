@@ -994,11 +994,11 @@ class _AdminPetManagementState extends State<AdminPetManagement>
       case 'blood_type':
         return Icons.bloodtype_outlined;
       case 'weight_kg':
-        return Icons.monitor_weight_outlined;
+        return Icons.monitor_weight;
       case 'sex':
         return Icons.wc_outlined;
       case 'pregnancy_birth_status':
-        return Icons.pregnant_woman_outlined;
+        return Icons.grass;
       case 'last_pregnancy_end_date':
         return Icons.event_outlined;
       case 'vaccinated':
@@ -1006,7 +1006,7 @@ class _AdminPetManagementState extends State<AdminPetManagement>
       case 'has_disease':
         return Icons.local_hospital_outlined;
       case 'is_neutered':
-        return Icons.content_cut_outlined;
+        return Icons.healing_outlined;
       case 'neutered_date':
         return Icons.event_outlined;
       case 'has_preventive_medication':
