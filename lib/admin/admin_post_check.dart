@@ -4,14 +4,11 @@ import 'dart:convert';
 import '../utils/config.dart';
 import '../services/auth_http_client.dart';
 import '../utils/app_theme.dart';
-import '../utils/app_constants.dart';
 import '../utils/api_endpoints.dart';
 import '../utils/phone_formatter.dart';
 import '../widgets/pet_profile_image.dart';
 import '../widgets/app_dialog.dart';
 import '../widgets/app_search_bar.dart';
-import '../widgets/post_list/post_list_header.dart';
-import '../widgets/post_list/post_list_row.dart';
 import 'package:intl/intl.dart';
 import '../services/admin_completed_donation_service.dart';
 import '../widgets/post_detail/post_detail_header.dart';
@@ -21,7 +18,6 @@ import 'admin_completed_donations_tab.dart';
 import 'admin_pending_completions_tab.dart';
 import 'admin_pending_posts_tab.dart';
 import 'admin_post_edit.dart';
-import '../widgets/pagination_bar.dart';
 import '../widgets/admin/applicant_detail_sheet.dart';
 import '../widgets/admin/post_detail_sheet.dart';
 import '../widgets/admin/completion_applicant_sheet.dart';
@@ -48,18 +44,10 @@ class AdminPostCheck extends StatefulWidget {
 
 class _AdminPostCheckState extends State<AdminPostCheck>
     with SingleTickerProviderStateMixin {
-  List<dynamic> posts = [];
-  bool isLoading = true;
-  String errorMessage = '';
   String searchQuery = '';
   TextEditingController searchController = TextEditingController();
   DateTime? startDate;
   DateTime? endDate;
-
-  // 페이징 관련 (전체 탭 공용)
-  final ScrollController _scrollController = ScrollController();
-  int _currentPage = 1;
-  int _totalPages = 1;
 
   // 슬라이딩 탭 관련
   TabController? _tabController;
@@ -103,10 +91,7 @@ class _AdminPostCheckState extends State<AdminPostCheck>
         _currentTabIndex = _tabController!.index;
       });
 
-      // 모든 탭 전환 시 1페이지로 리셋
-      _currentPage = 1;
-
-      // 탭에 따라 다른 API 호출
+      // 탭에 따라 다른 API 호출 (자식 위젯이 자체 페이지/상태 관리)
       if (_currentTabIndex == 1) {
         // 헌혈모집 탭 - 자식 위젯에 위임. build 전이면 자식 initState에서 자동 fetch.
         _activeTabKey.currentState?.refresh();
@@ -126,20 +111,9 @@ class _AdminPostCheckState extends State<AdminPostCheck>
 
   @override
   void dispose() {
-    _scrollController.dispose();
     _tabController?.dispose();
     searchController.dispose();
     super.dispose();
-  }
-
-  /// 페이지 변경 핸들러 (탭 1~3 공용. 탭 0은 자식 위젯 내부에서 처리)
-  void _onPageChanged(int page) {
-    _currentPage = page;
-    // 탭 1~3: 클라이언트 페이지네이션 (setState로 filteredPosts 재계산)
-    setState(() {});
-    if (_scrollController.hasClients) {
-      _scrollController.jumpTo(0);
-    }
   }
 
   // 상태 관리는 AppliedDonationStatus 클래스 사용
@@ -239,47 +213,6 @@ class _AdminPostCheckState extends State<AdminPostCheck>
     }
   }
 
-  // 게시글 필터링 함수 (탭 1~3 전용. 탭 0은 자식 위젯이 자체 관리)
-  List<dynamic> get filteredPosts {
-    List<dynamic> filtered = posts;
-
-    // 검색어 필터링 (탭 1~3 클라이언트 필터)
-    if (searchQuery.isNotEmpty) {
-      filtered = filtered.where((post) {
-        final title = post['title']?.toString().toLowerCase() ?? '';
-        final content = post['content']?.toString().toLowerCase() ?? '';
-        final hospitalName =
-            post['hospital_name']?.toString().toLowerCase() ?? '';
-        final query = searchQuery.toLowerCase();
-
-        return title.contains(query) ||
-            content.contains(query) ||
-            hospitalName.contains(query);
-      }).toList();
-    }
-
-    // 날짜 필터링
-    if (startDate != null && endDate != null) {
-      filtered = filtered.where((post) {
-        final createdAt = DateTime.tryParse(post['created_at'] ?? '');
-        if (createdAt == null) return false;
-
-        return createdAt.isAfter(startDate!) &&
-            createdAt.isBefore(endDate!.add(const Duration(days: 1)));
-      }).toList();
-    }
-
-    // 클라이언트 측 페이지네이션
-    const pageSize = AppConstants.detailListPageSize;
-    _totalPages = filtered.isEmpty ? 1 : (filtered.length / pageSize).ceil();
-    if (_currentPage > _totalPages) _currentPage = _totalPages;
-
-    final startIndex = (_currentPage - 1) * pageSize;
-    final endIndex = (startIndex + pageSize).clamp(0, filtered.length);
-
-    return filtered.sublist(startIndex, endIndex);
-  }
-
   // 현재 탭에 맞는 데이터 조회 함수 호출. 모든 탭이 자식 위젯이므로 GlobalKey로 위임.
   Future<void> _fetchDataForCurrentTab() async {
     if (_currentTabIndex == 1) {
@@ -296,9 +229,8 @@ class _AdminPostCheckState extends State<AdminPostCheck>
   void _onSearchChanged(String query) {
     setState(() {
       searchQuery = query;
-      _currentPage = 1;
     });
-    _fetchDataForCurrentTab();
+    // 자식 위젯들의 didUpdateWidget이 props 변경을 감지해 1페이지로 리셋 + refetch.
   }
 
   Future<void> _selectDateRange() async {
@@ -326,9 +258,8 @@ class _AdminPostCheckState extends State<AdminPostCheck>
       setState(() {
         startDate = picked.start;
         endDate = picked.end;
-        _currentPage = 1;
       });
-      _fetchDataForCurrentTab();
+      // 자식 위젯들이 props 변경을 감지해 페이지 리셋 + refetch.
     }
   }
 
@@ -336,9 +267,8 @@ class _AdminPostCheckState extends State<AdminPostCheck>
     setState(() {
       startDate = null;
       endDate = null;
-      _currentPage = 1;
     });
-    _fetchDataForCurrentTab();
+    // 자식 위젯들이 props 변경을 감지해 페이지 리셋 + refetch.
   }
 
   Future<void> _showConfirmDialog(
@@ -454,14 +384,14 @@ class _AdminPostCheckState extends State<AdminPostCheck>
 
       if (response.statusCode == 200) {
         _fetchDataForCurrentTab();
-      } else {
-        if (mounted) {
-          setState(() {
-            errorMessage =
-                '처리 실패: ${response.statusCode}\n${utf8.decode(response.bodyBytes)}';
-            isLoading = false;
-          });
-        }
+      } else if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              '처리 실패: ${response.statusCode}\n${utf8.decode(response.bodyBytes)}',
+            ),
+          ),
+        );
       }
     } catch (e) {
       if (mounted) {
@@ -1054,141 +984,8 @@ class _AdminPostCheckState extends State<AdminPostCheck>
       );
     }
 
-    if (isLoading) {
-      return const Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            CircularProgressIndicator(),
-            SizedBox(height: 16),
-            Text('게시글 목록을 불러오고 있습니다...'),
-          ],
-        ),
-      );
-    }
-
-    if (errorMessage.isNotEmpty) {
-      return Center(
-        child: Padding(
-          padding: const EdgeInsets.all(20.0),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(Icons.error_outline, size: 64, color: Colors.red[300]),
-              const SizedBox(height: 16),
-              Text(
-                '오류가 발생했습니다',
-                style: Theme.of(
-                  context,
-                ).textTheme.titleLarge?.copyWith(color: Colors.red[500]),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                errorMessage,
-                style: Theme.of(
-                  context,
-                ).textTheme.bodyMedium?.copyWith(color: Colors.grey[600]),
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 16),
-              ElevatedButton(
-                onPressed: _fetchDataForCurrentTab,
-                child: const Text('다시 시도'),
-              ),
-            ],
-          ),
-        ),
-      );
-    }
-
-    if (filteredPosts.isEmpty) {
-      // 탭 0/1/3은 위 early return 분기에서 자식 위젯이 처리하므로 여기 도달 불가.
-      // 탭 2(헌혈마감)만 도달.
-      const emptyMessage = '마감이 필요한 게시글이 없습니다.';
-
-      return Center(
-        child: Padding(
-          padding: const EdgeInsets.all(20.0),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(Icons.article_outlined, size: 64, color: Colors.grey[300]),
-              const SizedBox(height: 16),
-              Text(
-                emptyMessage,
-                style: Theme.of(
-                  context,
-                ).textTheme.titleMedium?.copyWith(color: Colors.grey[500]),
-              ),
-            ],
-          ),
-        ),
-      );
-    }
-
-    // 모든 탭에서 페이지네이션 바 표시
-    final int paginationBarCount = _totalPages > 1 ? 1 : 0;
-    final int postCount = filteredPosts.length;
-
-    return RefreshIndicator(
-      onRefresh: () => _fetchDataForCurrentTab(),
-      color: AppTheme.primaryBlue,
-      child: ListView.builder(
-        controller: _scrollController,
-        padding: EdgeInsets.zero,
-        itemCount: postCount + 1 + paginationBarCount, // 헤더 + 아이템 + 페이지네이션
-        itemBuilder: (context, index) {
-          // 첫 번째 아이템은 헤더
-          if (index == 0) {
-            return const PostListHeader();
-          }
-
-          // 게시글 범위를 벗어나면 페이지네이션 바
-          if (index > postCount) {
-            return PaginationBar(
-              currentPage: _currentPage,
-              totalPages: _totalPages,
-              onPageChanged: _onPageChanged,
-            );
-          }
-
-          // 나머지는 게시글 아이템
-          final post = filteredPosts[index - 1]; // 인덱스 조정
-          String postStatus = _getPostStatus(post['status']);
-          String postType = _getPostType(post);
-
-          return _buildPostListItem(post, index - 1, postStatus, postType);
-        },
-      ),
-    );
-  }
-
-  Widget _buildPostListItem(
-    Map<String, dynamic> post,
-    int index,
-    String postStatus,
-    String postType,
-  ) {
-    return PostListRow(
-      badgeType: postType,
-      title: post['title'] ?? '제목 없음',
-      dateText: TimeFormatUtils.formatFlexibleShortDate(
-        post['createdDate'] ?? post['created_date'] ?? post['created_at'],
-      ),
-      hospitalProfileImage: post['hospitalProfileImage'] ?? post['hospital_profile_image'],
-      onTap: () {
-        // 헌혈완료 탭 또는 완료대기는 바로 신청자 상세 표시
-        if (_currentTabIndex == 3 || post['is_completion_pending'] == true) {
-          _openCompletionApplicantSheet(post);
-        } else {
-          _openPostDetailSheet(
-            post,
-            postStatus,
-            post['types'] == 0 ? '긴급' : '정기',
-          );
-        }
-      },
-    );
+    // _currentTabIndex는 initState에서 clamp(0,3)이라 도달 불가. 방어용 빈 상태.
+    return const SizedBox.shrink();
   }
 
   /// 게시글 상세 시트를 열기 위한 진입점.
@@ -1908,7 +1705,6 @@ class _AdminPostCheckState extends State<AdminPostCheck>
         // 1. 개선된 API 응답 파싱
         final responseData = json.decode(utf8.decode(response.bodyBytes));
         final int postStatus = responseData['post_status'];
-        final int postIdx = responseData['post_idx'];
         final updatedTimeSlot = responseData['updated_time_slot']; // 새로 추가된 정보
 
         // 2. 업데이트된 시간대 정보를 사용하여 효율적으로 상태 업데이트
@@ -1938,44 +1734,11 @@ class _AdminPostCheckState extends State<AdminPostCheck>
             for (int i = 0; i < timeRanges.length; i++) {}
           }
 
-          // 메인 화면 상태 업데이트 (전체 목록 새로고침 없이 효율적으로 처리)
-          if (mounted) {
-            // mounted 체크 추가
-            setState(() {
-              final mainPostIndex = posts.indexWhere((p) => p['id'] == postIdx);
-              if (mainPostIndex != -1) {
-                final mainTimeRanges =
-                    posts[mainPostIndex]['timeRanges'] as List<dynamic>? ?? [];
-
-                // id 또는 idx 필드로 매칭 시도
-                int mainTimeSlotIndex = mainTimeRanges.indexWhere(
-                  (ts) => ts['id'] == updatedTimeSlotId,
-                );
-                if (mainTimeSlotIndex == -1) {
-                  mainTimeSlotIndex = mainTimeRanges.indexWhere(
-                    (ts) => ts['idx'] == updatedTimeSlotId,
-                  );
-                }
-
-                if (mainTimeSlotIndex != -1) {
-                  mainTimeRanges[mainTimeSlotIndex]['status'] = updatedStatus;
-                } else {}
-              }
-            });
-          }
         } else {}
 
-        // 3. 서버에서 받은 게시글 상태를 메인 목록에 업데이트
+        // post 변수 업데이트 (상세 시트 재오픈 시 사용). 부모의 게시글 목록은
+        // 자식 위젯이 보유하므로 _fetchDataForCurrentTab으로 자동 갱신.
         if (mounted) {
-          setState(() {
-            final mainPostIndex = posts.indexWhere((p) => p['id'] == postIdx);
-            if (mainPostIndex != -1) {
-              // 게시글의 status를 API 응답값으로 업데이트
-              posts[mainPostIndex]['status'] = postStatus;
-            }
-          });
-
-          // post 변수도 업데이트 (상세 화면 새로고침용)
           post['status'] = postStatus;
         }
 
@@ -2289,7 +2052,6 @@ class _AdminPostCheckState extends State<AdminPostCheck>
         final responseData = json.decode(utf8.decode(response.bodyBytes));
 
         final int? postStatus = responseData['post_status'];
-        final int? postIdx = responseData['post_idx'];
         final updatedTimeSlot = responseData['updated_time_slot'];
 
         if (updatedTimeSlot != null) {
@@ -2307,30 +2069,9 @@ class _AdminPostCheckState extends State<AdminPostCheck>
             });
           }
 
-          // 메인 화면 상태 업데이트
-          if (mounted) {
-            setState(() {
-              final mainPostIndex = posts.indexWhere((p) => p['id'] == postIdx);
-              if (mainPostIndex != -1) {
-                final mainTimeRanges =
-                    posts[mainPostIndex]['timeRanges'] as List<dynamic>? ?? [];
-                final mainTimeSlotIndex = mainTimeRanges.indexWhere(
-                  (ts) => ts['id'] == updatedTimeSlotId,
-                );
-                if (mainTimeSlotIndex != -1) {
-                  mainTimeRanges[mainTimeSlotIndex]['status'] = updatedStatus;
-                }
-
-                // 게시글 상태도 업데이트 (마감 해제 시 status 3 → 1)
-                if (postStatus != null) {
-                  posts[mainPostIndex]['status'] = postStatus;
-                }
-              }
-            });
-          }
         }
 
-        // post 변수도 업데이트
+        // post 변수 업데이트 (상세 시트 재오픈 시 사용).
         if (postStatus != null) {
           post['status'] = postStatus;
         }
@@ -2376,18 +2117,12 @@ class _AdminPostCheckState extends State<AdminPostCheck>
       // 3. 최신 데이터 가져오기
       await _fetchDataForCurrentTab();
 
-      // 4. 업데이트된 게시글 찾기
-      final postId = post['id'];
-      final updatedPost = posts.firstWhere(
-        (p) => p['id'] == postId,
-        orElse: () => post, // 찾을 수 없으면 기존 데이터 사용
-      );
-
-      // 5. 업데이트된 게시글로 상세 모달 다시 열기
+      // 4. 게시글 데이터는 자식 위젯이 갱신했으므로, 호출자가 넘긴 post의 변경된
+      //    필드(status 등)를 사용해 상세 모달 다시 열기.
       _openPostDetailSheet(
-        updatedPost,
-        _getPostStatus(updatedPost['status']),
-        updatedPost['types'] == 0 ? '긴급' : '정기',
+        post,
+        _getPostStatus(post['status']),
+        post['types'] == 0 ? '긴급' : '정기',
       );
     } catch (e) {
       // 게시글 새로고침 실패 시 로그 출력
@@ -2491,16 +2226,8 @@ class _AdminPostCheckState extends State<AdminPostCheck>
         final responseData = json.decode(utf8.decode(response.bodyBytes));
         final int newStatus = responseData['new_status'] ?? 3;
 
-        // 메인 화면 상태 업데이트
+        // post 변수 업데이트 (호출자가 시트 재오픈 시 사용).
         if (mounted) {
-          setState(() {
-            final mainPostIndex = posts.indexWhere((p) => p['id'] == postIdx);
-            if (mainPostIndex != -1) {
-              posts[mainPostIndex]['status'] = newStatus;
-            }
-          });
-
-          // post 변수도 업데이트
           post['status'] = newStatus;
         }
 
@@ -2566,23 +2293,10 @@ class _AdminPostCheckState extends State<AdminPostCheck>
         final responseData = json.decode(utf8.decode(response.bodyBytes));
         final int newStatus = responseData['new_status'] ?? 1;
 
-        // 메인 화면 상태 업데이트
+        // post 변수 업데이트 (호출자가 시트 재오픈 시 사용).
         if (mounted) {
-          setState(() {
-            final mainPostIndex = posts.indexWhere((p) => p['id'] == postIdx);
-            if (mainPostIndex != -1) {
-              posts[mainPostIndex]['status'] = newStatus;
-              // 모든 시간대 상태도 초기화 (0: 모집중)
-              final timeRanges =
-                  posts[mainPostIndex]['timeRanges'] as List<dynamic>? ?? [];
-              for (var ts in timeRanges) {
-                ts['status'] = 0;
-              }
-            }
-          });
-
           post['status'] = newStatus;
-          // post의 시간대 상태도 초기화
+          // post의 시간대 상태도 초기화 (재오픈으로 모든 시간대가 모집중)
           final postTimeRanges = post['timeRanges'] as List<dynamic>? ?? [];
           for (var ts in postTimeRanges) {
             ts['status'] = 0;
