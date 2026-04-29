@@ -895,7 +895,12 @@ class _AdminPetManagementState extends State<AdminPetManagement>
               final currentValue = _getCurrentValue(pet, entry.key);
               final formattedCurrent =
                   _AdminPet.formatValue(entry.key, currentValue);
-              return _buildChangeRow(fieldName, prevValue, formattedCurrent);
+              return _buildChangeRow(
+                entry.key,
+                fieldName,
+                prevValue,
+                formattedCurrent,
+              );
             })
           else
             Padding(
@@ -912,16 +917,28 @@ class _AdminPetManagementState extends State<AdminPetManagement>
     );
   }
 
-  /// 변경 내역 한 행: 필드명 위, 이전→새 값을 박스로 비교.
-  Widget _buildChangeRow(String label, String before, String after) {
+  /// 변경 내역 한 행: [아이콘] 필드명  이전(취소선) → 새 값(강조).
+  /// 박스 없는 단일 라인 — 긴 값은 ellipsis 처리.
+  Widget _buildChangeRow(
+    String fieldKey,
+    String label,
+    String before,
+    String after,
+  ) {
     return Padding(
       padding: const EdgeInsets.symmetric(
         horizontal: AppTheme.spacing12,
         vertical: AppTheme.spacing8,
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
+          Icon(
+            _iconForField(fieldKey),
+            size: 16,
+            color: AppTheme.textSecondary,
+          ),
+          const SizedBox(width: 8),
           Text(
             label,
             style: AppTheme.bodySmallStyle.copyWith(
@@ -929,63 +946,74 @@ class _AdminPetManagementState extends State<AdminPetManagement>
               fontWeight: FontWeight.w500,
             ),
           ),
-          const SizedBox(height: 6),
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              // 이전 값 (회색 + 취소선)
-              Flexible(
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 10,
-                    vertical: 5,
-                  ),
-                  decoration: BoxDecoration(
-                    color: AppTheme.lightGray.withValues(alpha: 0.6),
-                    borderRadius: BorderRadius.circular(6),
-                  ),
-                  child: Text(
-                    before,
-                    style: AppTheme.bodySmallStyle.copyWith(
-                      color: AppTheme.textTertiary,
-                      decoration: TextDecoration.lineThrough,
-                    ),
-                  ),
-                ),
+          const SizedBox(width: 12),
+          Flexible(
+            child: Text(
+              before,
+              style: AppTheme.bodySmallStyle.copyWith(
+                color: AppTheme.textTertiary,
+                decoration: TextDecoration.lineThrough,
               ),
-              const Padding(
-                padding: EdgeInsets.symmetric(horizontal: 8),
-                child: Icon(
-                  Icons.arrow_forward,
-                  size: 14,
-                  color: AppTheme.textSecondary,
-                ),
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+          const Padding(
+            padding: EdgeInsets.symmetric(horizontal: 6),
+            child: Icon(
+              Icons.arrow_forward,
+              size: 12,
+              color: AppTheme.textSecondary,
+            ),
+          ),
+          Flexible(
+            child: Text(
+              after,
+              style: AppTheme.bodySmallStyle.copyWith(
+                color: AppTheme.primaryBlue,
+                fontWeight: FontWeight.w600,
               ),
-              // 새 값 (파랑 + 강조)
-              Flexible(
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 10,
-                    vertical: 5,
-                  ),
-                  decoration: BoxDecoration(
-                    color: AppTheme.primaryBlue.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(6),
-                  ),
-                  child: Text(
-                    after,
-                    style: AppTheme.bodySmallStyle.copyWith(
-                      color: AppTheme.primaryBlue,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ),
-              ),
-            ],
+              overflow: TextOverflow.ellipsis,
+            ),
           ),
         ],
       ),
     );
+  }
+
+  /// 변경 내역 행 좌측 아이콘 매핑 (필드 키 → IconData).
+  IconData _iconForField(String key) {
+    switch (key) {
+      case 'name':
+        return Icons.badge_outlined;
+      case 'species':
+        return Icons.pets;
+      case 'breed':
+        return Icons.category_outlined;
+      case 'birth_date':
+        return Icons.cake_outlined;
+      case 'blood_type':
+        return Icons.bloodtype_outlined;
+      case 'weight_kg':
+        return Icons.monitor_weight_outlined;
+      case 'sex':
+        return Icons.wc_outlined;
+      case 'pregnancy_birth_status':
+        return Icons.pregnant_woman_outlined;
+      case 'last_pregnancy_end_date':
+        return Icons.event_outlined;
+      case 'vaccinated':
+        return Icons.vaccines_outlined;
+      case 'has_disease':
+        return Icons.local_hospital_outlined;
+      case 'is_neutered':
+        return Icons.content_cut_outlined;
+      case 'neutered_date':
+        return Icons.event_outlined;
+      case 'has_preventive_medication':
+        return Icons.medication_outlined;
+      default:
+        return Icons.edit_outlined;
+    }
   }
 
   /// 거절/승인 버튼 한 줄. [label]이 있으면 "정보 거절" / "사진 승인" 등
