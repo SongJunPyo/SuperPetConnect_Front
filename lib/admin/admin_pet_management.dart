@@ -998,7 +998,7 @@ class _AdminPetManagementState extends State<AdminPetManagement>
       case 'sex':
         return Icons.wc_outlined;
       case 'pregnancy_birth_status':
-        return Icons.grass;
+        return Icons.favorite_outline;
       case 'last_pregnancy_end_date':
         return Icons.event_outlined;
       case 'vaccinated':
