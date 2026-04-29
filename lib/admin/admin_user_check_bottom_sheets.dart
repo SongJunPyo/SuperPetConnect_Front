@@ -801,10 +801,8 @@ class _ActiveUserBottomSheetState extends State<ActiveUserBottomSheet>
       case 0: statusColor = AppTheme.warning; break;
       case 1: statusColor = AppTheme.info; break;
       case 2: statusColor = Colors.orange; break;
-      case 5: statusColor = Colors.purple; break;
-      case 7: statusColor = AppTheme.success; break;
+      case 3: statusColor = AppTheme.success; break;
       case 4: statusColor = AppTheme.error; break;
-      case 6: statusColor = Colors.brown; break;
       default: statusColor = AppTheme.textTertiary;
     }
 

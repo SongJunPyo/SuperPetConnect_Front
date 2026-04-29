@@ -269,16 +269,16 @@ class PetDonationHistory {
     return null;
   }
 
-  // 헌혈 가능 여부 (마지막 헌혈로부터 8주 경과)
+  // 헌혈 가능 여부 (마지막 헌혈로부터 6개월 경과)
   bool get canDonateAgain {
     final daysSince = daysSinceLastDonation;
-    return daysSince == null || daysSince >= 56; // 8주 = 56일
+    return daysSince == null || daysSince >= 180; // 6개월 = 180일
   }
 
   // 다음 헌혈 가능 날짜
   DateTime? get nextAvailableDonationDate {
     if (lastDonationDate != null && !canDonateAgain) {
-      return lastDonationDate!.add(const Duration(days: 56));
+      return lastDonationDate!.add(const Duration(days: 180));
     }
     return null;
   }

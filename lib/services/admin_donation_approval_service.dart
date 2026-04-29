@@ -7,22 +7,22 @@ import '../utils/api_endpoints.dart';
 
 class AdminDonationApprovalService {
 
-  // 관리자용 - 헌혈 최종 승인 처리
+  // 관리자용 - 헌혈 최종 완료 승인 처리
+  // 백엔드는 action 필드를 받지만 default 'complete'이며 'cancel'은 400. 필드 미전송으로 단순화.
   static Future<Map<String, dynamic>> finalApproval({
     required int postTimesIdx,
-    required String action, // "complete" 또는 "cancel"
   }) async {
     try {
       final response = await AuthHttpClient.post(
         Uri.parse('${Config.serverUrl}${ApiEndpoints.adminDonationFinalApproval}'),
-        body: jsonEncode({'post_times_idx': postTimesIdx, 'action': action}),
+        body: jsonEncode({'post_times_idx': postTimesIdx}),
       );
 
       if (response.statusCode == 200 || response.statusCode == 201) {
         final data = response.parseJson();
         return {
           'success': true,
-          'message': data['message'] ?? '해당 시간대가 최종 $action 처리되었습니다.',
+          'message': data['message'] ?? '해당 시간대가 최종 완료 처리되었습니다.',
           'action': data['action'],
           'post_times_idx': data['post_times_idx'],
           'affected_applications': data['affected_applications'] ?? 0,
@@ -60,7 +60,6 @@ class AdminDonationApprovalService {
         return {
           'success': true,
           'pendingCompletions': data['pending_completions'] ?? [],
-          'pendingCancellations': data['pending_cancellations'] ?? [],
           'totalPending': data['total_pending'] ?? 0,
         };
       } else {
@@ -79,17 +78,15 @@ class AdminDonationApprovalService {
     }
   }
 
-  // 여러 시간대 일괄 승인
+  // 여러 시간대 일괄 완료 승인
   static Future<Map<String, dynamic>> batchFinalApproval({
     required List<int> postTimesIdxList,
-    required String action,
   }) async {
     try {
       final response = await AuthHttpClient.post(
         Uri.parse('${Config.serverUrl}${ApiEndpoints.adminDonationBatchApproval}'),
         body: jsonEncode({
           'post_times_idx_list': postTimesIdxList,
-          'action': action,
         }),
       );
 
@@ -135,7 +132,6 @@ class AdminDonationApprovalService {
           'date': dateStr,
           'pendingByTimeSlot': data['pending_by_time_slot'] ?? [],
           'totalPendingCompletions': data['total_pending_completions'] ?? 0,
-          'totalPendingCancellations': data['total_pending_cancellations'] ?? 0,
         };
       } else {
         return {
@@ -165,9 +161,7 @@ class AdminDonationApprovalService {
         return {
           'success': true,
           'totalPendingCompletions': data['total_pending_completions'] ?? 0,
-          'totalPendingCancellations': data['total_pending_cancellations'] ?? 0,
           'todayPendingCompletions': data['today_pending_completions'] ?? 0,
-          'todayPendingCancellations': data['today_pending_cancellations'] ?? 0,
           'weekStats': data['week_stats'] ?? [],
         };
       } else {

@@ -114,7 +114,7 @@ class DogEligibilityConditions {
     this.minWeightKg = 20.0,
     this.neuteredMonthsRequired = 6,
     this.pregnancyCooldownMonths = 12,
-    this.donationIntervalDays = 56,
+    this.donationIntervalDays = 180,
   });
 
   /// 조건 요약 텍스트 (UI 표시용)
@@ -126,7 +126,7 @@ class DogEligibilityConditions {
 • 질병 이력 없음
 • 임신/출산 이력 없음 (출산 후 $pregnancyCooldownMonths개월 경과 시 가능)
 • 중성화 시 수술 후 $neuteredMonthsRequired개월 이후 (수술일 입력 필수)
-• 이전 헌혈 후 ${donationIntervalDays ~/ 7}주 이상 경과''';
+• 이전 헌혈 후 6개월 이상 경과''';
 }
 
 // ============================================================================
@@ -153,7 +153,7 @@ class CatEligibilityConditions {
     this.maxAgeYears = 8,
     this.minWeightKg = 4.0,
     this.pregnancyCooldownMonths = 12,
-    this.donationIntervalDays = 56,
+    this.donationIntervalDays = 180,
   });
 
   /// 조건 요약 텍스트 (UI 표시용)
@@ -163,7 +163,7 @@ class CatEligibilityConditions {
 • 예방접종 완료
 • 질병 이력 없음
 • 임신/출산 이력 없음 (출산 후 $pregnancyCooldownMonths개월 경과 시 가능)
-• 이전 헌혈 후 ${donationIntervalDays ~/ 7}주 이상 경과''';
+• 이전 헌혈 후 6개월 이상 경과''';
 }
 
 // ============================================================================
@@ -180,7 +180,7 @@ class DonationEligibility {
     minWeightKg: 20.0, // 최소 20kg (협의 zone 폐기, 단일 기준)
     neuteredMonthsRequired: 6, // 중성화 후 6개월
     pregnancyCooldownMonths: 12, // 출산 후 12개월
-    donationIntervalDays: 56, // 헌혈 간격 56일(8주)
+    donationIntervalDays: 180, // 헌혈 간격 180일(6개월) — 백엔드 동기화 2026-04-29
   );
 
   /// 고양이 헌혈 조건
@@ -189,7 +189,7 @@ class DonationEligibility {
     maxAgeYears: 8,
     minWeightKg: 4.0,
     pregnancyCooldownMonths: 12,
-    donationIntervalDays: 56,
+    donationIntervalDays: 180,
   );
 
   // ========== 검증 메서드 ==========

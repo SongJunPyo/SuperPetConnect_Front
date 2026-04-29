@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import '../utils/app_theme.dart';
 
-/// 게시글 타입 뱃지 (긴급/정기/마감/완료대기/중단대기 등)
+/// 게시글 타입 뱃지 (긴급/정기/마감/완료대기 등)
 ///
 /// 모든 화면(사용자, 병원, 관리자)에서 통일된 스타일로 사용합니다.
 /// 스타일: 연한 배경 + 색상 글씨 (아웃라인 스타일)
@@ -14,7 +14,7 @@ class PostTypeBadge extends StatelessWidget {
   Widget build(BuildContext context) {
     final color = _textColor(type);
     final bgColor = _backgroundColor(type);
-    final isTwoLine = type == '완료대기' || type == '중단대기';
+    final isTwoLine = type == '완료대기';
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
@@ -28,7 +28,7 @@ class PostTypeBadge extends StatelessWidget {
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 Text(
-                  type == '완료대기' ? '완료' : '중단',
+                  '완료',
                   style: AppTheme.bodySmallStyle.copyWith(
                     fontWeight: FontWeight.w600,
                     color: color,
@@ -75,16 +75,12 @@ class PostTypeBadge extends StatelessWidget {
         return regularBlue;
       case '완료대기':
         return Colors.green;
-      case '중단대기':
-        return Colors.pink;
       case '진행':
         return Colors.green;
       case '마감':
         return Colors.orange.shade700;
       case '완료':
         return regularBlue;
-      case '중단':
-        return Colors.grey.shade700;
       case '거절':
         return Colors.red;
       case '대기':
@@ -103,16 +99,12 @@ class PostTypeBadge extends StatelessWidget {
         return regularBlue.withAlpha(38);
       case '완료대기':
         return Colors.green.withAlpha(38);
-      case '중단대기':
-        return Colors.pink.withAlpha(38);
       case '진행':
         return Colors.green.withAlpha(38);
       case '마감':
         return Colors.orange.withAlpha(38);
       case '완료':
         return regularBlue.withAlpha(38);
-      case '중단':
-        return Colors.grey.withAlpha(38);
       case '거절':
         return Colors.red.withAlpha(38);
       case '대기':

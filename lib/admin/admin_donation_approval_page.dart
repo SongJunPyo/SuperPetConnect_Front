@@ -65,18 +65,13 @@ class _AdminDonationApprovalPageState extends State<AdminDonationApprovalPage> {
     }
   }
 
-  Future<void> _processFinalApproval(int postTimesIdx, String action) async {
-    final confirmMessage =
-        action == 'complete'
-            ? '해당 시간대를 최종 완료 처리하시겠습니까?'
-            : '해당 시간대를 최종 취소 처리하시겠습니까?';
-
+  Future<void> _processFinalApproval(int postTimesIdx) async {
     final confirmed = await showDialog<bool>(
       context: context,
       builder:
           (context) => AlertDialog(
             title: const Text('최종 승인 확인'),
-            content: Text(confirmMessage),
+            content: const Text('해당 시간대를 최종 완료 처리하시겠습니까?'),
             actions: [
               TextButton(
                 onPressed: () => Navigator.pop(context, false),
@@ -85,8 +80,7 @@ class _AdminDonationApprovalPageState extends State<AdminDonationApprovalPage> {
               ElevatedButton(
                 onPressed: () => Navigator.pop(context, true),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor:
-                      action == 'complete' ? Colors.green : Colors.red,
+                  backgroundColor: Colors.green,
                 ),
                 child: const Text('확인'),
               ),
@@ -103,7 +97,6 @@ class _AdminDonationApprovalPageState extends State<AdminDonationApprovalPage> {
     try {
       final result = await AdminDonationApprovalService.finalApproval(
         postTimesIdx: postTimesIdx,
-        action: action,
       );
 
       if (result['success']) {
@@ -177,15 +170,8 @@ class _AdminDonationApprovalPageState extends State<AdminDonationApprovalPage> {
                             AppTheme.primaryBlue,
                           ),
                           _buildStatItem(
-                            '오늘 취소 대기',
-                            statsData!['todayPendingCancellations'].toString(),
-                            Colors.orange,
-                          ),
-                          _buildStatItem(
                             '전체 대기중',
-                            ((statsData!['totalPendingCompletions'] ?? 0) +
-                                    (statsData!['totalPendingCancellations'] ??
-                                        0))
+                            (statsData!['totalPendingCompletions'] ?? 0)
                                 .toString(),
                             Colors.purple,
                           ),
@@ -306,7 +292,6 @@ class _AdminDonationApprovalPageState extends State<AdminDonationApprovalPage> {
         final postTitle = slot['post_title'] ?? '';
         final hospitalName = slot['hospital_name'] ?? '';
         final pendingCompletions = slot['pending_completions'] ?? 0;
-        final pendingCancellations = slot['pending_cancellations'] ?? 0;
         final applications = slot['applications'] ?? [];
 
         return Card(
@@ -319,7 +304,7 @@ class _AdminDonationApprovalPageState extends State<AdminDonationApprovalPage> {
               ),
             ),
             subtitle: Text(
-              '$hospitalName | 완료대기: $pendingCompletions, 취소대기: $pendingCancellations',
+              '$hospitalName | 완료대기: $pendingCompletions',
             ),
             children: [
               // 신청자 목록
@@ -342,37 +327,21 @@ class _AdminDonationApprovalPageState extends State<AdminDonationApprovalPage> {
                 }).toList(),
 
               // 승인 버튼
-              Padding(
-                padding: const EdgeInsets.all(AppTheme.spacing16),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                  children: [
-                    if (pendingCompletions > 0)
-                      ElevatedButton.icon(
-                        onPressed:
-                            () =>
-                                _processFinalApproval(postTimesIdx, 'complete'),
-                        icon: const Icon(Icons.check_circle),
-                        label: Text('완료 승인 ($pendingCompletions건)'),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.green,
-                          foregroundColor: Colors.white,
-                        ),
+              if (pendingCompletions > 0)
+                Padding(
+                  padding: const EdgeInsets.all(AppTheme.spacing16),
+                  child: Center(
+                    child: ElevatedButton.icon(
+                      onPressed: () => _processFinalApproval(postTimesIdx),
+                      icon: const Icon(Icons.check_circle),
+                      label: Text('완료 승인 ($pendingCompletions건)'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.green,
+                        foregroundColor: Colors.white,
                       ),
-                    if (pendingCancellations > 0)
-                      ElevatedButton.icon(
-                        onPressed:
-                            () => _processFinalApproval(postTimesIdx, 'cancel'),
-                        icon: const Icon(Icons.cancel),
-                        label: Text('취소 승인 ($pendingCancellations건)'),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.red,
-                          foregroundColor: Colors.white,
-                        ),
-                      ),
-                  ],
+                    ),
+                  ),
                 ),
-              ),
             ],
           ),
         );

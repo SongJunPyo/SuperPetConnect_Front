@@ -1427,7 +1427,7 @@ class _PostDetailBottomSheetState extends State<PostDetailBottomSheet> {
                 ),
               ),
               // 상태 칩
-              if (showActions && applicant.status >= 0 && applicant.status <= 6)
+              if (showActions && applicant.status >= 0 && applicant.status <= 4)
                 _buildStatusChip(applicant.status),
             ],
           ),

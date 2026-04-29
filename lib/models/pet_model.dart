@@ -205,21 +205,21 @@ class Pet {
     };
   }
 
-  // 헌혈 가능 여부 판단 (8주 간격)
+  // 헌혈 가능 여부 판단 (6개월 간격, 백엔드 동기화 2026-04-29)
   bool get canDonate {
     if (prevDonationDate == null) return true; // 첫 헌혈
 
     final now = DateTime.now();
     final daysSince = now.difference(prevDonationDate!).inDays;
 
-    return daysSince >= 56; // 8주(56일) 이상 경과
+    return daysSince >= 180; // 6개월(180일) 이상 경과
   }
 
   // 다음 헌혈 가능일
   DateTime? get nextDonationDate {
     if (prevDonationDate == null) return null; // 첫 헌혈인 경우
 
-    return prevDonationDate!.add(const Duration(days: 56));
+    return prevDonationDate!.add(const Duration(days: 180));
   }
 
   // 헌혈 상태 텍스트

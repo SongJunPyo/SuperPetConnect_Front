@@ -309,15 +309,16 @@ Windows에서는 `.git/hooks/pre-commit.cmd` 사용.
 - `1`: **REGULAR** (정기) - 정기적인 헌혈 요청
 
 ### 신청 상태 (Applied Donation Status / applied_donation.status)
-백엔드 `constants/enums.py`의 `AppliedDonationStatus` 기준. **값 5~7은 2단계 완료/취소 플로우의 핵심**이므로 UI에서 반드시 구분 표시.
+백엔드 `constants/enums.py`의 `AppliedDonationStatus` 기준. **2026-04-29 라이프사이클 단순화** — 백엔드는 0~4만 사용. 의료진 "중단" 액션 폐기 (changelog 참조).
 - `0`: **PENDING** (대기 중) - 신청 직후, 병원 승인 대기
 - `1`: **APPROVED** (승인됨) - 병원이 신청자 승인
-- `2`: **REJECTED** (거절됨) - 병원이 신청 거절
-- `3`: **COMPLETED** (완료, 레거시 호환) - 구 버전 호환용
+- `2`: **PENDING_COMPLETION** (완료 대기) - 병원 1차 완료 처리, 관리자 최종 승인 대기
+- `3`: **COMPLETED** (완료) - 관리자 최종 승인으로 정식 완료
 - `4`: **CANCELED** (취소됨) - 사용자가 신청 취소
-- `5`: **PENDING_COMPLETION** (완료 대기) - 병원 1차 완료 처리, 관리자 최종 승인 대기
-- `6`: **PENDING_CANCELLATION** (중단 대기) - 병원 1차 중단 처리, 관리자 최종 승인 대기
-- `7`: **FINAL_COMPLETED** (헌혈 완료) - 관리자 최종 승인으로 정식 완료
+
+**의료진의 "중단" 액션은 폐기됨** — 의료진은 단일 "헌혈 완료" 버튼만 사용. 채혈 못한 케이스는 `blood_volume=0` + `incompletion_reason` 조합으로 표현되며 admin이 'complete'로 최종 승인. ~~`5 PENDING_COMPLETION`~~/~~`6 PENDING_CANCELLATION`~~/~~`7 FINAL_COMPLETED`~~는 deprecated (백엔드 enum에서 제거됨).
+
+라이프사이클: `PENDING → APPROVED → PENDING_COMPLETION → COMPLETED` 단방향. 사용자 신청 취소(`4 CANCELED`)는 `0 PENDING` 단계에서만 가능.
 
 ### 반려동물 혈액형 (Pet Blood Type)
 **개 혈액형**
@@ -808,6 +809,7 @@ APPROVED 펫의 프로필 사진 변경에 한해 관리자 검토를 거치는 
 | 강아지 체중 | 25kg → **20kg 단일 기준** (협의 zone 폐기) |
 | 임신/출산 통합 | condition 키 `pregnant` + `birthExperience` → **`pregnancyBirth`** |
 | 임신/출산 쿨다운 | 출산 후 **12개월** 미경과는 fail (강아지·고양이 공통) |
+| 헌혈 간격 | 56일(8주) → **180일(6개월)** (강아지·고양이 공통, 백엔드 동기화 2026-04-29). 기준일은 admin 최종 승인 시점 (`prev_donation_date`) |
 | 중성화 | `is_neutered=true`이면 **`neutered_date` 필수** (NULL이면 fail) |
 | None 처리 | 모든 None 값은 **보수적으로 fail** (이전엔 일부 None 통과) |
 
