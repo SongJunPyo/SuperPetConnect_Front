@@ -37,13 +37,6 @@ class CompletedDonationService {
     }
   }
 
-  // 1-1. 기존 메서드 유지 (하위 호환성)
-  static Future<Map<String, dynamic>> completeBloodDonation(
-    CompleteDonationRequest request,
-  ) async {
-    return hospitalCompleteBloodDonation(request);
-  }
-
   // 2. 병원 헌혈 통계 조회
   static Future<HospitalDonationStats> getHospitalStats({
     DateTime? startDate,
@@ -215,22 +208,6 @@ class CompletedDonationService {
     } catch (e) {
       throw Exception('월별 통계 조회 중 오류 발생: $e');
     }
-  }
-
-  // ===== 편의 메서드 =====
-
-  // 10. 간편 헌혈 완료 처리 (현재 시간 사용)
-  static Future<Map<String, dynamic>> completeBloodDonationNow(
-    int appliedDonationIdx,
-    double bloodVolume,
-  ) async {
-    final request = CompleteDonationRequest(
-      appliedDonationIdx: appliedDonationIdx,
-      bloodVolume: bloodVolume,
-      completedAt: DateTime.now(),
-    );
-
-    return await hospitalCompleteBloodDonation(request);
   }
 
   // 11. 반려동물의 최근 헌혈 이력 조회 (제한된 개수)
