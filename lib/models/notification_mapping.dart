@@ -128,11 +128,6 @@ class ServerNotificationMapping {
       UserType.user: UserNotificationType.petRejected,
     },
 
-    // === 헌혈 최종 완료 알림 (사용자에게 발송) ===
-    'donation_final_completed': {
-      UserType.user: UserNotificationType.donationCompleted,
-    },
-
     // === 게시글 대기/재개 알림 (병원에게 발송) ===
     'post_suspended': {
       UserType.hospital: HospitalNotificationType.postRejected,
