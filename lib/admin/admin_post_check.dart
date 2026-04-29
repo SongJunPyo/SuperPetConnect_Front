@@ -16,6 +16,7 @@ import 'package:intl/intl.dart';
 import '../services/admin_completed_donation_service.dart';
 import '../widgets/post_detail/post_detail_header.dart';
 import '../utils/time_format_util.dart';
+import 'admin_completed_donations_tab.dart';
 import 'admin_pending_posts_tab.dart';
 import 'admin_post_edit.dart';
 import '../widgets/pagination_bar.dart';
@@ -66,6 +67,10 @@ class _AdminPostCheckState extends State<AdminPostCheck>
   // 승인/거절 API 성공 후 부모가 자식 위젯의 fetchPosts를 트리거.
   final GlobalKey<AdminPendingPostsTabState> _pendingTabKey = GlobalKey();
 
+  // Tab 3(헌혈완료) 분리 위젯 키. 새로고침/리스트 갱신 위임용.
+  final GlobalKey<AdminCompletedDonationsTabState> _completedTabKey =
+      GlobalKey();
+
   @override
   void initState() {
     super.initState();
@@ -80,13 +85,11 @@ class _AdminPostCheckState extends State<AdminPostCheck>
 
     // 초기 탭에 맞는 데이터 로드 (default 탭 0이 아닌 경우 알림 진입 케이스).
     // _handleTabChange는 인덱스 변경 시에만 호출되므로 초기 fetch는 직접 분기.
-    // Tab 0은 자식 위젯이 자체 initState에서 fetch하므로 여기서 호출 안 함.
+    // Tab 0/3은 자식 위젯이 자체 initState에서 fetch하므로 여기서 호출 안 함.
     if (initialIndex == 1) {
       fetchAppliedDonations();
     } else if (initialIndex == 2) {
       fetchPendingCompletions();
-    } else if (initialIndex == 3) {
-      fetchCompletedDonations();
     }
   }
 
@@ -108,8 +111,8 @@ class _AdminPostCheckState extends State<AdminPostCheck>
         // 헌혈마감 탭 - 병원이 1차 완료한 것들 조회
         fetchPendingCompletions();
       } else if (_currentTabIndex == 3) {
-        // 헌혈완료 탭 - 최종 승인된 헌혈들 조회
-        fetchCompletedDonations();
+        // 헌혈완료 탭 - 자식 위젯에 위임. build 전이면 자식 initState에서 자동 fetch.
+        _completedTabKey.currentState?.refresh();
       } else {
         // 모집대기(0) 탭 - 자식 위젯에 위임. 위젯이 살아 있으면 refresh,
         // 아직 build 전이면 자식의 initState에서 자동 fetch.
@@ -272,205 +275,6 @@ class _AdminPostCheckState extends State<AdminPostCheck>
     final endIndex = (startIndex + pageSize).clamp(0, filtered.length);
 
     return filtered.sublist(startIndex, endIndex);
-  }
-
-  // 헌혈완료 목록 조회 (탭 3) - 최종 승인된 헌혈들 (Status 7)
-  Future<void> fetchCompletedDonations() async {
-    if (mounted) {
-      setState(() {
-        isLoading = true;
-        errorMessage = '';
-      });
-    }
-
-    try {
-      // status 3 (헌혈완료, 관리자 최종 승인) 조회
-      String apiUrl =
-          '${Config.serverUrl}/api/applied_donation/admin/by-status/3';
-
-      final response = await AuthHttpClient.get(Uri.parse(apiUrl));
-
-      if (response.statusCode == 200) {
-        final data = json.decode(utf8.decode(response.bodyBytes));
-        List<Map<String, dynamic>> completedDonations = [];
-
-        if (data is List) {
-          completedDonations = List<Map<String, dynamic>>.from(data);
-        } else if (data is Map && data['donations'] != null) {
-          completedDonations = List<Map<String, dynamic>>.from(
-            data['donations'],
-          );
-        }
-
-        if (mounted) {
-          setState(() {
-            // applied_donation 데이터를 posts 형태로 변환
-            posts =
-                completedDonations.map((app) {
-                  // 날짜 포맷 처리 - 시간 제거
-                  String createdAt = app['created_at'] ?? '';
-                  if (createdAt.contains('T')) {
-                    createdAt = createdAt.split('T')[0];
-                  } else if (createdAt.length > 10) {
-                    createdAt = createdAt.substring(0, 10);
-                  }
-
-                  // 동물 종류 추출 - API 응답에서 우선 추출, 없으면 제목에서 추출
-                  String animalType = 'unknown';
-
-                  // 1순위: pet 정보에서 추출
-                  if (app['pet'] != null) {
-                    final petAnimalType =
-                        app['pet']['animal_type']?.toString() ??
-                        app['pet']['species']?.toString() ??
-                        '';
-                    if (petAnimalType == '0' ||
-                        petAnimalType.toLowerCase() == 'dog' ||
-                        petAnimalType == '강아지') {
-                      animalType = 'dog';
-                    } else if (petAnimalType == '1' ||
-                        petAnimalType.toLowerCase() == 'cat' ||
-                        petAnimalType == '고양이') {
-                      animalType = 'cat';
-                    }
-                  }
-
-                  // 2순위: animal_type 필드에서 추출
-                  if (animalType == 'unknown' && app['animal_type'] != null) {
-                    final apiAnimalType = app['animal_type'].toString();
-                    if (apiAnimalType == '0' ||
-                        apiAnimalType.toLowerCase() == 'dog') {
-                      animalType = 'dog';
-                    } else if (apiAnimalType == '1' ||
-                        apiAnimalType.toLowerCase() == 'cat') {
-                      animalType = 'cat';
-                    }
-                  }
-
-                  // 제목 정보 추출
-                  String title = app['post_title']?.toString() ?? '';
-
-                  // 3순위: 제목에서 추출
-                  if (animalType == 'unknown') {
-                    if (title.contains('강아지')) {
-                      animalType = 'dog';
-                    } else if (title.contains('고양이')) {
-                      animalType = 'cat';
-                    }
-                  }
-
-                  // 제목에서 긴급/정기 구분 추출
-                  int types = 1; // 기본값 정기
-                  if (title.contains('긴급')) {
-                    types = 0; // 긴급
-                  }
-
-                  // 주소 정보 설정 (hospital_address 필드 사용)
-                  String location =
-                      app['hospital_address'] ??
-                      app['hospital_location'] ??
-                      '${app['hospital_name'] ?? '병원'} (병원 코드: ${app['hospital_code'] ?? ''})';
-
-                  return {
-                    'id': app['applied_donation_idx'],
-                    'application_id': app['applied_donation_idx'],
-                    'title': app['post_title'] ?? '헌혈 완료',
-                    'nickname': app['hospital_nickname'] ?? app['hospital_name'] ?? '병원',
-                    'location': location,
-                    'created_date': createdAt,
-                    'animalType': animalType,
-                    'types': types, // 긴급/정기 구분
-                    // 게시글 필요 혈액형 (긴급 헌혈 시 서버에서 제공)
-                    'blood_type':
-                        app['emergency_blood_type'] ??
-                        '상관없음',
-                    // 신청자 반려동물 혈액형
-                    'pet_blood_type': app['pet']?['blood_type'],
-                    'applicantCount': 1, // 완료된 헌혈은 1건
-                    'description': app['description'],
-                    'contentDelta': app['content_delta'],
-                    'blood_volume': app['blood_volume'],
-                    'status': 7, // 헌혈완료 상태
-                    'pet_name': app['pet']?['name'] ?? app['pet_name'] ?? '',
-                    'pet_breed': app['pet']?['breed'] ?? app['pet_breed'],
-                    'pet_idx': app['pet']?['pet_idx'] ?? app['pet_idx'],
-                    'user_name': app['user_name'] ?? app['name'],
-                    'user_nickname': app['user_nickname'] ?? '',
-                    'completed_at': app['completed_at'],
-                    // 헌혈 예정일 정보
-                    'donation_date':
-                        app['donation_time'] ?? app['donation_date'] ?? '',
-                    // 단일 시간대 정보를 timeRanges 형식으로 변환
-                    'timeRanges':
-                        app['donation_time'] != null
-                            ? [
-                              {
-                                'id': app['applied_donation_idx'],
-                                'donation_date':
-                                    app['donation_time']?.substring(0, 10) ??
-                                    '',
-                                'time':
-                                    app['donation_time']?.substring(11, 16) ??
-                                    '',
-                                'status': 0, // 활성 상태
-                              },
-                            ]
-                            : [],
-                    'availableDates':
-                        app['donation_time'] != null
-                            ? {
-                              (app['donation_time']?.substring(0, 10) ?? ''): [
-                                {
-                                  'post_times_idx': app['applied_donation_idx'],
-                                  'time':
-                                      app['donation_time']?.substring(11, 16) ??
-                                      '',
-                                  'datetime': app['donation_time'],
-                                },
-                              ],
-                            }
-                            : {},
-                    'applications': [
-                      {
-                        'applied_donation_idx': app['applied_donation_idx'],
-                        'status': 7,
-                        'user_email': app['user_email'],
-                        'user_nickname':
-                            app['user_nickname'] ?? app['nickname'] ?? '',
-                        'pet_name':
-                            app['pet']?['name'] ?? app['pet_name'] ?? '',
-                        'donation_time': app['donation_time'] ?? '',
-                      },
-                    ],
-                  };
-                }).toList();
-
-            isLoading = false;
-          });
-        }
-      } else if (response.statusCode == 401) {
-        if (mounted) {
-          setState(() {
-            errorMessage = '인증이 만료되었습니다. 다시 로그인해주세요.';
-            isLoading = false;
-          });
-        }
-      } else {
-        if (mounted) {
-          setState(() {
-            errorMessage = '헌혈완료 목록을 불러오는데 실패했습니다: ${response.statusCode}';
-            isLoading = false;
-          });
-        }
-      }
-    } catch (e) {
-      if (mounted) {
-        setState(() {
-          errorMessage = '헌혈완료 데이터 로드 실패: ${e.toString()}';
-          isLoading = false;
-        });
-      }
-    }
   }
 
   // 헌혈 마감 목록 조회 (탭 2) - 병원이 1차 완료한 것들
@@ -762,14 +566,14 @@ class _AdminPostCheckState extends State<AdminPostCheck>
   }
 
   // 현재 탭에 맞는 데이터 조회 함수 호출.
-  // 탭 0(모집대기)은 자식 위젯이 보유하므로 GlobalKey로 refresh를 위임.
+  // 탭 0/3은 자식 위젯이 보유하므로 GlobalKey로 refresh를 위임.
   Future<void> _fetchDataForCurrentTab() async {
     if (_currentTabIndex == 1) {
       await fetchAppliedDonations();
     } else if (_currentTabIndex == 2) {
       await fetchPendingCompletions();
     } else if (_currentTabIndex == 3) {
-      await fetchCompletedDonations();
+      await _completedTabKey.currentState?.refresh();
     } else {
       await _pendingTabKey.currentState?.refresh();
     }
@@ -1490,6 +1294,17 @@ class _AdminPostCheckState extends State<AdminPostCheck>
       );
     }
 
+    // Tab 3(헌혈완료)도 분리된 자식 위젯으로 위임. 행 탭 시 신청자 시트를 연다.
+    if (_currentTabIndex == 3) {
+      return AdminCompletedDonationsTab(
+        key: _completedTabKey,
+        searchQuery: searchQuery,
+        startDate: startDate,
+        endDate: endDate,
+        onTapPost: _openCompletionApplicantSheet,
+      );
+    }
+
     if (isLoading) {
       return const Center(
         child: Column(
@@ -1538,7 +1353,7 @@ class _AdminPostCheckState extends State<AdminPostCheck>
     }
 
     if (filteredPosts.isEmpty) {
-      // 탭 0은 위 early return 분기에서 자식 위젯이 처리하므로 여기 도달 불가.
+      // 탭 0/3은 위 early return 분기에서 자식 위젯이 처리하므로 여기 도달 불가.
       String emptyMessage;
       switch (_currentTabIndex) {
         case 1:
@@ -1546,9 +1361,6 @@ class _AdminPostCheckState extends State<AdminPostCheck>
           break;
         case 2:
           emptyMessage = '마감이 필요한 게시글이 없습니다.';
-          break;
-        case 3:
-          emptyMessage = '완료된 헌혈이 없습니다.';
           break;
         default:
           emptyMessage = '게시글이 없습니다.';
