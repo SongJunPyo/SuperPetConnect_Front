@@ -309,16 +309,26 @@ Windows에서는 `.git/hooks/pre-commit.cmd` 사용.
 - `1`: **REGULAR** (정기) - 정기적인 헌혈 요청
 
 ### 신청 상태 (Applied Donation Status / applied_donation.status)
-백엔드 `constants/enums.py`의 `AppliedDonationStatus` 기준. **2026-04-29 라이프사이클 단순화** — 백엔드는 0~4만 사용. 의료진 "중단" 액션 폐기 (changelog 참조).
+백엔드 `constants/enums.py`의 `AppliedDonationStatus` 기준. 라이프사이클 단순화(2026-04-29) — 백엔드는 0~4만 사용. 의료진 "중단" 액션 폐기 (changelog 참조).
 - `0`: **PENDING** (대기 중) - 신청 직후, 병원 승인 대기
 - `1`: **APPROVED** (승인됨) - 병원이 신청자 승인
 - `2`: **PENDING_COMPLETION** (완료 대기) - 병원 1차 완료 처리, 관리자 최종 승인 대기
 - `3`: **COMPLETED** (완료) - 관리자 최종 승인으로 정식 완료
-- `4`: **CANCELED** (취소됨) - 사용자가 신청 취소
+- `4`: **CLOSED** (종결) - 미선정 / 관리자 수동 종결 (4 의미 변경 2026-04-29)
 
 **의료진의 "중단" 액션은 폐기됨** — 의료진은 단일 "헌혈 완료" 버튼만 사용. 채혈 못한 케이스는 `blood_volume=0` + `incompletion_reason` 조합으로 표현되며 admin이 'complete'로 최종 승인. ~~`5 PENDING_COMPLETION`~~/~~`6 PENDING_CANCELLATION`~~/~~`7 FINAL_COMPLETED`~~는 deprecated (백엔드 enum에서 제거됨).
 
-라이프사이클: `PENDING → APPROVED → PENDING_COMPLETION → COMPLETED` 단방향. 사용자 신청 취소(`4 CANCELED`)는 `0 PENDING` 단계에서만 가능.
+**4번 의미 변경 (2026-04-29 admin 마감 가드 완화 라운드)**: 기존 `CANCELED`(사용자 자발 취소) → `CLOSED`(종결)로 의미 확장. 사용자 자발 취소는 더 이상 4를 거치지 않고 **행 자체 hard delete**로 처리됨 (DELETE /api/applied_donation/{idx} 라우트로 통일).
+
+라이프사이클:
+- 정상 흐름: `PENDING(0) → APPROVED(1) → PENDING_COMPLETION(2) → COMPLETED(3)` 단방향.
+- 종결 흐름: `PENDING/APPROVED → CLOSED(4)` (경로별 트리거 상이)
+  - 시간대 정원 충족 시 자동 (`_auto_close_remaining_pending`, **PENDING만**)
+  - 게시글 마감 시 일괄 (`_send_recruitment_closed_notifications`, **PENDING만**. APPROVED는 1차 완료 입력 대기로 유지)
+  - 관리자 수동 종결 (`PUT /api/applied_donation/{idx}/status` body `{status: 4}`, **PENDING/APPROVED 둘 다**)
+- 사용자 자발 취소: `PENDING → hard delete` (DELETE 라우트, 행 자체 삭제. CLOSED 상태로 남기지 않음)
+
+**관리자 게시글 마감 가드 (2026-04-29 완화)**: `PATCH /api/admin/posts/{post_idx}/close`는 신청자 0명 / 선정 0명이어도 마감 허용. 가드는 PostStatus 전이 가능 여부만 검사 (APPROVED(1) → CLOSED(3)). 마감 시점에 해당 게시글의 PENDING 신청은 동일 트랜잭션에서 CLOSED(4)로 일괄 변경됨. APPROVED 신청은 그대로 유지되어 헌혈마감 탭에서 1차 완료 입력 흐름 진행. 응답 스키마 / 알림 동작 변경 없음. 메시지 `POST_NO_APPROVED_APPLICANTS` 제거.
 
 ### 반려동물 혈액형 (Pet Blood Type)
 **개 혈액형**
@@ -828,6 +838,42 @@ APPROVED 펫의 프로필 사진 변경에 한해 관리자 검토를 거치는 
 `previous_values` JSON에 `last_pregnancy_end_date`는 `"YYYY-MM-DD"` 문자열로 저장됨 (백엔드 `_normalize`가 date → str 변환). `sex` / `pregnancy_birth_status`는 int 그대로.
 
 폼 안내 문구 권장: "정보 수정 시 관리자 재심사가 진행되어 일시적으로 헌혈 신청이 제한될 수 있습니다."
+
+### 헌혈 완료 처리 contract (계약 확정 2026-04-29)
+
+라이프사이클 단순화로 의료진 "중단" 액션 폐기. 의료진은 단일 "헌혈 완료" 처리 → admin이 'complete'로 최종 승인하는 **단방향 흐름**. AppliedDonationStatus는 0~4만 사용 ("신청 상태" 섹션 참조).
+
+**의료진 1차 완료** (`POST /api/completed_donation/hospital_complete`)
+
+- 단일 엔드포인트. 별도 cancel 엔드포인트 **없음**
+- `blood_volume == 0` + `incompletion_reason` 조합으로 "채혈 못함" 케이스 표현
+- 백엔드 검증: `blood_volume <= 0` 이고 `incompletion_reason` 비어있으면 → 400 + `ErrorMsg.INCOMPLETION_REASON_REQUIRED`
+- 프론트 0L confirm 모달은 사유 입력 후 한 번 더 확인하는 형태 ([donation_completion_sheet.dart:_completeBloodDonation](lib/hospital/donation_completion_sheet.dart)). 백엔드 메시지 카탈로그 `ConfirmMsg.BLOOD_VOLUME_ZERO_HOSPITAL`는 참고용 (응답에 포함되지 않음, 프론트 직접 가짐)
+
+**admin 최종 승인** (`POST /api/admin/donation_final_approval`)
+
+- body: `{post_times_idx: int, action?: "complete"}`. `action` 필드 default `"complete"`이며 **미전송이 권장** (프론트 [admin_donation_approval_service.dart:finalApproval](lib/services/admin_donation_approval_service.dart)는 필드 자체를 보내지 않음)
+- `action: "cancel"` 또는 그 외 값 전송 시 → 400 + `ErrorMsg.FINAL_APPROVAL_INVALID_ACTION`
+- 정식 완료(`COMPLETED`, status=3) 처리 + `prev_donation_date` 갱신 (헌혈 간격 카운트 시작점)
+
+**관련 응답 필드 변경 (2026-04-29)**
+
+| 엔드포인트 | 변경 |
+|------------|------|
+| `GET /api/admin/pending_donations` (`PendingDonationResponse`) | 삭제: `cancelled_reason` / 추가: `incompletion_reason` (Optional[str], 0L 의료진 사유) |
+| `GET /api/admin/donation_approval_stats` (`DonationApprovalStatsResponse`) | 삭제: `today_pending_cancellation`, `total_pending_cancellation`. 유지: `today_pending_completion`, `total_pending_completion`, `today_processed`, `total_processed` |
+
+**프론트 동기화 (50e3543 commit)**
+
+- [admin_donation_approval_page.dart](lib/admin/admin_donation_approval_page.dart): "취소 승인" 버튼/통계 카드 제거, action 분기 제거
+- [admin_donation_approval_service.dart](lib/services/admin_donation_approval_service.dart): `finalApproval`/`batchFinalApproval` action 파라미터 제거, `pendingCancellations`/`totalPendingCancellations`/`todayPendingCancellations` 응답 파싱 제거
+- [post_type_badge.dart](lib/widgets/post_type_badge.dart): '중단대기'/'중단' 라벨 제거
+- [hospital_post_check.dart:1430](lib/hospital/hospital_post_check.dart#L1430): 상태 칩 가드 `status <= 4`로 좁힘
+- [admin_user_check_bottom_sheets.dart](lib/admin/admin_user_check_bottom_sheets.dart): statusColor switch에서 case 5/6/7 제거
+
+**예외 — `app['cancelled']` 객체** ([admin_user_check_bottom_sheets.dart:_buildApplicationCard](lib/admin/admin_user_check_bottom_sheets.dart))
+
+admin이 user 신청 이력을 조회할 때 status=4 (사용자 신청 취소) 케이스에 대한 `cancelled` 객체는 살아있음. 이 객체 내부의 `cancelled_reason`/`cancelled_subject_kr` 필드는 위 `PendingDonationResponse.cancelled_reason → incompletion_reason` 변경과 **다른 응답**이므로 그대로 유지.
 
 ### 공지사항(Notice) 정책 (계약 확정 2026-04-28)
 
