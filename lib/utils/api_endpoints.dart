@@ -61,15 +61,16 @@ class ApiEndpoints {
   static const String notices = '$api/notices';
 
   // ===== Applied Donation =====
-  static const String appliedDonation = '$api/applied_donation';
+  static const String appliedDonation = '$api/applied-donations';
 
   // ===== Helper methods =====
 
   /// 병원 게시물 상세: /api/hospital/posts/{postIdx}
   static String hospitalPost(int postIdx) => '$hospitalPosts/$postIdx';
 
-  /// 병원 게시물 삭제 (단수형 post 사용): /api/hospital/post/{postIdx}
-  static String hospitalPostDelete(int postIdx) => '$hospital/post/$postIdx';
+  /// 병원 게시물 삭제: /api/hospital/posts/{postIdx}
+  /// (2026-05-02 백엔드 경로 정규화로 단수→복수 통일)
+  static String hospitalPostDelete(int postIdx) => '$hospitalPosts/$postIdx';
 
   /// 병원 게시물 상태 변경: /api/hospital/posts/{postIdx}/status
   static String hospitalPostStatus(int postIdx) =>
@@ -120,7 +121,7 @@ class ApiEndpoints {
   static String donationDate(int dateIdx) => '$donationDates/$dateIdx';
 
   // ===== Donation Post Times =====
-  static const String donationPostTimes = '$api/donation_post_times';
+  static const String donationPostTimes = '$api/donation-post-times';
   static const String donationPostTimesBulk = '$donationPostTimes/bulk';
   static const String donationPostTimesDateTime =
       '$donationPostTimes/date-time';
@@ -138,9 +139,9 @@ class ApiEndpoints {
       '$donationPostTimes/post/$postIdx/dates-with-times';
 
   // ===== Completed Donation =====
-  static const String completedDonation = '$api/completed_donation';
+  static const String completedDonation = '$api/completed-donations';
   static const String completedDonationHospitalComplete =
-      '$completedDonation/hospital_complete';
+      '$completedDonation/hospital-complete';
   static const String completedDonationHospitalStats =
       '$completedDonation/hospital/stats';
   static const String completedDonationMyPetsHistory =
@@ -207,9 +208,10 @@ class ApiEndpoints {
   /// 블랙리스트 해제: /api/admin/black-list/{idx}/release
   static String blackListRelease(int idx) => '$blackList/$idx/release';
 
-  /// 사용자 블랙리스트 상태: /api/admin/user/{accountIdx}/black-list-status
+  /// 사용자 블랙리스트 상태: /api/admin/users/{accountIdx}/black-list-status
+  /// (2026-05-02 백엔드 경로 정규화로 단수→복수 통일)
   static String adminUserBlackListStatus(int accountIdx) =>
-      '$admin/user/$accountIdx/black-list-status';
+      '$adminUsers/$accountIdx/black-list-status';
 
   // ===== Pet Donation History =====
   static const String petDonationHistoryBase = '$api/pet-donation-history';
@@ -228,7 +230,7 @@ class ApiEndpoints {
 
   // ===== Admin Completed Donation =====
   static const String adminCompletedDonation =
-      '$admin/completed_donation';
+      '$admin/completed-donations';
   static const String adminCompletedDonationPending =
       '$adminCompletedDonation/pending';
   static const String adminCompletedDonationCompleted =
@@ -240,16 +242,13 @@ class ApiEndpoints {
 
   // ===== Admin Donation Approval =====
   static const String adminDonationFinalApproval =
-      '$admin/donation_final_approval';
-  static const String adminDonationBatchApproval =
-      '$admin/donation_batch_approval';
-  static const String adminPendingDonations = '$admin/pending_donations';
+      '$admin/donation-final-approval';
+  static const String adminPendingDonations = '$admin/pending-donations';
   static const String adminDonationApprovalStats =
-      '$admin/donation_approval_stats';
+      '$admin/donation-approval-stats';
 
-  /// 대기중인 신청 조회: /api/admin/pending_applications/{postTimesIdx}
-  static String adminPendingApplications(int postTimesIdx) =>
-      '$admin/pending_applications/$postTimesIdx';
+  // 2026-05-02 dead route 정리: /donation_batch_approval, /pending_applications/{idx}
+  // 상수와 헬퍼 함수 모두 호출자 0건이라 백엔드 경로 정규화와 함께 제거됨.
 
   // ===== Notifications =====
   static const String notifications = '$api/notifications';
@@ -308,16 +307,17 @@ class ApiEndpoints {
       '$hospitalColumns/$columnIdx/images';
 
   // ===== Post Images =====
-  static const String hospitalPostImage = '$hospital/post/image';
+  // (2026-05-02 백엔드 경로 정규화로 단수→복수 통일: hospital/post → hospital/posts)
+  static const String hospitalPostImage = '$hospital/posts/image';
   static const String hospitalPostImageOrder = '$hospitalPostImage/order';
 
-  /// 게시물 이미지 상세: /api/hospital/post/image/{imageId}
+  /// 게시물 이미지 상세: /api/hospital/posts/image/{imageId}
   static String hospitalPostImageDetail(int imageId) =>
       '$hospitalPostImage/$imageId';
 
-  /// 게시물별 이미지 목록: /api/hospital/post/images/{postIdx}
+  /// 게시물별 이미지 목록: /api/hospital/posts/images/{postIdx}
   static String hospitalPostImagesByPost(int postIdx) =>
-      '$hospital/post/images/$postIdx';
+      '$hospital/posts/images/$postIdx';
 
   // ===== Pet Detail =====
   /// 반려동물 상세: /api/pets/{petIdx}
