@@ -151,13 +151,16 @@ class NotificationConverter {
       }
     }
 
-    // 기타 관련 데이터 추가
+    // 기타 관련 데이터 추가.
+    // 백엔드 키 정책 (2026-05-01): post_idx / column_idx 단일 emit. post_id / column_id는
+    // 구버전 fallback (백엔드 4c1de27 commit으로 emit 중단됐지만 과거 캐시된 알림 호환).
     final keysToExtract = [
       'post_idx',
       'post_id',
       'application_id',
       'user_id',
       'hospital_id',
+      'column_idx',
       'column_id',
     ];
 

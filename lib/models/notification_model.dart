@@ -61,12 +61,15 @@ class NotificationModel {
     };
   }
 
-  // 관련 데이터에서 ID 추출 (게시글 ID, 사용자 ID 등)
+  // 관련 데이터에서 ID 추출 (게시글 ID, 사용자 ID 등).
+  // 백엔드 키 정책 (2026-05-01): post_idx / column_idx 우선, post_id / column_id는 fallback.
   int? get relatedId {
     if (relatedData == null) return null;
     final value =
+        relatedData!['post_idx'] ??
         relatedData!['post_id'] ??
         relatedData!['user_id'] ??
+        relatedData!['column_idx'] ??
         relatedData!['column_id'];
     if (value == null) return null;
     if (value is int) return value;

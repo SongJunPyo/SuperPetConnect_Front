@@ -10,6 +10,7 @@ import '../admin/admin_signup_management.dart';
 import '../admin/admin_column_management.dart';
 import '../admin/admin_pet_management.dart';
 import '../user/pet_management.dart';
+import '../user/donation_history_screen.dart';
 import '../hospital/hospital_post_check.dart';
 import '../hospital/hospital_column_management_list.dart';
 import '../user/user_donation_posts_list.dart';
@@ -869,6 +870,8 @@ class _UnifiedNotificationPageState extends State<UnifiedNotificationPage> {
           return const Color(0xFFF59E0B); // 앰버
         case AdminNotificationType.petPhotoReviewRequest:
           return const Color(0xFF14B8A6); // 틸
+        case AdminNotificationType.documentRequestResponded:
+          return const Color(0xFF6366F1); // 인디고
       }
     }
     // 병원 알림
@@ -913,6 +916,8 @@ class _UnifiedNotificationPageState extends State<UnifiedNotificationPage> {
         case UserNotificationType.petApproved:
         case UserNotificationType.petPhotoApproved:
           return AppTheme.success;
+        case UserNotificationType.documentRequestResponded:
+          return const Color(0xFF6366F1); // 인디고
       }
     }
     return AppTheme.primaryBlue;
@@ -1020,6 +1025,16 @@ class _UnifiedNotificationPageState extends State<UnifiedNotificationPage> {
             ),
           );
           break;
+        case AdminNotificationType.documentRequestResponded:
+          // 자료 요청 응답 → 헌혈완료 탭(index=3)으로 진입.
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) =>
+                  const AdminPostCheck(initialTabIndex: 3),
+            ),
+          );
+          break;
       }
     }
   }
@@ -1099,6 +1114,15 @@ class _UnifiedNotificationPageState extends State<UnifiedNotificationPage> {
             ),
           );
           break;
+        case UserNotificationType.documentRequestResponded:
+          // 자료 요청 응답 → 본인 헌혈 이력 화면.
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => const DonationHistoryScreen(),
+            ),
+          );
+          break;
       }
     }
   }
@@ -1116,11 +1140,7 @@ class _UnifiedNotificationPageState extends State<UnifiedNotificationPage> {
           Navigator.push(
             context,
             MaterialPageRoute(
-              builder:
-                  (context) => UserDonationPostsListScreen(
-                    initialPost: post,
-                    autoShowBottomSheet: true,
-                  ),
+              builder: (context) => const UserDonationPostsListScreen(),
             ),
           );
           return;
@@ -1139,15 +1159,15 @@ class _UnifiedNotificationPageState extends State<UnifiedNotificationPage> {
     }
   }
 
-  /// relatedData에서 post_id 추출
+  /// relatedData에서 post_id 추출.
+  /// 백엔드 키 정책 (2026-05-01): post_idx 단일 emit. post_id / postId는 구버전 fallback.
   int? _extractPostId(Map<String, dynamic>? relatedData) {
     if (relatedData == null) return null;
 
-    // 다양한 키 이름으로 post_id 추출 시도
     final postIdValue =
+        relatedData['post_idx'] ??
         relatedData['post_id'] ??
-        relatedData['postId'] ??
-        relatedData['post_idx'];
+        relatedData['postId'];
 
     if (postIdValue == null) return null;
 
@@ -1201,6 +1221,8 @@ class _UnifiedNotificationPageState extends State<UnifiedNotificationPage> {
         return Icons.refresh;
       case AdminNotificationType.petPhotoReviewRequest:
         return Icons.photo_camera;
+      case AdminNotificationType.documentRequestResponded:
+        return Icons.description;
     }
   }
 
@@ -1251,6 +1273,8 @@ class _UnifiedNotificationPageState extends State<UnifiedNotificationPage> {
         return Icons.photo_camera;
       case UserNotificationType.petPhotoRejected:
         return Icons.no_photography;
+      case UserNotificationType.documentRequestResponded:
+        return Icons.description;
     }
   }
 

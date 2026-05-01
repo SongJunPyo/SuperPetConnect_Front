@@ -237,6 +237,10 @@ class NotificationService {
         case 'document_request':
           _navigateToHospitalPostCheck(data);
           break;
+        case 'document_request_responded':
+          // 자료 요청 응답 — admin/user 양쪽 수신.
+          _navigateForDocumentRequestResponded(data);
+          break;
         case 'pet_approved':
         case 'pet_rejected':
         case 'pet_profile_image_approved':
@@ -285,40 +289,32 @@ class NotificationService {
     return parsedData;
   }
 
+  /// 관리자 게시글 관리(`new_post_approval` 알림) 진입.
+  ///
+  /// 백엔드 4c1de27 commit 이후 `navigation` 객체 emit 중단됨.
+  /// CLAUDE.md "Frontend routing branches solely on data.type" 원칙에 따라
+  /// type별 default tab을 프론트가 직접 결정. `new_post_approval` 알림은
+  /// 모집대기 탭(`pending_approval`) 단일 진입.
+  ///
+  /// post_idx 키 정책: top-level `post_idx` 우선, `post_id`는 구버전 fallback.
   static void _navigateToPostManagement(Map<String, dynamic> data) {
     final context = navigatorKey.currentContext;
     if (context == null) return;
 
     try {
-      final navigation = data['navigation'];
+      final raw = data['post_idx'] ?? data['post_id'];
+      final postId = raw is int ? raw : int.tryParse(raw?.toString() ?? '');
 
-      if (navigation != null) {
-        // navigation이 JSON 문자열인 경우 파싱
-        final navData =
-            navigation is String ? jsonDecode(navigation) : navigation;
-
-        final postId = navData['post_id']; // 게시글 ID
-        final tab = navData['tab']; // "pending_approval"
-
-        // 관리자 게시글 관리 페이지로 이동
-        Navigator.pushNamed(
-          context,
-          '/admin/post-management',
-          arguments: {
-            'postId': postId is String ? int.tryParse(postId) : postId,
-            'initialTab': tab,
-            'highlightPost':
-                data['post_idx'] is String
-                    ? int.tryParse(data['post_idx'])
-                    : data['post_idx'],
-          },
-        );
-      } else {
-        // 기본 게시글 관리 페이지로 이동
-        Navigator.pushNamed(context, '/admin/post-management');
-      }
+      Navigator.pushNamed(
+        context,
+        '/admin/post-management',
+        arguments: {
+          'postId': postId,
+          'initialTab': 'pending_approval',
+          'highlightPost': postId,
+        },
+      );
     } catch (e) {
-      // 오류 발생 시 기본 관리자 게시글 관리 페이지로 이동
       Navigator.pushNamed(context, '/admin/post-management');
     }
   }
@@ -329,13 +325,14 @@ class NotificationService {
     await FCMHandler.instance.updateFCMToken();
   }
 
-  // 병원 헌혈 게시글 페이지로 이동
+  // 병원 헌혈 게시글 페이지로 이동.
+  // 백엔드 키 정책 (2026-05-01): post_idx 우선, post_id는 fallback.
   static void _navigateToHospitalPosts(Map<String, dynamic> data) {
     final context = navigatorKey.currentContext;
     if (context == null) return;
 
     try {
-      final postId = data['post_id'];
+      final postId = data['post_idx'] ?? data['post_id'];
 
       // 병원 대시보드 또는 게시글 관리 페이지로 이동
       Navigator.pushNamed(
@@ -352,13 +349,14 @@ class NotificationService {
     }
   }
 
-  // 병원 칼럼 페이지로 이동
+  // 병원 칼럼 페이지로 이동.
+  // 백엔드 키 정책 (2026-05-01): column_idx 우선, column_id는 fallback.
   static void _navigateToHospitalColumns(Map<String, dynamic> data) {
     final context = navigatorKey.currentContext;
     if (context == null) return;
 
     try {
-      final columnId = data['column_id'];
+      final columnId = data['column_idx'] ?? data['column_id'];
 
       // 병원 칼럼 목록 페이지로 이동
       Navigator.pushNamed(
@@ -568,6 +566,45 @@ class NotificationService {
       );
     } catch (e) {
       debugPrint('[NotificationService] 헌혈 완료 네비게이션 실패: $e');
+    }
+  }
+
+  /// document_request_responded 알림 분기 (2026-05-01 신규 type).
+  ///
+  /// 백엔드 emit: POST /api/donation/respond-documents 처리 시 원 요청자에게 발송.
+  /// USER + ADMIN 양쪽 수신. CLAUDE.md "알림 다중 수신 라우팅" 패턴 적용.
+  /// data 키: document_request_id / application_id / post_idx / hospital_name / post_title.
+  ///
+  /// - admin(1)    → AdminPostCheck 헌혈완료 탭(index=3, 자료 요청 추적용)
+  /// - user(3)     → DonationHistoryScreen (본인 헌혈 이력)
+  static Future<void> _navigateForDocumentRequestResponded(
+    Map<String, dynamic> data,
+  ) async {
+    final context = navigatorKey.currentContext;
+    if (context == null) return;
+
+    final accountType = await PreferencesManager.getAccountType();
+    if (!context.mounted) return;
+
+    try {
+      if (accountType == 1) {
+        final raw = data['post_idx'] ?? data['post_id'];
+        final postIdx = raw is int ? raw : int.tryParse(raw?.toString() ?? '');
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => AdminPostCheck(
+              initialPostIdx: postIdx,
+              initialTabIndex: 3,
+            ),
+          ),
+        );
+      } else {
+        // user(3): 본인 헌혈 이력 화면. account_type 미식별 시에도 user로 fallback.
+        _navigateToDonationHistory(data);
+      }
+    } catch (e) {
+      debugPrint('[NotificationService] document_request_responded 분기 실패: $e');
     }
   }
 

@@ -141,6 +141,14 @@ class ServerNotificationMapping {
     'document_request': {
       UserType.hospital: HospitalNotificationType.documentRequest,
     },
+
+    // === 헌혈 자료 요청 응답 알림 (admin + user 양쪽 수신) ===
+    // 백엔드: POST /api/donation/respond-documents 트리거.
+    // data 키: { type, document_request_id, application_id, post_idx, hospital_name, post_title }
+    'document_request_responded': {
+      UserType.admin: AdminNotificationType.documentRequestResponded,
+      UserType.user: UserNotificationType.documentRequestResponded,
+    },
   };
 
   /// 프론트엔드 타입 -> 서버 타입 역매핑 (필요시 사용)
@@ -273,10 +281,15 @@ class ServerNotificationData {
     );
   }
 
-  /// data에서 related_id 추출 (post_id, application_id, column_id 등)
+  /// data에서 related_id 추출.
+  ///
+  /// 백엔드 키 정책 (2026-05-01): top-level은 `post_idx` / `column_idx` 단일 emit.
+  /// `post_id` / `column_id`는 구버전 fallback (백엔드 4c1de27 commit으로 emit 중단).
   int? get relatedId {
-    return data['post_id'] ??
+    return data['post_idx'] ??
+        data['post_id'] ??
         data['application_id'] ??
+        data['column_idx'] ??
         data['column_id'] ??
         data['user_id'];
   }
