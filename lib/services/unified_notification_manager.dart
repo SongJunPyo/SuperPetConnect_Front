@@ -2,15 +2,18 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import '../models/notification_model.dart';
 import 'fcm_handler.dart';
-import 'websocket_handler.dart';
+// 웹 FCM (조건부 import — 모바일은 stub 사용)
+import 'web_fcm_init_stub.dart'
+    if (dart.library.html) 'web_fcm_init.dart';
 
 /// 알림 연결 상태
 enum NotificationConnectionStatus { disconnected, connecting, connected, error }
 
-/// FCM과 WebSocket을 통합하여 단일 인터페이스로 제공하는 관리자
+/// FCM 단일 채널 (모바일/웹) 통합 관리자.
 ///
-/// 플랫폼(모바일/웹)에 따라 적절한 알림 소스를 자동으로 선택하고,
-/// 단일 스트림으로 알림을 제공합니다.
+/// 모바일은 FCMHandler, 웹은 WebFcmInit (firebase_messaging web + Service Worker)
+/// 양쪽 모두 동일한 FCM 토큰 등록 → multicast 발송 흐름.
+/// 2026-05-02 BE [A][B][C] sync 후 WebSocket 채널 폐기.
 class UnifiedNotificationManager {
   static UnifiedNotificationManager? _instance;
   static UnifiedNotificationManager get instance =>
@@ -21,7 +24,6 @@ class UnifiedNotificationManager {
 
   // 내부 핸들러
   FCMHandler? _fcmHandler;
-  WebSocketHandler? _webSocketHandler;
 
   // 통합 스트림 컨트롤러
   final StreamController<NotificationModel> _notificationController =
@@ -31,8 +33,7 @@ class UnifiedNotificationManager {
 
   // 구독
   StreamSubscription? _fcmSubscription;
-  StreamSubscription? _webSocketSubscription;
-  StreamSubscription? _webSocketConnectionSubscription;
+  StreamSubscription? _webFcmSubscription;
 
   bool _isInitialized = false;
 
@@ -50,7 +51,7 @@ class UnifiedNotificationManager {
   Stream<NotificationConnectionStatus> get connectionStatusStream =>
       _connectionController.stream;
 
-  /// 플랫폼에 따라 적절한 알림 소스 초기화
+  /// 플랫폼에 따라 적절한 알림 소스 초기화 (모바일: FCMHandler, 웹: WebFcmInit)
   Future<void> initialize() async {
     if (_isInitialized) return;
 
@@ -58,13 +59,10 @@ class UnifiedNotificationManager {
 
     try {
       if (kIsWeb) {
-        // 웹: WebSocket 사용
-        await _initializeWebSocket();
+        await _initializeWebFcm();
       } else {
-        // 모바일: FCM 사용
         await _initializeFCM();
       }
-
       _isInitialized = true;
     } catch (e) {
       _connectionController.add(NotificationConnectionStatus.error);
@@ -76,7 +74,6 @@ class UnifiedNotificationManager {
     _fcmHandler = FCMHandler.instance;
     await _fcmHandler!.initialize();
 
-    // FCM 알림을 통합 스트림으로 전달
     _fcmSubscription = _fcmHandler!.notificationStream.listen(
       (notification) {
         _notificationController.add(notification);
@@ -86,17 +83,16 @@ class UnifiedNotificationManager {
       },
     );
 
-    // FCM은 연결 관리가 Firebase에 의해 자동 처리됨
+    // FCM은 Firebase가 연결 자동 관리
     _connectionController.add(NotificationConnectionStatus.connected);
   }
 
-  /// WebSocket 초기화 (웹)
-  Future<void> _initializeWebSocket() async {
-    _webSocketHandler = WebSocketHandler.instance;
-    await _webSocketHandler!.initialize();
+  /// 웹 FCM 초기화 (firebase_messaging web + Service Worker).
+  /// 권한 거부 시 토큰 발급 실패하지만 FE는 정상 동작 (push 수신 안 됨).
+  Future<void> _initializeWebFcm() async {
+    await WebFcmInit.initialize();
 
-    // WebSocket 알림을 통합 스트림으로 전달
-    _webSocketSubscription = _webSocketHandler!.notificationStream.listen(
+    _webFcmSubscription = WebFcmInit.notificationStream.listen(
       (notification) {
         _notificationController.add(notification);
       },
@@ -105,15 +101,8 @@ class UnifiedNotificationManager {
       },
     );
 
-    // WebSocket 연결 상태 전달
-    _webSocketConnectionSubscription = _webSocketHandler!.connectionStatusStream
-        .listen((isConnected) {
-          _connectionController.add(
-            isConnected
-                ? NotificationConnectionStatus.connected
-                : NotificationConnectionStatus.disconnected,
-          );
-        });
+    // FCM Web도 Firebase가 연결 자동 관리
+    _connectionController.add(NotificationConnectionStatus.connected);
   }
 
   /// 외부에서 알림 추가 (FCM 포그라운드 알림 등)
@@ -121,30 +110,29 @@ class UnifiedNotificationManager {
     _notificationController.add(notification);
   }
 
-  /// 로그인 후 FCM 토큰 업데이트 (모바일)
+  /// 로그인 후 FCM 토큰 재등록 (모바일/웹 공통).
   Future<void> updateTokenAfterLogin() async {
-    if (!kIsWeb && _fcmHandler != null) {
+    if (kIsWeb) {
+      await WebFcmInit.updateTokenAfterLogin();
+    } else if (_fcmHandler != null) {
       await _fcmHandler!.updateTokenAfterLogin();
     }
   }
 
-  /// WebSocket 재연결 (웹)
-  Future<void> reconnectWebSocket() async {
-    if (kIsWeb && _webSocketHandler != null) {
-      await _webSocketHandler!.reconnect();
+  /// 로그아웃 직전 호출 — 현재 디바이스 토큰 백엔드에서 제거.
+  Future<void> deleteCurrentDeviceToken() async {
+    if (kIsWeb) {
+      await WebFcmInit.deleteCurrentDeviceToken();
     }
+    // 모바일: FCMHandler에 deleteCurrentDeviceToken 별도 구현 시 여기서 호출
   }
 
-  /// WebSocket 연결 해제 (로그아웃 시 사용, 싱글턴은 유지)
+  /// 연결 해제 (로그아웃 시) — 싱글턴은 유지
   void disconnect() {
-    // WebSocket 스트림 구독 해제 (재연결 이벤트 수신 방지)
-    _webSocketSubscription?.cancel();
-    _webSocketSubscription = null;
-    _webSocketConnectionSubscription?.cancel();
-    _webSocketConnectionSubscription = null;
-
-    if (kIsWeb && _webSocketHandler != null) {
-      _webSocketHandler!.disconnect();
+    _webFcmSubscription?.cancel();
+    _webFcmSubscription = null;
+    if (kIsWeb) {
+      WebFcmInit.dispose();
     }
     _isInitialized = false;
   }
@@ -152,10 +140,11 @@ class UnifiedNotificationManager {
   /// 리소스 정리
   void dispose() {
     _fcmSubscription?.cancel();
-    _webSocketSubscription?.cancel();
-    _webSocketConnectionSubscription?.cancel();
+    _webFcmSubscription?.cancel();
     _fcmHandler?.dispose();
-    _webSocketHandler?.dispose();
+    if (kIsWeb) {
+      WebFcmInit.dispose();
+    }
     _notificationController.close();
     _connectionController.close();
     _isInitialized = false;

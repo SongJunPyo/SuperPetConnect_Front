@@ -1,62 +1,201 @@
-// 웹 FCM 초기화 + 토큰 발급/등록 골격 (BE [B] merge 후 활성화 예정).
+// 웹 FCM 초기화 + 토큰 발급/등록 + 메시지 수신 (BE [C] merge sync).
 //
-// 현재 상태: PREP — _enabled = false. getToken() 호출 안 함.
-// BE의 단일 토큰 모델이 살아있는 동안 웹 토큰 발급 시 모바일 토큰을 덮어쓰는
-// 사고를 방지하기 위한 가드 (BE 회신 메시지 명시 사항).
-//
-// 활성화 절차 (BE [B] merge ping 받은 후):
-// 1. _enabled = true 토글
-// 2. POST /api/user/fcm-token 호출 시 platform: 'web' 필드 추가 (BE [B]가 수용)
-// 3. lib/services/unified_notification_manager.dart의 web 분기를
-//    WebSocket → 본 모듈로 교체
-// 4. lib/services/websocket_handler.dart는 BE [C] merge 후 제거
+// 본 파일은 dart:html을 사용하므로 mobile 빌드에서 컴파일 에러.
+// UnifiedNotificationManager가 conditional import로 분기:
+//   import 'web_fcm_init_stub.dart' if (dart.library.html) 'web_fcm_init.dart';
 //
 // VAPID 키는 dart-define으로 주입:
 //   flutter run -d chrome --dart-define=FCM_VAPID_KEY=BCaX2N50yOe7GS8...
 // SW 파일에 하드코딩 금지 (BE 가드).
+//
+// ignore_for_file: avoid_web_libraries_in_flutter, deprecated_member_use
 
+import 'dart:async';
+import 'dart:convert';
+import 'dart:html' as html;
+
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 
-class WebFcmInit {
-  // BE [B] merge 후 true로 토글. false인 동안 getToken / 토큰 등록 호출 차단.
-  static const bool _enabled = false;
+import '../models/notification_model.dart';
+import '../utils/api_endpoints.dart';
+import '../utils/config.dart';
+import 'auth_http_client.dart';
+import 'notification_converter.dart';
+import 'notification_service.dart';
 
+class WebFcmInit {
   // VAPID 공개키 — 빌드 시 dart-define으로 주입.
   // 누락 시 web push 등록 불가 (의도된 안전장치).
   static const String _vapidKey = String.fromEnvironment('FCM_VAPID_KEY');
 
-  /// 웹 환경에서 FCM 초기화 + 토큰 등록.
-  /// _enabled=false면 즉시 반환. 모바일에서는 호출되어도 kIsWeb 가드로 무시.
+  static final StreamController<NotificationModel> _notificationController =
+      StreamController<NotificationModel>.broadcast();
+
+  static StreamSubscription<RemoteMessage>? _onMessageSub;
+  static StreamSubscription<String>? _onTokenRefreshSub;
+  static StreamSubscription<html.MessageEvent>? _swMessageSub;
+
+  static String? _currentToken;
+  static bool _initialized = false;
+
+  /// 새 알림 스트림 — UnifiedNotificationManager가 구독
+  static Stream<NotificationModel> get notificationStream =>
+      _notificationController.stream;
+
+  /// 웹 FCM 초기화 — 권한 요청, 토큰 발급, 백엔드 등록, 리스너 설정.
   static Future<void> initialize() async {
     if (!kIsWeb) return;
-    if (!_enabled) {
-      debugPrint('[WebFcmInit] PREP 단계 — _enabled=false. getToken 호출 스킵.');
-      return;
-    }
+    if (_initialized) return;
     if (_vapidKey.isEmpty) {
       debugPrint(
         '[WebFcmInit] VAPID 키 누락. '
-        '--dart-define=FCM_VAPID_KEY=... 로 주입 필요.',
+        '--dart-define=FCM_VAPID_KEY=... 로 주입 필요. 초기화 중단.',
       );
       return;
     }
 
-    // 활성화 시 추가 작업 (BE [B] merge 후 구현):
-    // - Firebase.initializeApp(options: DefaultFirebaseOptions.web)
-    // - FirebaseMessaging.instance.requestPermission()
-    // - final token = await FirebaseMessaging.instance.getToken(vapidKey: _vapidKey)
-    // - POST /api/user/fcm-token { fcm_token, platform: 'web' }
-    // - FirebaseMessaging.instance.onTokenRefresh.listen(...)
-    // - FirebaseMessaging.onMessage.listen(...) — 포그라운드
-    // - SW의 postMessage 수신 → NotificationService.dispatchByType
+    try {
+      // 1. 알림 권한 요청 (브라우저가 사용자에게 다이얼로그 표시)
+      final settings = await FirebaseMessaging.instance.requestPermission(
+        alert: true,
+        badge: true,
+        sound: true,
+      );
+      if (settings.authorizationStatus != AuthorizationStatus.authorized &&
+          settings.authorizationStatus != AuthorizationStatus.provisional) {
+        debugPrint(
+          '[WebFcmInit] 권한 거부됨: ${settings.authorizationStatus}',
+        );
+        return;
+      }
+
+      // 2. FCM 토큰 발급 (VAPID 키 필요)
+      final token =
+          await FirebaseMessaging.instance.getToken(vapidKey: _vapidKey);
+      if (token == null || token.isEmpty) {
+        debugPrint('[WebFcmInit] 토큰 발급 실패');
+        return;
+      }
+      _currentToken = token;
+
+      // 3. 백엔드 등록 (POST /api/user/fcm-token, platform: 'web')
+      await _sendTokenToServer(token);
+
+      // 4. 토큰 갱신 리스너
+      _onTokenRefreshSub = FirebaseMessaging.instance.onTokenRefresh.listen(
+        (newToken) {
+          _currentToken = newToken;
+          _sendTokenToServer(newToken);
+        },
+      );
+
+      // 5. 포그라운드 메시지 리스너 — NotificationModel 변환 후 스트림 전달
+      _onMessageSub = FirebaseMessaging.onMessage.listen((message) async {
+        try {
+          final notification = await NotificationConverter.fromFCM(message);
+          if (notification != null) {
+            _notificationController.add(notification);
+          }
+        } catch (e) {
+          debugPrint('[WebFcmInit] onMessage 처리 실패: $e');
+        }
+      });
+
+      // 6. SW의 notificationclick → postMessage 수신 → dispatchByType
+      _setupSwMessageListener();
+
+      _initialized = true;
+      debugPrint('[WebFcmInit] 초기화 완료');
+    } catch (e) {
+      debugPrint('[WebFcmInit] 초기화 실패: $e');
+    }
   }
 
-  /// 로그아웃 시 호출 — 현재 디바이스 토큰만 백엔드에서 제거.
-  /// 활성화 후 구현 (BE의 DELETE /api/user/fcm-token endpoint 사용).
+  /// 로그인 직후 호출 — 토큰이 있으면 백엔드에 재등록.
+  /// 신규 로그인 시 같은 fcm_token이 다른 account에 등록되어 있으면 BE가 소유 이전.
+  static Future<void> updateTokenAfterLogin() async {
+    if (!kIsWeb) return;
+    final token = _currentToken;
+    if (token != null) {
+      await _sendTokenToServer(token);
+      return;
+    }
+    // 토큰이 아직 없으면 (initialize 전 로그인 등) 다시 발급 시도
+    if (_vapidKey.isEmpty) return;
+    try {
+      final newToken =
+          await FirebaseMessaging.instance.getToken(vapidKey: _vapidKey);
+      if (newToken != null && newToken.isNotEmpty) {
+        _currentToken = newToken;
+        await _sendTokenToServer(newToken);
+      }
+    } catch (e) {
+      debugPrint('[WebFcmInit] 로그인 후 토큰 등록 실패: $e');
+    }
+  }
+
+  /// 로그아웃 직전 호출 — 현재 디바이스 토큰만 백엔드에서 제거.
+  /// 다른 디바이스 토큰(모바일 등)은 유지.
   static Future<void> deleteCurrentDeviceToken() async {
-    if (!kIsWeb || !_enabled) return;
-    // 활성화 시:
-    // - final token = await FirebaseMessaging.instance.getToken(vapidKey: _vapidKey)
-    // - DELETE /api/user/fcm-token { fcm_token: token }
+    if (!kIsWeb) return;
+    final token = _currentToken;
+    if (token == null) return;
+    try {
+      await AuthHttpClient.delete(
+        Uri.parse('${Config.serverUrl}${ApiEndpoints.fcmToken}'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({'fcm_token': token}),
+      );
+    } catch (e) {
+      debugPrint('[WebFcmInit] 토큰 삭제 실패: $e');
+    }
+  }
+
+  /// 토큰을 백엔드에 등록 (platform: 'web' 명시).
+  static Future<void> _sendTokenToServer(String token) async {
+    try {
+      final response = await AuthHttpClient.post(
+        Uri.parse('${Config.serverUrl}${ApiEndpoints.fcmToken}'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({'fcm_token': token, 'platform': 'web'}),
+      );
+      if (response.statusCode != 200) {
+        debugPrint(
+          '[WebFcmInit] 토큰 등록 실패: ${response.statusCode}',
+        );
+      }
+    } catch (e) {
+      debugPrint('[WebFcmInit] 토큰 등록 예외: $e');
+    }
+  }
+
+  /// SW의 notificationclick → window.postMessage 메시지 구독.
+  /// firebase-messaging-sw.js의 notificationclick 핸들러가 client.postMessage로
+  /// {source: 'fcm-sw', type: 'notification-click', data: {...}}를 보냄.
+  static void _setupSwMessageListener() {
+    _swMessageSub?.cancel();
+    _swMessageSub = html.window.onMessage.listen((event) {
+      try {
+        final data = event.data;
+        if (data is Map &&
+            data['source'] == 'fcm-sw' &&
+            data['type'] == 'notification-click') {
+          final payload =
+              Map<String, dynamic>.from(data['data'] as Map? ?? const {});
+          NotificationService.dispatchByType(payload);
+        }
+      } catch (e) {
+        debugPrint('[WebFcmInit] SW 메시지 처리 실패: $e');
+      }
+    });
+  }
+
+  /// 리소스 정리 — 로그아웃/dispose 시 호출.
+  static void dispose() {
+    _onMessageSub?.cancel();
+    _onTokenRefreshSub?.cancel();
+    _swMessageSub?.cancel();
+    _initialized = false;
   }
 }

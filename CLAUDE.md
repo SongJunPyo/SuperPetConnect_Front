@@ -450,19 +450,39 @@ Windows에서는 `.git/hooks/pre-commit.cmd` 사용.
 - **현재 방식**: body 방식으로 통일. CORS `credentials: 'include'` / SameSite 설정 실수 시 전체 인증이 막히는 리스크가 커서 쿠키 전용 전환은 별도 보안 라운드로 분리. 전환 시 백엔드가 changelog로 사전 공지.
 - **토큰 수명**: Access 15분 / Refresh 7일 (백엔드 `.env`의 `ACCESS_TOKEN_EXPIRE_MINUTES=15`, `REFRESH_TOKEN_EXPIRE_DAYS=7`). 변경 시 백엔드가 `Auth: access token lifetime changed 15min → X min` 형식 changelog 필수 (리프레시 빈도 = 네트워크 부하 / UX 영향).
 
-### 실시간 알림 전송 채널
-- **웹 전용 WebSocket**: `wss://<host>/ws?token=<access_token>` (쿼리스트링 인증, 브라우저가 커스텀 헤더 미지원). 5초 자동 재연결, 30초 ping.
-- **모바일 전용 FCM**: 로그인 직후 `POST /api/user/fcm-token` body `{"fcm_token": "..."}`로 디바이스 토큰 등록. `onTokenRefresh` 리스너가 갱신 시 자동 재전송.
+### 실시간 알림 전송 채널 (FCM 단일화 2026-05-02)
+- **모바일/웹 모두 FCM**: 로그인 직후 `POST /api/user/fcm-token` body `{"fcm_token": "...", "platform": "android"|"ios"|"web"}`로 디바이스 토큰 등록. `onTokenRefresh` 리스너가 갱신 시 자동 재전송. 로그아웃 시 `DELETE /api/user/fcm-token` body `{"fcm_token": "..."}`로 현재 디바이스 토큰만 제거.
+- **웹은 Service Worker 기반 Web Push**: `web/firebase-messaging-sw.js`가 백그라운드 푸시 수신 + OS 알림 표시. 사용자가 알림 클릭 시 `client.postMessage`로 dart 측에 data 전달 → `NotificationService.dispatchByType` 라우팅. 같은 origin 탭 없으면 `clients.openWindow`로 새 창. VAPID 공개키는 `--dart-define=FCM_VAPID_KEY=...`로 빌드 시 주입 (SW 파일에 하드코딩 금지).
+- **WebSocket /ws 폐기 진행 중**: FE 측 `WebSocketHandler` 제거 완료, BE 측 `@app.websocket("/ws")` + `connection_manager` + `send_websocket_notification` 코드는 FE 웹 배포 + 2주 모니터링 후 별도 PR로 일괄 제거 예정.
 
-### 프론트 FCM 수신 아키텍처 (2026-04 단일화)
+### FCM 토큰 멀티 디바이스 contract (2026-05-02 신설)
+백엔드 `fcm_tokens` 테이블이 1:N 구조로 토큰 저장. 같은 account가 모바일+웹 동시 사용 시 양쪽 디바이스 모두에 push 도달.
+
+| 컬럼 | 비고 |
+|------|------|
+| `account_idx` | accounts FK, ON DELETE CASCADE |
+| `fcm_token` | varchar |
+| `platform` | enum('android', 'ios', 'web'). FE는 명시 송신, BE는 누락 시 'android' default |
+| UNIQUE KEY | (account_idx, fcm_token) — 같은 계정 내 중복만 차단 |
+
+**같은 토큰이 다른 account에서 등록 시**: BE가 application-level에서 이전 행 삭제 후 신규 INSERT (디바이스 소유 이전).
+
+**옛 컬럼**: `accounts.fcm_token`은 alembic 85b5f42edcda에서 drop됨. 더 이상 존재하지 않음.
+
+**알림 발송**: BE `send_notification_to_account`이 fcm_tokens 전체 토큰으로 multicast (`messaging.send_each_for_multicast`). UnregisteredError / SenderIdMismatchError 토큰은 자동 DELETE.
+
+**로그아웃 시점 호출**: 프론트 `_logout()`은 `auth_token` 삭제 전에 `UnifiedNotificationManager.deleteCurrentDeviceToken()` 호출 필수. 토큰 삭제 실패해도 로그아웃은 계속 (BE의 multicast 시 자동 정리에 의존).
+
+### 프론트 FCM 수신 아키텍처 (2026-05-02 web FCM 통일)
 
 **책임 분리 (단일 원천 원칙)**
 
 | 클래스 | 책임 |
 |--------|------|
-| [FCMHandler](lib/services/fcm_handler.dart) | FCM **수신** 전담. 포그라운드 `onMessage` 리스너, `onMessageOpenedApp` (스트림 추가용), 토큰 관리 (`updateFCMToken` / `onTokenRefresh`), 상단 로컬 푸시 표시, unknown type fallback |
-| [NotificationService](lib/services/notification_service.dart) | FCM **탭 네비게이션** 전담. `onMessageOpenedApp` (navigation용), `getInitialMessage`, `handleLocalNotificationTap`, 9개 `_navigateToXxx` 메서드, `navigatorKey` 보유. `updateTokenAfterLogin`은 `FCMHandler`로 위임하는 thin delegator |
-| [UnifiedNotificationManager](lib/services/unified_notification_manager.dart) | 플랫폼 분기. 모바일은 `FCMHandler.notificationStream`, 웹은 `WebSocketHandler.notificationStream`을 구독해 단일 스트림으로 제공 |
+| [FCMHandler](lib/services/fcm_handler.dart) | **모바일 FCM 수신** 전담. 포그라운드 `onMessage` 리스너, `onMessageOpenedApp` (스트림 추가용), 토큰 관리 (`updateFCMToken` / `onTokenRefresh`), 상단 로컬 푸시 표시, unknown type fallback. 토큰 등록 시 `platform: 'android'\|'ios'` 명시 |
+| [WebFcmInit](lib/services/web_fcm_init.dart) | **웹 FCM 수신** 전담. `firebase_messaging` web으로 `getToken(vapidKey)` + 백엔드 등록 (`platform: 'web'`), `onMessage` 포그라운드 리스너, SW의 `notificationclick` postMessage 수신 → `dispatchByType`. dart:html 사용으로 conditional import (`web_fcm_init_stub.dart` if not html). VAPID 키는 `--dart-define=FCM_VAPID_KEY=...` 주입 |
+| [NotificationService](lib/services/notification_service.dart) | FCM **탭 네비게이션** 전담. `onMessageOpenedApp` (navigation용), `getInitialMessage`, `handleLocalNotificationTap`, `dispatchByType` 단일 진입점 (모든 클릭 경로가 여기 위임), `navigatorKey` 보유 |
+| [UnifiedNotificationManager](lib/services/unified_notification_manager.dart) | 플랫폼 분기. 모바일은 `FCMHandler.notificationStream`, 웹은 `WebFcmInit.notificationStream`을 구독해 단일 스트림으로 제공. 로그인/로그아웃 시 `updateTokenAfterLogin` / `deleteCurrentDeviceToken` 양쪽 모두 위임 |
 
 **라우팅 책임 분담 (계약 확정 2026-04-28)**
 
@@ -502,7 +522,7 @@ Windows에서는 `.git/hooks/pre-commit.cmd` 사용.
 - **data 키 추가는 허용** (프론트는 모르는 키 무시). 키 이름 변경/삭제는 changelog 필수.
 - **`data` 필드 타입 보증** (백엔드 확정): **항상 JSON object (Map)**. `null`은 올 수 없음 (백엔드가 송신 시 `{}`로 승격: `services/notification_service.py:112`). array도 올 수 없음 (전 호출 경로에서 dict 리터럴만 사용). 빈 `{}`는 정상 값. 프론트의 "Map일 때만 `relatedData`로 복사" 방어 로직은 유지하되, 실제로 그 분기가 탈 일은 없음.
 - 시스템 메시지 `pong` / `ping` / `connection_established`는 수신 시 NotificationModel로 변환하지 않고 조용히 무시.
-- **Unknown `type` fallback** ([lib/services/websocket_handler.dart](lib/services/websocket_handler.dart)): 프론트 매핑에 없는 타입을 받으면 silent drop하지 않고 로그 + 유저타입별 `systemNotice`로 승격해서 목록에 표시 (최소한 title/body는 전달). 백엔드가 신규 type을 추가했는데 프론트가 아직 못 따라간 경우의 safety-net.
+- **Unknown `type` fallback**: 프론트 매핑에 없는 타입을 받으면 silent drop하지 않고 로그 + 유저타입별 `systemNotice`로 승격해서 목록에 표시 (최소한 title/body는 전달). 백엔드가 신규 type을 추가했는데 프론트가 아직 못 따라간 경우의 safety-net. 모바일은 [FCMHandler._convertAndPublish](lib/services/fcm_handler.dart), 웹은 [WebFcmInit](lib/services/web_fcm_init.dart)의 `onMessage` 핸들러가 처리.
 
 ### FCM data 직렬화 규칙 (WebSocket과의 차이)
 - **WebSocket**: `data`가 원본 object 그대로 전달 (중첩 dict/list 사용 가능).

@@ -49,23 +49,30 @@
     }
   </script>
   <script>
-    // Service Worker 완전 해제 및 캐시 삭제
+    // SW 정리: firebase-messaging-sw.js (FCM Web Push용)는 보존, 그 외는 해제.
+    // PWA 캐싱 SW는 옛 버전 캐시 문제를 일으킬 수 있어 제거.
     if ('serviceWorker' in navigator) {
       navigator.serviceWorker.getRegistrations().then(function(registrations) {
         for (var registration of registrations) {
+          var scriptUrl = registration.active && registration.active.scriptURL;
+          if (scriptUrl && scriptUrl.indexOf('firebase-messaging-sw.js') !== -1) {
+            // FCM SW는 백그라운드 푸시 수신에 필요 — 보존
+            continue;
+          }
           registration.unregister().then(function(success) {
             if (success) {
-              console.log('[SW] Service Worker 해제 완료:', registration.scope);
+              console.log('[SW] Service Worker 해제:', registration.scope);
             }
           });
         }
       });
     }
+    // FCM SW 캐시는 유지하고 그 외 캐시만 삭제
     if ('caches' in window) {
       caches.keys().then(function(cacheNames) {
         cacheNames.forEach(function(cacheName) {
+          if (cacheName.indexOf('firebase') !== -1) return;
           caches.delete(cacheName);
-          console.log('[SW] 캐시 삭제:', cacheName);
         });
       });
     }

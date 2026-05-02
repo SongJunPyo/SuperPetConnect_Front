@@ -11,6 +11,7 @@ import '../utils/config.dart';
 import '../utils/kakao_postcode_stub.dart'
     if (dart.library.html) '../utils/kakao_postcode_web.dart';
 import '../services/auth_http_client.dart';
+import '../services/unified_notification_manager.dart';
 import '../utils/preferences_manager.dart';
 import '../utils/app_constants.dart';
 import '../providers/notification_provider.dart';
@@ -125,6 +126,14 @@ class _ProfileManagementState extends State<ProfileManagement> {
   Future<void> _logout() async {
     final token = await PreferencesManager.getAuthToken();
     final refreshToken = await PreferencesManager.getRefreshToken();
+
+    // FCM 토큰 백엔드에서 제거 (auth_token이 살아있을 때 호출 필수).
+    // 다른 디바이스(모바일 등) 토큰은 유지 — DELETE는 현재 디바이스 행만 삭제.
+    try {
+      await UnifiedNotificationManager.instance.deleteCurrentDeviceToken();
+    } catch (_) {
+      // 토큰 삭제 실패해도 로그아웃은 계속 (BE의 자동 정리에 의존)
+    }
 
     // 로컬 데이터 먼저 삭제 (서버 호출 결과와 관계없이 확실히 로그아웃)
     await PreferencesManager.clearAll();
