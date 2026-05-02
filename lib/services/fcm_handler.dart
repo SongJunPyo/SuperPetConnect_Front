@@ -73,12 +73,19 @@ class FCMHandler {
     }
   }
 
-  /// FCM 토큰 서버 전송
+  /// FCM 토큰 서버 전송 — platform 필드 명시 (BE [B] sync, 2026-05-02).
+  ///
+  /// BE의 fcm_tokens 테이블이 (account_idx, platform) 단위로 토큰을 분리 저장.
+  /// platform 누락 시 BE는 1주 과도기 default 'android' 처리하지만 FE는 명시 송신.
+  /// 본 함수는 initialize()가 kIsWeb로 가드되어 모바일 전용 흐름에서만 호출됨.
   Future<void> _sendTokenToServer(String token) async {
     try {
       final authToken = (await PreferencesManager.getAuthToken()) ?? '';
 
       if (authToken.isEmpty) return;
+
+      final platform =
+          defaultTargetPlatform == TargetPlatform.iOS ? 'ios' : 'android';
 
       await http.post(
         Uri.parse('${Config.serverUrl}/api/user/fcm-token'),
@@ -86,7 +93,10 @@ class FCMHandler {
           'Authorization': 'Bearer $authToken',
           'Content-Type': 'application/json',
         },
-        body: jsonEncode({'fcm_token': token}),
+        body: jsonEncode({
+          'fcm_token': token,
+          'platform': platform,
+        }),
       );
     } catch (e) {
       // FCM 토큰 서버 전송 오류 무시
