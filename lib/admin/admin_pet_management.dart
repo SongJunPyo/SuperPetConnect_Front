@@ -4,16 +4,25 @@ import '../utils/app_theme.dart';
 import '../utils/app_constants.dart';
 import '../utils/config.dart';
 import '../utils/api_endpoints.dart';
+import '../utils/pet_field_icons.dart';
+import '../utils/phone_formatter.dart';
 import '../services/auth_http_client.dart';
 import '../models/pet_model.dart';
 import '../widgets/app_search_bar.dart';
 import '../widgets/pagination_bar.dart';
 import '../widgets/pet_profile_image.dart';
+import '../widgets/pet_status_row.dart';
 
 /// 관리자 반려동물 관리 페이지
 /// 반려동물 승인/거절 및 상태별 필터링
 class AdminPetManagement extends StatefulWidget {
-  const AdminPetManagement({super.key});
+  /// 알림 진입 시 자동으로 상세 시트를 열 펫 pet_idx.
+  /// 승인 대기 탭(0)의 fetched 리스트에서 매칭 후 _showPetDetailSheet 자동 호출.
+  /// pet_review_request / new_pet_registration / pet_profile_image_review_request
+  /// 알림은 모두 승인 대기 탭에 노출되므로 탭 0 fetch만으로 커버됨.
+  final int? initialPetIdx;
+
+  const AdminPetManagement({super.key, this.initialPetIdx});
 
   @override
   State<AdminPetManagement> createState() => _AdminPetManagementState();
@@ -31,6 +40,11 @@ class _AdminPetManagementState extends State<AdminPetManagement>
   int _selectedStatus = 0; // 기본: 승인 대기
   String _searchQuery = '';
 
+  // initState에서 시작한 첫 fetch를 await할 수 있도록 보관.
+  // _maybeAutoOpenDetailSheet가 별도 _fetchPets()를 또 호출하면 두 fetch가 race되어
+  // 늦게 끝나는 setState가 모달 시트 표시 직후 호출되며, 웹에서 시트가 영향을 받는다.
+  Future<void>? _initialFetchFuture;
+
   @override
   void initState() {
     super.initState();
@@ -44,7 +58,52 @@ class _AdminPetManagementState extends State<AdminPetManagement>
         _fetchPets();
       }
     });
-    _fetchPets();
+    _initialFetchFuture = _fetchPets();
+
+    if (widget.initialPetIdx != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _maybeAutoOpenDetailSheet();
+      });
+    }
+  }
+
+  /// 알림 진입 시 첫 fetch 완료 후 매칭 펫의 상세 시트 자동 오픈.
+  ///
+  /// 알림(`new_pet_registration` 등)은 등록 시점에는 PENDING이지만, admin이 알림
+  /// 클릭 전에 이미 승인/거절했을 수 있어 PENDING 탭에 없을 수 있다. 이 경우
+  /// 승인됨/거절됨 탭으로 fallback 검색해 시트를 열어준다.
+  Future<void> _maybeAutoOpenDetailSheet() async {
+    await _initialFetchFuture;
+    if (!mounted) return;
+    final id = widget.initialPetIdx;
+    if (id == null) return;
+
+    // 1) PENDING 탭(기본)에서 매칭
+    var adminPet = _pets.where((p) => p.pet.petIdx == id).firstOrNull;
+    if (adminPet != null) {
+      _showPetDetailSheet(adminPet);
+      return;
+    }
+
+    // 2) 이미 처리된 케이스 — 승인됨(1) / 거절됨(2) 탭 순회
+    for (final status in const [1, 2]) {
+      if (!mounted) return;
+      setState(() {
+        _selectedStatus = status;
+        _currentPage = 1;
+      });
+      await _fetchPets();
+      if (!mounted) return;
+      adminPet = _pets.where((p) => p.pet.petIdx == id).firstOrNull;
+      if (adminPet != null) {
+        // 탭 UI 동기화 (listener가 한 번 더 _fetchPets를 호출하지만 동일 status라 무해)
+        _tabController.index = status;
+        _showPetDetailSheet(adminPet);
+        return;
+      }
+    }
+    // 모든 탭에서 못 찾으면 펫이 삭제됐거나 페이지 범위 밖 — silent fail.
+    // 반려동물 관리 화면에는 진입했으므로 사용자가 수동 조회 가능.
   }
 
   @override
@@ -329,6 +388,101 @@ class _AdminPetManagementState extends State<AdminPetManagement>
     }
   }
 
+  /// 정보+사진 통합 승인 — 펜딩된 워크플로우만 순차 호출.
+  Future<void> _approveAll(_AdminPet adminPet) async {
+    final petIdx = adminPet.pet.petIdx;
+    if (petIdx == null) return;
+    if (adminPet.hasInfoReview) {
+      await _approvePet(petIdx);
+    }
+    if (adminPet.hasPhotoReview) {
+      await _approvePhoto(petIdx);
+    }
+  }
+
+  /// 정보+사진 통합 거절 시트 — 단일 사유를 펜딩된 양쪽 워크플로우에 모두 전달.
+  void _showUnifiedRejectSheet(_AdminPet adminPet) {
+    final petIdx = adminPet.pet.petIdx;
+    if (petIdx == null) return;
+    final reasonController = TextEditingController();
+    final petName = adminPet.pet.name;
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => Padding(
+        padding: EdgeInsets.only(
+          bottom: MediaQuery.of(context).viewInsets.bottom,
+        ),
+        child: Container(
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+          ),
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Text(
+                    '거절',
+                    style:
+                        AppTheme.h3Style.copyWith(fontWeight: FontWeight.bold),
+                  ),
+                  const Spacer(),
+                  IconButton(
+                    onPressed: () => Navigator.pop(context),
+                    icon: const Icon(Icons.close),
+                  ),
+                ],
+              ),
+              const SizedBox(height: AppTheme.spacing8),
+              Text(petName, style: AppTheme.h4Style),
+              const SizedBox(height: AppTheme.spacing16),
+              TextField(
+                controller: reasonController,
+                maxLines: 3,
+                decoration: const InputDecoration(
+                  hintText: '거절 사유를 입력해주세요 (선택사항)',
+                  border: OutlineInputBorder(),
+                ),
+              ),
+              const SizedBox(height: AppTheme.spacing16),
+              SizedBox(
+                width: double.infinity,
+                height: 48,
+                child: OutlinedButton(
+                  onPressed: () async {
+                    final reason = reasonController.text.trim();
+                    Navigator.pop(context);
+                    if (adminPet.hasInfoReview) {
+                      await _rejectPet(petIdx, reason);
+                    }
+                    if (adminPet.hasPhotoReview) {
+                      await _rejectPhoto(petIdx, reason);
+                    }
+                  },
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: AppTheme.error,
+                    side: const BorderSide(color: AppTheme.error),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(AppTheme.radius12),
+                    ),
+                  ),
+                  child: const Text('거절 확인',
+                      style: TextStyle(fontWeight: FontWeight.w600)),
+                ),
+              ),
+              const SizedBox(height: AppTheme.spacing8),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   void _showRejectSheet(int petIdx, String petName) {
     final reasonController = TextEditingController();
     showModalBottomSheet(
@@ -388,82 +542,6 @@ class _AdminPetManagementState extends State<AdminPetManagement>
                     ),
                   ),
                   child: const Text('거절 확인', style: TextStyle(fontWeight: FontWeight.w600)),
-                ),
-              ),
-              const SizedBox(height: AppTheme.spacing8),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  /// 사진 검토 거절 시트. 사유 텍스트 필드 + 거절 확인 버튼.
-  void _showPhotoRejectSheet(int petIdx, String petName) {
-    final reasonController = TextEditingController();
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (context) => Padding(
-        padding: EdgeInsets.only(
-          bottom: MediaQuery.of(context).viewInsets.bottom,
-        ),
-        child: Container(
-          decoration: const BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-          ),
-          padding: const EdgeInsets.all(20),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Text(
-                    '프로필 사진 거절',
-                    style: AppTheme.h3Style.copyWith(fontWeight: FontWeight.bold),
-                  ),
-                  const Spacer(),
-                  IconButton(
-                    onPressed: () => Navigator.pop(context),
-                    icon: const Icon(Icons.close),
-                  ),
-                ],
-              ),
-              const SizedBox(height: AppTheme.spacing8),
-              Text(petName, style: AppTheme.h4Style),
-              const SizedBox(height: AppTheme.spacing16),
-              TextField(
-                controller: reasonController,
-                maxLines: 3,
-                decoration: const InputDecoration(
-                  hintText: '거절 사유를 입력해주세요 (선택사항)\n(예: 사진이 흐립니다, 다른 동물의 사진입니다)',
-                  border: OutlineInputBorder(),
-                ),
-              ),
-              const SizedBox(height: AppTheme.spacing16),
-              SizedBox(
-                width: double.infinity,
-                height: 48,
-                child: OutlinedButton(
-                  onPressed: () {
-                    final reason = reasonController.text.trim();
-                    Navigator.pop(context);
-                    _rejectPhoto(petIdx, reason);
-                  },
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: AppTheme.error,
-                    side: const BorderSide(color: AppTheme.error),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(AppTheme.radius12),
-                    ),
-                  ),
-                  child: const Text(
-                    '거절 확인',
-                    style: TextStyle(fontWeight: FontWeight.w600),
-                  ),
                 ),
               ),
               const SizedBox(height: AppTheme.spacing8),
@@ -582,35 +660,167 @@ class _AdminPetManagementState extends State<AdminPetManagement>
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // 보호자 정보
-                    _buildDetailRow('보호자', adminPet.ownerName),
-                    _buildDetailRow('닉네임', adminPet.ownerNickname),
-                    _buildDetailRow('이메일', adminPet.ownerEmail),
+                    // 보호자 정보 — 아이콘은 PetFieldIcons 단일 진실.
+                    _buildDetailRow(
+                      icon: PetFieldIcons.userName,
+                      label: '보호자',
+                      value: adminPet.ownerName,
+                    ),
+                    _buildDetailRow(
+                      icon: PetFieldIcons.nickname,
+                      label: '닉네임',
+                      value: adminPet.ownerNickname,
+                    ),
+                    _buildDetailRow(
+                      icon: PetFieldIcons.email,
+                      label: '이메일',
+                      value: adminPet.ownerEmail,
+                    ),
+                    _buildDetailRow(
+                      icon: PetFieldIcons.phone,
+                      label: '연락처',
+                      value: adminPet.ownerPhone.isNotEmpty
+                          ? formatPhoneNumber(adminPet.ownerPhone)
+                          : null,
+                      statusIcon: adminPet.ownerPhone.isEmpty
+                          ? Icons.cancel_outlined
+                          : null,
+                    ),
                     // 사진 변경 요청 (있을 때만): 큼직한 좌우 비교
                     if (adminPet.hasPhotoReview) ...[
                       const Divider(),
                       _buildPhotoReviewSection(pet, adminPet.pendingProfileImage),
                     ],
                     const Divider(),
-                    // 반려동물 기본 정보
-                    _buildDetailRow('종', pet.species),
-                    _buildDetailRow('품종', pet.breed ?? '-'),
-                    _buildDetailRow('혈액형', pet.bloodType ?? '-'),
-                    _buildDetailRow('생년월일', pet.birthDateWithAge),
-                    _buildDetailRow('몸무게', '${pet.weightKg}kg',
-                        isWarning: pet.weightKg < 1),
-                    _buildDetailRow('성별', pet.sex == 0 ? '암컷' : '수컷'),
+                    // 펫 정보 표시 순서 (회원가입 관리와 정합, 2026-05-02 확정):
+                    // 종류 → 품종 → 성별 → 혈액형 → 체중 → 생년월일 → 최근 헌혈일 →
+                    // 접종 → 예방약 → 중성화 → 질병 → 임신/출산
+                    // (이름은 시트 헤더에 이미 표시되어 detail 행에서 제외)
                     _buildDetailRow(
-                      '임신/출산',
-                      _formatPregnancyBirth(pet),
-                      isWarning: pet.isPregnant,
+                      icon: PetFieldIcons.species,
+                      label: '종류',
+                      value: pet.species,
                     ),
-                    const Divider(),
-                    // 건강 정보
-                    _buildBoolRow('백신 접종', pet.vaccinated, failIfFalse: true),
-                    _buildBoolRow('질병 이력', pet.hasDisease, failIfTrue: true),
-                    _buildBoolRow('중성화', pet.isNeutered),
-                    _buildBoolRow('예방약 복용', pet.hasPreventiveMedication, failIfFalse: true),
+                    if (pet.breed?.isNotEmpty == true)
+                      _buildDetailRow(
+                        icon: PetFieldIcons.breed,
+                        label: '품종',
+                        value: pet.breed,
+                      )
+                    else
+                      const PetStatusRow(
+                        icon: PetFieldIcons.breed,
+                        label: '품종',
+                        labelWidth: 90,
+                        status: PetStatusType.neutral,
+                      ),
+                    _buildDetailRow(
+                      icon: PetFieldIcons.sex(pet.sex),
+                      label: '성별',
+                      value: pet.sex == 0 ? '암컷' : '수컷',
+                    ),
+                    if (pet.bloodType != null)
+                      _buildDetailRow(
+                        icon: PetFieldIcons.bloodType,
+                        label: '혈액형',
+                        value: pet.bloodType,
+                      )
+                    else
+                      const PetStatusRow(
+                        icon: PetFieldIcons.bloodType,
+                        label: '혈액형',
+                        labelWidth: 90,
+                        status: PetStatusType.neutral,
+                      ),
+                    _buildDetailRow(
+                      icon: PetFieldIcons.weight,
+                      label: '체중',
+                      value: '${pet.weightKg}kg',
+                      isWarning: pet.weightKg < 1,
+                    ),
+                    // 생년월일: 미입력 시 주황 ⚠ (정보 미입력 = 주의)
+                    if (pet.birthDate != null)
+                      _buildDetailRow(
+                        icon: PetFieldIcons.birthDate,
+                        label: '생년월일',
+                        value: pet.birthDateWithAge,
+                      )
+                    else
+                      const PetStatusRow(
+                        icon: PetFieldIcons.birthDate,
+                        label: '생년월일',
+                        labelWidth: 90,
+                        status: PetStatusType.warning,
+                      ),
+                    // 최근 헌혈일: 미입력 시 회색 — (첫 헌혈 = 자연스러운 부재)
+                    if (pet.prevDonationDate != null)
+                      _buildDetailRow(
+                        icon: PetFieldIcons.prevDonationDate,
+                        label: '최근 헌혈일',
+                        value:
+                            '${pet.prevDonationDate!.year}.${pet.prevDonationDate!.month.toString().padLeft(2, '0')}.${pet.prevDonationDate!.day.toString().padLeft(2, '0')}',
+                      )
+                    else
+                      const PetStatusRow(
+                        icon: PetFieldIcons.prevDonationDate,
+                        label: '최근 헌혈일',
+                        labelWidth: 90,
+                        status: PetStatusType.neutral,
+                      ),
+                    // 건강 정보 — 4단계 상태 시스템 (PetStatusRow 단일 진실).
+                    // 펫 기본 정보와 같은 그룹이라 divider 없이 이어서 표시.
+                    PetStatusRow(
+                      icon: PetFieldIcons.vaccinated,
+                      label: '접종',
+                      labelWidth: 90,
+                      status: pet.vaccinated == true
+                          ? PetStatusType.positive
+                          : PetStatusType.critical,
+                    ),
+                    PetStatusRow(
+                      icon: PetFieldIcons.medication,
+                      label: '예방약',
+                      labelWidth: 90,
+                      status: pet.hasPreventiveMedication == true
+                          ? PetStatusType.positive
+                          : PetStatusType.critical,
+                    ),
+                    PetStatusRow(
+                      icon: PetFieldIcons.isNeutered,
+                      label: '중성화',
+                      labelWidth: 90,
+                      status: pet.isNeutered == true
+                          ? PetStatusType.positive
+                          : PetStatusType.neutral,
+                    ),
+                    PetStatusRow(
+                      icon: PetFieldIcons.hasDisease,
+                      label: '질병',
+                      labelWidth: 90,
+                      status: pet.hasDisease == true
+                          ? PetStatusType.critical
+                          : PetStatusType.neutral,
+                    ),
+                    // 임신/출산 (마지막):
+                    //   status=2 + 종료일 → 텍스트 "출산 YYYY.MM.DD"
+                    //   status=1(임신중) → 주황 ⚠
+                    //   status=0(해당없음) → 회색 —
+                    if (pet.pregnancyBirthStatus == 2 &&
+                        pet.lastPregnancyEndDate != null)
+                      _buildDetailRow(
+                        icon: PetFieldIcons.pregnancyBirth,
+                        label: '임신/출산',
+                        value: _formatPregnancyBirth(pet),
+                      )
+                    else
+                      PetStatusRow(
+                        icon: PetFieldIcons.pregnancyBirth,
+                        label: '임신/출산',
+                        labelWidth: 90,
+                        status: pet.pregnancyBirthStatus == 1
+                            ? PetStatusType.warning
+                            : PetStatusType.neutral,
+                      ),
                     if (adminPet.isReview && adminPet.previousValues != null && adminPet.previousValues!.isNotEmpty) ...[
                       const SizedBox(height: AppTheme.spacing16),
                       _buildChangeHistoryCard(pet, adminPet.previousValues!),
@@ -620,39 +830,29 @@ class _AdminPetManagementState extends State<AdminPetManagement>
                     ],
                     if (pet.rejectionReason != null) ...[
                       const Divider(),
-                      _buildDetailRow('이전 거절 사유', pet.rejectionReason!),
+                      _buildDetailRow(
+                        icon: PetFieldIcons.userStatus,
+                        label: '이전 거절 사유',
+                        value: pet.rejectionReason!,
+                      ),
                     ],
                   ],
                 ),
               ),
             ),
-            // 결정 버튼: 정보/사진 검토를 분리해 각각 승인/거절 가능
-            // (백엔드 contract: 두 워크플로우는 별개 결정 단위)
-            if (adminPet.hasInfoReview) ...[
+            // 결정 버튼: 정보/사진 검토를 한 번에 처리하는 단일 거절/승인.
+            // 백엔드는 여전히 별개 endpoint이지만 UX를 단순화 — 승인은 양쪽 모두
+            // 호출, 거절은 단일 사유로 양쪽에 전달.
+            if (adminPet.hasInfoReview || adminPet.hasPhotoReview) ...[
               const SizedBox(height: AppTheme.spacing16),
               _buildDecisionRow(
-                label: adminPet.hasPhotoReview ? '정보' : null,
                 onReject: () {
                   Navigator.pop(context);
-                  _showRejectSheet(pet.petIdx!, pet.name);
+                  _showUnifiedRejectSheet(adminPet);
                 },
                 onApprove: () {
                   Navigator.pop(context);
-                  _approvePet(pet.petIdx!);
-                },
-              ),
-            ],
-            if (adminPet.hasPhotoReview) ...[
-              const SizedBox(height: AppTheme.spacing8),
-              _buildDecisionRow(
-                label: adminPet.hasInfoReview ? '사진' : '사진',
-                onReject: () {
-                  Navigator.pop(context);
-                  _showPhotoRejectSheet(pet.petIdx!, pet.name);
-                },
-                onApprove: () {
-                  Navigator.pop(context);
-                  _approvePhoto(pet.petIdx!);
+                  _approveAll(adminPet);
                 },
               ),
             ],
@@ -683,28 +883,41 @@ class _AdminPetManagementState extends State<AdminPetManagement>
     }
   }
 
-  /// 임신/출산 상태 표시 텍스트 (CLAUDE.md PregnancyBirthStatus 미러)
-  String _formatPregnancyBirth(Pet pet) {
+  /// 임신/출산 상태 표시 텍스트 (CLAUDE.md PregnancyBirthStatus 미러).
+  /// 해당없음(0) / 출산이력 종료일 미입력은 null 반환 → X 아이콘으로 대체.
+  String? _formatPregnancyBirth(Pet pet) {
     switch (pet.pregnancyBirthStatus) {
       case 1:
         return '임신중';
       case 2:
-        if (pet.lastPregnancyEndDate == null) return '출산 이력 (종료일 미입력)';
+        if (pet.lastPregnancyEndDate == null) return null;
         final d = pet.lastPregnancyEndDate!;
         return '출산 ${d.year}.${d.month.toString().padLeft(2, '0')}.${d.day.toString().padLeft(2, '0')}';
       default:
-        return '해당 없음';
+        return null;
     }
   }
 
-  Widget _buildDetailRow(String label, String value, {bool isWarning = false}) {
+  /// 라벨 좌측 아이콘 + 라벨 + (선택적) 상태 아이콘 + (선택적) 값 텍스트.
+  /// [value]가 null이면 텍스트는 그리지 않고 [statusIcon]만 노출 — "나이 미상/
+  /// 해당 없음" 등 부재 상태를 텍스트 대신 X 아이콘으로 대체하기 위함.
+  Widget _buildDetailRow({
+    required IconData icon,
+    required String label,
+    String? value,
+    IconData? statusIcon,
+    Color? statusColor,
+    bool isWarning = false,
+  }) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4),
+      padding: const EdgeInsets.symmetric(vertical: 6),
       child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
+          Icon(icon, size: 18, color: AppTheme.textSecondary),
+          const SizedBox(width: 10),
           SizedBox(
-            width: 100,
+            width: 90,
             child: Text(
               label,
               style: TextStyle(
@@ -714,54 +927,32 @@ class _AdminPetManagementState extends State<AdminPetManagement>
             ),
           ),
           Expanded(
-            child: Text(
-              value,
-              style: TextStyle(
-                fontSize: AppTheme.bodyMedium,
-                color: isWarning ? AppTheme.error : AppTheme.textPrimary,
-                fontWeight: isWarning ? FontWeight.w600 : FontWeight.normal,
-              ),
+            child: Row(
+              children: [
+                if (statusIcon != null) ...[
+                  Icon(
+                    statusIcon,
+                    size: 18,
+                    color: statusColor ?? AppTheme.textTertiary,
+                  ),
+                  if (value != null) const SizedBox(width: 6),
+                ],
+                if (value != null)
+                  Expanded(
+                    child: Text(
+                      value,
+                      style: TextStyle(
+                        fontSize: AppTheme.bodyMedium,
+                        color:
+                            isWarning ? AppTheme.error : AppTheme.textPrimary,
+                        fontWeight:
+                            isWarning ? FontWeight.w600 : FontWeight.normal,
+                      ),
+                    ),
+                  ),
+              ],
             ),
           ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildBoolRow(String label, bool? value, {bool failIfTrue = false, bool failIfFalse = false}) {
-    final bool isWarning;
-    if (value == null) {
-      isWarning = false;
-    } else {
-      isWarning = (failIfTrue && value) || (failIfFalse && !value);
-    }
-
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4),
-      child: Row(
-        children: [
-          SizedBox(
-            width: 100,
-            child: Text(
-              label,
-              style: TextStyle(
-                color: isWarning ? AppTheme.error : AppTheme.textSecondary,
-                fontSize: AppTheme.bodyMedium,
-              ),
-            ),
-          ),
-          if (value == null)
-            const Text('-', style: TextStyle(fontSize: AppTheme.bodyMedium, color: AppTheme.textTertiary))
-          else
-            Icon(
-              value ? Icons.check_circle : Icons.cancel,
-              size: 18,
-              color: isWarning
-                  ? AppTheme.error
-                  : value
-                      ? AppTheme.success
-                      : AppTheme.textTertiary,
-            ),
         ],
       ),
     );
@@ -981,50 +1172,14 @@ class _AdminPetManagementState extends State<AdminPetManagement>
   }
 
   /// 변경 내역 행 좌측 아이콘 매핑 (필드 키 → IconData).
-  IconData _iconForField(String key) {
-    switch (key) {
-      case 'name':
-        return Icons.badge_outlined;
-      case 'species':
-        return Icons.pets;
-      case 'breed':
-        return Icons.category_outlined;
-      case 'birth_date':
-        return Icons.cake_outlined;
-      case 'blood_type':
-        return Icons.bloodtype_outlined;
-      case 'weight_kg':
-        return Icons.monitor_weight;
-      case 'sex':
-        return Icons.wc_outlined;
-      case 'pregnancy_birth_status':
-        return Icons.favorite_outline;
-      case 'last_pregnancy_end_date':
-        return Icons.event_outlined;
-      case 'vaccinated':
-        return Icons.vaccines_outlined;
-      case 'has_disease':
-        return Icons.local_hospital_outlined;
-      case 'is_neutered':
-        return Icons.healing_outlined;
-      case 'neutered_date':
-        return Icons.event_outlined;
-      case 'has_preventive_medication':
-        return Icons.medication_outlined;
-      default:
-        return Icons.edit_outlined;
-    }
-  }
+  /// PetFieldIcons.forField에 위임 — 매핑은 단일 진실에서 관리.
+  IconData _iconForField(String key) => PetFieldIcons.forField(key);
 
-  /// 거절/승인 버튼 한 줄. [label]이 있으면 "정보 거절" / "사진 승인" 등
-  /// 어떤 검토를 처리하는지 명시 (정보+사진 동시 검토 시 구분용).
+  /// 거절/승인 단일 버튼 행 — 정보+사진 검토를 한 번에 처리.
   Widget _buildDecisionRow({
-    required String? label,
     required VoidCallback onReject,
     required VoidCallback onApprove,
   }) {
-    final rejectText = label == null ? '거절' : '$label 거절';
-    final approveText = label == null ? '승인' : '$label 승인';
     return Row(
       children: [
         Expanded(
@@ -1039,9 +1194,9 @@ class _AdminPetManagementState extends State<AdminPetManagement>
                   borderRadius: BorderRadius.circular(AppTheme.radius12),
                 ),
               ),
-              child: Text(
-                rejectText,
-                style: const TextStyle(fontWeight: FontWeight.w600),
+              child: const Text(
+                '거절',
+                style: TextStyle(fontWeight: FontWeight.w600),
               ),
             ),
           ),
@@ -1059,9 +1214,9 @@ class _AdminPetManagementState extends State<AdminPetManagement>
                   borderRadius: BorderRadius.circular(AppTheme.radius12),
                 ),
               ),
-              child: Text(
-                approveText,
-                style: const TextStyle(fontWeight: FontWeight.w600),
+              child: const Text(
+                '승인',
+                style: TextStyle(fontWeight: FontWeight.w600),
               ),
             ),
           ),
@@ -1178,6 +1333,30 @@ class _AdminPetManagementState extends State<AdminPetManagement>
                   ),
                 ),
               ],
+              // 카드 하단 중앙 "더보기" 버튼 — 카드 자체 onTap과 별도로 명시적
+              // 진입 핫스팟. 신청자 카드와 동일 패턴.
+              const SizedBox(height: AppTheme.spacing4),
+              Center(
+                child: TextButton(
+                  onPressed: () => _showPetDetailSheet(adminPet),
+                  style: TextButton.styleFrom(
+                    foregroundColor: AppTheme.textSecondary,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 24,
+                      vertical: 4,
+                    ),
+                    minimumSize: Size.zero,
+                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  ),
+                  child: const Text(
+                    '더보기',
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ),
             ],
           ),
         ),
@@ -1187,13 +1366,20 @@ class _AdminPetManagementState extends State<AdminPetManagement>
 
   /// 카드에 표시할 검토 종류 뱃지 목록.
   /// - hasInfoReview + isReview=false → [신규]
-  /// - hasInfoReview + isReview=true  → [정보 수정]
+  /// - hasInfoReview + isReview=true + previousValues 비어있지 않음 → [정보 수정]
+  ///   (실제 변경 내역이 없으면 "정보 수정" 뱃지를 숨겨 혼란 방지 — 백엔드가
+  ///    isReview=true로 표시했더라도 previousValues가 비어 있으면 사용자가
+  ///    인지 가능한 변경이 없음)
   /// - hasPhotoReview                 → [사진 변경]
   List<Widget> _buildReviewBadges(_AdminPet adminPet) {
     final badges = <Widget>[];
     if (adminPet.hasInfoReview) {
       if (adminPet.isReview) {
-        badges.add(_buildBadge('정보 수정', AppTheme.warning));
+        final hasChanges = adminPet.previousValues != null &&
+            adminPet.previousValues!.isNotEmpty;
+        if (hasChanges) {
+          badges.add(_buildBadge('정보 수정', AppTheme.warning));
+        }
       } else {
         badges.add(_buildBadge('신규', AppTheme.primaryBlue));
       }
@@ -1280,14 +1466,6 @@ class _AdminPetManagementState extends State<AdminPetManagement>
                   ),
                 ),
               ],
-            ),
-          ),
-          const Spacer(),
-          const Text(
-            '탭하여 자세히',
-            style: TextStyle(
-              fontSize: 10,
-              color: AppTheme.textTertiary,
             ),
           ),
         ],
@@ -1407,6 +1585,7 @@ class _AdminPet {
   final String ownerName;
   final String ownerNickname;
   final String ownerEmail;
+  final String ownerPhone;
 
   // 정보 검토
   final bool hasInfoReview;
@@ -1422,6 +1601,7 @@ class _AdminPet {
     required this.ownerName,
     required this.ownerNickname,
     required this.ownerEmail,
+    required this.ownerPhone,
     required this.hasInfoReview,
     required this.isReview,
     this.previousValues,
@@ -1438,6 +1618,7 @@ class _AdminPet {
       ownerName: owner['name'] ?? '',
       ownerNickname: owner['nickname'] ?? '',
       ownerEmail: owner['email'] ?? '',
+      ownerPhone: owner['phone_number'] ?? '',
       // 정보 검토는 PENDING(0) 상태에서만 결정 대상. 승인/거절 탭의 펫은
       // 이미 결정된 상태이므로 결정 버튼/배지 노출 안 함 (PopupMenu의
       // "거절로 변경" / "승인 대기로 변경"으로 상태 전환은 가능).
@@ -1457,6 +1638,7 @@ class _AdminPet {
       ownerName: owner['name'] ?? '',
       ownerNickname: owner['nickname'] ?? '',
       ownerEmail: owner['email'] ?? '',
+      ownerPhone: owner['phone_number'] ?? '',
       hasInfoReview: false,
       isReview: false,
       previousValues: null,
@@ -1473,6 +1655,7 @@ class _AdminPet {
       ownerNickname:
           ownerNickname.isNotEmpty ? ownerNickname : other.ownerNickname,
       ownerEmail: ownerEmail.isNotEmpty ? ownerEmail : other.ownerEmail,
+      ownerPhone: ownerPhone.isNotEmpty ? ownerPhone : other.ownerPhone,
       hasInfoReview: hasInfoReview || other.hasInfoReview,
       isReview: isReview || other.isReview,
       previousValues: previousValues ?? other.previousValues,
@@ -1484,19 +1667,19 @@ class _AdminPet {
   /// 필드명 한글 매핑
   static const Map<String, String> fieldNameMap = {
     'name': '이름',
-    'species': '종',
+    'species': '종류',
     'breed': '품종',
     'birth_date': '생년월일',
     'blood_type': '혈액형',
-    'weight_kg': '몸무게',
+    'weight_kg': '체중',
     'sex': '성별',
     'pregnancy_birth_status': '임신/출산',
     'last_pregnancy_end_date': '출산 종료일',
-    'vaccinated': '백신 접종',
-    'has_disease': '질병 여부',
-    'is_neutered': '중성화 여부',
-    'neutered_date': '중성화 수술일',
-    'has_preventive_medication': '예방약 복용',
+    'vaccinated': '접종',
+    'has_disease': '질병',
+    'is_neutered': '중성화',
+    'neutered_date': '중성화 일자',
+    'has_preventive_medication': '예방약',
   };
 
   /// Boolean 필드 목록
