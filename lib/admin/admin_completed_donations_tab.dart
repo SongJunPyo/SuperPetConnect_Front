@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 
 import '../models/applied_donation_model.dart';
 import '../services/auth_http_client.dart';
+import '../utils/api_endpoints.dart';
 import '../utils/app_constants.dart';
 import '../utils/app_theme.dart';
 import '../utils/config.dart';
@@ -94,7 +95,7 @@ class AdminCompletedDonationsTabState
 
     try {
       final apiUrl =
-          '${Config.serverUrl}/api/applied_donation/admin/by-status/${AppliedDonationStatus.completed}';
+          '${Config.serverUrl}${ApiEndpoints.appliedDonationAdminByStatus(AppliedDonationStatus.completed)}';
       final response = await AuthHttpClient.get(Uri.parse(apiUrl));
 
       if (response.statusCode == 200) {

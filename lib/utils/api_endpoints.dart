@@ -88,7 +88,7 @@ class ApiEndpoints {
   static String hospitalPostApplications(int postIdx) =>
       '$hospitalPosts/$postIdx/applications';
 
-  /// 신청 상태 업데이트: /api/applied_donation/{idx}/status
+  /// 신청 상태 업데이트: /api/applied-donations/{idx}/status
   static String appliedDonationStatus(int idx) =>
       '$appliedDonation/$idx/status';
 
@@ -126,15 +126,15 @@ class ApiEndpoints {
   static const String donationPostTimesDateTime =
       '$donationPostTimes/date-time';
 
-  /// 특정 날짜의 시간대: /api/donation_post_times/date/{dateIdx}
+  /// 특정 날짜의 시간대: /api/donation-post-times/date/{dateIdx}
   static String donationPostTimesByDate(int dateIdx) =>
       '$donationPostTimes/date/$dateIdx';
 
-  /// 특정 시간대: /api/donation_post_times/{timeIdx}
+  /// 특정 시간대: /api/donation-post-times/{timeIdx}
   static String donationPostTime(int timeIdx) =>
       '$donationPostTimes/$timeIdx';
 
-  /// 게시물별 날짜-시간 조합: /api/donation_post_times/post/{postIdx}/dates-with-times
+  /// 게시물별 날짜-시간 조합: /api/donation-post-times/post/{postIdx}/dates-with-times
   static String donationPostTimesDatesWithTimes(int postIdx) =>
       '$donationPostTimes/post/$postIdx/dates-with-times';
 
@@ -147,19 +147,19 @@ class ApiEndpoints {
   static const String completedDonationMyPetsHistory =
       '$completedDonation/my-pets/history';
 
-  /// 게시물별 완료 목록: /api/completed_donation/post/{postIdx}/completions
+  /// 게시물별 완료 목록: /api/completed-donations/post/{postIdx}/completions
   static String completedDonationByPost(int postIdx) =>
       '$completedDonation/post/$postIdx/completions';
 
-  /// 완료 헌혈 상세: /api/completed_donation/{idx}
+  /// 완료 헌혈 상세: /api/completed-donations/{idx}
   static String completedDonationDetail(int idx) =>
       '$completedDonation/$idx';
 
-  /// 반려동물별 완료 이력: /api/completed_donation/pet/{petIdx}/history
+  /// 반려동물별 완료 이력: /api/completed-donations/pet/{petIdx}/history
   static String completedDonationByPet(int petIdx) =>
       '$completedDonation/pet/$petIdx/history';
 
-  /// 월별 통계: /api/completed_donation/stats/monthly/{year}/{month}
+  /// 월별 통계: /api/completed-donations/stats/monthly/{year}/{month}
   static String completedDonationMonthlyStats(int year, int month) =>
       '$completedDonation/stats/monthly/$year/$month';
 
@@ -167,22 +167,22 @@ class ApiEndpoints {
   static const String appliedDonationMyPets =
       '$appliedDonation/my-pets/applications';
 
-  /// 신청 상세: /api/applied_donation/{idx}
+  /// 신청 상세: /api/applied-donations/{idx}
   static String appliedDonationDetail(int idx) => '$appliedDonation/$idx';
 
-  /// 게시물별 신청 목록: /api/applied_donation/post/{postIdx}/applications
+  /// 게시물별 신청 목록: /api/applied-donations/post/{postIdx}/applications
   static String appliedDonationByPost(int postIdx) =>
       '$appliedDonation/post/$postIdx/applications';
 
-  /// 시간대별 신청 목록: /api/applied_donation/time-slot/{postTimesIdx}/applications
+  /// 시간대별 신청 목록: /api/applied-donations/time-slot/{postTimesIdx}/applications
   static String appliedDonationByTimeSlot(int postTimesIdx) =>
       '$appliedDonation/time-slot/$postTimesIdx/applications';
 
-  /// 게시물별 신청 통계: /api/applied_donation/post/{postIdx}/stats
+  /// 게시물별 신청 통계: /api/applied-donations/post/{postIdx}/stats
   static String appliedDonationPostStats(int postIdx) =>
       '$appliedDonation/post/$postIdx/stats';
 
-  /// 관리자 상태별 신청 조회: /api/applied_donation/admin/by-status/{status}
+  /// 관리자 상태별 신청 조회: /api/applied-donations/admin/by-status/{status}
   static String appliedDonationAdminByStatus(int status) =>
       '$appliedDonation/admin/by-status/$status';
 
@@ -236,7 +236,7 @@ class ApiEndpoints {
   static const String adminCompletedDonationCompleted =
       '$adminCompletedDonation/completed';
 
-  /// 완료 승인: /api/admin/completed_donation/approve-completion/{applicationId}
+  /// 완료 승인: /api/admin/completed-donations/approve-completion/{applicationId}
   static String adminCompletedDonationApprove(int applicationId) =>
       '$adminCompletedDonation/approve-completion/$applicationId';
 

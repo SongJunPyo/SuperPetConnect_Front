@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 
 import '../models/applied_donation_model.dart';
 import '../services/auth_http_client.dart';
+import '../utils/api_endpoints.dart';
 import '../utils/app_constants.dart';
 import '../utils/app_theme.dart';
 import '../utils/config.dart';
@@ -99,7 +100,7 @@ class AdminPendingCompletionsTabState
     try {
       // 1) PENDING_COMPLETION(2) — applied_donation 기반
       final apiUrl2 =
-          '${Config.serverUrl}/api/applied_donation/admin/by-status/${AppliedDonationStatus.pendingCompletion}';
+          '${Config.serverUrl}${ApiEndpoints.appliedDonationAdminByStatus(AppliedDonationStatus.pendingCompletion)}';
       final response2 = await AuthHttpClient.get(Uri.parse(apiUrl2));
 
       // 2) 모집마감(donation_posts.status=3) — 서버 측 search/date query 적용

@@ -9,7 +9,7 @@ import 'auth_http_client.dart';
 
 class DonationTimeService {
 
-  // 1. 특정 날짜의 시간들 조회 (GET /api/donation_post_times/date/{post_dates_idx})
+  // 1. 특정 날짜의 시간들 조회 (GET /api/donation-post-times/date/{post_dates_idx})
   static Future<List<DonationPostTime>> getTimesByDateIdx(
     int postDatesIdx,
   ) async {
@@ -29,7 +29,7 @@ class DonationTimeService {
     }
   }
 
-  // 2. 특정 시간 조회 (GET /api/donation_post_times/{post_times_idx})
+  // 2. 특정 시간 조회 (GET /api/donation-post-times/{post_times_idx})
   static Future<DonationPostTime?> getTimeById(int postTimesIdx) async {
     try {
       final response = await AuthHttpClient.get(
@@ -47,7 +47,7 @@ class DonationTimeService {
     }
   }
 
-  // 3. 단일 시간 등록 (POST /api/donation_post_times/)
+  // 3. 단일 시간 등록 (POST /api/donation-post-times/)
   static Future<DonationPostTime> addDonationTime(
     int postDatesIdx,
     DateTime donationTime,
@@ -72,7 +72,7 @@ class DonationTimeService {
     }
   }
 
-  // 4. 여러 시간 한번에 등록 (POST /api/donation_post_times/bulk)
+  // 4. 여러 시간 한번에 등록 (POST /api/donation-post-times/bulk)
   static Future<List<DonationPostTime>> addMultipleDonationTimes(
     int postDatesIdx,
     List<DateTime> donationTimes,
@@ -101,7 +101,7 @@ class DonationTimeService {
     }
   }
 
-  // 5. 날짜+시간 함께 생성 (POST /api/donation_post_times/date-time)
+  // 5. 날짜+시간 함께 생성 (POST /api/donation-post-times/date-time)
   static Future<DonationDateWithTimes> createDateWithTimes(
     int postIdx,
     DateTime donationDate,
@@ -129,7 +129,7 @@ class DonationTimeService {
     }
   }
 
-  // 6. 시간 수정 (PUT /api/donation_post_times/{post_times_idx})
+  // 6. 시간 수정 (PUT /api/donation-post-times/{post_times_idx})
   static Future<DonationPostTime> updateDonationTime(
     int postTimesIdx,
     DateTime newDonationTime,
@@ -151,7 +151,7 @@ class DonationTimeService {
     }
   }
 
-  // 7. 시간 삭제 (DELETE /api/donation_post_times/{post_times_idx})
+  // 7. 시간 삭제 (DELETE /api/donation-post-times/{post_times_idx})
   static Future<void> deleteDonationTime(int postTimesIdx) async {
     try {
       final response = await AuthHttpClient.delete(
@@ -166,7 +166,7 @@ class DonationTimeService {
     }
   }
 
-  // 8. 게시글의 모든 날짜+시간 조회 (GET /api/donation_post_times/post/{post_idx}/dates-with-times)
+  // 8. 게시글의 모든 날짜+시간 조회 (GET /api/donation-post-times/post/{post_idx}/dates-with-times)
   static Future<List<DonationDateWithTimes>> getPostDatesWithTimes(
     int postIdx,
   ) async {

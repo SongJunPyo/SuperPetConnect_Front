@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'dart:convert';
+import '../utils/api_endpoints.dart';
 import '../utils/config.dart';
 import '../utils/app_theme.dart';
 import '../utils/app_constants.dart';
@@ -357,7 +358,7 @@ class _AdminApprovedPostsScreenState extends State<AdminApprovedPostsScreen>
     try {
       final response = await AuthHttpClient.get(
         Uri.parse(
-          '${Config.serverUrl}/api/applied_donation/time-slot/$postTimesIdx/applications',
+          '${Config.serverUrl}${ApiEndpoints.appliedDonationByTimeSlot(postTimesIdx)}',
         ),
       );
 
