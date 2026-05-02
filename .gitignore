@@ -69,3 +69,16 @@ super_pet_backup.sql
 
 # Claude 로컬 설정
 .claude/settings.local.json
+
+명령어
+테스트.md
+
+# SSH 키 (저장소에 절대 커밋하지 말 것)
+051400
+051400.pub
+*.pem
+id_rsa*
+id_ed25519*
+
+# 배포 스크립트 (개인 작업 환경 의존, 서버 IP/경로 포함)
+deploy_web.ps1
