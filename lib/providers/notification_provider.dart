@@ -8,7 +8,6 @@ import '../services/notification_api_service.dart';
 import '../services/unified_notification_manager.dart';
 import '../services/notification_service.dart';
 import '../utils/preferences_manager.dart';
-import '../widgets/unified_notification_page.dart';
 // 웹 브라우저 알림 (조건부 import)
 import '../services/web_notification_helper_stub.dart'
     if (dart.library.html) '../services/web_notification_helper.dart';
@@ -249,12 +248,10 @@ class NotificationProvider extends ChangeNotifier {
       _updateAppBadge(_unreadCount);
       notifyListeners();
 
-      // 웹에서 알림 표시
+      // 웹에서 OS 알림 (브라우저 Notification API)
+      // 권한 거부 시 표시 안 됨 — 사용자는 알림 페이지 새로고침으로 확인
       if (kIsWeb) {
-        // 브라우저 알림 (윈도우 우측 하단)
         _showBrowserNotification(notification);
-        // 인앱 토스트 알림
-        _showToastNotification(notification);
       }
     }
   }
@@ -346,80 +343,23 @@ class NotificationProvider extends ChangeNotifier {
     WebNotificationHelper.showNotification(
       title: notification.title,
       body: notification.content,
+      onClick: () => _handleNotificationClick(notification),
     );
   }
 
-  /// 웹에서 토스트 알림 표시
-  void _showToastNotification(NotificationModel notification) {
-    final context = NotificationService.navigatorKey.currentContext;
-    if (context == null) return;
-
-    try {
-      final messenger = ScaffoldMessenger.of(context);
-      // 이전 알림 토스트가 있으면 즉시 제거
-      messenger.hideCurrentSnackBar();
-
-      final controller = messenger.showSnackBar(
-        SnackBar(
-          content: Row(
-            children: [
-              const Icon(Icons.notifications, color: Colors.white, size: 20),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      notification.title,
-                      style: const TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 14,
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      notification.content,
-                      style: const TextStyle(fontSize: 12),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-          backgroundColor: const Color(0xFF3182F6),
-          behavior: SnackBarBehavior.floating,
-          margin: const EdgeInsets.all(16),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-          duration: const Duration(seconds: 4),
-          action: SnackBarAction(
-            label: '보기',
-            textColor: Colors.white,
-            onPressed: () {
-              // 알림 페이지로 이동
-              Navigator.of(context).push(
-                MaterialPageRoute(
-                  builder: (_) => const UnifiedNotificationPage(),
-                ),
-              );
-            },
-          ),
-        ),
-      );
-
-      // 웹에서 action이 있는 SnackBar가 자동 dismiss 안 되는 문제 대응
-      if (kIsWeb) {
-        Timer(const Duration(seconds: 4), () {
-          try {
-            controller.close();
-          } catch (_) {}
-        });
-      }
-    } catch (_) {}
+  /// OS 알림 클릭 시 단일 처리.
+  /// 알림 목록에서 클릭한 경우와 동일한 dispatchByType 경로를 거치고 읽음 처리.
+  void _handleNotificationClick(NotificationModel notification) {
+    final rawType = notification.rawType;
+    if (rawType != null) {
+      NotificationService.dispatchByType(<String, dynamic>{
+        'type': rawType,
+        ...?notification.relatedData,
+      });
+    }
+    if (!notification.isRead) {
+      markAsRead(notification.notificationId);
+    }
   }
 
   /// FCM 알림을 Provider에 추가 (모바일에서 FCM 수신 시 호출)

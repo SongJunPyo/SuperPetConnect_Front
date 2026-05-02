@@ -6,15 +6,19 @@ import 'package:flutter_naver_login/flutter_naver_login.dart';
 import 'package:http/http.dart' as http;
 import 'package:provider/provider.dart';
 import '../admin/admin_column_management.dart';
+import '../admin/admin_dashboard.dart';
 import '../admin/admin_donation_approval_page.dart';
 import '../admin/admin_pet_management.dart';
 import '../admin/admin_post_check.dart';
 import '../admin/admin_signup_management.dart';
+import '../hospital/hospital_column_management_list.dart';
+import '../hospital/hospital_dashboard.dart';
 import '../hospital/hospital_post_check.dart';
 import '../providers/notification_provider.dart';
 import '../user/donation_history_screen.dart';
 import '../user/my_applications_screen.dart';
 import '../user/pet_management.dart';
+import '../user/user_dashboard.dart';
 import '../user/user_donation_posts_list.dart';
 import '../utils/config.dart';
 import '../utils/preferences_manager.dart';
@@ -34,253 +38,189 @@ class NotificationService {
     // 이 클래스는 알림 탭 시 네비게이션만 책임.
     await FCMHandler.instance.updateFCMToken();
 
-    // 백그라운드에서 앱을 연 경우
+    // 백그라운드에서 앱을 연 경우 — dispatch 단일 진입점.
     FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) {
       try {
-        // 서버에서 JSON 문자열로 전송한 데이터 파싱
-        Map<String, dynamic> parsedData = {};
-
-        if (message.data.containsKey('navigation')) {
-          parsedData['navigation'] = jsonDecode(
-            message.data['navigation'] ?? '{}',
-          );
-        }
-        if (message.data.containsKey('post_info')) {
-          parsedData['post_info'] = jsonDecode(
-            message.data['post_info'] ?? '{}',
-          );
-        }
-
-        if (message.data['type'] == 'new_post_approval') {
-          _navigateToPostManagement(parsedData);
-        } else if (message.data['type'] == 'donation_post_approved') {
-          _navigateToHospitalPosts(parsedData);
-        } else if (message.data['type'] == 'column_approved') {
-          _navigateToHospitalColumns(parsedData);
-        } else if (message.data['type'] == 'donation_application_approved') {
-          _navigateToDonationHistory(message.data);
-        } else if (message.data['type'] == 'recruitment_closed') {
-          _navigateForRecruitmentClosed(message.data);
-        } else if (message.data['type'] == 'donation_completed') {
-          _navigateForDonationCompleted(message.data);
-        } else if (message.data['type'] == 'new_donation_post') {
-          _navigateToNewDonationPost(parsedData);
-        } else if (message.data['type'] == 'new_pet_registration' ||
-            message.data['type'] == 'pet_review_request') {
-          _navigateToAdminPetManagement(parsedData);
-        } else if (message.data['type'] == 'new_user_registration') {
-          _navigateToSignupManagement(parsedData);
-        } else if (message.data['type'] == 'new_donation_application') {
-          _navigateForNewDonationApplication(message.data);
-        } else if (message.data['type'] == 'column_approval') {
-          _navigateToAdminColumnManagement(parsedData);
-        } else if (message.data['type'] == 'column_rejected') {
-          _navigateToHospitalColumns(parsedData);
-        } else if (message.data['type'] == 'all_timeslots_filled' ||
-            message.data['type'] == 'post_suspended' ||
-            message.data['type'] == 'post_resumed') {
-          _navigateToHospitalPosts(parsedData);
-        } else if (message.data['type'] == 'donation_post_rejected' ||
-            message.data['type'] == 'document_request') {
-          _navigateToHospitalPostCheck(message.data);
-        } else if (message.data['type'] == 'pet_approved' ||
-            message.data['type'] == 'pet_rejected') {
-          _navigateToUserPetManagement(parsedData);
-        } else if (message.data['type'] == 'account_suspended' ||
-            message.data['type'] == 'account_status_changed') {
-          _navigateForAccountStatus(message.data);
-        } else if (message.data['type'] == 'timeslot_filled') {
-          // 의도된 dead-end — 정보 알림이라 화면 이동 불필요.
-          // CLAUDE.md "알림 다중 수신 라우팅" 정책.
-        }
+        dispatchByType(Map<String, dynamic>.from(message.data));
       } catch (e) {
-        // 파싱 실패 시 기본 데이터로 처리
+        debugPrint('[NotificationService] background dispatch 실패: $e');
       }
     });
 
-    // 앱이 완전히 종료된 상태에서 알림으로 앱을 연 경우
+    // 앱이 완전히 종료된 상태에서 알림으로 앱을 연 경우 — dispatch 단일 진입점.
+    // 1초 delay는 Navigator/Provider가 attach되기 전 dispatch 방지용 (기존 동작 보존).
     FirebaseMessaging.instance.getInitialMessage().then((
       RemoteMessage? message,
     ) {
-      if (message != null) {
-        Future.delayed(const Duration(milliseconds: 1000), () {
-          try {
-            // 서버에서 JSON 문자열로 전송한 데이터 파싱
-            Map<String, dynamic> parsedData = {};
-
-            if (message.data.containsKey('navigation')) {
-              parsedData['navigation'] = jsonDecode(
-                message.data['navigation'] ?? '{}',
-              );
-            }
-            if (message.data.containsKey('post_info')) {
-              parsedData['post_info'] = jsonDecode(
-                message.data['post_info'] ?? '{}',
-              );
-            }
-
-            if (message.data['type'] == 'new_post_approval') {
-              _navigateToPostManagement(parsedData);
-            } else if (message.data['type'] == 'donation_post_approved') {
-              _navigateToHospitalPosts(parsedData);
-            } else if (message.data['type'] == 'column_approved') {
-              _navigateToHospitalColumns(parsedData);
-            } else if (message.data['type'] ==
-                'donation_application_approved') {
-              _navigateToDonationHistory(message.data);
-            } else if (message.data['type'] == 'recruitment_closed') {
-              _navigateForRecruitmentClosed(message.data);
-            } else if (message.data['type'] == 'donation_completed') {
-              _navigateForDonationCompleted(message.data);
-            } else if (message.data['type'] == 'new_donation_post') {
-              _navigateToNewDonationPost(parsedData);
-            } else if (message.data['type'] == 'new_pet_registration' ||
-                message.data['type'] == 'pet_review_request') {
-              _navigateToAdminPetManagement(parsedData);
-            } else if (message.data['type'] == 'new_user_registration') {
-              _navigateToSignupManagement(parsedData);
-            } else if (message.data['type'] == 'new_donation_application') {
-              _navigateForNewDonationApplication(message.data);
-            } else if (message.data['type'] == 'column_approval') {
-              _navigateToAdminColumnManagement(parsedData);
-            } else if (message.data['type'] == 'column_rejected') {
-              _navigateToHospitalColumns(parsedData);
-            } else if (message.data['type'] == 'all_timeslots_filled' ||
-                message.data['type'] == 'post_suspended' ||
-                message.data['type'] == 'post_resumed') {
-              _navigateToHospitalPosts(parsedData);
-            } else if (message.data['type'] == 'donation_post_rejected' ||
-                message.data['type'] == 'document_request') {
-              _navigateToHospitalPostCheck(message.data);
-            } else if (message.data['type'] == 'pet_approved' ||
-                message.data['type'] == 'pet_rejected') {
-              _navigateToUserPetManagement(parsedData);
-            } else if (message.data['type'] == 'account_suspended' ||
-                message.data['type'] == 'account_status_changed') {
-              _navigateForAccountStatus(message.data);
-            } else if (message.data['type'] == 'timeslot_filled') {
-              // 의도된 dead-end — 정보 알림이라 화면 이동 불필요.
-            }
-          } catch (e) {
-            // 파싱 실패 시 기본 데이터로 처리
-          }
-        });
-      }
+      if (message == null) return;
+      Future.delayed(const Duration(milliseconds: 1000), () {
+        try {
+          dispatchByType(Map<String, dynamic>.from(message.data));
+        } catch (e) {
+          debugPrint('[NotificationService] initial message dispatch 실패: $e');
+        }
+      });
     });
   }
 
-  // 로컬 알림 탭 처리 (public으로 변경)
+  /// 로컬 알림 탭 처리 (포그라운드 진입점). dispatch 단일 진입점에 위임.
   static void handleLocalNotificationTap(String? payload) {
     if (payload == null) return;
-
     try {
       final data = jsonDecode(payload) as Map<String, dynamic>;
-      final notificationType = data['type'] as String?;
-
-      // 알림 타입별로 적절한 페이지로 이동
-      switch (notificationType) {
-        case 'new_post_approval':
-          final parsedData = _parseNotificationData(data);
-          _navigateToPostManagement(parsedData);
-          break;
-        case 'donation_post_approved':
-          final parsedData = _parseNotificationData(data);
-          _navigateToHospitalPosts(parsedData);
-          break;
-        case 'column_approved':
-          final parsedData = _parseNotificationData(data);
-          _navigateToHospitalColumns(parsedData);
-          break;
-        case 'donation_application_approved':
-          _navigateToDonationHistory(data);
-          break;
-        case 'recruitment_closed':
-          _navigateForRecruitmentClosed(data);
-          break;
-        case 'donation_completed':
-          _navigateForDonationCompleted(data);
-          break;
-        case 'new_donation_post':
-          final parsedData = _parseNotificationData(data);
-          _navigateToNewDonationPost(parsedData);
-          break;
-        case 'new_pet_registration':
-        case 'pet_review_request':
-        case 'pet_profile_image_review_request':
-          // 사진 검토 요청도 동일하게 관리자 반려동물 관리(승인 대기 탭)로 이동.
-          // CLAUDE.md "펫 프로필 사진 검토 워크플로우" 참고.
-          final parsedData = _parseNotificationData(data);
-          _navigateToAdminPetManagement(parsedData);
-          break;
-        case 'new_user_registration':
-          final parsedData = _parseNotificationData(data);
-          _navigateToSignupManagement(parsedData);
-          break;
-        case 'new_donation_application':
-          _navigateForNewDonationApplication(data);
-          break;
-        case 'column_approval':
-          final parsedData = _parseNotificationData(data);
-          _navigateToAdminColumnManagement(parsedData);
-          break;
-        case 'column_rejected':
-          final parsedData = _parseNotificationData(data);
-          _navigateToHospitalColumns(parsedData);
-          break;
-        case 'all_timeslots_filled':
-        case 'post_suspended':
-        case 'post_resumed':
-          final parsedData = _parseNotificationData(data);
-          _navigateToHospitalPosts(parsedData);
-          break;
-        case 'donation_post_rejected':
-        case 'document_request':
-          _navigateToHospitalPostCheck(data);
-          break;
-        case 'document_request_responded':
-          // 자료 요청 응답 — admin/user 양쪽 수신.
-          _navigateForDocumentRequestResponded(data);
-          break;
-        case 'pet_approved':
-        case 'pet_rejected':
-        case 'pet_profile_image_approved':
-        case 'pet_profile_image_rejected':
-          // 사진 승인/거절도 동일하게 사용자 펫 관리 화면으로.
-          // 거절 시 자동으로 사진 옵션 시트는 열지 않음 (수정 화면까지만 도착).
-          final parsedData = _parseNotificationData(data);
-          _navigateToUserPetManagement(parsedData);
-          break;
-        case 'account_suspended':
-        case 'account_status_changed':
-          _navigateForAccountStatus(data);
-          break;
-        case 'timeslot_filled':
-          // 의도된 dead-end — 정보 알림이라 화면 이동 불필요.
-          break;
-        default:
-      }
+      dispatchByType(data);
     } catch (e) {
-      // 알림 처리 실패 시 로그 출력
-      debugPrint('Failed to handle notification: $e');
+      debugPrint('[NotificationService] foreground dispatch 실패: $e');
     }
   }
 
-  // 알림 데이터 파싱 헬퍼 메서드
+  /// 알림 type별 화면 이동 dispatch — 포그라운드/백그라운드/킬 + 알림 목록 클릭
+  /// 네 진입점이 동일한 매핑을 쓰도록 단일 진실 소스로 통합 (drift 방지).
+  ///
+  /// 신규 type 추가 시 백엔드 `constants/enums.py::NotificationType` +
+  /// 프론트 `lib/models/notification_mapping.dart` + 본 switch 세 곳 모두
+  /// 갱신해야 한다 (CLAUDE.md "알림 타입 추가 시 dual-sync contract" 참조).
+  ///
+  /// `data`는 raw `type` 문자열을 포함해야 하며, 그 외에 화면 highlight를 위한
+  /// 식별자(post_idx / application_id / pet_idx 등)를 같이 넘긴다.
+  static void dispatchByType(Map<String, dynamic> data) {
+    final type = data['type']?.toString();
+    if (type == null) return;
+
+    final parsedData = _parseNotificationData(data);
+
+    switch (type) {
+      case 'new_post_approval':
+        _navigateToPostManagement(parsedData);
+        break;
+      case 'donation_post_approved':
+        _navigateToHospitalPosts(parsedData);
+        break;
+      case 'column_approved':
+        _navigateToHospitalColumns(parsedData);
+        break;
+      case 'donation_application_approved':
+        _navigateToDonationHistory(parsedData);
+        break;
+      case 'recruitment_closed':
+        _navigateForRecruitmentClosed(parsedData);
+        break;
+      case 'donation_completed':
+        _navigateForDonationCompleted(parsedData);
+        break;
+      case 'new_donation_post':
+        _navigateToNewDonationPost(parsedData);
+        break;
+      case 'new_pet_registration':
+      case 'pet_review_request':
+      case 'pet_profile_image_review_request':
+        // 사진 검토 요청도 동일하게 관리자 반려동물 관리로 이동.
+        // CLAUDE.md "펫 프로필 사진 검토 워크플로우" 참고.
+        _navigateToAdminPetManagement(parsedData);
+        break;
+      case 'new_user_registration':
+        _navigateToSignupManagement(parsedData);
+        break;
+      case 'new_donation_application':
+        _navigateForNewDonationApplication(parsedData);
+        break;
+      case 'column_approval':
+        _navigateToAdminColumnManagement(parsedData);
+        break;
+      case 'column_rejected':
+        _navigateToHospitalColumns(parsedData);
+        break;
+      case 'all_timeslots_filled':
+      case 'post_suspended':
+      case 'post_resumed':
+        _navigateToHospitalPosts(parsedData);
+        break;
+      case 'donation_post_rejected':
+      case 'document_request':
+        _navigateToHospitalPostCheck(parsedData);
+        break;
+      case 'document_request_responded':
+        // 자료 요청 응답 — admin/user 양쪽 수신.
+        _navigateForDocumentRequestResponded(parsedData);
+        break;
+      case 'pet_approved':
+      case 'pet_rejected':
+      case 'pet_profile_image_approved':
+      case 'pet_profile_image_rejected':
+        // 사진 승인/거절도 사용자 펫 관리 화면으로.
+        // 거절 시 사진 옵션 시트 자동 오픈은 안 함 (수정 화면까지만 도착).
+        _navigateToUserPetManagement(parsedData);
+        break;
+      case 'account_suspended':
+      case 'account_status_changed':
+        _navigateForAccountStatus(parsedData);
+        break;
+      case 'timeslot_filled':
+        // 의도된 dead-end — 정보 알림이라 화면 이동 불필요.
+        // CLAUDE.md "알림 다중 수신 라우팅" 정책.
+        break;
+      default:
+        // 매핑 없는 type(systemNotice 류 broadcast/general/admin_alert/hospital_alert,
+        // 또는 알 수 없는 신규 type)은 본인 역할 dashboard로 fallback.
+        // 알림 목록 클릭 진입에서 systemNotice는 dashboard로 보내던 기존 동작 보존.
+        _navigateToOwnDashboard();
+        break;
+    }
+  }
+
+  /// account_type에 따라 본인 역할의 대시보드로 이동.
+  /// 매핑 누락 type / systemNotice 류 알림의 fallback 진입점.
+  static Future<void> _navigateToOwnDashboard() async {
+    final context = navigatorKey.currentContext;
+    if (context == null) return;
+
+    final accountType = await PreferencesManager.getAccountType();
+    if (!context.mounted) return;
+
+    try {
+      Widget dashboard;
+      switch (accountType) {
+        case 1:
+          dashboard = const AdminDashboard();
+          break;
+        case 2:
+          dashboard = const HospitalDashboard();
+          break;
+        case 3:
+        default:
+          dashboard = const UserDashboard();
+          break;
+      }
+      Navigator.push(
+        context,
+        MaterialPageRoute(builder: (_) => dashboard),
+      );
+    } catch (e) {
+      debugPrint('[NotificationService] dashboard fallback 실패: $e');
+    }
+  }
+
+  // 알림 데이터 파싱 헬퍼 메서드.
+  // FCM data는 모든 값이 string으로 직렬화되므로 navigation/post_info 같은
+  // 중첩 객체 키는 jsonDecode로 다시 풀어야 함. WebSocket(이미 객체)에 호출해도
+  // 안전 — 해당 키가 없으면 그냥 통과.
   static Map<String, dynamic> _parseNotificationData(
     Map<String, dynamic> data,
   ) {
     Map<String, dynamic> parsedData = {};
 
     try {
-      if (data.containsKey('navigation')) {
-        parsedData['navigation'] = jsonDecode(data['navigation'] ?? '{}');
+      if (data['navigation'] is String) {
+        parsedData['navigation'] = jsonDecode(data['navigation'] as String);
       }
-      if (data.containsKey('post_info')) {
-        parsedData['post_info'] = jsonDecode(data['post_info'] ?? '{}');
+      if (data['post_info'] is String) {
+        parsedData['post_info'] = jsonDecode(data['post_info'] as String);
       }
 
-      // 다른 필드들도 복사
-      parsedData.addAll(data);
+      // 다른 필드들도 복사 (위 두 키는 위에서 풀어둔 값으로 덮어씀)
+      data.forEach((key, value) {
+        parsedData.putIfAbsent(key, () => value);
+      });
     } catch (e) {
       // 파싱 실패 시 원본 데이터 반환
       return data;
@@ -325,51 +265,33 @@ class NotificationService {
     await FCMHandler.instance.updateFCMToken();
   }
 
-  // 병원 헌혈 게시글 페이지로 이동.
-  // 백엔드 키 정책 (2026-05-01): post_idx 우선, post_id는 fallback.
+  // donation_post_approved / all_timeslots_filled / post_suspended /
+  // post_resumed 등 병원 게시글 알림을 HospitalPostCheck로 라우팅.
+  // _navigateToHospitalPostCheck와 동일 동작 — 같은 함수에 위임.
   static void _navigateToHospitalPosts(Map<String, dynamic> data) {
-    final context = navigatorKey.currentContext;
-    if (context == null) return;
-
-    try {
-      final postId = data['post_idx'] ?? data['post_id'];
-
-      // 병원 대시보드 또는 게시글 관리 페이지로 이동
-      Navigator.pushNamed(
-        context,
-        '/hospital/dashboard',
-        arguments: {
-          'highlightPostId': postId is String ? int.tryParse(postId) : postId,
-          'showPostDetail': true,
-        },
-      );
-    } catch (e) {
-      // 오류 발생 시 기본 병원 대시보드로 이동
-      Navigator.pushNamed(context, '/hospital/dashboard');
-    }
+    _navigateToHospitalPostCheck(data);
   }
 
-  // 병원 칼럼 페이지로 이동.
-  // 백엔드 키 정책 (2026-05-01): column_idx 우선, column_id는 fallback.
+  /// column_approved / column_rejected 알림 클릭 시 병원 칼럼 관리 화면 진입.
+  /// column_idx가 있으면 HospitalColumnManagementScreen.initialColumnIdx로 전달해
+  /// 매칭 칼럼의 상세 시트 자동 오픈
+  /// (hospital_column_management_list.dart::_loadAndMaybeAutoOpen 참조).
   static void _navigateToHospitalColumns(Map<String, dynamic> data) {
     final context = navigatorKey.currentContext;
     if (context == null) return;
-
     try {
-      final columnId = data['column_idx'] ?? data['column_id'];
-
-      // 병원 칼럼 목록 페이지로 이동
-      Navigator.pushNamed(
+      final raw = data['column_idx'] ?? data['column_id'];
+      final columnIdx =
+          raw is int ? raw : int.tryParse(raw?.toString() ?? '');
+      Navigator.push(
         context,
-        '/hospital/columns',
-        arguments: {
-          'highlightColumnId':
-              columnId is String ? int.tryParse(columnId) : columnId,
-        },
+        MaterialPageRoute(
+          builder: (_) =>
+              HospitalColumnManagementScreen(initialColumnIdx: columnIdx),
+        ),
       );
     } catch (e) {
-      // 오류 발생 시 기본 병원 대시보드로 이동
-      Navigator.pushNamed(context, '/hospital/dashboard');
+      debugPrint('[NotificationService] 병원 칼럼 관리 네비게이션 실패: $e');
     }
   }
 
@@ -393,17 +315,22 @@ class NotificationService {
     }
   }
 
-  /// 신규 반려동물 등록 알림 클릭 시 네비게이션 (관리자용).
-  /// 서버 FCM payload 예: `navigation: { page: "admin_pet_management", pet_idx: <pk> }`
-  /// 현재는 page 키와 무관하게 `AdminPetManagement` 전체 화면으로 이동 (해당 페이지에
-  /// 이미 승인 대기 탭이 기본 진입 상태). pet_review_request도 같은 화면 사용.
+  /// 관리자용 펫 관련 알림(new_pet_registration / pet_review_request /
+  /// pet_profile_image_review_request) 클릭 시 진입.
+  /// pet_idx가 있으면 AdminPetManagement.initialPetIdx로 전달해 승인 대기 탭의
+  /// fetched 리스트에서 매칭 + 상세 시트 자동 오픈
+  /// (admin_pet_management.dart::_maybeAutoOpenDetailSheet 참조).
   static void _navigateToAdminPetManagement(Map<String, dynamic> data) {
     final context = navigatorKey.currentContext;
     if (context == null) return;
     try {
+      final raw = data['pet_idx'] ?? data['pet_id'];
+      final petIdx = raw is int ? raw : int.tryParse(raw?.toString() ?? '');
       Navigator.push(
         context,
-        MaterialPageRoute(builder: (_) => const AdminPetManagement()),
+        MaterialPageRoute(
+          builder: (_) => AdminPetManagement(initialPetIdx: petIdx),
+        ),
       );
     } catch (e) {
       debugPrint('[NotificationService] 반려동물 관리 네비게이션 실패: $e');
@@ -411,14 +338,22 @@ class NotificationService {
   }
 
   /// 신규 가입 요청 알림(new_user_registration) 클릭 시 가입 관리 화면 진입.
-  /// 라우트 미등록이라 직접 push.
+  /// account_idx가 있으면 AdminSignupManagement.initialAccountIdx로 전달해
+  /// 매칭 사용자의 승인 다이얼로그 자동 오픈
+  /// (admin_signup_management.dart::_fetchAndMaybeAutoOpen 참조).
   static void _navigateToSignupManagement(Map<String, dynamic> data) {
     final context = navigatorKey.currentContext;
     if (context == null) return;
     try {
+      final raw = data['account_idx'] ?? data['user_id'];
+      final accountIdx =
+          raw is int ? raw : int.tryParse(raw?.toString() ?? '');
       Navigator.push(
         context,
-        MaterialPageRoute(builder: (_) => const AdminSignupManagement()),
+        MaterialPageRoute(
+          builder: (_) =>
+              AdminSignupManagement(initialAccountIdx: accountIdx),
+        ),
       );
     } catch (e) {
       debugPrint('[NotificationService] 가입 관리 네비게이션 실패: $e');
@@ -426,24 +361,31 @@ class NotificationService {
   }
 
   /// 칼럼 승인 요청 알림(column_approval) 클릭 시 관리자 칼럼 관리 화면 진입.
-  /// 라우트 미등록이라 직접 push.
+  /// column_idx가 있으면 AdminColumnManagement.initialColumnIdx로 전달해 매칭
+  /// 칼럼의 상세 시트 자동 오픈
+  /// (admin_column_management.dart::_loadAndMaybeAutoOpen 참조).
   static void _navigateToAdminColumnManagement(Map<String, dynamic> data) {
     final context = navigatorKey.currentContext;
     if (context == null) return;
     try {
+      final raw = data['column_idx'] ?? data['column_id'];
+      final columnIdx =
+          raw is int ? raw : int.tryParse(raw?.toString() ?? '');
       Navigator.push(
         context,
-        MaterialPageRoute(builder: (_) => const AdminColumnManagement()),
+        MaterialPageRoute(
+          builder: (_) =>
+              AdminColumnManagement(initialColumnIdx: columnIdx),
+        ),
       );
     } catch (e) {
       debugPrint('[NotificationService] 칼럼 관리 네비게이션 실패: $e');
     }
   }
 
-  /// new_donation_application(admin only) 알림 클릭 시 진입 (2-5a).
-  /// AdminPostCheck의 헌혈모집 탭(index=1)으로 자동 이동. post_idx는 받아두지만
-  /// 현재는 활용 보류 — 탭 분리 리팩토링 후 2-5b에서 단건 fetch + 신청자
-  /// 바텀시트 자동 오픈으로 보강 예정.
+  /// new_donation_application(admin only) 알림 클릭 시 진입.
+  /// AdminPostCheck의 헌혈모집 탭(index=1)으로 자동 이동 + post_idx 매칭으로
+  /// 게시글 상세 시트 자동 오픈 (admin_post_check.dart::initState 참조).
   static void _navigateForNewDonationApplication(Map<String, dynamic> data) {
     final context = navigatorKey.currentContext;
     if (context == null) return;
@@ -465,47 +407,61 @@ class NotificationService {
   }
 
   /// donation_post_rejected / document_request 알림 클릭 시 병원 게시글 관리 진입.
-  /// 직접 push 단순 통일 — 라우트 등록 의존 없이 mobile/web 양쪽 동작.
-  /// 상세 highlight는 추후 보강 예정.
+  /// post_idx가 있으면 HospitalPostCheck.initialPostIdx로 전달해 단건 fetch +
+  /// 상세 시트 자동 오픈 (hospital_post_check.dart::initState 참조).
   static void _navigateToHospitalPostCheck(Map<String, dynamic> data) {
     final context = navigatorKey.currentContext;
     if (context == null) return;
     try {
+      final raw = data['post_idx'] ?? data['post_id'];
+      final postIdx = raw is int ? raw : int.tryParse(raw?.toString() ?? '');
       Navigator.push(
         context,
-        MaterialPageRoute(builder: (_) => const HospitalPostCheck()),
+        MaterialPageRoute(
+          builder: (_) => HospitalPostCheck(initialPostIdx: postIdx),
+        ),
       );
     } catch (e) {
       debugPrint('[NotificationService] 병원 게시글 관리 네비게이션 실패: $e');
     }
   }
 
-  /// pet_approved / pet_rejected 알림 클릭 시 사용자 반려동물 관리 화면 진입.
-  /// 향후 pet_idx 기반 highlight는 PetManagementScreen 생성자 확장 시 보강 가능.
+  /// pet_approved / pet_rejected / pet_profile_image_approved /
+  /// pet_profile_image_rejected 알림 클릭 시 사용자 반려동물 관리 화면 진입.
+  /// pet_idx가 있으면 PetManagementScreen.initialPetIdx로 전달해 매칭 펫의
+  /// 상세 시트 자동 오픈 (pet_management.dart::_maybeAutoOpenDetailSheet 참조).
   static void _navigateToUserPetManagement(Map<String, dynamic> data) {
     final context = navigatorKey.currentContext;
     if (context == null) return;
     try {
+      final raw = data['pet_idx'] ?? data['pet_id'];
+      final petIdx = raw is int ? raw : int.tryParse(raw?.toString() ?? '');
       Navigator.push(
         context,
-        MaterialPageRoute(builder: (_) => const PetManagementScreen()),
+        MaterialPageRoute(
+          builder: (_) => PetManagementScreen(initialPetIdx: petIdx),
+        ),
       );
     } catch (e) {
       debugPrint('[NotificationService] 사용자 반려동물 관리 네비게이션 실패: $e');
     }
   }
 
-  // 새 헌혈 모집 게시글 알림 클릭 시 네비게이션 (직접 push 단순 통일).
-  // post_idx 기반 highlight는 추후 UserDonationPostsListScreen에 별도 생성자 인자
-  // (initialPostIdx 등) 추가 후 보강.
+  // 새 헌혈 모집 게시글 알림 클릭 시 네비게이션.
+  // post_idx가 있으면 UserDonationPostsListScreen.initialPostIdx로 전달해
+  // 단건 detail fetch + 상세 시트 자동 오픈
+  // (user_donation_posts_list.dart::initState 참조).
   static void _navigateToNewDonationPost(Map<String, dynamic> data) {
     final context = navigatorKey.currentContext;
     if (context == null) return;
     try {
+      final raw = data['post_idx'] ?? data['post_id'];
+      final postIdx = raw is int ? raw : int.tryParse(raw?.toString() ?? '');
       Navigator.push(
         context,
         MaterialPageRoute(
-          builder: (_) => const UserDonationPostsListScreen(),
+          builder: (_) =>
+              UserDonationPostsListScreen(initialPostIdx: postIdx),
         ),
       );
     } catch (e) {
@@ -554,15 +510,24 @@ class NotificationService {
     }
   }
 
-  // 헌혈 완료 알림 클릭 시 네비게이션 (직접 push 단순 통일).
-  // application_id 기반 highlight는 추후 DonationHistoryScreen 생성자 확장 시 보강.
+  // 헌혈 완료 / 신청 승인 / 신청 거절 등 신청 관련 알림 진입.
+  // application_id가 있으면 DonationHistoryScreen.initialApplicationId로 전달해
+  // 자동 탭 전환(완료 vs 신청중) + 카드 highlight
+  // (donation_history_screen.dart::_loadDonationHistoryAndMaybeHighlight 참조).
   static void _navigateToDonationHistory(Map<String, dynamic> data) {
     final context = navigatorKey.currentContext;
     if (context == null) return;
     try {
+      // FCM data는 'application_id', REST 응답은 'applied_donation_idx' 양쪽 fallback.
+      final raw = data['application_id'] ?? data['applied_donation_idx'];
+      final applicationId =
+          raw is int ? raw : int.tryParse(raw?.toString() ?? '');
       Navigator.push(
         context,
-        MaterialPageRoute(builder: (_) => const DonationHistoryScreen()),
+        MaterialPageRoute(
+          builder: (_) =>
+              DonationHistoryScreen(initialApplicationId: applicationId),
+        ),
       );
     } catch (e) {
       debugPrint('[NotificationService] 헌혈 완료 네비게이션 실패: $e');

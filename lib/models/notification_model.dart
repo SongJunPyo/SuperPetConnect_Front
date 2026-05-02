@@ -5,6 +5,12 @@ class NotificationModel {
   final int notificationId;
   final int userId;
   final int typeId;
+
+  /// 백엔드 raw `type` 문자열 (e.g., 'donation_post_approved').
+  /// 알림 클릭 → NotificationService._dispatchByType 위임 시 사용.
+  /// 구버전 fromJson 경로는 null일 수 있음 — 진입점이 알 수 없으면 fallback 처리.
+  final String? rawType;
+
   final String title;
   final String content;
   final DateTime createdAt;
@@ -20,6 +26,7 @@ class NotificationModel {
     required this.title,
     required this.content,
     required this.createdAt,
+    this.rawType,
     this.updatedAt,
     this.isRead = false,
     this.priority = NotificationPriority.normal,
@@ -83,6 +90,7 @@ class NotificationModel {
       notificationId: notificationId,
       userId: userId,
       typeId: typeId,
+      rawType: rawType,
       title: title,
       content: content,
       createdAt: createdAt,
@@ -110,6 +118,7 @@ class AdminNotificationModel extends NotificationModel {
     required super.content,
     required super.createdAt,
     required this.adminType,
+    super.rawType,
     super.updatedAt,
     super.isRead = false,
     super.relatedData,
@@ -156,6 +165,7 @@ class AdminNotificationModel extends NotificationModel {
       content: content,
       createdAt: createdAt,
       adminType: adminType,
+      rawType: rawType,
       updatedAt: DateTime.now(),
       isRead: true,
       relatedData: relatedData,
@@ -174,6 +184,7 @@ class HospitalNotificationModel extends NotificationModel {
     required super.content,
     required super.createdAt,
     required this.hospitalType,
+    super.rawType,
     super.updatedAt,
     super.isRead = false,
     super.relatedData,
@@ -222,6 +233,7 @@ class HospitalNotificationModel extends NotificationModel {
       content: content,
       createdAt: createdAt,
       hospitalType: hospitalType,
+      rawType: rawType,
       updatedAt: DateTime.now(),
       isRead: true,
       relatedData: relatedData,
@@ -240,6 +252,7 @@ class UserNotificationModel extends NotificationModel {
     required super.content,
     required super.createdAt,
     required this.userType,
+    super.rawType,
     super.updatedAt,
     super.isRead = false,
     super.relatedData,
@@ -286,6 +299,7 @@ class UserNotificationModel extends NotificationModel {
       content: content,
       createdAt: createdAt,
       userType: userType,
+      rawType: rawType,
       updatedAt: DateTime.now(),
       isRead: true,
       relatedData: relatedData,
@@ -333,6 +347,7 @@ class NotificationFactory {
     required String title,
     required String content,
     Map<String, dynamic>? relatedData,
+    String? rawType,
     bool isRead = false,
     DateTime? createdAt,
   }) {
@@ -343,6 +358,7 @@ class NotificationFactory {
       content: content,
       createdAt: createdAt ?? DateTime.now(),
       adminType: type,
+      rawType: rawType,
       relatedData: relatedData,
       isRead: isRead,
     );
@@ -356,6 +372,7 @@ class NotificationFactory {
     required String title,
     required String content,
     Map<String, dynamic>? relatedData,
+    String? rawType,
     bool isRead = false,
     DateTime? createdAt,
   }) {
@@ -366,6 +383,7 @@ class NotificationFactory {
       content: content,
       createdAt: createdAt ?? DateTime.now(),
       hospitalType: type,
+      rawType: rawType,
       relatedData: relatedData,
       isRead: isRead,
     );
@@ -379,6 +397,7 @@ class NotificationFactory {
     required String title,
     required String content,
     Map<String, dynamic>? relatedData,
+    String? rawType,
     bool isRead = false,
     DateTime? createdAt,
   }) {
@@ -389,6 +408,7 @@ class NotificationFactory {
       content: content,
       createdAt: createdAt ?? DateTime.now(),
       userType: type,
+      rawType: rawType,
       relatedData: relatedData,
       isRead: isRead,
     );

@@ -14,6 +14,7 @@ class WebNotificationHelper {
     required String title,
     required String body,
     String? icon,
+    void Function()? onClick,
   }) {}
 
   /// 알림 권한 허용 여부 (모바일에서는 항상 false)

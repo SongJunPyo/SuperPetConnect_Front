@@ -137,12 +137,19 @@ class FCMHandler {
       if (title.isEmpty && body.isEmpty) return;
 
       final relatedData = NotificationConverter.parseRelatedData(message.data);
+      // 서버의 실제 DB id 보존 — 매핑 누락 시에도 markAsRead/delete가 정상 동작하도록.
+      final rawNotificationId = message.data['notification_id'];
+      final notificationId = rawNotificationId is int
+          ? rawNotificationId
+          : int.tryParse(rawNotificationId?.toString() ?? '') ??
+              DateTime.now().millisecondsSinceEpoch;
       final fallback = NotificationConverter.createFallbackNotification(
         userType: userType,
-        notificationId: DateTime.now().millisecondsSinceEpoch,
+        notificationId: notificationId,
         title: title,
         content: body,
         relatedData: relatedData,
+        rawType: rawType,
       );
       _notificationController.add(fallback);
     } catch (e) {

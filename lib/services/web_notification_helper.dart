@@ -40,16 +40,26 @@ class WebNotificationHelper {
   }
 
   /// 브라우저 알림 표시
+  ///
+  /// [onClick]을 전달하면 사용자가 알림을 클릭했을 때 탭 포커스 후 콜백 실행.
+  /// 호출자(NotificationProvider 등)가 dispatch 로직을 주입할 수 있게 하여
+  /// 헬퍼가 NotificationService에 직접 의존하지 않도록 분리.
   static void showNotification({
     required String title,
     required String body,
     String? icon,
+    void Function()? onClick,
   }) {
     if (!kIsWeb) return;
 
     try {
       if (_permission == 'granted') {
-        _displayNotification(title: title, body: body, icon: icon);
+        _displayNotification(
+          title: title,
+          body: body,
+          icon: icon,
+          onClick: onClick,
+        );
       }
     } catch (e) {
       debugPrint('[WebNotification] 알림 표시 실패: $e');
@@ -60,6 +70,7 @@ class WebNotificationHelper {
     required String title,
     required String body,
     String? icon,
+    void Function()? onClick,
   }) {
     try {
       final notification = html.Notification(
@@ -68,9 +79,10 @@ class WebNotificationHelper {
         icon: icon ?? '/icons/Icon-192.png',
       );
 
-      // 알림 클릭 시 해당 탭으로 포커스
+      // 알림 클릭 시 해당 탭으로 포커스 + 호출자 라우팅 콜백 실행
       notification.onClick.listen((event) {
         html.document.documentElement?.focus();
+        onClick?.call();
         notification.close();
       });
 

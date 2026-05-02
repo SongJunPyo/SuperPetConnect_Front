@@ -168,6 +168,7 @@ class NotificationApiService {
                     title: serverNotification.title,
                     content: serverNotification.body,
                     relatedData: serverNotification.data,
+                    rawType: serverNotification.type,
                     isRead: isRead,
                     createdAt: createdAt,
                   );
@@ -184,6 +185,7 @@ class NotificationApiService {
                     title: serverNotification.title,
                     content: serverNotification.body,
                     relatedData: serverNotification.data,
+                    rawType: serverNotification.type,
                     isRead: isRead,
                     createdAt: createdAt,
                   );
@@ -199,6 +201,7 @@ class NotificationApiService {
                 title: serverNotification.title,
                 content: serverNotification.body,
                 relatedData: serverNotification.data,
+                rawType: serverNotification.type,
                 isRead: isRead,
                 createdAt: createdAt,
               );

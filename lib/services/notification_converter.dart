@@ -38,7 +38,14 @@ class NotificationConverter {
 
       final title = message.notification?.title ?? '알림';
       final content = message.notification?.body ?? '';
-      final notificationId = DateTime.now().millisecondsSinceEpoch;
+      // FCM data는 모든 값이 string으로 직렬화되므로 notification_id도 string→int 변환.
+      // 서버의 실제 DB id를 보존해야 markAsRead/delete API가 정상 동작.
+      // 누락 시 fallback으로 timestamp 사용 (구버전 백엔드 호환).
+      final rawNotificationId = data['notification_id'];
+      final notificationId = rawNotificationId is int
+          ? rawNotificationId
+          : int.tryParse(rawNotificationId?.toString() ?? '') ??
+              DateTime.now().millisecondsSinceEpoch;
 
       return createNotificationByUserType(
         userType: userType,
@@ -47,6 +54,7 @@ class NotificationConverter {
         title: title,
         content: content,
         relatedData: relatedData,
+        rawType: notificationType,
       );
     } catch (e) {
       debugPrint('[NotificationConverter] FCM 변환 실패: $e');
@@ -92,6 +100,7 @@ class NotificationConverter {
         title: serverNotification.title,
         content: serverNotification.body,
         relatedData: serverNotification.data,
+        rawType: serverNotification.type,
       );
     } catch (e) {
       debugPrint('[NotificationConverter] 서버 데이터 변환 실패: $e');
@@ -184,6 +193,7 @@ class NotificationConverter {
     required String title,
     required String content,
     Map<String, dynamic>? relatedData,
+    String? rawType,
   }) {
     final dynamic clientType;
     switch (userType) {
@@ -204,6 +214,7 @@ class NotificationConverter {
       title: title,
       content: content,
       relatedData: relatedData,
+      rawType: rawType,
     );
   }
 
@@ -215,6 +226,7 @@ class NotificationConverter {
     required String title,
     required String content,
     Map<String, dynamic>? relatedData,
+    String? rawType,
   }) {
     switch (userType) {
       case UserType.admin:
@@ -225,6 +237,7 @@ class NotificationConverter {
           title: title,
           content: content,
           relatedData: relatedData,
+          rawType: rawType,
         );
       case UserType.hospital:
         return NotificationFactory.createHospitalNotification(
@@ -234,6 +247,7 @@ class NotificationConverter {
           title: title,
           content: content,
           relatedData: relatedData,
+          rawType: rawType,
         );
       case UserType.user:
         return NotificationFactory.createUserNotification(
@@ -243,6 +257,7 @@ class NotificationConverter {
           title: title,
           content: content,
           relatedData: relatedData,
+          rawType: rawType,
         );
     }
   }

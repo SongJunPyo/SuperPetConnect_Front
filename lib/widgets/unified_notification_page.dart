@@ -2,20 +2,10 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../services/auth_http_client.dart';
+import '../services/notification_service.dart';
 import '../models/notification_model.dart';
 import '../models/notification_types.dart';
 import '../providers/notification_provider.dart';
-import '../admin/admin_post_check.dart';
-import '../admin/admin_signup_management.dart';
-import '../admin/admin_column_management.dart';
-import '../admin/admin_pet_management.dart';
-import '../user/pet_management.dart';
-import '../user/donation_history_screen.dart';
-import '../hospital/hospital_post_check.dart';
-import '../hospital/hospital_column_management_list.dart';
-import '../user/user_donation_posts_list.dart';
-import '../user/my_applications_screen.dart';
-import '../services/dashboard_service.dart';
 import '../utils/api_endpoints.dart';
 import '../utils/app_theme.dart';
 import '../utils/config.dart';
@@ -967,214 +957,27 @@ class _UnifiedNotificationPageState extends State<UnifiedNotificationPage> {
     }
   }
 
+  /// 알림 클릭 시 NotificationService.dispatchByType에 위임.
+  /// 푸시 탭(FCM 포그라운드/백그라운드/킬)과 동일한 단일 dispatch를 거치므로
+  /// 라우팅 동작이 보장된다 (CLAUDE.md "알림 타입 추가 시 dual-sync contract" 참조).
+  ///
+  /// userType 인자는 더 이상 분기에 사용되지 않음 — dispatch 내부에서 raw type별로
+  /// 직접 화면을 결정하고, 다중 수신 type(donation_completed 등)은
+  /// PreferencesManager.getAccountType()으로 분기.
   void _navigateToRelevantPage(
     NotificationModel notification,
     UserType userType,
   ) {
-    switch (userType) {
-      case UserType.admin:
-        _handleAdminNotificationTap(notification);
-        break;
-      case UserType.hospital:
-        _handleHospitalNotificationTap(notification);
-        break;
-      case UserType.user:
-        _handleUserNotificationTap(notification);
-        break;
+    final rawType = notification.rawType;
+    if (rawType == null) {
+      // 구버전 캐시/잘못된 응답 fallback. 본인 역할 dashboard로 이동.
+      NotificationService.dispatchByType({'type': '__unknown__'});
+      return;
     }
-  }
-
-  void _handleAdminNotificationTap(NotificationModel notification) {
-    if (notification is AdminNotificationModel) {
-      switch (notification.adminType) {
-        case AdminNotificationType.signupRequest:
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) => const AdminSignupManagement(),
-            ),
-          );
-          break;
-        case AdminNotificationType.postApprovalRequest:
-        case AdminNotificationType.donationApplicationRequest:
-        case AdminNotificationType.donationCompleted:
-          // 게시글 관련 알림 → 헌혈 게시글 관리 페이지
-          Navigator.push(
-            context,
-            MaterialPageRoute(builder: (context) => const AdminPostCheck()),
-          );
-          break;
-        case AdminNotificationType.columnApprovalRequest:
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) => const AdminColumnManagement(),
-            ),
-          );
-          break;
-        case AdminNotificationType.systemNotice:
-          break;
-        case AdminNotificationType.newPetRegistration:
-        case AdminNotificationType.petReviewRequest:
-        case AdminNotificationType.petPhotoReviewRequest:
-          // 반려동물 관리 페이지로 이동 (사진 검토는 승인 대기 탭에서 함께 처리)
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) => const AdminPetManagement(),
-            ),
-          );
-          break;
-        case AdminNotificationType.documentRequestResponded:
-          // 자료 요청 응답 → 헌혈완료 탭(index=3)으로 진입.
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) =>
-                  const AdminPostCheck(initialTabIndex: 3),
-            ),
-          );
-          break;
-      }
-    }
-  }
-
-  void _handleHospitalNotificationTap(NotificationModel notification) {
-    if (notification is HospitalNotificationModel) {
-      switch (notification.hospitalType) {
-        // 게시글 관련 알림 → 게시글 관리 페이지
-        case HospitalNotificationType.postApproved:
-        case HospitalNotificationType.postRejected:
-        case HospitalNotificationType.recruitmentDeadline:
-        case HospitalNotificationType.timeslotFilled:
-        case HospitalNotificationType.allTimeslotsFilled:
-        case HospitalNotificationType.donationApplication:
-        case HospitalNotificationType.donationCompleted:
-          Navigator.push(
-            context,
-            MaterialPageRoute(builder: (context) => const HospitalPostCheck()),
-          );
-          break;
-        // 칼럼 관련 알림 → 칼럼 관리 페이지
-        case HospitalNotificationType.columnApproved:
-        case HospitalNotificationType.columnRejected:
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) => const HospitalColumnManagementScreen(),
-            ),
-          );
-          break;
-        case HospitalNotificationType.systemNotice:
-          // 시스템 공지는 대시보드로 이동
-          Navigator.pushReplacementNamed(context, '/hospital/dashboard');
-          break;
-        case HospitalNotificationType.documentRequest:
-          // 자료 요청 알림 → 게시글 관리 페이지
-          Navigator.push(
-            context,
-            MaterialPageRoute(builder: (context) => const HospitalPostCheck()),
-          );
-          break;
-      }
-    }
-  }
-
-  void _handleUserNotificationTap(NotificationModel notification) {
-    if (notification is UserNotificationModel) {
-      switch (notification.userType) {
-        // 모집 마감, 신청 승인, 헌혈 완료 → 내 신청 내역 페이지
-        case UserNotificationType.recruitmentClosed:
-        case UserNotificationType.applicationApproved:
-        case UserNotificationType.donationCompleted:
-          _navigateToUserPostDetail(notification);
-          break;
-        case UserNotificationType.newDonationPost:
-          // 새 헌혈 모집 게시글 → 게시글 목록으로 이동
-          final postId = _extractPostId(notification.relatedData);
-          Navigator.pushNamed(
-            context,
-            '/user/donation-posts',
-            arguments: {'highlightPostId': postId},
-          );
-          break;
-        case UserNotificationType.systemNotice:
-          // 시스템 공지는 대시보드로 이동
-          Navigator.pushReplacementNamed(context, '/user/dashboard');
-          break;
-        case UserNotificationType.petApproved:
-        case UserNotificationType.petRejected:
-        case UserNotificationType.petPhotoApproved:
-        case UserNotificationType.petPhotoRejected:
-          // 반려동물 관리 페이지로 이동 (사진 거절 시 사용자가 펫 카드 → 정보 수정으로 재업로드)
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) => const PetManagementScreen(),
-            ),
-          );
-          break;
-        case UserNotificationType.documentRequestResponded:
-          // 자료 요청 응답 → 본인 헌혈 이력 화면.
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) => const DonationHistoryScreen(),
-            ),
-          );
-          break;
-      }
-    }
-  }
-
-  /// 사용자 알림에서 게시글 상세로 이동
-  Future<void> _navigateToUserPostDetail(NotificationModel notification) async {
-    // relatedData에서 post_id 추출
-    final postId = _extractPostId(notification.relatedData);
-
-    if (postId != null) {
-      // 게시글 상세 정보 로드
-      try {
-        final post = await DashboardService.getDonationPostDetail(postId);
-        if (post != null && mounted) {
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) => const UserDonationPostsListScreen(),
-            ),
-          );
-          return;
-        }
-      } catch (e) {
-        debugPrint('[UnifiedNotificationPage] 게시글 로드 실패: $e');
-      }
-    }
-
-    // post_id가 없거나 로드 실패 시 내 신청 내역 페이지로 이동
-    if (mounted) {
-      Navigator.push(
-        context,
-        MaterialPageRoute(builder: (context) => const MyApplicationsScreen()),
-      );
-    }
-  }
-
-  /// relatedData에서 post_id 추출.
-  /// 백엔드 키 정책 (2026-05-01): post_idx 단일 emit. post_id / postId는 구버전 fallback.
-  int? _extractPostId(Map<String, dynamic>? relatedData) {
-    if (relatedData == null) return null;
-
-    final postIdValue =
-        relatedData['post_idx'] ??
-        relatedData['post_id'] ??
-        relatedData['postId'];
-
-    if (postIdValue == null) return null;
-
-    if (postIdValue is int) return postIdValue;
-    if (postIdValue is String) return int.tryParse(postIdValue);
-
-    return null;
+    NotificationService.dispatchByType(<String, dynamic>{
+      'type': rawType,
+      ...?notification.relatedData,
+    });
   }
 
   IconData _getNotificationIconData(

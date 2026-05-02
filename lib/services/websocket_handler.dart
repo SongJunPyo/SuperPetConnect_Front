@@ -153,6 +153,7 @@ class WebSocketHandler {
         title: title,
         content: body ?? '',
         relatedData: relatedData,
+        rawType: rawType,
       );
       _notificationController.add(fallback);
     } catch (e) {
