@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../utils/app_theme.dart';
+import '../../utils/pet_field_icons.dart';
 import '../../utils/phone_formatter.dart';
 import '../../utils/time_format_util.dart';
 import '../donation_history_sheet.dart';
@@ -8,7 +9,7 @@ import '../info_row.dart';
 
 /// 관리자 화면에서 신청자 상세 정보를 시트로 표시.
 ///
-/// 사용자 기본 정보 (이름/닉네임/연락처) + 반려동물 정보 (이름/품종/생년월일/혈액형/직전 헌혈일) +
+/// 사용자 기본 정보 (이름/닉네임/연락처) + 반려동물 정보 (이름/품종/생년월일/혈액형/최근 헌혈일) +
 /// [DonationHistorySection]을 한 시트에 묶어 보여줌.
 void showApplicantDetailBottomSheet(
   BuildContext context,
@@ -112,13 +113,19 @@ class _ApplicantInfoSection extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        // 아이콘은 PetFieldIcons 단일 진실에서 가져옴.
         if (applicant['name'] != null &&
             applicant['name'].toString().isNotEmpty)
-          _row('이름', applicant['name'].toString()),
+          _row(PetFieldIcons.userName, '이름', applicant['name'].toString()),
         if (applicant['nickname'] != null &&
             applicant['nickname'].toString().isNotEmpty)
-          _row('닉네임', applicant['nickname'].toString()),
+          _row(
+            PetFieldIcons.nickname,
+            '닉네임',
+            applicant['nickname'].toString(),
+          ),
         _row(
+          PetFieldIcons.phone,
           '연락처',
           formatPhoneNumber(
             applicant['contact'] as String?,
@@ -127,18 +134,24 @@ class _ApplicantInfoSection extends StatelessWidget {
         ),
         const Divider(height: 24),
         _row(
+          PetFieldIcons.species,
           '반려동물',
           '${petInfo['name'] ?? '-'} (${petInfo['breed'] ?? '-'})',
         ),
-        _row('생년월일', birthDateText),
-        _row('혈액형', petInfo['blood_type'] ?? '-'),
-        _row('직전 헌혈일', lastDonationText),
+        _row(PetFieldIcons.birthDate, '생년월일', birthDateText),
+        _row(
+          PetFieldIcons.bloodType,
+          '혈액형',
+          petInfo['blood_type'] ?? '-',
+        ),
+        _row(PetFieldIcons.prevDonationDate, '최근 헌혈일', lastDonationText),
       ],
     );
   }
 
-  Widget _row(String label, String value) {
+  Widget _row(IconData icon, String label, String value) {
     return InfoRow(
+      icon: icon,
       label: label,
       value: value,
       labelWidth: 100,

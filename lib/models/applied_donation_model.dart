@@ -174,7 +174,10 @@ class AppliedDonation {
 //
 // 라이프사이클:
 //   PENDING(0) → APPROVED(1) → PENDING_COMPLETION(2) → COMPLETED(3)
-//   PENDING/APPROVED → CLOSED(4)  (게시글 마감 시 자동 일괄 처리 + 관리자 수동 종결)
+//   PENDING/APPROVED → CLOSED(4)  (종결 — 경로별 트리거 상이)
+//     · 시간대 정원 충족 시 자동 (PENDING만)
+//     · 게시글 마감 시 일괄 (PENDING만, APPROVED는 1차 완료 입력 대기로 유지)
+//     · 관리자 수동 종결 (PENDING/APPROVED 둘 다)
 //   PENDING → hard delete  (사용자 자발 취소, 행 자체 삭제)
 class AppliedDonationStatus {
   static const int pending = 0; // 신청 (대기)

@@ -222,7 +222,7 @@ class _AdminDonationApprovalPageState extends State<AdminDonationApprovalPage> {
                       _loadData();
                     }
                   },
-                  icon: const Icon(Icons.calendar_today),
+                  icon: const Icon(Icons.calendar_today_outlined),
                   label: Text(
                     DateFormat('yyyy년 MM월 dd일').format(selectedDate),
                     style: AppTheme.bodyLargeStyle.copyWith(

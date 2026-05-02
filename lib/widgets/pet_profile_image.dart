@@ -1,3 +1,4 @@
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import '../utils/config.dart';
 import '../utils/app_theme.dart';
@@ -6,6 +7,8 @@ import '../utils/app_theme.dart';
 ///
 /// 사진이 있으면 원형 이미지, 없으면 동물 종류 아이콘 표시.
 /// [profileImage] 서버 경로 (예: "/uploads/pet_profiles/2026/04/abc.jpg")
+/// [localImageBytes] 메모리 미리보기용 (가입/새 펫 등록 시 서버 업로드 전 단계).
+///   설정되면 [profileImage]보다 우선해 [MemoryImage]로 표시.
 /// [species] "강아지" 또는 "고양이" (아이콘 fallback용)
 /// [radius] CircleAvatar 반지름
 /// [onTap] 클릭 시 원본 크게 보기
@@ -13,6 +16,7 @@ import '../utils/app_theme.dart';
 ///   `?v={cacheBuster}` 쿼리를 URL에 부가. 호출 측에서 업로드/삭제 후 값을 증가시키면 됨.
 class PetProfileImage extends StatelessWidget {
   final String? profileImage;
+  final Uint8List? localImageBytes;
   final String? species;
   final double radius;
   final VoidCallback? onTap;
@@ -21,6 +25,7 @@ class PetProfileImage extends StatelessWidget {
   const PetProfileImage({
     super.key,
     this.profileImage,
+    this.localImageBytes,
     this.species,
     this.radius = 24,
     this.onTap,
@@ -42,7 +47,14 @@ class PetProfileImage extends StatelessWidget {
     final imageUrl = _fullImageUrl;
 
     Widget avatar;
-    if (imageUrl != null) {
+    if (localImageBytes != null) {
+      // 서버 업로드 전 단계 (가입/새 펫 등록) — 메모리 미리보기 우선.
+      avatar = CircleAvatar(
+        radius: radius,
+        backgroundImage: MemoryImage(localImageBytes!),
+        backgroundColor: AppTheme.veryLightGray,
+      );
+    } else if (imageUrl != null) {
       avatar = CircleAvatar(
         radius: radius,
         backgroundImage: NetworkImage(imageUrl),
@@ -67,7 +79,8 @@ class PetProfileImage extends StatelessWidget {
       return GestureDetector(onTap: onTap, child: avatar);
     }
 
-    // 사진이 있으면 기본적으로 클릭 시 원본 크게 보기
+    // 서버 사진이 있으면 기본적으로 클릭 시 원본 크게 보기.
+    // localImageBytes는 미리보기 단계라 별도 풀스크린 다이얼로그 노출 안 함.
     if (imageUrl != null) {
       return GestureDetector(
         onTap: () => _showFullImage(context, imageUrl),

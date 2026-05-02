@@ -10,13 +10,18 @@ import '../widgets/pagination_bar.dart';
 import '../widgets/search_date_filter_bar.dart';
 import '../widgets/state_view.dart';
 import '../widgets/rich_text_viewer.dart';
+import '../widgets/post_list/author_avatar.dart';
 import '../widgets/post_list/board_list_row.dart';
 import '../widgets/post_list/board_list_header.dart';
 import '../hospital/hospital_column_edit.dart';
 import 'package:intl/intl.dart';
 
 class AdminColumnManagement extends StatefulWidget {
-  const AdminColumnManagement({super.key});
+  /// 알림 진입 시 자동으로 상세 시트를 열 칼럼 column_idx.
+  /// 데이터 로드 후 _showColumnDetail 자동 호출.
+  final int? initialColumnIdx;
+
+  const AdminColumnManagement({super.key, this.initialColumnIdx});
 
   @override
   State createState() => _AdminColumnManagementState();
@@ -39,7 +44,19 @@ class _AdminColumnManagementState extends State<AdminColumnManagement> {
   @override
   void initState() {
     super.initState();
-    _loadAllColumns();
+    _loadAndMaybeAutoOpen();
+  }
+
+  /// _loadAllColumns 완료 후 알림 진입(initialColumnIdx)이 있으면
+  /// 매칭 칼럼의 상세 시트 자동 오픈.
+  Future<void> _loadAndMaybeAutoOpen() async {
+    await _loadAllColumns();
+    if (!mounted) return;
+    final id = widget.initialColumnIdx;
+    if (id == null) return;
+    final column = _allColumns.where((c) => c.columnIdx == id).firstOrNull;
+    if (column == null) return;
+    _showColumnDetail(column);
   }
 
   @override
@@ -278,6 +295,10 @@ class _AdminColumnManagementState extends State<AdminColumnManagement> {
                   // 메타 정보
                   Row(
                     children: [
+                      AuthorAvatar(
+                        profileImage: column.hospitalProfileImage,
+                      ),
+                      const SizedBox(width: 8),
                       Expanded(
                         child: Text(
                           column.authorNickname ?? column.hospitalName,
@@ -594,8 +615,9 @@ class _AdminColumnManagementState extends State<AdminColumnManagement> {
       child: BoardListRow(
         index: index + 1,
         title: column.title,
-        // 미공개 칼럼은 회색으로 구분, 공개 칼럼은 기본 검정
-        titleColor: column.isPublished ? null : AppTheme.textTertiary,
+        // 미공개 칼럼은 주황으로 구분, 공개 칼럼은 기본 검정.
+        // 공지 빨강(중요)/파랑(관리자)/초록(병원)과 안 겹치면서 "검토 대기" 의미.
+        titleColor: column.isPublished ? null : AppTheme.warning,
         authorName: column.authorNickname ?? column.hospitalName,
         authorProfileImage: column.hospitalProfileImage,
         createdAt: column.createdAt,

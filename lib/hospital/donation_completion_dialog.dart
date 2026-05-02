@@ -281,7 +281,7 @@ class _DonationCompletionDialogState extends State<DonationCompletionDialog> {
                           });
                         }
                       },
-                      icon: const Icon(Icons.calendar_today, size: 18),
+                      icon: const Icon(Icons.calendar_today_outlined, size: 18),
                       label: Text(
                         '${selectedCompletedDate.month}/${selectedCompletedDate.day}',
                         style: AppTheme.bodyMediumStyle,

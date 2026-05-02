@@ -6,22 +6,60 @@
 // CLAUDE.md "Pet 모델 / 헌혈 자격 검증 contract" 섹션 참조.
 
 import '../models/pet_model.dart';
+import 'blood_types.dart';
 
 /// 헌혈 자격 거부 사유 키 (백엔드 constants/donation_eligibility.py::EligibilityReason 미러).
-/// `pregnancyBirth` condition에만 부여되는 reason 값.
+/// 모든 condition에 부여 (2026-05-01 백엔드 contract 확장).
+///
+/// 와이어 포맷 안정성: 기존 값 변경 금지. 추가만 허용.
 class EligibilityReason {
   EligibilityReason._();
+
+  // === pregnancyBirth + neutered 공유 ===
   static const String pregnant = 'pregnant'; // 현재 임신중 (status=1)
-  static const String cooldown = 'cooldown'; // 출산 12개월 미경과
-  static const String dateMissing = 'date_missing'; // status=2인데 종료일 NULL
+  static const String cooldown = 'cooldown'; // 출산/중성화 12개월(혹은 6개월) 미경과
+  static const String dateMissing = 'date_missing'; // 종료일/수술일 NULL
+
+  // === 일반 missing ===
+  /// 정보 미입력 — 사용자가 채우면 통과 가능. UI에서 "정보 입력 필요" 표시.
+  /// (생년월일 / 예방접종 / 예방약 / 질병 / 중성화 / 혈액형 등)
+  static const String missing = 'missing';
+
+  // === age ===
+  static const String tooYoung = 'too_young';
+  static const String tooOld = 'too_old';
+
+  // === weight ===
+  static const String underMin = 'under_min';
+
+  // === vaccination ===
+  static const String notVaccinated = 'not_vaccinated';
+
+  // === preventive medication ===
+  static const String notTaken = 'not_taken';
+
+  // === disease ===
+  static const String hasDisease = 'has_disease';
+
+  // === donationInterval ===
+  static const String intervalTooShort = 'interval_too_short';
+
+  // === animalType ===
+  static const String mismatch = 'mismatch';
 }
 
 /// 헌혈 자격 상태
+///
+/// 우선순위 (overall 결과 계산 시): ineligible > infoIncomplete > needsConsultation > eligible
+/// - `ineligible`: 고정 사실로 차단 (나이 초과, 질병, 임신 중 등). 데이터 입력으로 풀 수 없음.
+/// - `infoIncomplete`: 정보 미입력으로 차단. 사용자가 펫 수정 화면에서 채우면 풀림.
+/// - `needsConsultation`: 협의 필요 (현재 체중 협의 zone 폐기로 사실상 미사용).
+/// - `eligible`: 통과.
 enum EligibilityStatus {
   eligible, // 헌혈 가능
-  needsConsultation, // 협의 필요 (체중 등)
-  ineligible, // 헌혈 불가
-  unknown, // 정보 부족 (생년월일 미입력 등)
+  needsConsultation, // 협의 필요 (현재 미사용)
+  ineligible, // 헌혈 불가 (고정 사실)
+  infoIncomplete, // 정보 입력 필요 (사용자가 채우면 풀 수 있음)
 }
 
 /// 개별 조건 검증 결과
@@ -45,6 +83,7 @@ class ConditionResult {
   bool get isPassed => status == EligibilityStatus.eligible;
   bool get needsConsultation => status == EligibilityStatus.needsConsultation;
   bool get isFailed => status == EligibilityStatus.ineligible;
+  bool get isInfoIncomplete => status == EligibilityStatus.infoIncomplete;
 }
 
 /// 전체 헌혈 자격 검증 결과
@@ -63,13 +102,22 @@ class EligibilityResult {
   List<ConditionResult> get passedConditions =>
       allConditions.where((c) => c.isPassed).toList();
 
-  /// 실패한 조건 목록
+  /// 실패한 조건 목록 (고정 사실로 차단된 것만)
   List<ConditionResult> get failedConditions =>
       allConditions.where((c) => c.isFailed).toList();
 
   /// 협의 필요 조건 목록
   List<ConditionResult> get consultConditions =>
       allConditions.where((c) => c.needsConsultation).toList();
+
+  /// 정보 미입력 조건 목록 (사용자가 채우면 풀 수 있는 것들)
+  List<ConditionResult> get incompleteConditions =>
+      allConditions.where((c) => c.isInfoIncomplete).toList();
+
+  /// 신청을 막는 모든 조건 (failed + incomplete). UI에서 "왜 신청 못 하는지"를
+  /// 한 번에 보여줄 때 사용.
+  List<ConditionResult> get blockingConditions =>
+      allConditions.where((c) => c.isFailed || c.isInfoIncomplete).toList();
 
   /// 헌혈 가능 여부
   bool get isEligible => overallStatus == EligibilityStatus.eligible;
@@ -78,8 +126,12 @@ class EligibilityResult {
   bool get needsConsultation =>
       overallStatus == EligibilityStatus.needsConsultation;
 
-  /// 헌혈 불가 여부
+  /// 헌혈 불가 여부 (고정 사실로 차단)
   bool get isIneligible => overallStatus == EligibilityStatus.ineligible;
+
+  /// 정보 입력 필요 여부 (사용자가 펫 정보 보완하면 풀림)
+  bool get isInfoIncomplete =>
+      overallStatus == EligibilityStatus.infoIncomplete;
 }
 
 // ============================================================================
@@ -258,6 +310,10 @@ class DonationEligibility {
     );
     results.add(intervalResult);
 
+    // 9. 혈액형 (sentinel "Unknown" 게이트 — 백엔드 _check_blood_type 미러)
+    final bloodTypeResult = _checkBloodType(pet.bloodType);
+    results.add(bloodTypeResult);
+
     // 전체 결과 판정
     final result = _calculateOverallResult(results, '강아지');
 
@@ -300,6 +356,10 @@ class DonationEligibility {
     );
     results.add(intervalResult);
 
+    // 7. 혈액형 (sentinel "Unknown" 게이트 — 백엔드 _check_blood_type 미러)
+    final bloodTypeResult = _checkBloodType(pet.bloodType);
+    results.add(bloodTypeResult);
+
     // 전체 결과 판정
     return _calculateOverallResult(results, '고양이');
   }
@@ -311,13 +371,14 @@ class DonationEligibility {
     int? ageMonths,
     DogEligibilityConditions conditions,
   ) {
-    // 생년월일 미입력 시 검증 스킵
+    // 생년월일 미입력 — 정보 입력 시 풀림
     if (ageMonths == null) {
       return ConditionResult(
         conditionName: '나이',
         description: '${conditions.minAgeMonths}개월 ~ ${conditions.maxAgeYears}세',
-        status: EligibilityStatus.unknown,
-        message: '생년월일 미입력 (나이 검증 불가)',
+        status: EligibilityStatus.infoIncomplete,
+        message: '생년월일 미입력',
+        reason: EligibilityReason.missing,
       );
     }
 
@@ -332,12 +393,15 @@ class DonationEligibility {
       );
     }
 
+    final isTooYoung = ageMonths < conditions.minAgeMonths;
     return ConditionResult(
       conditionName: '나이',
       description: '${conditions.minAgeMonths}개월 ~ ${conditions.maxAgeYears}세',
       status: EligibilityStatus.ineligible,
       message:
-          '현재 $ageMonths개월 (${ageMonths < conditions.minAgeMonths ? "최소 ${conditions.minAgeMonths}개월 이상 필요" : "최대 ${conditions.maxAgeYears}세 이하"})',
+          '현재 $ageMonths개월 (${isTooYoung ? "최소 ${conditions.minAgeMonths}개월 이상 필요" : "최대 ${conditions.maxAgeYears}세 이하"})',
+      reason:
+          isTooYoung ? EligibilityReason.tooYoung : EligibilityReason.tooOld,
     );
   }
 
@@ -360,6 +424,7 @@ class DonationEligibility {
       description: '${conditions.minWeightKg}kg 이상',
       status: EligibilityStatus.ineligible,
       message: '현재 ${weightKg}kg (최소 ${conditions.minWeightKg}kg 이상 필요)',
+      reason: EligibilityReason.underMin,
     );
   }
 
@@ -372,8 +437,9 @@ class DonationEligibility {
       return ConditionResult(
         conditionName: '나이',
         description: '${conditions.minAgeYears}세 ~ ${conditions.maxAgeYears}세',
-        status: EligibilityStatus.unknown,
-        message: '생년월일 미입력 (나이 검증 불가)',
+        status: EligibilityStatus.infoIncomplete,
+        message: '생년월일 미입력',
+        reason: EligibilityReason.missing,
       );
     }
 
@@ -388,12 +454,14 @@ class DonationEligibility {
       );
     }
 
+    final isTooYoung = ageYears < conditions.minAgeYears;
     return ConditionResult(
       conditionName: '나이',
       description: '${conditions.minAgeYears}세 ~ ${conditions.maxAgeYears}세',
       status: EligibilityStatus.ineligible,
-      message:
-          '현재 약 $ageYears세 (${ageYears < conditions.minAgeYears ? "너무 어림" : "너무 많음"})',
+      message: '현재 약 $ageYears세 (${isTooYoung ? "너무 어림" : "너무 많음"})',
+      reason:
+          isTooYoung ? EligibilityReason.tooYoung : EligibilityReason.tooOld,
     );
   }
 
@@ -416,18 +484,23 @@ class DonationEligibility {
       description: '${conditions.minWeightKg}kg 이상',
       status: EligibilityStatus.ineligible,
       message: '현재 ${weightKg}kg (최소 ${conditions.minWeightKg}kg 이상 필요)',
+      reason: EligibilityReason.underMin,
     );
   }
 
   /// 백신 접종 여부 검증
+  ///
+  /// null → infoIncomplete (사용자가 채우면 풀림)
+  /// false → ineligible + not_vaccinated reason (실제 접종 필요)
   static ConditionResult _checkVaccinated(bool? vaccinated) {
-    // null인 경우 정보 없음 - 헌혈 불가
     if (vaccinated == null) {
       return const ConditionResult(
         conditionName: '예방접종',
         description: '예방접종 완료',
-        status: EligibilityStatus.ineligible,
-        message: '예방접종 정보를 입력해주세요',
+        status: EligibilityStatus.infoIncomplete,
+        // 백엔드 messages.py::ELIGIBILITY_VACCINATION_MISSING 미러
+        message: '예방접종 여부 미입력',
+        reason: EligibilityReason.missing,
       );
     }
 
@@ -446,18 +519,23 @@ class DonationEligibility {
       description: '예방접종 완료',
       status: EligibilityStatus.ineligible,
       message: '예방접종이 필요합니다',
+      reason: EligibilityReason.notVaccinated,
     );
   }
 
   /// 예방약 복용 여부 검증
+  ///
+  /// null → infoIncomplete (사용자가 채우면 풀림)
+  /// false → ineligible + not_taken reason (실제 복용 필요)
   static ConditionResult _checkPreventiveMedication(bool? hasTakenPreventive) {
-    // null인 경우 정보 없음 - 헌혈 불가
     if (hasTakenPreventive == null) {
       return const ConditionResult(
         conditionName: '예방약',
         description: '예방약 복용',
-        status: EligibilityStatus.ineligible,
-        message: '예방약 복용 정보를 입력해주세요',
+        status: EligibilityStatus.infoIncomplete,
+        // 백엔드 messages.py::ELIGIBILITY_PREVENTIVE_MEDICATION_UNKNOWN 미러
+        message: '예방약 복용 여부 미입력',
+        reason: EligibilityReason.missing,
       );
     }
 
@@ -475,18 +553,22 @@ class DonationEligibility {
       description: '예방약 복용',
       status: EligibilityStatus.ineligible,
       message: '예방약 복용이 필요합니다',
+      reason: EligibilityReason.notTaken,
     );
   }
 
   /// 질병 이력 검증
+  ///
+  /// null → infoIncomplete (사용자가 채우면 풀림)
+  /// true → ineligible + has_disease reason (고정 사실)
   static ConditionResult _checkDisease(bool? hasDisease) {
-    // null인 경우 정보 없음 - 헌혈 불가
     if (hasDisease == null) {
       return const ConditionResult(
         conditionName: '질병 이력',
         description: '질병 이력 없음',
-        status: EligibilityStatus.ineligible,
+        status: EligibilityStatus.infoIncomplete,
         message: '질병 이력 정보를 입력해주세요',
+        reason: EligibilityReason.missing,
       );
     }
 
@@ -505,6 +587,7 @@ class DonationEligibility {
       description: '질병 이력 없음',
       status: EligibilityStatus.ineligible,
       message: '질병 이력이 있어 헌혈이 어렵습니다',
+      reason: EligibilityReason.hasDisease,
     );
   }
 
@@ -527,7 +610,7 @@ class DonationEligibility {
       );
     }
 
-    // 1: 임신중 (PREGNANT) → fail (reason: pregnant)
+    // 1: 임신중 (PREGNANT) → fail (reason: pregnant) — 고정 사실
     if (status == 1) {
       return const ConditionResult(
         conditionName: '임신/출산',
@@ -539,12 +622,12 @@ class DonationEligibility {
     }
 
     // 2: 출산 이력 (POST_BIRTH)
-    // 종료일 NULL → fail (reason: date_missing)
+    // 종료일 NULL → infoIncomplete (사용자가 종료일 입력하면 cooldown/eligible로 풀림)
     if (endDate == null) {
       return const ConditionResult(
         conditionName: '임신/출산',
         description: '출산 후 12개월 경과',
-        status: EligibilityStatus.ineligible,
+        status: EligibilityStatus.infoIncomplete,
         message: '출산 종료일을 입력해주세요',
         reason: EligibilityReason.dateMissing,
       );
@@ -572,18 +655,23 @@ class DonationEligibility {
   }
 
   /// 중성화 수술 검증 (CLAUDE.md Pet contract: is_neutered=true이면 neutered_date 필수)
+  ///
+  /// is_neutered=null → infoIncomplete + missing
+  /// is_neutered=true & neutered_date=null → infoIncomplete + date_missing
+  /// 수술 후 cooldown 미경과 → ineligible + cooldown
   static ConditionResult _checkNeutered(
     bool? isNeutered,
     DateTime? neuteredDate,
     int requiredMonths,
   ) {
-    // None 보수적 fail (백엔드 정책 동기화)
     if (isNeutered == null) {
       return ConditionResult(
         conditionName: '중성화 수술',
         description: '중성화 수술 $requiredMonths개월 이후',
-        status: EligibilityStatus.ineligible,
-        message: '중성화 수술 정보를 입력해주세요',
+        status: EligibilityStatus.infoIncomplete,
+        // 백엔드 messages.py::ELIGIBILITY_NEUTERED_UNKNOWN 미러
+        message: '중성화 여부 미입력',
+        reason: EligibilityReason.missing,
       );
     }
 
@@ -602,8 +690,9 @@ class DonationEligibility {
       return ConditionResult(
         conditionName: '중성화 수술',
         description: '중성화 수술 $requiredMonths개월 이후',
-        status: EligibilityStatus.ineligible,
+        status: EligibilityStatus.infoIncomplete,
         message: '중성화 수술일을 입력해주세요',
+        reason: EligibilityReason.dateMissing,
       );
     }
 
@@ -624,6 +713,7 @@ class DonationEligibility {
       status: EligibilityStatus.ineligible,
       message:
           '수술 후 $monthsSinceNeutered개월 경과 (${requiredMonths - monthsSinceNeutered}개월 후 가능)',
+      reason: EligibilityReason.cooldown,
     );
   }
 
@@ -661,17 +751,50 @@ class DonationEligibility {
       // 백엔드 messages.py::ELIGIBILITY_INTERVAL_TOO_SHORT와 1:1 동기화 (2026-04-29)
       message:
           '$remainingDays일 후 가능 (현재 $daysSince일 경과, 최소 $intervalDays일 필요)',
+      reason: EligibilityReason.intervalTooShort,
+    );
+  }
+
+  /// 혈액형 검증 — sentinel `BloodType.unknown` ("Unknown") 게이트.
+  ///
+  /// 백엔드 services/donation_eligibility_service.py::_check_blood_type 미러.
+  /// `pet.blood_type == "Unknown"`이면 fail, 그 외(일반 혈액형 값) 통과.
+  /// 게시글의 요구 혈액형과 매칭은 별도 로직(`matchesBloodType`)이 담당.
+  static ConditionResult _checkBloodType(String? bloodType) {
+    if (bloodType == BloodType.unknown) {
+      return const ConditionResult(
+        conditionName: '혈액형',
+        description: '혈액형 입력 필요',
+        status: EligibilityStatus.infoIncomplete,
+        // 백엔드 messages.py::ELIGIBILITY_BLOOD_TYPE_MISSING 미러
+        message: '혈액형 미입력',
+        reason: EligibilityReason.missing,
+      );
+    }
+
+    return ConditionResult(
+      conditionName: '혈액형',
+      description: '혈액형 입력 완료',
+      status: EligibilityStatus.eligible,
+      message: bloodType ?? '',
     );
   }
 
   // ========== 결과 계산 ==========
 
   /// 전체 결과 계산
+  ///
+  /// 우선순위: ineligible > infoIncomplete > needsConsultation > eligible
+  /// - ineligible 하나라도 있으면 ineligible (고정 사실 우선)
+  /// - 그 외 infoIncomplete 있으면 infoIncomplete (사용자가 채울 수 있음)
+  /// - 그 외 consultation 있으면 needsConsultation
+  /// - 모두 통과면 eligible
   static EligibilityResult _calculateOverallResult(
     List<ConditionResult> results,
     String animalType,
   ) {
     final hasIneligible = results.any((r) => r.isFailed);
+    final hasIncomplete = results.any((r) => r.isInfoIncomplete);
     final hasConsultation = results.any((r) => r.needsConsultation);
 
     EligibilityStatus overallStatus;
@@ -681,6 +804,15 @@ class DonationEligibility {
       overallStatus = EligibilityStatus.ineligible;
       final failedCount = results.where((r) => r.isFailed).length;
       summaryMessage = '헌혈 불가 ($failedCount개 조건 미충족)';
+    } else if (hasIncomplete) {
+      overallStatus = EligibilityStatus.infoIncomplete;
+      final incompleteNames = results
+          .where((r) => r.isInfoIncomplete)
+          .map((r) => r.conditionName)
+          .toList();
+      // 필드명을 직접 노출해 어떤 항목을 채워야 하는지 명확하게 안내.
+      // 항목이 많아지면 한 줄이 길어질 수 있으나, 펫 1마리당 최대 4-5개라 실용적 한계 내.
+      summaryMessage = '정보 입력 필요 — ${incompleteNames.join(', ')}';
     } else if (hasConsultation) {
       overallStatus = EligibilityStatus.needsConsultation;
       summaryMessage = '병원 협의 필요';

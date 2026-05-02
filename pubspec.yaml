@@ -66,7 +66,11 @@ dependencies:
   flutter_naver_login: ^2.1.1
   # 웹 플랫폼 지원 (dart:html 대체)
   web: ^1.1.0
+  # 모바일 갤러리 사진 저장 (펫 프로필 사진 다운로드용)
+  gal: ^2.3.1
   app_badge_plus: ^1.2.7
+  # 커스텀 달력 (관리자 날짜 범위 picker — 한국 공휴일/일요일 빨강 표시)
+  table_calendar: ^3.1.2
 
 dev_dependencies:
   flutter_test:

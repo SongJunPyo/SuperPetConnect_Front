@@ -3,6 +3,7 @@
 import 'package:flutter/material.dart';
 import '../utils/app_constants.dart';
 import '../utils/app_theme.dart';
+import '../utils/pet_field_icons.dart';
 import '../widgets/app_app_bar.dart';
 import '../widgets/pagination_bar.dart';
 import '../models/black_list_model.dart';
@@ -466,7 +467,7 @@ class _AdminBlackListManagementScreenState
               const SizedBox(height: 8),
               Row(
                 children: [
-                  Icon(Icons.phone, size: 16, color: AppTheme.textTertiary),
+                  Icon(PetFieldIcons.phone, size: 16, color: AppTheme.textTertiary),
                   const SizedBox(width: 4),
                   Text(
                     blackList.userPhone,
@@ -807,22 +808,27 @@ class _DetailBlackListDialog extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            // 아이콘은 PetFieldIcons 단일 진실에서 가져옴.
             InfoRow(
+              icon: PetFieldIcons.email,
               label: '이메일',
               value: blackList.userEmail,
               padding: const EdgeInsets.only(bottom: 8),
             ),
             InfoRow(
+              icon: PetFieldIcons.phone,
               label: '전화번호',
               value: blackList.userPhone,
               padding: const EdgeInsets.only(bottom: 8),
             ),
             InfoRow(
+              icon: PetFieldIcons.userStatus,
               label: '상태',
               value: blackList.statusText,
               padding: const EdgeInsets.only(bottom: 8),
             ),
             InfoRow(
+              icon: Icons.timer_outlined,
               label: '남은 일수',
               value: '${blackList.dDay}일',
               padding: const EdgeInsets.only(bottom: 8),
@@ -834,6 +840,7 @@ class _DetailBlackListDialog extends StatelessWidget {
             const SizedBox(height: 16),
             if (blackList.createdAt != null)
               InfoRow(
+                icon: PetFieldIcons.userCreatedAt,
                 label: '작성일',
                 value: DateFormat('yyyy-MM-dd HH:mm:ss')
                     .format(blackList.createdAt!),
@@ -842,6 +849,7 @@ class _DetailBlackListDialog extends StatelessWidget {
             if (blackList.updatedAt != null &&
                 blackList.updatedAt != blackList.createdAt)
               InfoRow(
+                icon: Icons.edit_calendar_outlined,
                 label: '수정일',
                 value: DateFormat('yyyy-MM-dd HH:mm:ss')
                     .format(blackList.updatedAt!),

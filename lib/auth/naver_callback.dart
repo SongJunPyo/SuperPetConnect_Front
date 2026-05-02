@@ -102,12 +102,18 @@ class _NaverCallbackScreenState extends State<NaverCallbackScreen> {
       final onboardingCompleted = params['onboarding_completed'] == 'true';
       await PreferencesManager.setOnboardingCompleted(onboardingCompleted);
 
-      // 온보딩 미완료 시 온보딩 화면으로 이동
+      // 온보딩 미완료 시 온보딩 화면으로 이동.
+      // 네이버 자동 보강된 phone이 있으면 prefill (BE가 콜백 query에 phone_number
+      // 추가 ship 후 자동 작동).
       if (!onboardingCompleted) {
         if (mounted) {
+          final initialPhone = params['phone_number'] ?? '';
           Navigator.pushAndRemoveUntil(
             context,
-            MaterialPageRoute(builder: (context) => const OnboardingScreen()),
+            MaterialPageRoute(
+              builder: (context) =>
+                  OnboardingScreen(initialPhone: initialPhone),
+            ),
             (route) => false,
           );
         }

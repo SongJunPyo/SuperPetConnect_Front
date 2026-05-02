@@ -10,6 +10,7 @@ import '../utils/app_theme.dart';
 import '../utils/config.dart';
 import '../utils/kakao_postcode_stub.dart'
     if (dart.library.html) '../utils/kakao_postcode_web.dart';
+import '../utils/phone_input_formatter.dart';
 import '../utils/preferences_manager.dart';
 import '../widgets/registration_pet_manager.dart';
 import 'welcome.dart';
@@ -470,7 +471,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
               keyboardType: TextInputType.phone,
               inputFormatters: [
                 FilteringTextInputFormatter.digitsOnly,
-                _PhoneNumberFormatter(),
+                PhoneNumberFormatter(),
               ],
               decoration: _inputDecoration('전화번호 (예: 010-1234-5678)', colorScheme),
               style: const TextStyle(fontSize: 16),
@@ -564,29 +565,3 @@ class _RegisterScreenState extends State<RegisterScreen> {
 }
 
 // 전화번호 포맷터
-class _PhoneNumberFormatter extends TextInputFormatter {
-  @override
-  TextEditingValue formatEditUpdate(
-    TextEditingValue oldValue,
-    TextEditingValue newValue,
-  ) {
-    var text = newValue.text;
-    if (newValue.selection.baseOffset == 0) return newValue;
-
-    text = text.replaceAll(RegExp(r'\D'), '');
-
-    var buffer = StringBuffer();
-    for (int i = 0; i < text.length; i++) {
-      buffer.write(text[i]);
-      if (i == 2 || i == 6) {
-        if (i < text.length - 1) buffer.write('-');
-      }
-    }
-
-    var string = buffer.toString();
-    return newValue.copyWith(
-      text: string,
-      selection: TextSelection.collapsed(offset: string.length),
-    );
-  }
-}

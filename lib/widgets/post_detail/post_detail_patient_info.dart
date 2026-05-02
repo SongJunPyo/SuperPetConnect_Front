@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../utils/app_theme.dart';
+import '../../utils/pet_field_icons.dart';
 
 /// 게시글 상세 환자 정보 섹션 (긴급 헌혈 전용)
 /// 긴급 헌혈(types == 0)일 때만 표시되며, 병원과 관리자만 볼 수 있습니다.
@@ -78,10 +79,10 @@ class PostDetailPatientInfo extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // 환자 이름
+              // 환자 이름 — 아이콘은 PetFieldIcons 단일 진실에서 가져옴.
               if (patientName != null && patientName!.isNotEmpty) ...[
                 _buildInfoRow(
-                  icon: Icons.pets,
+                  icon: PetFieldIcons.patientName,
                   label: '환자 이름',
                   value: patientName!,
                 ),
@@ -92,7 +93,7 @@ class PostDetailPatientInfo extends StatelessWidget {
                 if (patientName != null && patientName!.isNotEmpty)
                   const SizedBox(height: 12),
                 _buildInfoRow(
-                  icon: Icons.category,
+                  icon: PetFieldIcons.breed,
                   label: '품종',
                   value: breed!,
                 ),
@@ -104,9 +105,9 @@ class PostDetailPatientInfo extends StatelessWidget {
                     (breed != null && breed!.isNotEmpty))
                   const SizedBox(height: 12),
                 _buildInfoRow(
-                  icon: Icons.cake,
+                  icon: PetFieldIcons.birthDate,
                   label: '나이',
-                  value: '$age세',
+                  value: '$age',
                 ),
               ],
 
@@ -117,7 +118,7 @@ class PostDetailPatientInfo extends StatelessWidget {
                     (age != null && age! > 0))
                   const SizedBox(height: 12),
                 _buildInfoRow(
-                  icon: Icons.local_hospital,
+                  icon: PetFieldIcons.diagnosis,
                   label: '병명/증상',
                   value: diagnosis!,
                 ),

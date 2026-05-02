@@ -55,6 +55,10 @@ class AdminActivePostsTabState extends State<AdminActivePostsTab> {
 
   final ScrollController _scrollController = ScrollController();
 
+  /// 부모가 알림 진입(initialPostIdx) 시 단건 매칭에 쓰는 read-only 접근자.
+  /// 검색/날짜 필터를 거치지 않은 raw fetched 리스트.
+  List<dynamic> get allPosts => _allPosts;
+
   @override
   void initState() {
     super.initState();
@@ -185,9 +189,11 @@ class AdminActivePostsTabState extends State<AdminActivePostsTab> {
     }
   }
 
-  /// Tab 1 전용 게시글 뱃지 라벨. donation_posts.status: 1=진행, 3=마감.
+  /// Tab 1 전용 게시글 뱃지 라벨.
+  /// CLOSED(3)이면 '마감', 아니면 긴급/정기 (PostType 미러).
   String _getPostType(Map<String, dynamic> post) {
-    return post['status'] == 1 ? '진행' : '마감';
+    if (post['status'] == 3) return '마감';
+    return post['types'] == 0 ? '긴급' : '정기';
   }
 
   @override

@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../models/donation_history_model.dart';
 import '../services/donation_history_service.dart';
 import '../utils/app_theme.dart';
+import '../utils/pet_field_icons.dart';
 
 /// 반려동물 헌혈 이력 통계 카드 + 탭 시 상세 시트 오픈.
 ///
@@ -305,7 +306,7 @@ class _HistoryItemCard extends StatelessWidget {
           Row(
             children: [
               Icon(
-                Icons.local_hospital,
+                PetFieldIcons.hospital,
                 size: 14,
                 color: AppTheme.textSecondary,
               ),

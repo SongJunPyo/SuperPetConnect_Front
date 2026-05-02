@@ -32,6 +32,19 @@ class NoticeStyling {
     return null;
   }
 
+  /// 공지 제목 굵기. null = 기본(BoardListRow의 FontWeight.bold).
+  /// 빨강(중요)은 같은 bold라도 perceptual weight가 약해 w900으로 보정.
+  static FontWeight? titleFontWeight({
+    required int targetAudience,
+    required int noticeImportant,
+  }) {
+    if (targetAudience == AppConstants.noticeTargetAll &&
+        noticeImportant == AppConstants.noticeImportant) {
+      return FontWeight.w900;
+    }
+    return null;
+  }
+
   /// 공지 정렬 우선순위 (낮을수록 위에 표시).
   /// 0=빨강(중요), 1=파랑(관리자), 2=초록(병원), 3=검정(일반).
   static int priorityRank({

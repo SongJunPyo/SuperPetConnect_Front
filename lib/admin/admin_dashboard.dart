@@ -29,6 +29,8 @@ import '../utils/number_format_util.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../widgets/dashboard/board_section.dart';
 import '../widgets/post_list/board_list_row.dart';
+import '../utils/app_constants.dart';
+import '../widgets/post_list/author_avatar.dart';
 import '../widgets/post_list/notice_styling.dart';
 import '../services/hospital_column_service.dart';
 import '../widgets/rich_text_viewer.dart';
@@ -771,6 +773,10 @@ class _AdminDashboardState extends State<AdminDashboard>
           targetAudience: notice.targetAudience,
           noticeImportant: notice.noticeImportant,
         ),
+        titleFontWeight: NoticeStyling.titleFontWeight(
+          targetAudience: notice.targetAudience,
+          noticeImportant: notice.noticeImportant,
+        ),
         authorName: notice.authorNickname!,
         authorProfileImage: notice.authorProfileImage,
         createdAt: notice.createdAt,
@@ -892,23 +898,8 @@ class _AdminDashboardState extends State<AdminDashboard>
                   const SizedBox(height: 8),
                   Row(
                     children: [
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 8,
-                          vertical: 4,
-                        ),
-                        decoration: BoxDecoration(
-                          color: AppTheme.warning,
-                          borderRadius: BorderRadius.circular(4),
-                        ),
-                        child: Text(
-                          '칼럼',
-                          style: AppTheme.bodySmallStyle.copyWith(
-                            color: Colors.white,
-                            fontSize: 10,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
+                      AuthorAvatar(
+                        profileImage: detailColumn.hospitalProfileImage,
                       ),
                       const SizedBox(width: 8),
                       Expanded(
@@ -1079,12 +1070,15 @@ class _AdminDashboardState extends State<AdminDashboard>
     if (!mounted) return;
 
     final bool isImportant =
-        (fetchedDetail?.noticeImportant ?? notice.noticeImportant) == 0;
+        (fetchedDetail?.noticeImportant ?? notice.noticeImportant) ==
+            AppConstants.noticeImportant;
     final DateTime createdAt = fetchedDetail?.createdAt ?? notice.createdAt;
     final DateTime updatedAt = fetchedDetail?.updatedAt ?? notice.updatedAt;
     final int viewCount = fetchedDetail?.viewCount ?? notice.viewCount ?? 0;
     final String authorName =
         (fetchedDetail?.authorNickname ?? notice.authorNickname)!;
+    final String? authorProfileImage =
+        fetchedDetail?.authorProfileImage ?? notice.authorProfileImage;
     final String title = fetchedDetail?.title ?? notice.title;
     final String content = fetchedDetail?.contentPreview ?? notice.content;
     final String? noticeUrl = fetchedDetail?.noticeUrl ?? notice.noticeUrl;
@@ -1144,26 +1138,8 @@ class _AdminDashboardState extends State<AdminDashboard>
                   const SizedBox(height: 12),
                   Row(
                     children: [
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 8,
-                          vertical: 4,
-                        ),
-                        decoration: BoxDecoration(
-                          color:
-                              isImportant
-                                  ? AppTheme.error
-                                  : AppTheme.primaryBlue,
-                          borderRadius: BorderRadius.circular(6),
-                        ),
-                        child: Text(
-                          isImportant ? '공지' : '알림',
-                          style: AppTheme.bodySmallStyle.copyWith(
-                            color: Colors.white,
-                            fontWeight: FontWeight.bold,
-                            fontSize: 10,
-                          ),
-                        ),
+                      AuthorAvatar(
+                        profileImage: authorProfileImage,
                       ),
                       const SizedBox(width: 8),
                       Expanded(

@@ -2,8 +2,8 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import '../utils/app_theme.dart';
+import '../utils/pet_field_icons.dart';
 import '../models/applied_donation_model.dart';
 import '../models/completed_donation_model.dart';
 import '../services/completed_donation_service.dart';
@@ -172,18 +172,18 @@ class _DonationCompletionSheetState extends State<DonationCompletionSheet> {
                   ),
                   const SizedBox(height: 12),
 
-                  // 신청자
+                  // 신청자 — 아이콘은 PetFieldIcons 단일 진실에서 가져옴.
                   Row(
                     mainAxisAlignment: MainAxisAlignment.start,
                     crossAxisAlignment: CrossAxisAlignment.center,
                     children: [
-                      SizedBox(
+                      const SizedBox(
                         width: 20,
                         height: 20,
                         child: Center(
-                          child: FaIcon(
-                            FontAwesomeIcons.user,
-                            size: 16,
+                          child: Icon(
+                            PetFieldIcons.userName,
+                            size: 18,
                             color: Colors.black,
                           ),
                         ),
@@ -229,13 +229,13 @@ class _DonationCompletionSheetState extends State<DonationCompletionSheet> {
                     mainAxisAlignment: MainAxisAlignment.start,
                     crossAxisAlignment: CrossAxisAlignment.center,
                     children: [
-                      SizedBox(
+                      const SizedBox(
                         width: 20,
                         height: 20,
                         child: Center(
-                          child: FaIcon(
-                            FontAwesomeIcons.droplet,
-                            size: 16,
+                          child: Icon(
+                            PetFieldIcons.bloodType,
+                            size: 18,
                             color: Colors.black,
                           ),
                         ),
@@ -258,13 +258,13 @@ class _DonationCompletionSheetState extends State<DonationCompletionSheet> {
                     mainAxisAlignment: MainAxisAlignment.start,
                     crossAxisAlignment: CrossAxisAlignment.center,
                     children: [
-                      SizedBox(
+                      const SizedBox(
                         width: 20,
                         height: 20,
                         child: Center(
-                          child: FaIcon(
-                            FontAwesomeIcons.weightScale,
-                            size: 16,
+                          child: Icon(
+                            PetFieldIcons.weight,
+                            size: 18,
                             color: Colors.black,
                           ),
                         ),
@@ -287,13 +287,13 @@ class _DonationCompletionSheetState extends State<DonationCompletionSheet> {
                     mainAxisAlignment: MainAxisAlignment.start,
                     crossAxisAlignment: CrossAxisAlignment.center,
                     children: [
-                      SizedBox(
+                      const SizedBox(
                         width: 20,
                         height: 20,
                         child: Center(
-                          child: FaIcon(
-                            FontAwesomeIcons.cakeCandles,
-                            size: 16,
+                          child: Icon(
+                            PetFieldIcons.birthDate,
+                            size: 18,
                             color: Colors.black,
                           ),
                         ),
@@ -301,7 +301,9 @@ class _DonationCompletionSheetState extends State<DonationCompletionSheet> {
                       const SizedBox(width: 8),
                       Expanded(
                         child: Text(
-                          '나이: ${widget.appliedDonation.pet?.age ?? 0}살',
+                          // pet.age getter는 이미 "6살" / "11개월" 형식으로 옴.
+                          // "살" 접미사를 떼서 숫자만 노출 (개월 케이스는 그대로 유지).
+                          '나이: ${(widget.appliedDonation.pet?.age ?? '-').replaceAll('살', '')}',
                           style: AppTheme.bodyMediumStyle.copyWith(
                             color: AppTheme.textPrimary,
                           ),
@@ -430,7 +432,7 @@ class _DonationCompletionSheetState extends State<DonationCompletionSheet> {
                         });
                       }
                     },
-                    icon: const Icon(Icons.calendar_today, size: 18),
+                    icon: const Icon(Icons.calendar_today_outlined, size: 18),
                     label: Text(
                       '${selectedCompletedDate.month}/${selectedCompletedDate.day}',
                       style: AppTheme.bodyMediumStyle,

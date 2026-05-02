@@ -76,12 +76,18 @@ class _LoginScreenState extends State<LoginScreen> {
     final onboardingCompleted = data['onboarding_completed'] ?? true;
     await PreferencesManager.setOnboardingCompleted(onboardingCompleted);
 
-    // 온보딩 미완료 시 온보딩 화면으로 이동
+    // 온보딩 미완료 시 온보딩 화면으로 이동.
+    // 네이버 token-login 응답에 phone_number가 자동 보강되어 있으면 prefill.
+    // (BE가 token-login 응답에 phone_number 추가 ship 후 자동 작동)
     if (onboardingCompleted == false) {
       if (mounted) {
+        final initialPhone = data['phone_number']?.toString() ?? '';
         Navigator.pushAndRemoveUntil(
           context,
-          MaterialPageRoute(builder: (context) => const OnboardingScreen()),
+          MaterialPageRoute(
+            builder: (context) =>
+                OnboardingScreen(initialPhone: initialPhone),
+          ),
           (route) => false,
         );
       }

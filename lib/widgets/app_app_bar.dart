@@ -118,7 +118,7 @@ class AppDashboardAppBar extends StatelessWidget
               minimumSize: Size.zero,
               tapTargetSize: MaterialTapTargetSize.shrinkWrap,
             ),
-            icon: const Icon(Icons.person, color: Colors.black87, size: 20),
+            icon: const Icon(Icons.person_outline, color: Colors.black87, size: 20),
             label: const Text('프로필 관리', style: TextStyle(color: Colors.black87, fontSize: 14)),
             onPressed: onProfilePressed,
           ),

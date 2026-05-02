@@ -8,8 +8,10 @@ import '../services/auth_http_client.dart';
 import '../services/admin_hospital_service.dart';
 import '../utils/app_constants.dart';
 import '../models/pet_model.dart';
-import '../utils/donation_eligibility.dart';
+import '../utils/phone_formatter.dart';
+import '../utils/pet_field_icons.dart';
 import '../widgets/pet_profile_image.dart';
+import '../widgets/pet_status_row.dart';
 
 // 회원 가입 신청자 데이터 모델
 class SignupUser {
@@ -97,7 +99,11 @@ class SignupUser {
 }
 
 class AdminSignupManagement extends StatefulWidget {
-  const AdminSignupManagement({super.key});
+  /// 알림 진입 시 자동으로 승인 다이얼로그를 열 가입 신청자 account_idx.
+  /// new_user_registration 알림에서 전달된 ID로 fetch 완료 후 자동 다이얼로그 표시.
+  final int? initialAccountIdx;
+
+  const AdminSignupManagement({super.key, this.initialAccountIdx});
 
   @override
   State createState() => _AdminSignupManagementState();
@@ -111,7 +117,19 @@ class _AdminSignupManagementState extends State<AdminSignupManagement> {
   @override
   void initState() {
     super.initState();
-    fetchPendingUsers();
+    _fetchAndMaybeAutoOpen();
+  }
+
+  /// fetchPendingUsers 완료 후 알림 진입(initialAccountIdx)이 있으면
+  /// 매칭 사용자의 승인 다이얼로그 자동 오픈.
+  Future<void> _fetchAndMaybeAutoOpen() async {
+    await fetchPendingUsers();
+    if (!mounted) return;
+    final id = widget.initialAccountIdx;
+    if (id == null) return;
+    final user = pendingUsers.where((u) => u.id == id).firstOrNull;
+    if (user == null) return;
+    showApprovalDialog(user);
   }
 
   Future<void> fetchPendingUsers() async {
@@ -617,8 +635,9 @@ class _AdminSignupManagementState extends State<AdminSignupManagement> {
     BuildContext context,
     IconData icon,
     String label,
-    String value,
-  ) {
+    String value, {
+    Color? valueColor,
+  }) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: AppTheme.spacing4),
       child: Row(
@@ -637,7 +656,8 @@ class _AdminSignupManagementState extends State<AdminSignupManagement> {
             child: Text(
               value,
               style: AppTheme.bodyMediumStyle.copyWith(
-                color: AppTheme.textPrimary,
+                color: valueColor ?? AppTheme.textPrimary,
+                fontWeight: valueColor != null ? FontWeight.w600 : null,
               ),
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
@@ -647,6 +667,7 @@ class _AdminSignupManagementState extends State<AdminSignupManagement> {
       ),
     );
   }
+
 
   Widget _buildApprovalBadge(int status) {
     Color bgColor;
@@ -687,66 +708,7 @@ class _AdminSignupManagementState extends State<AdminSignupManagement> {
   }
 
   Future<void> _approvePet(int petIdx, {Pet? pet}) async {
-    // 헌혈 조건 미충족 시 확인 다이얼로그
-    if (pet != null) {
-      final eligibility = DonationEligibility.checkEligibility(pet);
-      if (!eligibility.isEligible) {
-        final confirmed = await showDialog<bool>(
-          context: context,
-          builder: (context) => AlertDialog(
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-            title: const Text('헌혈 조건 미충족'),
-            content: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  eligibility.summaryMessage,
-                  style: AppTheme.bodyMediumStyle.copyWith(
-                    color: eligibility.needsConsultation ? AppTheme.warning : AppTheme.error,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                if (eligibility.failedConditions.isNotEmpty) ...[
-                  const SizedBox(height: 8),
-                  ...eligibility.failedConditions.map((c) => Padding(
-                    padding: const EdgeInsets.only(bottom: 4),
-                    child: Text(
-                      '• ${c.conditionName}: ${c.message}',
-                      style: AppTheme.bodySmallStyle.copyWith(color: AppTheme.error),
-                    ),
-                  )),
-                ],
-                if (eligibility.consultConditions.isNotEmpty) ...[
-                  const SizedBox(height: 4),
-                  ...eligibility.consultConditions.map((c) => Padding(
-                    padding: const EdgeInsets.only(bottom: 4),
-                    child: Text(
-                      '• ${c.conditionName}: ${c.message}',
-                      style: AppTheme.bodySmallStyle.copyWith(color: AppTheme.warning),
-                    ),
-                  )),
-                ],
-                const SizedBox(height: 12),
-                const Text('그래도 승인하시겠습니까?'),
-              ],
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context, false),
-                child: const Text('취소'),
-              ),
-              TextButton(
-                onPressed: () => Navigator.pop(context, true),
-                child: Text('승인', style: TextStyle(color: AppTheme.success)),
-              ),
-            ],
-          ),
-        );
-        if (confirmed != true) return;
-      }
-    }
-
+    // 자동 헌혈 자격 검증 제거 (2026-05-02): 관리자가 펫 정보를 직접 보고 승인/거절 판단.
     try {
       final url = Uri.parse('${Config.serverUrl}${ApiEndpoints.adminPetApprove(petIdx)}');
       final response = await AuthHttpClient.post(url);
@@ -827,8 +789,6 @@ class _AdminSignupManagementState extends State<AdminSignupManagement> {
   }
 
   Widget _buildSignupPetCard(Pet pet) {
-    final eligibility = DonationEligibility.checkEligibility(pet);
-
     // ExpansionTile 타이틀: 이름 + 대표 + 배지
     return Container(
       margin: const EdgeInsets.only(bottom: 4),
@@ -865,88 +825,100 @@ class _AdminSignupManagementState extends State<AdminSignupManagement> {
             ],
           ),
           children: [
-            // 기본 정보 (_buildDetailRow와 동일 스타일)
-            _buildDetailRow(context, Icons.pets, '종류', pet.species),
+            // 펫 카드 표시 순서 (2026-05-02 확정):
+            // 종류 → 품종 → 성별 → 혈액형 → 체중 → 생년월일 → 최근 헌혈일 →
+            // 접종 → 예방약 → 중성화 → 질병 → 임신/출산
+            _buildDetailRow(context, PetFieldIcons.species, '종류', pet.species),
             if (pet.breed != null && pet.breed!.isNotEmpty)
-              _buildDetailRow(context, Icons.category_outlined, '품종', pet.breed!),
-            if (pet.bloodType != null && pet.bloodType!.isNotEmpty)
-              _buildDetailRow(context, Icons.bloodtype_outlined, '혈액형', pet.bloodType!),
-            _buildDetailRow(context, Icons.cake_outlined, '생년월일', pet.birthDateWithAge),
-            _buildDetailRow(context, Icons.monitor_weight_outlined, '체중', '${pet.weightKg}kg'),
-            _buildDetailRow(context, Icons.vaccines_outlined, '접종', pet.vaccinated == true ? '완료' : '미완료'),
-            _buildDetailRow(context, Icons.wc_outlined, '성별', pet.sex == 0 ? '암컷' : '수컷'),
-            _buildDetailRow(context, Icons.pregnant_woman_outlined, '임신/출산', _formatPregnancyBirth(pet)),
-            _buildDetailRow(context, Icons.content_cut_outlined, '중성화', pet.isNeutered == true ? 'O' : 'X'),
-            _buildDetailRow(context, Icons.local_hospital_outlined, '질병', pet.hasDisease == true ? '있음' : '없음'),
-            _buildDetailRow(context, Icons.medication_outlined, '예방약', pet.hasPreventiveMedication == true ? '복용' : '미복용'),
-            // 헌혈 조건 검증 결과
-            const SizedBox(height: 8),
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(10),
-              decoration: BoxDecoration(
-                color: eligibility.isEligible
-                    ? AppTheme.success.withValues(alpha: 0.08)
-                    : eligibility.needsConsultation
-                        ? AppTheme.warning.withValues(alpha: 0.08)
-                        : AppTheme.error.withValues(alpha: 0.08),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Icon(
-                        eligibility.isEligible
-                            ? Icons.check_circle
-                            : eligibility.needsConsultation
-                                ? Icons.warning_amber
-                                : Icons.cancel,
-                        size: 18,
-                        color: eligibility.isEligible
-                            ? AppTheme.success
-                            : eligibility.needsConsultation
-                                ? AppTheme.warning
-                                : AppTheme.error,
-                      ),
-                      const SizedBox(width: 6),
-                      Text(
-                        '헌혈 조건: ${eligibility.summaryMessage}',
-                        style: AppTheme.bodyMediumStyle.copyWith(
-                          fontWeight: FontWeight.w600,
-                          color: eligibility.isEligible
-                              ? AppTheme.success
-                              : eligibility.needsConsultation
-                                  ? AppTheme.warning
-                                  : AppTheme.error,
-                        ),
-                      ),
-                    ],
-                  ),
-                  if (eligibility.failedConditions.isNotEmpty) ...[
-                    const SizedBox(height: 6),
-                    ...eligibility.failedConditions.map((c) => Padding(
-                      padding: const EdgeInsets.only(left: 24, bottom: 2),
-                      child: Text(
-                        '${c.conditionName}: ${c.message}',
-                        style: AppTheme.bodySmallStyle.copyWith(color: AppTheme.error),
-                      ),
-                    )),
-                  ],
-                  if (eligibility.consultConditions.isNotEmpty) ...[
-                    const SizedBox(height: 4),
-                    ...eligibility.consultConditions.map((c) => Padding(
-                      padding: const EdgeInsets.only(left: 24, bottom: 2),
-                      child: Text(
-                        '${c.conditionName}: ${c.message}',
-                        style: AppTheme.bodySmallStyle.copyWith(color: AppTheme.warning),
-                      ),
-                    )),
-                  ],
-                ],
-              ),
+              _buildDetailRow(context, PetFieldIcons.breed, '품종', pet.breed!),
+            _buildDetailRow(
+              context,
+              PetFieldIcons.sex(pet.sex),
+              '성별',
+              pet.sex == 0 ? '암컷' : '수컷',
             ),
+            if (pet.bloodType != null && pet.bloodType!.isNotEmpty)
+              _buildDetailRow(context, PetFieldIcons.bloodType, '혈액형', pet.bloodType!),
+            _buildDetailRow(context, PetFieldIcons.weight, '체중', '${pet.weightKg}kg'),
+            // 생년월일: 입력값 있으면 날짜 텍스트, 없으면 주황 ⚠ (정보 미입력 = 주의)
+            if (pet.birthDate != null)
+              _buildDetailRow(
+                context,
+                PetFieldIcons.birthDate,
+                '생년월일',
+                pet.birthDateWithAge,
+              )
+            else
+              PetStatusRow(
+                icon: PetFieldIcons.birthDate,
+                label: '생년월일',
+                status: PetStatusType.warning,
+              ),
+            // 최근 헌혈일: 입력값 있으면 날짜 텍스트, 없으면 회색 — (첫 헌혈 = 자연스러운 부재)
+            if (pet.prevDonationDate != null)
+              _buildDetailRow(
+                context,
+                PetFieldIcons.prevDonationDate,
+                '최근 헌혈일',
+                '${pet.prevDonationDate!.year}.${pet.prevDonationDate!.month.toString().padLeft(2, '0')}.${pet.prevDonationDate!.day.toString().padLeft(2, '0')}',
+              )
+            else
+              PetStatusRow(
+                icon: PetFieldIcons.prevDonationDate,
+                label: '최근 헌혈일',
+                status: PetStatusType.neutral,
+              ),
+            // 접종: 완료 → 초록 ✓ / 미접종 → 빨강 ! (의료 행위 미수행 = critical)
+            PetStatusRow(
+              icon: PetFieldIcons.vaccinated,
+              label: '접종',
+              status: pet.vaccinated == true
+                  ? PetStatusType.positive
+                  : PetStatusType.critical,
+            ),
+            // 예방약 복용: 복용중 → 초록 ✓ / 미복용 → 빨강 !
+            PetStatusRow(
+              icon: PetFieldIcons.medication,
+              label: '예방약',
+              status: pet.hasPreventiveMedication == true
+                  ? PetStatusType.positive
+                  : PetStatusType.critical,
+            ),
+            // 중성화: 완료 → 초록 ✓ / 미시행 → 회색 — (자연스러운 부재)
+            PetStatusRow(
+              icon: PetFieldIcons.isNeutered,
+              label: '중성화',
+              status: pet.isNeutered == true
+                  ? PetStatusType.positive
+                  : PetStatusType.neutral,
+            ),
+            // 질병: 없음 → 회색 — / 있음 → 빨강 ! (적극적 위험)
+            PetStatusRow(
+              icon: PetFieldIcons.hasDisease,
+              label: '질병',
+              status: pet.hasDisease == true
+                  ? PetStatusType.critical
+                  : PetStatusType.neutral,
+            ),
+            // 임신/출산:
+            //   status=0(해당없음) → 회색 — (자연스러운 부재)
+            //   status=1(임신중) → 주황 ⚠ (컨텍스트 주의)
+            //   status=2 + 종료일 → "출산 YYYY.MM.DD" 텍스트 (FE submit 검증으로 종료일 항상 존재)
+            if (pet.pregnancyBirthStatus == 2 && pet.lastPregnancyEndDate != null)
+              _buildDetailRow(
+                context,
+                PetFieldIcons.pregnancyBirth,
+                '임신/출산',
+                _formatPregnancyBirth(pet),
+              )
+            else
+              PetStatusRow(
+                icon: PetFieldIcons.pregnancyBirth,
+                label: '임신/출산',
+                status: pet.pregnancyBirthStatus == 1
+                    ? PetStatusType.warning
+                    : PetStatusType.neutral,
+              ),
             // 거절 사유
             if (pet.approvalStatus == 2 && pet.rejectionReason != null) ...[
               const SizedBox(height: 8),
@@ -1128,7 +1100,7 @@ class _AdminSignupManagementState extends State<AdminSignupManagement> {
                                 const SizedBox(width: 12),
                                 Expanded(
                                   child: Text(
-                                    '${index + 1}. ${user.name}',
+                                    user.name,
                                     style: AppTheme.h4Style.copyWith(
                                       height: 1.3,
                                     ),
@@ -1139,30 +1111,29 @@ class _AdminSignupManagementState extends State<AdminSignupManagement> {
                               ],
                             ),
                             const SizedBox(height: AppTheme.spacing12),
+                            // 아이콘은 PetFieldIcons 단일 진실에서 가져옴.
                             _buildDetailRow(
                               context,
-                              Icons.email_outlined,
+                              PetFieldIcons.email,
                               '이메일',
                               user.email,
                             ),
                             if (user.nickname.isNotEmpty)
                               _buildDetailRow(
                                 context,
-                                Icons.person_outline,
+                                PetFieldIcons.nickname,
                                 '닉네임',
                                 user.nickname,
                               ),
                             _buildDetailRow(
                               context,
-                              Icons.phone_outlined,
+                              PetFieldIcons.phone,
                               '연락처',
-                              user.phoneNumber.isNotEmpty
-                                  ? user.phoneNumber
-                                  : '미제공',
+                              formatPhoneNumber(user.phoneNumber, fallback: '미제공'),
                             ),
                             _buildDetailRow(
                               context,
-                              Icons.calendar_today_outlined,
+                              PetFieldIcons.userCreatedAt,
                               '신청일',
                               user.createdTime.toIso8601String().split('T')[0],
                             ),

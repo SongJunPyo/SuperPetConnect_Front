@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../utils/app_constants.dart';
 import '../utils/app_theme.dart';
 import '../utils/error_display.dart';
+import '../utils/pet_field_icons.dart';
 import '../widgets/app_app_bar.dart';
 import '../widgets/app_dialog.dart';
 import '../widgets/app_search_bar.dart';
@@ -314,7 +315,7 @@ class _AdminUserManagementScreenState extends State<AdminUserManagementScreen>
               const SizedBox(height: 12),
               Row(
                 children: [
-                  Icon(Icons.phone, size: 16, color: AppTheme.textTertiary),
+                  Icon(PetFieldIcons.phone, size: 16, color: AppTheme.textTertiary),
                   const SizedBox(width: 4),
                   Text(
                     user.phoneNumber,
@@ -611,33 +612,40 @@ class _UserDetailDialog extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            // 아이콘은 PetFieldIcons 단일 진실에서 가져옴.
             InfoRow(
+              icon: PetFieldIcons.email,
               label: '이메일',
               value: user.email,
               padding: const EdgeInsets.only(bottom: 8),
             ),
             InfoRow(
+              icon: PetFieldIcons.phone,
               label: '전화번호',
               value: user.phoneNumber,
               padding: const EdgeInsets.only(bottom: 8),
             ),
             InfoRow(
+              icon: PetFieldIcons.address,
               label: '주소',
               value: user.address,
               padding: const EdgeInsets.only(bottom: 8),
             ),
             InfoRow(
+              icon: Icons.account_circle_outlined,
               label: '사용자 유형',
               value: user.userTypeText,
               padding: const EdgeInsets.only(bottom: 8),
             ),
             InfoRow(
+              icon: PetFieldIcons.userStatus,
               label: '상태',
               value: user.statusText,
               padding: const EdgeInsets.only(bottom: 8),
             ),
             if (user.createdAt != null)
               InfoRow(
+                icon: PetFieldIcons.userCreatedAt,
                 label: '가입일',
                 value: DateFormat('yyyy-MM-dd HH:mm:ss')
                     .format(user.createdAt!),

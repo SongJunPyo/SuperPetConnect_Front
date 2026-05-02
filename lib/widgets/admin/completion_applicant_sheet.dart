@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../utils/app_theme.dart';
+import '../../utils/pet_field_icons.dart';
 import '../../utils/time_format_util.dart';
 import '../donation_history_sheet.dart';
 import '../info_row.dart';
@@ -207,7 +208,7 @@ class _MetaSection extends StatelessWidget {
             Row(
               children: [
                 Icon(
-                  Icons.business,
+                  PetFieldIcons.hospital,
                   size: 16,
                   color: AppTheme.textSecondary,
                 ),
@@ -240,7 +241,7 @@ class _MetaSection extends StatelessWidget {
         Row(
           children: [
             Icon(
-              Icons.location_on,
+              PetFieldIcons.postLocation,
               size: 16,
               color: AppTheme.textSecondary,
             ),
@@ -268,7 +269,7 @@ class _MetaSection extends StatelessWidget {
           Row(
             children: [
               Icon(
-                Icons.calendar_today,
+                PetFieldIcons.donationDate,
                 size: 16,
                 color: AppTheme.textSecondary,
               ),
@@ -315,10 +316,11 @@ class _ApplicantInfoCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // 아이콘은 PetFieldIcons 단일 진실에서 가져옴.
           if (post['user_name'] != null &&
               post['user_name'].toString().isNotEmpty)
             InfoRow(
-              icon: Icons.person,
+              icon: PetFieldIcons.userName,
               label: '이름',
               value: post['user_name'].toString(),
             ),
@@ -326,7 +328,7 @@ class _ApplicantInfoCard extends StatelessWidget {
               post['user_nickname'].toString().isNotEmpty) ...[
             const SizedBox(height: 12),
             InfoRow(
-              icon: Icons.badge,
+              icon: PetFieldIcons.nickname,
               label: '닉네임',
               value: post['user_nickname'].toString(),
             ),
@@ -335,7 +337,7 @@ class _ApplicantInfoCard extends StatelessWidget {
               post['pet_name'].toString().isNotEmpty) ...[
             const SizedBox(height: 12),
             InfoRow(
-              icon: Icons.pets,
+              icon: PetFieldIcons.species,
               label: '반려동물',
               value: post['pet_breed'] != null &&
                       post['pet_breed'].toString().isNotEmpty
@@ -351,7 +353,7 @@ class _ApplicantInfoCard extends StatelessWidget {
           if (post['pet_blood_type'] != null) ...[
             const SizedBox(height: 12),
             InfoRow(
-              icon: Icons.bloodtype,
+              icon: PetFieldIcons.bloodType,
               label: '혈액형',
               value: post['pet_blood_type'].toString(),
             ),
@@ -359,7 +361,7 @@ class _ApplicantInfoCard extends StatelessWidget {
           if (post['blood_volume'] != null) ...[
             const SizedBox(height: 12),
             InfoRow(
-              icon: Icons.water_drop,
+              icon: Icons.water_drop_outlined,
               label: '헌혈량',
               value: '${post['blood_volume']} mL',
             ),
@@ -378,7 +380,7 @@ class _ApplicantInfoCard extends StatelessWidget {
       final ageText = months < 12 ? '$months개월' : '${months ~/ 12}살';
       birthText = '$birthText ($ageText)';
     }
-    return InfoRow(icon: Icons.cake, label: '생년월일', value: birthText);
+    return InfoRow(icon: PetFieldIcons.birthDate, label: '생년월일', value: birthText);
   }
 }
 

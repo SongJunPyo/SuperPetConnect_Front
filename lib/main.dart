@@ -274,25 +274,7 @@ class MyApp extends StatelessWidget {
                     highlightPostId: args?['highlightPost'],
                   );
                 },
-                '/hospital/dashboard': (context) {
-                  final args =
-                      ModalRoute.of(context)?.settings.arguments
-                          as Map<String, dynamic>?;
-                  return HospitalDashboard(
-                    highlightPostId: args?['highlightPostId'],
-                    showPostDetail: args?['showPostDetail'] ?? false,
-                  );
-                },
-                '/hospital/columns': (context) {
-                  final args =
-                      ModalRoute.of(context)?.settings.arguments
-                          as Map<String, dynamic>?;
-                  // 병원 대시보드에 칼럼 탭으로 이동
-                  return HospitalDashboard(
-                    highlightColumnId: args?['highlightColumnId'],
-                    initialTab: 'columns',
-                  );
-                },
+                '/hospital/dashboard': (context) => const HospitalDashboard(),
                 '/profile_management': (context) => const ProfileManagement(),
               },
       home: kIsWeb ? null : const WelcomeScreen(),

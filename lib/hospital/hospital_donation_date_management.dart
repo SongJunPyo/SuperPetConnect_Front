@@ -2,6 +2,7 @@
 
 import 'package:flutter/material.dart';
 import '../utils/app_theme.dart';
+import '../utils/pet_field_icons.dart';
 import '../widgets/app_app_bar.dart';
 import '../widgets/app_dialog.dart';
 import '../services/donation_date_service.dart';
@@ -289,7 +290,7 @@ class _HospitalDonationDateManagementScreenState
                     if (post.isUrgent && post.bloodType != null) ...[
                       const SizedBox(width: AppTheme.spacing16),
                       Icon(
-                        Icons.bloodtype,
+                        PetFieldIcons.bloodType,
                         size: 16,
                         color: AppTheme.textSecondary,
                       ),

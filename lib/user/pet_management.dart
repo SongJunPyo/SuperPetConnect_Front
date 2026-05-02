@@ -7,11 +7,17 @@ import 'package:connect/services/manage_pet_info.dart';
 import 'package:connect/services/donation_history_service.dart';
 import '../utils/app_theme.dart';
 import '../utils/donation_eligibility.dart';
+import '../utils/pet_field_icons.dart';
 import '../widgets/app_dialog.dart';
 import '../widgets/pet_profile_image.dart';
+import '../widgets/pet_status_row.dart';
 
 class PetManagementScreen extends StatefulWidget {
-  const PetManagementScreen({super.key});
+  /// 알림 탭 등 외부 진입 시 자동으로 상세 시트를 열 펫 pet_idx.
+  /// 데이터 로드 후 매칭 펫의 _showPetDetailDialog 자동 호출.
+  final int? initialPetIdx;
+
+  const PetManagementScreen({super.key, this.initialPetIdx});
 
   @override
   State<PetManagementScreen> createState() => _PetManagementScreenState();
@@ -26,6 +32,24 @@ class _PetManagementScreenState extends State<PetManagementScreen> {
   void initState() {
     super.initState();
     _refreshPets(); // 데이터를 불러오는 함수 호출
+    _maybeAutoOpenDetailSheet();
+  }
+
+  /// 알림 진입(initialPetIdx)이 있으면 fetch 완료 후 해당 펫 상세 시트 자동 오픈.
+  /// 패턴 A — 사용자가 카드를 누른 것과 동일한 _showPetDetailDialog 흐름.
+  Future<void> _maybeAutoOpenDetailSheet() async {
+    final id = widget.initialPetIdx;
+    if (id == null) return;
+
+    try {
+      final pets = await _petsFuture;
+      if (!mounted) return;
+      final pet = pets.where((p) => p.petIdx == id).firstOrNull;
+      if (pet == null) return;
+      _showPetDetailDialog(pet);
+    } catch (_) {
+      // fetch 실패 시 시트 자동 오픈 스킵 (사용자가 화면에서 직접 선택 가능)
+    }
   }
 
   // --- 추가: 서버에서 펫 목록을 가져와 상태를 갱신하는 함수 ---
@@ -633,44 +657,9 @@ class _PetDetailBottomSheetState extends State<_PetDetailBottomSheet> {
                     controller: scrollController,
                     padding: const EdgeInsets.symmetric(horizontal: 20),
                     children: [
-                      // 기본 정보 섹션
-                      Text(
-                        '기본 정보',
-                        style: AppTheme.bodyLargeStyle.copyWith(
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                      const SizedBox(height: AppTheme.spacing12),
-                      Container(
-                        padding: const EdgeInsets.all(AppTheme.spacing16),
-                        decoration: BoxDecoration(
-                          color: Colors.grey.shade50,
-                          borderRadius: BorderRadius.circular(
-                            AppTheme.radius12,
-                          ),
-                          border: Border.all(color: Colors.grey.shade200),
-                        ),
-                        child: Column(
-                          children: [
-                            _buildDetailRow('종류', pet.species),
-                            _buildDetailRow('품종', pet.breed ?? '정보 없음'),
-                            _buildDetailRow('혈액형', pet.bloodType ?? '정보 없음'),
-                            _buildDetailRow('생년월일', pet.birthDateWithAge),
-                            _buildDetailRow('몸무게', '${pet.weightKg}kg'),
-                          ],
-                        ),
-                      ),
-
-                      const SizedBox(height: AppTheme.spacing20),
-
-                      // 건강 정보 섹션
-                      Text(
-                        '건강 정보',
-                        style: AppTheme.bodyLargeStyle.copyWith(
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                      const SizedBox(height: AppTheme.spacing12),
+                      // 펫 정보 — 회원가입 관리/관리자 펫 관리와 정합한 단일 그룹.
+                      // 순서: 종류 → 품종 → 성별 → 혈액형 → 체중 → 생년월일 → 최근 헌혈일 →
+                      //       접종 → 예방약 → 중성화 → 질병 → 임신/출산
                       Container(
                         padding: const EdgeInsets.all(AppTheme.spacing16),
                         decoration: BoxDecoration(
@@ -683,39 +672,125 @@ class _PetDetailBottomSheetState extends State<_PetDetailBottomSheet> {
                         child: Column(
                           children: [
                             _buildDetailRow(
-                              '백신 접종',
-                              pet.vaccinated == true
-                                  ? '완료'
-                                  : (pet.vaccinated == false ? '미완료' : '정보 없음'),
+                              icon: PetFieldIcons.species,
+                              label: '종류',
+                              value: pet.species,
                             ),
+                            if (pet.breed != null && pet.breed!.isNotEmpty)
+                              _buildDetailRow(
+                                icon: PetFieldIcons.breed,
+                                label: '품종',
+                                value: pet.breed!,
+                              )
+                            else
+                              const PetStatusRow(
+                                icon: PetFieldIcons.breed,
+                                label: '품종',
+                                labelWidth: 80,
+                                status: PetStatusType.neutral,
+                              ),
                             _buildDetailRow(
-                              '예방약 복용',
-                              pet.hasPreventiveMedication == true
-                                  ? '복용'
-                                  : (pet.hasPreventiveMedication == false
-                                      ? '미복용'
-                                      : '정보 없음'),
+                              icon: PetFieldIcons.sex(pet.sex),
+                              label: '성별',
+                              value: pet.sex == 0 ? '암컷' : '수컷',
                             ),
+                            if (pet.bloodType != null && pet.bloodType!.isNotEmpty)
+                              _buildDetailRow(
+                                icon: PetFieldIcons.bloodType,
+                                label: '혈액형',
+                                value: pet.bloodType!,
+                              )
+                            else
+                              const PetStatusRow(
+                                icon: PetFieldIcons.bloodType,
+                                label: '혈액형',
+                                labelWidth: 80,
+                                status: PetStatusType.neutral,
+                              ),
                             _buildDetailRow(
-                              '질병 이력',
-                              pet.hasDisease == true
-                                  ? '있음'
-                                  : (pet.hasDisease == false ? '없음' : '정보 없음'),
+                              icon: PetFieldIcons.weight,
+                              label: '체중',
+                              value: '${pet.weightKg}kg',
                             ),
-                            _buildDetailRow(
-                              '성별',
-                              pet.sex == 0 ? '암컷' : '수컷',
+                            // 생년월일: 미입력 시 주황 ⚠
+                            if (pet.birthDate != null)
+                              _buildDetailRow(
+                                icon: PetFieldIcons.birthDate,
+                                label: '생년월일',
+                                value: pet.birthDateWithAge,
+                              )
+                            else
+                              const PetStatusRow(
+                                icon: PetFieldIcons.birthDate,
+                                label: '생년월일',
+                                labelWidth: 80,
+                                status: PetStatusType.warning,
+                              ),
+                            // 최근 헌혈일: 미입력 시 회색 — (첫 헌혈)
+                            if (pet.prevDonationDate != null)
+                              _buildDetailRow(
+                                icon: PetFieldIcons.prevDonationDate,
+                                label: '최근 헌혈일',
+                                value:
+                                    '${pet.prevDonationDate!.year}.${pet.prevDonationDate!.month.toString().padLeft(2, '0')}.${pet.prevDonationDate!.day.toString().padLeft(2, '0')}',
+                              )
+                            else
+                              const PetStatusRow(
+                                icon: PetFieldIcons.prevDonationDate,
+                                label: '최근 헌혈일',
+                                labelWidth: 80,
+                                status: PetStatusType.neutral,
+                              ),
+                            // 접종/예방약/중성화/질병 — 4단계 PetStatusRow
+                            PetStatusRow(
+                              icon: PetFieldIcons.vaccinated,
+                              label: '접종',
+                              labelWidth: 80,
+                              status: pet.vaccinated == true
+                                  ? PetStatusType.positive
+                                  : PetStatusType.critical,
                             ),
-                            _buildDetailRow(
-                              '임신/출산',
-                              _formatPregnancyBirth(pet),
+                            PetStatusRow(
+                              icon: PetFieldIcons.medication,
+                              label: '예방약',
+                              labelWidth: 80,
+                              status: pet.hasPreventiveMedication == true
+                                  ? PetStatusType.positive
+                                  : PetStatusType.critical,
                             ),
-                            _buildDetailRow(
-                              '중성화 수술',
-                              pet.isNeutered == true
-                                  ? '완료'
-                                  : (pet.isNeutered == false ? '없음' : '미완료'),
+                            PetStatusRow(
+                              icon: PetFieldIcons.isNeutered,
+                              label: '중성화',
+                              labelWidth: 80,
+                              status: pet.isNeutered == true
+                                  ? PetStatusType.positive
+                                  : PetStatusType.neutral,
                             ),
+                            PetStatusRow(
+                              icon: PetFieldIcons.hasDisease,
+                              label: '질병',
+                              labelWidth: 80,
+                              status: pet.hasDisease == true
+                                  ? PetStatusType.critical
+                                  : PetStatusType.neutral,
+                            ),
+                            // 임신/출산: status=2+종료일 → 텍스트, 그 외 → 4단계
+                            if (pet.pregnancyBirthStatus == 2 &&
+                                pet.lastPregnancyEndDate != null)
+                              _buildDetailRow(
+                                icon: PetFieldIcons.pregnancyBirth,
+                                label: '임신/출산',
+                                value: _formatPregnancyBirth(pet),
+                              )
+                            else
+                              PetStatusRow(
+                                icon: PetFieldIcons.pregnancyBirth,
+                                label: '임신/출산',
+                                labelWidth: 80,
+                                status: pet.pregnancyBirthStatus == 1
+                                    ? PetStatusType.warning
+                                    : PetStatusType.neutral,
+                              ),
                           ],
                         ),
                       ),
@@ -838,6 +913,38 @@ class _PetDetailBottomSheetState extends State<_PetDetailBottomSheet> {
                                       Expanded(
                                         child: Text(
                                           '${condition.conditionName}: ${condition.message}',
+                                          style: AppTheme.bodySmallStyle
+                                              .copyWith(
+                                                color: Colors.red.shade700,
+                                              ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ],
+                            // 정보 입력 필요 항목 표시 — 사용자가 펫 정보 수정에서 채우면 풀림
+                            if (eligibility.incompleteConditions.isNotEmpty) ...[
+                              const SizedBox(height: AppTheme.spacing12),
+                              ...eligibility.incompleteConditions.map(
+                                (condition) => Padding(
+                                  padding: const EdgeInsets.only(
+                                    top: AppTheme.spacing4,
+                                  ),
+                                  child: Row(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Icon(
+                                        Icons.edit_note,
+                                        size: 16,
+                                        color: Colors.red.shade600,
+                                      ),
+                                      const SizedBox(width: AppTheme.spacing4),
+                                      Expanded(
+                                        child: Text(
+                                          '${condition.conditionName}: ${condition.message ?? '정보 미입력'}',
                                           style: AppTheme.bodySmallStyle
                                               .copyWith(
                                                 color: Colors.red.shade700,
@@ -973,24 +1080,36 @@ class _PetDetailBottomSheetState extends State<_PetDetailBottomSheet> {
     }
   }
 
-  // 상세 정보 행 위젯
-  Widget _buildDetailRow(String label, String value) {
+  /// 상세 정보 행 — leading 아이콘 + 라벨(고정 80px) + 값.
+  /// PetFieldIcons 단일 진실 사용. 부재 시 PetStatusRow와 라벨 폭 통일.
+  Widget _buildDetailRow({
+    required IconData icon,
+    required String label,
+    required String value,
+  }) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: AppTheme.spacing4),
       child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          Icon(icon, size: 18, color: AppTheme.textSecondary),
+          const SizedBox(width: AppTheme.spacing8),
           SizedBox(
             width: 80,
             child: Text(
               label,
               style: AppTheme.bodyMediumStyle.copyWith(
                 color: AppTheme.textSecondary,
-                fontWeight: FontWeight.w600,
+                fontWeight: FontWeight.w500,
               ),
             ),
           ),
-          Expanded(child: Text(value, style: AppTheme.bodyMediumStyle)),
+          Expanded(
+            child: Text(
+              value,
+              style: AppTheme.bodyMediumStyle,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
         ],
       ),
     );
@@ -1378,7 +1497,7 @@ class _PetDetailBottomSheetState extends State<_PetDetailBottomSheet> {
                           decoration: const InputDecoration(
                             labelText: '헌혈 날짜 *',
                             hintText: '날짜를 선택하세요',
-                            suffixIcon: Icon(Icons.calendar_today),
+                            suffixIcon: Icon(Icons.calendar_today_outlined),
                           ),
                         ),
                       ),
@@ -1572,7 +1691,7 @@ class _PetDetailBottomSheetState extends State<_PetDetailBottomSheet> {
                           controller: dateController,
                           decoration: const InputDecoration(
                             labelText: '헌혈 날짜 *',
-                            suffixIcon: Icon(Icons.calendar_today),
+                            suffixIcon: Icon(Icons.calendar_today_outlined),
                           ),
                         ),
                       ),

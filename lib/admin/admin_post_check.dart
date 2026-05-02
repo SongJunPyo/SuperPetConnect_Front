@@ -5,7 +5,6 @@ import '../utils/config.dart';
 import '../services/auth_http_client.dart';
 import '../utils/app_theme.dart';
 import '../utils/api_endpoints.dart';
-import '../utils/phone_formatter.dart';
 import '../widgets/pet_profile_image.dart';
 import '../widgets/app_dialog.dart';
 import '../widgets/app_search_bar.dart';
@@ -21,11 +20,12 @@ import 'admin_post_edit.dart';
 import '../widgets/admin/applicant_detail_sheet.dart';
 import '../widgets/admin/post_detail_sheet.dart';
 import '../widgets/admin/completion_applicant_sheet.dart';
+import '../widgets/admin_date_range_picker.dart';
 
 class AdminPostCheck extends StatefulWidget {
-  /// 알림 탭 등 외부 진입 시 강조할 게시글 post_idx.
-  /// 2-5a에서는 받아두기만 하고 활용 보류 — 탭 분리 리팩토링 후 2-5b에서
-  /// 단건 fetch + 신청자 바텀시트 자동 오픈 보강 예정.
+  /// 알림 탭 등 외부 진입 시 자동으로 상세 시트를 열 게시글 post_idx.
+  /// initialTabIndex == 1(헌혈모집)일 때 ActiveTab의 fetched 리스트에서
+  /// post_idx 매칭 후 _openPostDetailSheet 자동 호출.
   final int? initialPostIdx;
 
   /// 알림 탭 진입 시 보일 초기 탭 (0~4). null이면 default 탭(0=모집대기).
@@ -82,6 +82,38 @@ class _AdminPostCheckState extends State<AdminPostCheck>
 
     // 초기 탭의 데이터는 모두 자식 위젯이 자체 initState에서 fetch하므로
     // 부모의 별도 호출 없음.
+
+    // 알림 탭 진입 시 자동으로 해당 게시글 상세 시트 오픈 (2-5b).
+    // 백엔드에 admin 단건 fetch endpoint가 없어서, 헌혈모집 탭(1)의 fetched
+    // 리스트에서 post_idx 매칭으로 해결. new_donation_application 알림은
+    // status=APPROVED(1)/CLOSED(3) 게시글에만 들어오므로 모집중 탭의
+    // status IN (1, 3) 응답으로 커버됨.
+    if (widget.initialPostIdx != null && initialIndex == 1) {
+      WidgetsBinding.instance.addPostFrameCallback((_) async {
+        if (!mounted) return;
+        final tabState = _activeTabKey.currentState;
+        if (tabState == null) return;
+        // 자식 initState의 첫 fetch를 기다릴 수단이 없어 한 번 더 트리거 후 await.
+        // 알림 진입은 1회성이라 중복 fetch 비용 무시 가능.
+        await tabState.refresh();
+        if (!mounted) return;
+
+        Map<String, dynamic>? matched;
+        for (final p in tabState.allPosts) {
+          if (p is Map && p['post_idx'] == widget.initialPostIdx) {
+            matched = Map<String, dynamic>.from(p);
+            break;
+          }
+        }
+        if (matched != null) {
+          _openPostDetailSheet(
+            matched,
+            _getPostStatus(matched['status']),
+            _getPostType(matched),
+          );
+        }
+      });
+    }
   }
 
   void _handleTabChange() {
@@ -234,24 +266,14 @@ class _AdminPostCheckState extends State<AdminPostCheck>
   }
 
   Future<void> _selectDateRange() async {
-    final DateTimeRange? picked = await showDateRangePicker(
+    final DateTimeRange? picked = await showAdminDateRangePicker(
       context: context,
       firstDate: DateTime(2020),
       lastDate: DateTime.now(),
-      initialDateRange:
+      initialRange:
           startDate != null && endDate != null
               ? DateTimeRange(start: startDate!, end: endDate!)
               : null,
-      builder: (context, child) {
-        return Theme(
-          data: Theme.of(context).copyWith(
-            colorScheme: Theme.of(
-              context,
-            ).colorScheme.copyWith(primary: AppTheme.primaryBlue),
-          ),
-          child: child!,
-        );
-      },
     );
 
     if (picked != null) {
@@ -710,85 +732,32 @@ class _AdminPostCheckState extends State<AdminPostCheck>
     }
   }
 
-  // 신청자 상태 업데이트 메소드
-  Future<void> _updateApplicantStatus(
-    int timeSlotId,
-    int appliedDonationIdx,
-    bool approved,
-  ) async {
+  // 신청자 승인 (silent) — 일괄 처리에서 호출. 성공 snackbar 미노출,
+  // 실패는 caller가 모아서 한 번에 안내.
+  Future<bool> _approveSilent(int appliedDonationIdx) async {
     try {
       final response = await AuthHttpClient.patch(
         Uri.parse(
           '${Config.serverUrl}/api/admin/applied-donations/$appliedDonationIdx/approve',
         ),
       );
-
-      if (response.statusCode == 200) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('신청이 승인되었습니다.'),
-              backgroundColor: Colors.green,
-            ),
-          );
-        }
-      } else {
-        final errorData = json.decode(utf8.decode(response.bodyBytes));
-        final errorMessage = errorData['detail'] ?? '승인 처리에 실패했습니다.';
-        if (mounted) {
-          await AppDialog.notice(
-            context,
-            title: '승인 실패',
-            message: errorMessage.toString(),
-          );
-        }
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('처리 중 오류가 발생했습니다: $e')),
-        );
-      }
+      return response.statusCode == 200;
+    } catch (_) {
+      return false;
     }
   }
 
-  // 신청자 상태를 '대기'로 변경하는 메소드
-  Future<void> _pendApplicantStatus(int appliedDonationIdx) async {
+  // 신청자 대기 전환 (silent) — APPROVE 롤백 용도.
+  Future<bool> _pendSilent(int appliedDonationIdx) async {
     try {
       final response = await AuthHttpClient.patch(
         Uri.parse(
           '${Config.serverUrl}/api/admin/applied-donations/$appliedDonationIdx/pend',
         ),
       );
-
-      if (response.statusCode == 200) {
-        if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('신청 상태가 \'대기\'로 변경되었습니다.'),
-            backgroundColor: AppTheme.primaryBlue,
-          ),
-        );
-      } else {
-        String errorMessage = '상태 변경에 실패했습니다.';
-        try {
-          final errorData = json.decode(utf8.decode(response.bodyBytes));
-          if (errorData['message'] != null) {
-            errorMessage = errorData['message'];
-          }
-        } catch (e) {
-          // 에러 메시지 파싱 실패 시 기본 메시지 사용
-        }
-        throw Exception(errorMessage);
-      }
-    } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('처리 중 오류가 발생했습니다: $e'),
-          backgroundColor: Colors.red,
-        ),
-      );
+      return response.statusCode == 200;
+    } catch (_) {
+      return false;
     }
   }
 
@@ -1249,7 +1218,6 @@ class _AdminPostCheckState extends State<AdminPostCheck>
     Map<String, dynamic> post,
     StateSetter onUpdate,
   ) async {
-    // ID 값들을 정수형으로 변환
     final postIdInt =
         postId is int ? postId : int.tryParse(postId.toString()) ?? 0;
     final timeSlotIdInt =
@@ -1257,6 +1225,9 @@ class _AdminPostCheckState extends State<AdminPostCheck>
             ? timeSlotId
             : int.tryParse(timeSlotId.toString()) ?? 0;
     final isSlotClosed = status == 1;
+    // 헌혈모집 탭(_currentTabIndex==1)이고 시간대가 열려 있을 때만 라디오 선택 모드.
+    // 그 외(헌혈마감/완료, 마감된 시간대)는 read-only.
+    final isManageMode = _currentTabIndex == 1 && !isSlotClosed;
 
     showModalBottomSheet(
       context: context,
@@ -1265,8 +1236,17 @@ class _AdminPostCheckState extends State<AdminPostCheck>
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
       builder: (BuildContext context) {
+        // 시트 단위 영구 상태 — StatefulBuilder rebuild 사이에 유지.
+        // applicantsFuture를 캐시해서 setState 시 refetch 방지, selectedIds는
+        // 첫 fetch 응답에서 APPROVED 신청자로 자동 초기화.
+        Future<List<Map<String, dynamic>>>? applicantsFuture;
+        Set<int>? selectedIds;
+        Set<int> initialApprovedIds = const {};
+
         return StatefulBuilder(
           builder: (BuildContext context, StateSetter setState) {
+            applicantsFuture ??=
+                _fetchTimeSlotApplicants(postIdInt, timeSlotIdInt, date);
             return DraggableScrollableSheet(
               initialChildSize: 0.7,
               minChildSize: 0.4,
@@ -1306,7 +1286,7 @@ class _AdminPostCheckState extends State<AdminPostCheck>
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Text(
-                                    _currentTabIndex == 1 ? '신청자 관리' : '신청자 확인',
+                                    isManageMode ? '신청자 관리' : '신청자 확인',
                                     style: AppTheme.h3Style.copyWith(
                                       fontWeight: FontWeight.bold,
                                     ),
@@ -1333,14 +1313,9 @@ class _AdminPostCheckState extends State<AdminPostCheck>
                         ),
                       ),
                       const Divider(height: 1),
-                      // 신청자 목록
                       Expanded(
                         child: FutureBuilder<List<Map<String, dynamic>>>(
-                          future: _fetchTimeSlotApplicants(
-                            postIdInt,
-                            timeSlotIdInt,
-                            date,
-                          ),
+                          future: applicantsFuture,
                           builder: (context, snapshot) {
                             if (snapshot.connectionState ==
                                 ConnectionState.waiting) {
@@ -1359,27 +1334,68 @@ class _AdminPostCheckState extends State<AdminPostCheck>
                                 ),
                               );
                             }
+
                             final applicants = snapshot.data ?? [];
-                            if (applicants.isEmpty && isSlotClosed) {
-                              return Center(
-                                child: Text(
-                                  '마감된 시간대입니다.',
-                                  style: AppTheme.bodyMediumStyle.copyWith(
-                                    color: Colors.grey[600],
-                                  ),
-                                ),
-                              );
+
+                            // 첫 응답 1회 한정 — selectedIds 초기화.
+                            // 이미 APPROVED인 신청자는 자동 체크 ON.
+                            if (selectedIds == null) {
+                              initialApprovedIds = applicants
+                                  .where((a) => a['status'] == 1)
+                                  .map((a) => a['id'] as int)
+                                  .toSet();
+                              selectedIds =
+                                  Set<int>.from(initialApprovedIds);
                             }
+                            final selSet = selectedIds!;
+
+                            // 빈 응답 처리.
                             if (applicants.isEmpty) {
-                              return Center(
-                                child: Text(
-                                  '아직 신청자가 없습니다.',
-                                  style: AppTheme.bodyMediumStyle.copyWith(
-                                    color: Colors.grey[600],
+                              return Column(
+                                children: [
+                                  Expanded(
+                                    child: Center(
+                                      child: Text(
+                                        isSlotClosed
+                                            ? '마감된 시간대입니다.'
+                                            : '아직 신청자가 없습니다.',
+                                        style: AppTheme.bodyMediumStyle
+                                            .copyWith(color: Colors.grey[600]),
+                                      ),
+                                    ),
                                   ),
-                                ),
+                                  if (isManageMode)
+                                    _buildBatchCloseButton(
+                                      selectedCount: 0,
+                                      unselectedCount: 0,
+                                      onPressed: () =>
+                                          _showBatchCloseConfirmation(
+                                        timeSlotId: timeSlotIdInt,
+                                        date: date,
+                                        time: time,
+                                        post: post,
+                                        onUpdate: onUpdate,
+                                        applicants: applicants,
+                                        selectedIds: selSet,
+                                        initialApprovedIds:
+                                            initialApprovedIds,
+                                      ),
+                                    ),
+                                  if (_currentTabIndex == 1 && isSlotClosed)
+                                    _buildReopenButton(
+                                      onPressed: () =>
+                                          _showReopenConfirmationDialog(
+                                        timeSlotIdInt,
+                                        date,
+                                        time,
+                                        post,
+                                        onUpdate,
+                                      ),
+                                    ),
+                                ],
                               );
                             }
+
                             return Column(
                               children: [
                                 Expanded(
@@ -1387,203 +1403,58 @@ class _AdminPostCheckState extends State<AdminPostCheck>
                                     controller: scrollController,
                                     padding: const EdgeInsets.all(16),
                                     itemCount: applicants.length,
-                                    separatorBuilder:
-                                        (context, index) => const SizedBox(height: 8),
-                                    itemBuilder: (context, index) {
+                                    separatorBuilder: (_, __) =>
+                                        const SizedBox(height: 8),
+                                    itemBuilder: (rowContext, index) {
                                       final applicant = applicants[index];
-                                      final petInfo = applicant['pet_info'] as Map<String, dynamic>? ?? {};
-                                      final lastDonationDate = petInfo['last_donation_date'];
-                                      final lastDonationText = (lastDonationDate == null || lastDonationDate.toString().isEmpty)
-                                          ? '첫 헌혈을 기다리는 중'
-                                          : TimeFormatUtils.formatFlexibleDate(lastDonationDate);
-
-                                      final isApproved = applicant['status'] == 1;
-
-                                      return GestureDetector(
-                                        onTap: () => showApplicantDetailBottomSheet(context, applicant),
-                                        child: Container(
-                                          padding: const EdgeInsets.all(12),
-                                          decoration: BoxDecoration(
-                                            color: isApproved && _currentTabIndex != 1
-                                                ? AppTheme.success.withValues(alpha: 0.08)
-                                                : AppTheme.veryLightGray,
-                                            borderRadius: BorderRadius.circular(AppTheme.radius8),
-                                            border: isApproved && _currentTabIndex != 1
-                                                ? Border.all(color: AppTheme.success.withValues(alpha: 0.3))
-                                                : null,
-                                          ),
-                                          child: Row(
-                                            children: [
-                                              // 반려동물 프로필 사진
-                                              PetProfileImage(
-                                                profileImage: petInfo['profile_image'],
-                                                species: petInfo['species'],
-                                                radius: 18,
-                                              ),
-                                              const SizedBox(width: 8),
-                                              // 승인 표시 아이콘 (모집 탭 외)
-                                              if (isApproved && _currentTabIndex != 1) ...[
-                                                const Icon(Icons.check_circle, size: 16, color: AppTheme.success),
-                                                const SizedBox(width: 4),
-                                              ],
-                                              Expanded(
-                                                child: Column(
-                                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                                  children: [
-                                                    Text(
-                                                      applicant['nickname'] ?? applicant['name'] ?? '이름 없음',
-                                                      style: AppTheme.bodyMediumStyle.copyWith(fontWeight: FontWeight.w600),
-                                                      overflow: TextOverflow.ellipsis,
-                                                    ),
-                                                    const SizedBox(height: 4),
-                                                    Text(
-                                                      '${petInfo['name'] ?? '이름 없음'} | ${petInfo['breed'] ?? ''} | ${petInfo['blood_type'] ?? ''}',
-                                                      style: AppTheme.bodySmallStyle.copyWith(color: AppTheme.textSecondary),
-                                                    ),
-                                                    const SizedBox(height: 2),
-                                                    Text(
-                                                      '직전 헌혈일: $lastDonationText',
-                                                      style: AppTheme.bodySmallStyle.copyWith(color: AppTheme.textTertiary),
-                                                    ),
-                                                  ],
-                                                ),
-                                              ),
-                                              // 승인/대기 토글 + 화살표
-                                              const SizedBox(width: 8),
-                                              if (_currentTabIndex == 1 && applicant['status'] != 2 && applicant['status'] != 4)
-                                                Row(
-                                                  mainAxisSize: MainAxisSize.min,
-                                                  children: [
-                                                    SizedBox(
-                                                      height: 30,
-                                                      child: OutlinedButton(
-                                                        onPressed: applicant['status'] != 1
-                                                            ? () async {
-                                                                await _updateApplicantStatus(timeSlotIdInt, applicant['id'], true);
-                                                                setState(() {});
-                                                              }
-                                                            : null,
-                                                        style: OutlinedButton.styleFrom(
-                                                          foregroundColor: applicant['status'] == 1 ? Colors.white : AppTheme.success,
-                                                          backgroundColor: applicant['status'] == 1 ? AppTheme.success : null,
-                                                          side: BorderSide(color: AppTheme.success),
-                                                          padding: const EdgeInsets.symmetric(horizontal: 10),
-                                                          shape: RoundedRectangleBorder(
-                                                            borderRadius: BorderRadius.circular(6),
-                                                          ),
-                                                        ),
-                                                        child: const Text('승인', style: TextStyle(fontSize: 12)),
-                                                      ),
-                                                    ),
-                                                    const SizedBox(width: 4),
-                                                    SizedBox(
-                                                      height: 30,
-                                                      child: OutlinedButton(
-                                                        onPressed: applicant['status'] != 0
-                                                            ? () async {
-                                                                await _pendApplicantStatus(applicant['id']);
-                                                                setState(() {});
-                                                              }
-                                                            : null,
-                                                        style: OutlinedButton.styleFrom(
-                                                          foregroundColor: applicant['status'] == 0 ? Colors.white : AppTheme.warning,
-                                                          backgroundColor: applicant['status'] == 0 ? AppTheme.warning : null,
-                                                          side: BorderSide(color: AppTheme.warning),
-                                                          padding: const EdgeInsets.symmetric(horizontal: 10),
-                                                          shape: RoundedRectangleBorder(
-                                                            borderRadius: BorderRadius.circular(6),
-                                                          ),
-                                                        ),
-                                                        child: const Text('대기', style: TextStyle(fontSize: 12)),
-                                                      ),
-                                                    ),
-                                                  ],
-                                                ),
-                                              const SizedBox(width: 4),
-                                              const Icon(Icons.chevron_right, size: 18, color: AppTheme.textTertiary),
-                                            ],
-                                          ),
-                                        ),
+                                      final id = applicant['id'] as int;
+                                      final isSelected = selSet.contains(id);
+                                      return _buildApplicantSelectableRow(
+                                        rowContext: rowContext,
+                                        applicant: applicant,
+                                        isManageMode: isManageMode,
+                                        isSelected: isSelected,
+                                        onToggle: isManageMode
+                                            ? () => setState(() {
+                                                  if (selSet.contains(id)) {
+                                                    selSet.remove(id);
+                                                  } else {
+                                                    selSet.add(id);
+                                                  }
+                                                })
+                                            : null,
                                       );
                                     },
                                   ),
                                 ),
-                                // 마감/마감해제 버튼 (헌혈모집 탭에서만 표시)
-                                if (_currentTabIndex == 1)
-                                Padding(
-                                  padding: const EdgeInsets.fromLTRB(
-                                    16.0,
-                                    8.0,
-                                    16.0,
-                                    16.0,
+                                if (isManageMode)
+                                  _buildBatchCloseButton(
+                                    selectedCount: selSet.length,
+                                    unselectedCount:
+                                        applicants.length - selSet.length,
+                                    onPressed: () =>
+                                        _showBatchCloseConfirmation(
+                                      timeSlotId: timeSlotIdInt,
+                                      date: date,
+                                      time: time,
+                                      post: post,
+                                      onUpdate: onUpdate,
+                                      applicants: applicants,
+                                      selectedIds: selSet,
+                                      initialApprovedIds: initialApprovedIds,
+                                    ),
                                   ),
-                                  child: OutlinedButton(
-                                    onPressed: () {
-                                      if (!isSlotClosed) {
-                                        // 승인된 신청자가 있는지 확인
-                                        final hasApproved = applicants.any((a) => a['status'] == 1);
-                                        if (!hasApproved) {
-                                          showDialog(
-                                            context: context,
-                                            builder: (context) => AlertDialog(
-                                              title: const Text('알림'),
-                                              content: const Text('승인된 신청자가 없습니다.'),
-                                              actions: [
-                                                TextButton(
-                                                  onPressed: () => Navigator.pop(context),
-                                                  child: const Text('확인'),
-                                                ),
-                                              ],
-                                            ),
-                                          );
-                                          return;
-                                        }
-                                        // 마감 처리
-                                        _showCloseConfirmationSheet(
-                                          timeSlotIdInt,
-                                          date,
-                                          time,
-                                          post,
-                                          onUpdate,
-                                        );
-                                      } else {
-                                        // 마감 해제 처리
+                                if (_currentTabIndex == 1 && isSlotClosed)
+                                  _buildReopenButton(
+                                    onPressed: () =>
                                         _showReopenConfirmationDialog(
-                                          timeSlotIdInt,
-                                          date,
-                                          time,
-                                          post,
-                                          onUpdate,
-                                        );
-                                      }
-                                    },
-                                    style: OutlinedButton.styleFrom(
-                                      foregroundColor:
-                                          isSlotClosed
-                                              ? Colors.green
-                                              : Colors.red,
-                                      side: BorderSide(
-                                        color: isSlotClosed
-                                            ? Colors.green
-                                            : Colors.red,
-                                      ),
-                                      minimumSize: const Size(
-                                        double.infinity,
-                                        50,
-                                      ),
-                                      shape: RoundedRectangleBorder(
-                                        borderRadius: BorderRadius.circular(12),
-                                      ),
-                                    ),
-                                    child: Text(
-                                      isSlotClosed ? '마감 해제' : '마감',
-                                      style: const TextStyle(
-                                        fontSize: 16,
-                                        fontWeight: FontWeight.bold,
-                                      ),
+                                      timeSlotIdInt,
+                                      date,
+                                      time,
+                                      post,
+                                      onUpdate,
                                     ),
                                   ),
-                                ),
                               ],
                             );
                           },
@@ -1702,67 +1573,41 @@ class _AdminPostCheckState extends State<AdminPostCheck>
       final response = await AuthHttpClient.patch(url);
 
       if (response.statusCode == 200) {
-        // 1. 개선된 API 응답 파싱
+        // 백엔드 응답의 post_status는 단일 시간대였다면 3(CLOSED)로 승격되어 옴.
+        // updated_time_slot 필드는 더 이상 신뢰하지 않고, 호출자가 넘긴
+        // timeSlotId로 직접 매칭해 status=1을 박는다 — 응답 필드 누락/id-idx
+        // 키 불일치로 뱃지가 stale로 남던 케이스 차단.
         final responseData = json.decode(utf8.decode(response.bodyBytes));
-        final int postStatus = responseData['post_status'];
-        final updatedTimeSlot = responseData['updated_time_slot']; // 새로 추가된 정보
+        final int postStatus =
+            responseData['post_status'] ?? post['status'] ?? 1;
 
-        // 2. 업데이트된 시간대 정보를 사용하여 효율적으로 상태 업데이트
-        if (updatedTimeSlot != null) {
-          final updatedTimeSlotId = updatedTimeSlot['post_times_idx'];
-          final updatedStatus = updatedTimeSlot['status'];
+        // id 키가 응답마다 (id / idx / post_times_idx) 다르고 int/String도 섞여
+        // 들어오므로 toString 비교로 통일 — 매칭이 빗나가서 status가 stale로
+        // 남던 케이스 차단.
+        final timeRanges = post['timeRanges'] as List<dynamic>? ?? [];
+        final targetIdStr = timeSlotId.toString();
+        final timeSlotIndex = timeRanges.indexWhere((ts) {
+          final raw = ts['id'] ?? ts['idx'] ?? ts['post_times_idx'];
+          return raw != null && raw.toString() == targetIdStr;
+        });
 
-          // 모달 내부 상태 업데이트
-          final timeRanges = post['timeRanges'] as List<dynamic>? ?? [];
-
-          // id 또는 idx 필드로 매칭 시도
-          int timeSlotIndex = timeRanges.indexWhere(
-            (ts) => ts['id'] == updatedTimeSlotId,
-          );
-          if (timeSlotIndex == -1) {
-            timeSlotIndex = timeRanges.indexWhere(
-              (ts) => ts['idx'] == updatedTimeSlotId,
-            );
-          }
-
-          if (timeSlotIndex != -1) {
-            onUpdate(() {
-              // status 필드가 없을 수도 있으므로 추가
-              timeRanges[timeSlotIndex]['status'] = updatedStatus;
-            });
-          } else {
-            for (int i = 0; i < timeRanges.length; i++) {}
-          }
-
-        } else {}
-
-        // post 변수 업데이트 (상세 시트 재오픈 시 사용). 부모의 게시글 목록은
-        // 자식 위젯이 보유하므로 _fetchDataForCurrentTab으로 자동 갱신.
         if (mounted) {
-          post['status'] = postStatus;
-        }
+          // 상세 시트의 setState — 뱃지(모집진행 → 모집마감)와 하단 마감/
+          // 재오픈 버튼이 즉시 갱신. 상세 시트는 닫지 않는다.
+          onUpdate(() {
+            if (timeSlotIndex != -1) {
+              timeRanges[timeSlotIndex]['status'] = 1;
+            }
+            post['status'] = postStatus;
+          });
 
-        // 확인 창 닫기
-        if (mounted) {
+          // 확인 시트 + 신청자 관리 시트만 닫음.
           Navigator.of(context).pop();
-
-          // 신청자 관리 바텀시트도 닫기
           Navigator.of(context).pop();
         }
 
-        // 상세 게시글 새로고침을 위해 잠깐 닫고 다시 열기
-        if (mounted) {
-          await _refreshAndReopenPostDetail(
-            post,
-            _getPostStatus(postStatus), // 업데이트된 postStatus 사용
-            post['types'] == 0 ? '긴급' : '정기',
-          );
-        }
-
-        // 마감 처리 후 전체 데이터 새로고침 (신청자 수 등 최신 정보 반영)
-        await Future.delayed(
-          const Duration(milliseconds: 500),
-        ); // UI 업데이트 완료 대기
+        // 부모 탭 목록도 백그라운드로 새로고침 — 단일 시간대였다면 게시글이
+        // 헌혈모집 탭에서 빠지고 헌혈마감 탭으로 이동.
         if (mounted) {
           await _fetchDataForCurrentTab();
         }
@@ -1799,185 +1644,364 @@ class _AdminPostCheckState extends State<AdminPostCheck>
     }
   }
 
-  // Method to show the confirmation dialog for closing a time slot
-  void _showCloseConfirmationSheet(
-    int timeSlotId,
-    String date,
-    String time,
-    Map<String, dynamic> post,
-    StateSetter onUpdate,
-  ) {
+  /// 신청자 카드 — 카드 본체 탭 시 선택(녹색 강조), 하단 중앙 "더보기" 버튼은
+  /// 신청자 상세 시트로 진입. read-only(헌혈마감/완료 탭 등)에서는 카드 탭도
+  /// 상세 시트로 진입.
+  Widget _buildApplicantSelectableRow({
+    required BuildContext rowContext,
+    required Map<String, dynamic> applicant,
+    required bool isManageMode,
+    required bool isSelected,
+    required VoidCallback? onToggle,
+  }) {
+    final petInfo = applicant['pet_info'] as Map<String, dynamic>? ?? {};
+    final lastDonationDate = petInfo['last_donation_date'];
+    final lastDonationText =
+        (lastDonationDate == null || lastDonationDate.toString().isEmpty)
+            ? '첫 헌혈을 기다리는 중'
+            : TimeFormatUtils.formatFlexibleDate(lastDonationDate);
+
+    // 강조: 관리 모드는 선택된 행만, 읽기 전용은 status=APPROVED 행.
+    final isApprovedReadOnly = !isManageMode && applicant['status'] == 1;
+    final highlight = isSelected || isApprovedReadOnly;
+
+    final bgColor = highlight
+        ? AppTheme.success.withValues(alpha: 0.12)
+        : AppTheme.veryLightGray;
+    final borderColor =
+        highlight ? AppTheme.success : AppTheme.lightGray;
+
+    return Container(
+      decoration: BoxDecoration(
+        color: bgColor,
+        borderRadius: BorderRadius.circular(AppTheme.radius8),
+        border: Border.all(
+          color: borderColor,
+          width: highlight ? 1.5 : 1,
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          // 카드 본체 — 탭 시 선택 토글(또는 read-only면 상세 시트).
+          GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onTap: onToggle ??
+                () => showApplicantDetailBottomSheet(rowContext, applicant),
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  PetProfileImage(
+                    profileImage: petInfo['profile_image'],
+                    species: petInfo['species'],
+                    radius: 32,
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          applicant['nickname'] ??
+                              applicant['name'] ??
+                              '이름 없음',
+                          style: AppTheme.bodyLargeStyle.copyWith(
+                            fontWeight: FontWeight.w700,
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        const SizedBox(height: 6),
+                        Text(
+                          '${petInfo['name'] ?? '이름 없음'} | ${petInfo['breed'] ?? ''} | ${petInfo['blood_type'] ?? ''}',
+                          style: AppTheme.bodyMediumStyle
+                              .copyWith(color: AppTheme.textSecondary),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          '최근 헌혈일: $lastDonationText',
+                          style: AppTheme.bodyMediumStyle
+                              .copyWith(color: AppTheme.textTertiary),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          Divider(height: 1, color: borderColor.withValues(alpha: 0.4)),
+          // 하단 중앙 "더보기" — 카드 탭과 별도 핫스팟으로 상세 시트 진입.
+          Center(
+            child: TextButton(
+              onPressed: () =>
+                  showApplicantDetailBottomSheet(rowContext, applicant),
+              style: TextButton.styleFrom(
+                foregroundColor: AppTheme.textSecondary,
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
+                minimumSize: Size.zero,
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              ),
+              child: const Text(
+                '더보기',
+                style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// 일괄 마감 버튼 — "마감 (선정 N명 · 미선정 M명)" 카운트 라벨.
+  Widget _buildBatchCloseButton({
+    required int selectedCount,
+    required int unselectedCount,
+    required VoidCallback onPressed,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+      child: OutlinedButton(
+        onPressed: onPressed,
+        style: OutlinedButton.styleFrom(
+          foregroundColor: Colors.red,
+          side: const BorderSide(color: Colors.red),
+          minimumSize: const Size(double.infinity, 50),
+          shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12)),
+        ),
+        child: Text(
+          '마감 (선정 $selectedCount명 · 미선정 $unselectedCount명)',
+          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+        ),
+      ),
+    );
+  }
+
+  /// 마감 해제 버튼 — 헌혈모집 탭에서 이미 마감된 시간대용.
+  Widget _buildReopenButton({required VoidCallback onPressed}) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+      child: OutlinedButton(
+        onPressed: onPressed,
+        style: OutlinedButton.styleFrom(
+          foregroundColor: Colors.green,
+          side: const BorderSide(color: Colors.green),
+          minimumSize: const Size(double.infinity, 50),
+          shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12)),
+        ),
+        child: const Text(
+          '마감 해제',
+          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+        ),
+      ),
+    );
+  }
+
+  /// 일괄 마감 확인 시트 — 선정/미선정 카운트와 안내 문구를 보여주고
+  /// 사용자가 확정하면 [_executeBatchClose]가 diff approve/pend → close API
+  /// 까지 처리. 성공 시 _closeTimeSlot이 confirmation + 신청자 시트를 모두 pop.
+  void _showBatchCloseConfirmation({
+    required int timeSlotId,
+    required String date,
+    required String time,
+    required Map<String, dynamic> post,
+    required StateSetter onUpdate,
+    required List<Map<String, dynamic>> applicants,
+    required Set<int> selectedIds,
+    required Set<int> initialApprovedIds,
+  }) {
+    final selectedCount = selectedIds.length;
+    final unselectedCount = applicants.length - selectedCount;
+
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
-      builder: (BuildContext context) {
-        return FutureBuilder<List<Map<String, dynamic>>>(
-          future: _fetchTimeSlotApplicants(0, timeSlotId, date).then(
-            (applicants) => applicants.where((a) => a['status'] == 1).toList(),
-          ),
-          builder: (context, snapshot) {
-            if (snapshot.connectionState == ConnectionState.waiting) {
-              return const SizedBox(
-                height: 200,
-                child: Center(child: CircularProgressIndicator()),
-              );
-            }
-
-            if (snapshot.hasError) {
-              return Container(
-                height: 200,
-                padding: const EdgeInsets.all(20),
-                child: Center(child: Text('오류: ${snapshot.error}')),
-              );
-            }
-
-            final approvedApplicants = snapshot.data ?? [];
-            bool isClosing = false;
-
-            return StatefulBuilder(
-              builder: (context, setState) {
-                return Padding(
-                  padding: const EdgeInsets.all(20.0),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        '마감 확인',
-                        style: AppTheme.h3Style.copyWith(
-                          fontWeight: FontWeight.bold,
-                        ),
+      builder: (BuildContext confirmContext) {
+        bool isProcessing = false;
+        return StatefulBuilder(
+          builder: (context, setConfirmState) {
+            return Padding(
+              padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Center(
+                    child: Container(
+                      width: 40,
+                      height: 4,
+                      margin: const EdgeInsets.only(bottom: 16),
+                      decoration: BoxDecoration(
+                        color: Colors.grey[300],
+                        borderRadius: BorderRadius.circular(2),
                       ),
-                      const SizedBox(height: 8),
-                      Text(
-                        '${TimeFormatUtils.formatDateWithWeekday(date)} ${TimeFormatUtils.formatTime(time)}',
-                        style: AppTheme.bodyLargeStyle,
-                      ),
-                      const SizedBox(height: 16),
-                      const Divider(),
-                      const SizedBox(height: 16),
-                      Text('승인된 신청자 목록', style: AppTheme.h4Style),
-                      const SizedBox(height: 8),
-                      approvedApplicants.isEmpty
-                          ? const Text('승인된 신청자가 없습니다.')
-                          : ListView.builder(
-                            shrinkWrap: true,
-                            itemCount: approvedApplicants.length,
-                            itemBuilder: (context, index) {
-                              final applicant = approvedApplicants[index];
-                              final petInfo =
-                                  applicant['pet_info']
-                                      as Map<String, dynamic>? ??
-                                  {};
-                              final lastDonationDate =
-                                  petInfo['last_donation_date'];
-                              String lastDonationText;
-                              if (lastDonationDate == null ||
-                                  lastDonationDate.toString().isEmpty) {
-                                lastDonationText = '첫 헌혈';
-                              } else {
-                                lastDonationText = TimeFormatUtils.formatFlexibleDate(
-                                  lastDonationDate.toString(),
-                                );
-                              }
-
-                              return Card(
-                                margin: const EdgeInsets.symmetric(
-                                  vertical: 8.0,
-                                ),
-                                elevation: 2,
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(8),
-                                ),
-                                child: Padding(
-                                  padding: const EdgeInsets.all(12.0),
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        applicant['nickname'] ?? '닉네임 없음',
-                                        style: AppTheme.bodyLargeStyle.copyWith(
-                                          fontWeight: FontWeight.bold,
-                                        ),
-                                      ),
-                                      const SizedBox(height: 4),
-                                      Text(
-                                        formatPhoneNumber(applicant['contact'] as String?, fallback: '연락처 없음'),
-                                        style: AppTheme.bodySmallStyle.copyWith(
-                                          color: AppTheme.textSecondary,
-                                        ),
-                                      ),
-                                      const SizedBox(height: 8),
-                                      const Divider(),
-                                      const SizedBox(height: 8),
-                                      Text(
-                                        '반려동물: ${petInfo['name'] ?? ''} (${petInfo['breed'] ?? ''}, ${petInfo['age'] ?? '?'}세, ${petInfo['blood_type'] ?? ''})',
-                                        style: AppTheme.bodyMediumStyle,
-                                      ),
-                                      const SizedBox(height: 4),
-                                      Text(
-                                        '직전 헌혈일: $lastDonationText',
-                                        style: AppTheme.bodyMediumStyle,
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              );
-                            },
-                          ),
-                      const SizedBox(height: 24),
-                      OutlinedButton(
-                        onPressed:
-                            isClosing
-                                ? null
-                                : () async {
-                                  setState(() {
-                                    isClosing = true;
-                                  });
-                                  await _closeTimeSlot(
-                                    post,
-                                    timeSlotId,
-                                    onUpdate,
-                                  );
-                                  // _closeTimeSlot이 Navigator.pop을 호출하므로
-                                  // 이 시점에는 이미 다이얼로그가 닫혔을 수 있음
-                                  // setState 호출하지 않음
-                                },
-                        style: OutlinedButton.styleFrom(
-                          foregroundColor: Colors.red,
-                          side: const BorderSide(color: Colors.red),
-                          minimumSize: const Size(double.infinity, 50),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                        ),
-                        child:
-                            isClosing
-                                ? const SizedBox(
-                                  width: 20,
-                                  height: 20,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                    valueColor: AlwaysStoppedAnimation<Color>(
-                                      Colors.red,
-                                    ),
-                                  ),
-                                )
-                                : const Text('신청자 마감'),
-                      ),
-                    ],
+                    ),
                   ),
-                );
-              },
+                  Text(
+                    '마감 확인',
+                    style: AppTheme.h3Style
+                        .copyWith(fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    '${TimeFormatUtils.formatDateWithWeekday(date)} ${TimeFormatUtils.formatTime(time)}',
+                    style: AppTheme.bodyLargeStyle,
+                  ),
+                  const SizedBox(height: 16),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 16, vertical: 12),
+                    decoration: BoxDecoration(
+                      color: AppTheme.veryLightGray,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: Column(
+                            children: [
+                              Text(
+                                '$selectedCount명',
+                                style: AppTheme.h3Style.copyWith(
+                                  color: AppTheme.success,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              const SizedBox(height: 2),
+                              Text('선정',
+                                  style: AppTheme.bodySmallStyle.copyWith(
+                                      color: AppTheme.textSecondary)),
+                            ],
+                          ),
+                        ),
+                        Container(
+                            width: 1, height: 36, color: AppTheme.lightGray),
+                        Expanded(
+                          child: Column(
+                            children: [
+                              Text(
+                                '$unselectedCount명',
+                                style: AppTheme.h3Style.copyWith(
+                                  color: AppTheme.textSecondary,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              const SizedBox(height: 2),
+                              Text('미선정',
+                                  style: AppTheme.bodySmallStyle.copyWith(
+                                      color: AppTheme.textSecondary)),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  Text(
+                    selectedCount == 0
+                        ? unselectedCount == 0
+                            ? '신청자가 없는 상태로 마감합니다.'
+                            : '선정자 없이 마감합니다.\n미선정 $unselectedCount명은 자동으로 종결됩니다.'
+                        : unselectedCount == 0
+                            ? '모든 신청자가 선정되었습니다.'
+                            : '미선정 $unselectedCount명은 자동으로 종결됩니다.',
+                    style: AppTheme.bodyMediumStyle
+                        .copyWith(color: AppTheme.textSecondary),
+                  ),
+                  const SizedBox(height: 24),
+                  OutlinedButton(
+                    onPressed: isProcessing
+                        ? null
+                        : () async {
+                            setConfirmState(() => isProcessing = true);
+                            final ok = await _executeBatchClose(
+                              timeSlotId: timeSlotId,
+                              post: post,
+                              onUpdate: onUpdate,
+                              selectedIds: selectedIds,
+                              initialApprovedIds: initialApprovedIds,
+                            );
+                            // 성공 시 _closeTimeSlot이 confirmation + 신청자 시트를
+                            // 모두 pop. 실패 시 confirmation은 살아있으므로 버튼만
+                            // 다시 활성화.
+                            if (!ok && mounted) {
+                              setConfirmState(() => isProcessing = false);
+                            }
+                          },
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: Colors.red,
+                      side: const BorderSide(color: Colors.red),
+                      minimumSize: const Size(double.infinity, 50),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12)),
+                    ),
+                    child: isProcessing
+                        ? const SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              valueColor:
+                                  AlwaysStoppedAnimation<Color>(Colors.red),
+                            ),
+                          )
+                        : const Text('마감',
+                            style: TextStyle(
+                                fontSize: 16, fontWeight: FontWeight.bold)),
+                  ),
+                ],
+              ),
             );
           },
         );
       },
     );
+  }
+
+  /// 일괄 마감 실행 — 선택 diff로 APPROVE/PEND를 일괄 호출, 모두 성공하면 시간대 마감.
+  /// 부분 실패 시 마감은 진행하지 않고 false 반환.
+  Future<bool> _executeBatchClose({
+    required int timeSlotId,
+    required Map<String, dynamic> post,
+    required StateSetter onUpdate,
+    required Set<int> selectedIds,
+    required Set<int> initialApprovedIds,
+  }) async {
+    final toApprove = selectedIds.difference(initialApprovedIds).toList();
+    final toPend = initialApprovedIds.difference(selectedIds).toList();
+
+    final failures = <int>[];
+    for (final id in toApprove) {
+      if (!await _approveSilent(id)) failures.add(id);
+    }
+    for (final id in toPend) {
+      if (!await _pendSilent(id)) failures.add(id);
+    }
+
+    if (failures.isNotEmpty) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+                '${failures.length}건의 신청자 상태 업데이트에 실패했습니다. 다시 시도해주세요.'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+      return false;
+    }
+
+    // 시간대 마감 — _closeTimeSlot이 confirmation + applicant 시트를 모두 pop하고
+    // 상세 시트의 setState로 뱃지를 갱신.
+    await _closeTimeSlot(post, timeSlotId, onUpdate);
+    return true;
   }
 
   // 시간대 마감 해제 확인 다이얼로그
@@ -2036,7 +2060,10 @@ class _AdminPostCheckState extends State<AdminPostCheck>
     );
   }
 
-  // 시간대 마감 해제 API 호출
+  // 시간대 마감 해제 API 호출.
+  // _closeTimeSlot과 동일한 패턴 — 응답 의존(updated_time_slot) 제거하고
+  // 호출자가 넘긴 timeSlotId로 직접 status=0을 박는다. 상세 시트는 닫지 않고
+  // onUpdate(setState)로 뱃지/버튼만 즉시 갱신.
   Future<void> _reopenTimeSlot(
     int timeSlotId,
     Map<String, dynamic> post,
@@ -2050,54 +2077,53 @@ class _AdminPostCheckState extends State<AdminPostCheck>
 
       if (response.statusCode == 200) {
         final responseData = json.decode(utf8.decode(response.bodyBytes));
+        final int postStatus =
+            responseData['post_status'] ?? post['status'] ?? 1;
 
-        final int? postStatus = responseData['post_status'];
-        final updatedTimeSlot = responseData['updated_time_slot'];
+        // id 키가 응답마다 (id / idx / post_times_idx) 다르고 int/String도 섞여
+        // 들어오므로 toString 비교로 통일.
+        final timeRanges = post['timeRanges'] as List<dynamic>? ?? [];
+        final targetIdStr = timeSlotId.toString();
+        final timeSlotIndex = timeRanges.indexWhere((ts) {
+          final raw = ts['id'] ?? ts['idx'] ?? ts['post_times_idx'];
+          return raw != null && raw.toString() == targetIdStr;
+        });
 
-        if (updatedTimeSlot != null) {
-          final updatedTimeSlotId = updatedTimeSlot['post_times_idx'];
-          final updatedStatus = updatedTimeSlot['status']; // 0: 다시 열림
-
-          // 모달 내부 상태 업데이트
-          final timeRanges = post['timeRanges'] as List<dynamic>? ?? [];
-          final timeSlotIndex = timeRanges.indexWhere(
-            (ts) => ts['id'] == updatedTimeSlotId,
-          );
-          if (timeSlotIndex != -1) {
-            onUpdate(() {
-              timeRanges[timeSlotIndex]['status'] = updatedStatus;
-            });
-          }
-
-        }
-
-        // post 변수 업데이트 (상세 시트 재오픈 시 사용).
-        if (postStatus != null) {
-          post['status'] = postStatus;
-        }
-
-        // 신청자 관리 바텀시트 닫기
         if (mounted) {
+          onUpdate(() {
+            if (timeSlotIndex != -1) {
+              timeRanges[timeSlotIndex]['status'] = 0;
+            }
+            post['status'] = postStatus;
+          });
+
+          // 신청자 관리 시트만 닫음. 상세 시트는 유지.
           Navigator.of(context).pop();
         }
 
-        // 상세 게시글 새로고침을 위해 잠깐 닫고 다시 열기
-        await _refreshAndReopenPostDetail(
-          post,
-          _getPostStatus(post['status']),
-          post['types'] == 0 ? '긴급' : '정기',
-        );
-
-        // 마감해제 처리 후 전체 데이터 새로고침 (신청자 수 등 최신 정보 반영)
-        await Future.delayed(
-          const Duration(milliseconds: 500),
-        ); // UI 업데이트 완료 대기
-        await _fetchDataForCurrentTab();
+        // 부모 탭 목록 백그라운드 새로고침.
+        if (mounted) {
+          await _fetchDataForCurrentTab();
+        }
       } else {
-        // 마감 해제 실패 시 로그만 출력
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('마감 해제에 실패했습니다.'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
       }
     } catch (e) {
-      // 오류 발생 시 로그만 출력
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('마감 해제 처리 중 오류: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     }
   }
 
@@ -2197,9 +2223,10 @@ class _AdminPostCheckState extends State<AdminPostCheck>
       // 헌혈마감 탭: 게시글 모집마감(3)/applied_donation 완료대기(2) 구분
       return post['status'] == 2 ? '완료대기' : '마감';
     } else if (_currentTabIndex == 1) {
-      // 헌혈모집 탭에서는 진행/마감 뱃지 표시
-      // donation_posts.status: 1 = 진행, 3 = 마감
-      return post['status'] == 1 ? '진행' : '마감';
+      // 헌혈모집 탭: CLOSED(3)이면 [마감], 아니면 긴급/정기 (PostType 미러).
+      // 모집대기 탭과 동일한 패턴 — 게시글 본질(긴급/정기)을 일관되게 노출.
+      if (post['status'] == 3) return '마감';
+      return post['types'] == 0 ? '긴급' : '정기';
     } else if (_currentTabIndex == 3) {
       // 헌혈완료 탭에서는 완료 뱃지 표시
       return '완료';
@@ -2493,9 +2520,39 @@ class _AdminPostCheckState extends State<AdminPostCheck>
   ) {
     bool isClosing = false;
 
-    // 열린 시간대 정보 확인 (경고 표시용, 마감을 차단하지 않음)
-    // 백엔드에서 실제 유효성 검증 수행 (1명이라도 승인된 신청자가 있으면 마감 허용)
+    // 마감 가드 완화 (백엔드 동기화 2026-04-29): 신청자 0명 / 선정 0명이어도
+    // 백엔드가 마감 허용. 다이얼로그는 차단하지 않고 카운트·결과만 명확히 안내한다.
+    // applicant_count / approved_count는 PostWithApplicationsResponse 정식 필드
+    // (NOT NULL 보장). ?? 0은 dart type safety용 안전망일 뿐 분기 실효는 없음.
+    final applicantCount = (post['applicant_count'] as num?)?.toInt() ?? 0;
+    final approvedCount = (post['approved_count'] as num?)?.toInt() ?? 0;
     final hasOpenSlots = _hasOpenTimeSlots(post);
+
+    // 신청자는 있는데 선정 0명일 때 가장 강조 (피드백 7번: 선정 안 한 채 마감)
+    final bool emphasizeWarning =
+        applicantCount > 0 && approvedCount == 0;
+    final Color boxColor =
+        emphasizeWarning ? Colors.orange.shade50 : AppTheme.lightBlue;
+    final Color borderColor =
+        emphasizeWarning ? Colors.orange.shade300 : AppTheme.lightGray;
+    final Color textColor =
+        emphasizeWarning ? Colors.orange.shade800 : AppTheme.primaryDarkBlue;
+    final IconData boxIcon = emphasizeWarning
+        ? Icons.warning_amber_rounded
+        : Icons.info_outline;
+
+    final String mainMessage;
+    if (applicantCount == 0) {
+      mainMessage = '신청자가 없는 상태로 마감됩니다.';
+    } else if (approvedCount == 0) {
+      mainMessage =
+          '선정된 신청자 없이 마감됩니다.\n신청자 $applicantCount명은 자동으로 종결 처리됩니다.';
+    } else {
+      final unselected = applicantCount - approvedCount;
+      mainMessage = unselected > 0
+          ? '미선정 $unselected명은 자동으로 종결 처리됩니다.'
+          : '모든 신청자가 선정되었습니다.';
+    }
 
     showModalBottomSheet(
       context: context,
@@ -2528,35 +2585,56 @@ class _AdminPostCheckState extends State<AdminPostCheck>
                   const Divider(),
                   const SizedBox(height: 16),
 
+                  Row(
+                    children: [
+                      _buildClosePostCountChip(
+                        Icons.people_outline,
+                        '신청 $applicantCount명',
+                      ),
+                      const SizedBox(width: 8),
+                      _buildClosePostCountChip(
+                        Icons.check_circle_outline,
+                        '선정 $approvedCount명',
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+
                   Container(
+                    width: double.infinity,
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
-                      color: hasOpenSlots ? Colors.orange.shade50 : AppTheme.lightBlue,
+                      color: boxColor,
                       borderRadius: BorderRadius.circular(8),
-                      border: Border.all(
-                        color: hasOpenSlots ? Colors.orange.shade300 : AppTheme.lightGray,
-                      ),
+                      border: Border.all(color: borderColor),
                     ),
                     child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Icon(
-                          hasOpenSlots ? Icons.warning_amber_rounded : Icons.info_outline,
-                          color: hasOpenSlots ? Colors.orange.shade700 : AppTheme.primaryDarkBlue,
-                        ),
+                        Icon(boxIcon, color: textColor, size: 20),
                         const SizedBox(width: 12),
                         Expanded(
                           child: Text(
-                            hasOpenSlots
-                                ? '모든 시간대를 마감하고 게시글을 마감합니다.'
-                                : '모든 시간대가 마감되었습니다. 게시글을 마감하시겠습니까?',
-                            style: TextStyle(
-                              color: hasOpenSlots ? Colors.orange.shade700 : AppTheme.primaryDarkBlue,
-                            ),
+                            mainMessage,
+                            style: TextStyle(color: textColor, height: 1.4),
                           ),
                         ),
                       ],
                     ),
                   ),
+
+                  if (hasOpenSlots) ...[
+                    const SizedBox(height: 8),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 4),
+                      child: Text(
+                        '※ 열려 있는 시간대도 함께 마감됩니다.',
+                        style: AppTheme.captionStyle.copyWith(
+                          color: AppTheme.textSecondary,
+                        ),
+                      ),
+                    ),
+                  ],
 
                   const SizedBox(height: 24),
                   Row(
@@ -2621,6 +2699,29 @@ class _AdminPostCheckState extends State<AdminPostCheck>
           },
         );
       },
+    );
+  }
+
+  Widget _buildClosePostCountChip(IconData icon, String label) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: AppTheme.lightGray),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 14, color: AppTheme.textSecondary),
+          const SizedBox(width: 4),
+          Text(
+            label,
+            style: AppTheme.bodySmallStyle.copyWith(
+              color: AppTheme.textSecondary,
+            ),
+          ),
+        ],
+      ),
     );
   }
 

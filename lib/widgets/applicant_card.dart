@@ -7,6 +7,7 @@ import '../models/applied_donation_model.dart';
 import '../models/donation_history_model.dart';
 import '../services/donation_history_service.dart';
 import '../utils/app_theme.dart';
+import '../utils/pet_field_icons.dart';
 import 'pet_profile_image.dart';
 
 /// 신청자 카드 위젯
@@ -93,7 +94,7 @@ class ApplicantCard extends StatelessWidget {
               _buildDetailRow(Icons.pets_outlined, '반려동물', applicant.dogInfo),
               _buildDetailRow(
                 Icons.calendar_today_outlined,
-                '직전 헌혈일',
+                '최근 헌혈일',
                 applicant.formattedLastDonationDate,
               ),
 
@@ -303,7 +304,7 @@ class _ApplicantDetailSheetState extends State<_ApplicantDetailSheet> {
         const Divider(height: 24),
         // 반려동물 정보
         _buildInfoRow('반려동물', widget.applicant.dogInfo),
-        _buildInfoRow('직전 헌혈일', widget.applicant.formattedLastDonationDate),
+        _buildInfoRow('최근 헌혈일', widget.applicant.formattedLastDonationDate),
         _buildInfoRow('상태', widget.applicant.statusText),
       ],
     );
@@ -483,7 +484,7 @@ class _ApplicantDetailSheetState extends State<_ApplicantDetailSheet> {
           Row(
             children: [
               Icon(
-                Icons.local_hospital,
+                PetFieldIcons.hospital,
                 size: 14,
                 color: AppTheme.textSecondary,
               ),

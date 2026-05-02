@@ -12,6 +12,7 @@ import '../utils/app_constants.dart';
 import '../widgets/pagination_bar.dart';
 import '../widgets/search_date_filter_bar.dart';
 import '../widgets/state_view.dart';
+import '../widgets/post_list/author_avatar.dart';
 import '../widgets/post_list/board_list_row.dart';
 import '../widgets/post_list/board_list_header.dart';
 
@@ -170,6 +171,10 @@ class _HospitalColumnListState extends State<HospitalColumnList> {
                   const SizedBox(height: 12),
                   Row(
                     children: [
+                      AuthorAvatar(
+                        profileImage: column.hospitalProfileImage,
+                      ),
+                      const SizedBox(width: 8),
                       Expanded(
                         child: Text(
                           displayNickname,

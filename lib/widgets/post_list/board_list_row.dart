@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../../utils/app_theme.dart';
 import '../../utils/config.dart';
+import '../../utils/pet_field_icons.dart';
 import '../marquee_text.dart';
 import 'board_list_layout.dart';
 
@@ -18,6 +19,7 @@ class BoardListRow extends StatelessWidget {
     required this.authorName,
     required this.createdAt,
     this.titleColor,
+    this.titleFontWeight,
     this.authorProfileImage,
     this.onTap,
   });
@@ -29,6 +31,11 @@ class BoardListRow extends StatelessWidget {
 
   /// 제목 글씨 색. null이면 기본(textPrimary).
   final Color? titleColor;
+
+  /// 제목 굵기 override. null이면 기본 [FontWeight.bold] (w700).
+  /// 빨강(중요 공지)처럼 saturated 색상은 perceptual weight가 약해져
+  /// 같은 bold라도 검정보다 가늘어 보이는 현상이 있어 w900으로 보정 가능.
+  final FontWeight? titleFontWeight;
 
   /// 작성자 표시 이름. nickname/name fallback은 호출 측에서 처리.
   final String authorName;
@@ -77,7 +84,7 @@ class BoardListRow extends StatelessWidget {
                     text: title,
                     style: AppTheme.bodyMediumStyle.copyWith(
                       color: titleColor ?? AppTheme.textPrimary,
-                      fontWeight: FontWeight.bold,
+                      fontWeight: titleFontWeight ?? FontWeight.bold,
                       fontSize: 13,
                     ),
                     animationDuration: const Duration(milliseconds: 4000),
@@ -98,7 +105,7 @@ class BoardListRow extends StatelessWidget {
                             : null,
                         onForegroundImageError: hasImage ? (_, __) {} : null,
                         child: Icon(
-                          Icons.business,
+                          PetFieldIcons.hospital,
                           size: 12,
                           color: AppTheme.textTertiary,
                         ),

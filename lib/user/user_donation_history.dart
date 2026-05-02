@@ -193,7 +193,7 @@ class _UserDonationHistoryScreenState extends State<UserDonationHistoryScreen> {
               child: Row(
                 children: [
                   Icon(
-                    Icons.calendar_today,
+                    Icons.calendar_today_outlined,
                     color: Colors.red.shade600,
                     size: 16,
                   ),

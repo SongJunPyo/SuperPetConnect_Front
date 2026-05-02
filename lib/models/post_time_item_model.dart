@@ -20,9 +20,21 @@ class PostTimeItem {
   final int? applicantStatus;
   final String? applicantNickname;
   final String? applicantName;
+  final String? applicantPhone; // 보호자 연락처 (모집마감 선정자 시트용, 2026-05-02 BE 추가)
   final int? petIdx;
   final String? petName;
   final String? petBirthDate;
+  final String? petBreed;
+  final double? petWeightKg;
+  final int? petSex; // 0=암컷, 1=수컷 (PetSex enum)
+  final bool? petIsNeutered;
+  final String? petNeuteredDate; // YYYY-MM-DD
+  final bool? petVaccinated;
+  final bool? petHasPreventiveMedication;
+  final bool? petHasDisease;
+  final String? petPrevDonationDate; // YYYY-MM-DD
+  final int? petPregnancyBirthStatus; // 0=NONE, 1=PREGNANT, 2=POST_BIRTH
+  final String? petLastPregnancyEndDate; // YYYY-MM-DD
   final String? bloodType;
   final int? animalType;
   final String location;
@@ -50,9 +62,21 @@ class PostTimeItem {
     this.applicantStatus,
     this.applicantNickname,
     this.applicantName,
+    this.applicantPhone,
     this.petIdx,
     this.petName,
     this.petBirthDate,
+    this.petBreed,
+    this.petWeightKg,
+    this.petSex,
+    this.petIsNeutered,
+    this.petNeuteredDate,
+    this.petVaccinated,
+    this.petHasPreventiveMedication,
+    this.petHasDisease,
+    this.petPrevDonationDate,
+    this.petPregnancyBirthStatus,
+    this.petLastPregnancyEndDate,
     this.bloodType,
     this.animalType,
     this.bloodVolumeMl,
@@ -82,9 +106,21 @@ class PostTimeItem {
       applicantStatus: json['applicant_status'] as int?,
       applicantNickname: json['applicant_nickname'] as String?,
       applicantName: json['applicant_name'] as String?,
+      applicantPhone: json['applicant_phone'] as String?,
       petIdx: json['pet_idx'] as int?,
       petName: json['pet_name'] as String?,
       petBirthDate: json['pet_birth_date'] as String?,
+      petBreed: json['pet_breed'] as String?,
+      petWeightKg: (json['pet_weight_kg'] as num?)?.toDouble(),
+      petSex: json['pet_sex'] as int?,
+      petIsNeutered: json['pet_is_neutered'] as bool?,
+      petNeuteredDate: json['pet_neutered_date'] as String?,
+      petVaccinated: json['pet_vaccinated'] as bool?,
+      petHasPreventiveMedication: json['pet_has_preventive_medication'] as bool?,
+      petHasDisease: json['pet_has_disease'] as bool?,
+      petPrevDonationDate: json['pet_prev_donation_date'] as String?,
+      petPregnancyBirthStatus: json['pet_pregnancy_birth_status'] as int?,
+      petLastPregnancyEndDate: json['pet_last_pregnancy_end_date'] as String?,
       bloodType: json['blood_type'] as String?,
       animalType: json['animal_type'] as int?,
       bloodVolumeMl: (json['blood_volume_ml'] ?? json['blood_volume'])?.toDouble(),

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import '../../utils/app_theme.dart';
+import '../../utils/pet_field_icons.dart';
 import '../../utils/time_format_util.dart';
 
 /// 게시글 상세 메타 정보 섹션
@@ -49,7 +50,7 @@ class PostDetailMetaSection extends StatelessWidget {
         Row(
           children: [
             Icon(
-              Icons.business,
+              PetFieldIcons.hospital,
               size: 16,
               color: AppTheme.textSecondary,
             ),
@@ -84,7 +85,7 @@ class PostDetailMetaSection extends StatelessWidget {
         Row(
           children: [
             Icon(
-              Icons.location_on,
+              PetFieldIcons.postLocation,
               size: 16,
               color: AppTheme.textSecondary,
             ),

@@ -14,6 +14,7 @@ import '../widgets/search_date_filter_bar.dart';
 import '../widgets/state_view.dart';
 import '../widgets/post_list/board_list_row.dart';
 import '../widgets/post_list/board_list_header.dart';
+import '../widgets/post_list/author_avatar.dart';
 import '../widgets/post_list/notice_styling.dart';
 
 class HospitalNoticeListScreen extends StatefulWidget {
@@ -249,7 +250,8 @@ class _HospitalNoticeListScreenState extends State<HospitalNoticeListScreen> {
     if (!mounted) return;
 
     final bool isImportant =
-        (noticeDetail?.noticeImportant ?? notice.noticeImportant) == 0;
+        (noticeDetail?.noticeImportant ?? notice.noticeImportant) ==
+            AppConstants.noticeImportant;
     final DateTime createdAt = noticeDetail?.createdAt ?? notice.createdAt;
     final DateTime updatedAt = noticeDetail?.updatedAt ?? notice.updatedAt;
     final int viewCount = noticeDetail?.viewCount ?? notice.viewCount ?? 0;
@@ -260,6 +262,8 @@ class _HospitalNoticeListScreenState extends State<HospitalNoticeListScreen> {
             : noticeDetail?.authorName ??
                 notice.authorNickname ??
                 notice.authorName;
+    final String? authorProfileImage =
+        noticeDetail?.authorProfileImage ?? notice.authorProfileImage;
     final String title = noticeDetail?.title ?? notice.title;
     final String content = noticeDetail?.contentPreview ?? notice.content;
     final String? noticeUrl = noticeDetail?.noticeUrl ?? notice.noticeUrl;
@@ -318,26 +322,8 @@ class _HospitalNoticeListScreenState extends State<HospitalNoticeListScreen> {
                   const SizedBox(height: 12),
                   Row(
                     children: [
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 8,
-                          vertical: 4,
-                        ),
-                        decoration: BoxDecoration(
-                          color:
-                              isImportant
-                                  ? AppTheme.error
-                                  : AppTheme.primaryBlue,
-                          borderRadius: BorderRadius.circular(6),
-                        ),
-                        child: Text(
-                          isImportant ? '공지' : '알림',
-                          style: AppTheme.bodySmallStyle.copyWith(
-                            color: Colors.white,
-                            fontWeight: FontWeight.bold,
-                            fontSize: 10,
-                          ),
-                        ),
+                      AuthorAvatar(
+                        profileImage: authorProfileImage,
                       ),
                       const SizedBox(width: 8),
                       Expanded(
@@ -551,6 +537,10 @@ class _HospitalNoticeListScreenState extends State<HospitalNoticeListScreen> {
             index: index + 1,
             title: notice.title,
             titleColor: NoticeStyling.titleColor(
+              targetAudience: notice.targetAudience,
+              noticeImportant: notice.noticeImportant,
+            ),
+            titleFontWeight: NoticeStyling.titleFontWeight(
               targetAudience: notice.targetAudience,
               noticeImportant: notice.noticeImportant,
             ),

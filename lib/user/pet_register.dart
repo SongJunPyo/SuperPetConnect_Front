@@ -48,13 +48,19 @@ class _PetRegisterScreenState extends State<PetRegisterScreen> {
   bool _isNeutered = false; // 중성화 수술 여부
   DateTime? _neuteredDate; // 중성화 수술 일자
   bool _hasPreventiveMedication = false; // 예방약 복용 여부
-  DateTime? _prevDonationDate; // 직전 헌혈 일자
+  DateTime? _prevDonationDate; // 최근 헌혈 일자
 
-  // 프로필 사진 (수정 모드 전용). _imageRefreshKey 는 업로드 직후 NetworkImage 캐시를 무효화하는 cache buster.
-  // _pendingProfileImage 는 관리자 검토 대기 중인 신규 사진 (APPROVED 펫 사진 변경 시).
+  // 프로필 사진. _imageRefreshKey 는 업로드 직후 NetworkImage 캐시를 무효화하는 cache buster.
+  // _pendingProfileImage 는 관리자 검토 대기 중인 신규 사진 (APPROVED 펫 사진 변경 시 — 수정 모드 전용).
   String? _profileImage;
   String? _pendingProfileImage;
   int _imageRefreshKey = 0;
+
+  // 새 펫 등록 모드 전용: 사진을 폼에서 선택한 직후엔 펫이 아직 없어 업로드 불가.
+  // RegistrationPetData(가입 폼)와 동일한 패턴 — 메모리에 보관 → 펫 생성 응답의 pet_idx로
+  // 사후 multipart 업로드. 수정 모드에선 두 필드 모두 사용 안 함.
+  XFile? _newPetSelectedImage;
+  Uint8List? _newPetImageBytes;
 
   bool get _isEditMode => widget.petToEdit != null;
 
@@ -197,14 +203,34 @@ class _PetRegisterScreenState extends State<PetRegisterScreen> {
       }
 
       if (response.statusCode == 201 || response.statusCode == 200) {
-        // 201은 생성, 200은 성공적인 수정
+        // 201은 생성, 200은 성공적인 수정.
+        // 새 펫 등록 + 사용자가 사진을 선택했으면 응답의 pet_idx로 multipart 업로드.
+        // RegistrationPetData(가입 폼)와 동일한 패턴 (CLAUDE.md "회원가입 응답 펫 인덱스 contract").
+        bool photoUploadFailed = false;
+        if (!_isEditMode && _newPetSelectedImage != null) {
+          try {
+            final body = jsonDecode(utf8.decode(response.bodyBytes));
+            final newPetIdx = body['pet_idx'] as int?;
+            if (newPetIdx != null) {
+              final ok = await _uploadNewPetPhoto(newPetIdx);
+              if (!ok) photoUploadFailed = true;
+            } else {
+              photoUploadFailed = true;
+            }
+          } catch (_) {
+            photoUploadFailed = true;
+          }
+        }
+
         if (mounted) {
+          final baseMessage = _isEditMode
+              ? '반려동물 정보가 수정되었습니다.'
+              : '반려동물이 성공적으로 등록되었습니다.';
+          final message = photoUploadFailed
+              ? '$baseMessage 단, 프로필 사진 업로드에 실패했습니다. 반려동물 관리에서 다시 등록해주세요.'
+              : baseMessage;
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(
-                _isEditMode ? '반려동물 정보가 수정되었습니다.' : '반려동물이 성공적으로 등록되었습니다.',
-              ),
-            ),
+            SnackBar(content: Text(message)),
           );
           Navigator.pop(context, true); // 성공했다는 의미로 true를 반환하며 창 닫기
         }
@@ -228,6 +254,32 @@ class _PetRegisterScreenState extends State<PetRegisterScreen> {
     }
   }
 
+  /// 새 펫 등록 직후 메모리에 보관해둔 사진을 multipart로 업로드.
+  /// 새로 만들어진 펫은 PENDING 상태라 검토 워크플로우 진입 안 하고 200 즉시 반영.
+  /// (CLAUDE.md "펫 프로필 사진 검토 워크플로우" 참조)
+  Future<bool> _uploadNewPetPhoto(int newPetIdx) async {
+    final picked = _newPetSelectedImage;
+    if (picked == null) return true;
+    try {
+      final uri = Uri.parse(
+        '${Config.serverUrl}${ApiEndpoints.petProfileImage(newPetIdx)}',
+      );
+      final request = http.MultipartRequest('POST', uri);
+      final token = await PreferencesManager.getAuthToken();
+      if (token != null) {
+        request.headers['Authorization'] = 'Bearer $token';
+      }
+      final bytes = await picked.readAsBytes();
+      request.files.add(
+        http.MultipartFile.fromBytes('image', bytes, filename: picked.name),
+      );
+      final streamed = await request.send();
+      return streamed.statusCode == 200 || streamed.statusCode == 202;
+    } catch (_) {
+      return false;
+    }
+  }
+
   // cache buster: 같은 path에 새 사진을 덮어쓰는 백엔드 동작 대비. 0이면 그대로, 0보다 크면 ?v=N 부착.
   String? _withCacheBuster(String? path) {
     if (path == null) return null;
@@ -242,8 +294,11 @@ class _PetRegisterScreenState extends State<PetRegisterScreen> {
   bool get _hasPendingImage => _pendingProfileImage != null;
 
   void _showImageOptions() {
-    final petIdx = widget.petToEdit?.petIdx;
-    if (petIdx == null) return;
+    // 새 펫 모드: petIdx가 아직 없어도 메모리 보관 흐름으로 진입.
+    // 수정 모드: 즉시 서버 업로드.
+    final hasDeletable = _isEditMode
+        ? _profileImage != null
+        : _newPetSelectedImage != null;
     showModalBottomSheet(
       context: context,
       builder: (ctx) => SafeArea(
@@ -266,7 +321,7 @@ class _PetRegisterScreenState extends State<PetRegisterScreen> {
                 _uploadImage(fromCamera: true);
               },
             ),
-            if (_profileImage != null)
+            if (hasDeletable)
               ListTile(
                 leading: Icon(Icons.delete_outline, color: AppTheme.error),
                 title: Text('사진 삭제', style: TextStyle(color: AppTheme.error)),
@@ -282,9 +337,6 @@ class _PetRegisterScreenState extends State<PetRegisterScreen> {
   }
 
   Future<void> _uploadImage({bool fromCamera = false}) async {
-    final petIdx = widget.petToEdit?.petIdx;
-    if (petIdx == null) return;
-
     final picker = ImagePicker();
     final pickedFile = await picker.pickImage(
       source: fromCamera ? ImageSource.camera : ImageSource.gallery,
@@ -293,6 +345,19 @@ class _PetRegisterScreenState extends State<PetRegisterScreen> {
       imageQuality: 85,
     );
     if (pickedFile == null) return;
+
+    final petIdx = widget.petToEdit?.petIdx;
+    if (petIdx == null) {
+      // 새 펫 모드: 메모리에만 보관, 펫 생성 후 _savePet에서 업로드.
+      final bytes = await pickedFile.readAsBytes();
+      if (!mounted) return;
+      setState(() {
+        _newPetSelectedImage = pickedFile;
+        _newPetImageBytes = bytes;
+        _imageRefreshKey++;
+      });
+      return;
+    }
 
     try {
       final uri = Uri.parse(
@@ -367,7 +432,15 @@ class _PetRegisterScreenState extends State<PetRegisterScreen> {
 
   Future<void> _deleteImage() async {
     final petIdx = widget.petToEdit?.petIdx;
-    if (petIdx == null) return;
+    if (petIdx == null) {
+      // 새 펫 모드: 메모리만 정리. 서버에 아직 펫 자체가 없어 호출 불필요.
+      setState(() {
+        _newPetSelectedImage = null;
+        _newPetImageBytes = null;
+        _imageRefreshKey++;
+      });
+      return;
+    }
 
     try {
       final response = await AuthHttpClient.delete(
@@ -461,10 +534,11 @@ class _PetRegisterScreenState extends State<PetRegisterScreen> {
     );
   }
 
-  // 평상시: 가운데 1개 서클.
+  // 평상시: 가운데 1개 서클. 새 펫 등록 모드에서는 _newPetImageBytes로 메모리 미리보기.
   Widget _buildSingleAvatar() {
     return _buildAvatarFigure(
       imagePath: _displayProfileImage,
+      localImageBytes: _isEditMode ? null : _newPetImageBytes,
       onTap: _showImageOptions,
       showCameraOverlay: true,
       radius: 48,
@@ -478,6 +552,7 @@ class _PetRegisterScreenState extends State<PetRegisterScreen> {
     VoidCallback? onTap,
     bool showCameraOverlay = false,
     double radius = 40,
+    Uint8List? localImageBytes,
   }) {
     final avatar = Stack(
       children: [
@@ -487,6 +562,7 @@ class _PetRegisterScreenState extends State<PetRegisterScreen> {
           child: PetProfileImage(
             key: ValueKey('avatar_${label ?? "single"}_$_imageRefreshKey'),
             profileImage: imagePath,
+            localImageBytes: localImageBytes,
             species: _selectedSpecies,
             radius: radius,
           ),
@@ -553,7 +629,10 @@ class _PetRegisterScreenState extends State<PetRegisterScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              if (_isEditMode) _buildAvatarSection(),
+              _buildAvatarSection(),
+              // 펫 정보 입력 순서 (2026-05-02 확정 — admin_signup_management 디스플레이와 정합):
+              // 이름 → 종류 → 품종 → 성별 → 혈액형 → 체중 → 생년월일 → 최근 헌혈일 →
+              // [헌혈 관련 정보] 접종 → 예방약 → 중성화(+일자) → 질병 → 임신/출산
               _buildTextField(
                 controller: _nameController,
                 label: '이름',
@@ -562,17 +641,17 @@ class _PetRegisterScreenState extends State<PetRegisterScreen> {
                     (value) => value!.isEmpty ? '이름은 필수 입력 항목입니다.' : null,
               ),
               _buildSpeciesDropdown(context), // 종류 선택
-              _buildSexSelector(), // 성별 (필수 — CLAUDE.md PetSex)
               _buildTextField(
                 controller: _breedController,
                 label: '품종',
                 hint: '예: 푸들, 코리안 숏헤어',
                 // 품종은 선택 입력이므로 validator 없음
               ),
-              _buildBirthDatePicker(),
+              _buildSexSelector(), // 성별 (필수 — CLAUDE.md PetSex)
+              _buildBloodTypeDropdown(context), // context 전달
               _buildTextField(
                 controller: _weightController,
-                label: '몸무게 (kg)',
+                label: '체중 (kg)',
                 hint: '몸무게를 숫자로 입력해주세요.',
                 keyboardType: const TextInputType.numberWithOptions(
                   decimal: true,
@@ -583,7 +662,7 @@ class _PetRegisterScreenState extends State<PetRegisterScreen> {
                 validator:
                     (value) => value!.isEmpty ? '몸무게는 필수 입력 항목입니다.' : null,
               ),
-              _buildBloodTypeDropdown(context), // context 전달
+              _buildBirthDatePicker(),
               _buildPrevDonationDatePicker(context),
               const SizedBox(height: AppTheme.spacing20),
               Text('헌혈 관련 정보', style: AppTheme.h4Style),
@@ -595,15 +674,6 @@ class _PetRegisterScreenState extends State<PetRegisterScreen> {
                 onChanged:
                     (value) => setState(() => _isVaccinated = value ?? false),
               ),
-              _buildCheckboxTile(
-                title: '질병 이력',
-                subtitle: '심장사상충, 바베시아, 혈액관련질병 등의 질병 이력이 있나요?',
-                value: _hasDisease,
-                onChanged:
-                    (value) => setState(() => _hasDisease = value ?? false),
-              ),
-              // 임신/출산 통합 셀렉터 (CLAUDE.md PregnancyBirthStatus)
-              _buildPregnancyBirthSelector(),
               _buildCheckboxTile(
                 title: '예방약 복용',
                 subtitle: '심장사상충 예방약을 정기적으로 복용하고 있나요?',
@@ -627,6 +697,15 @@ class _PetRegisterScreenState extends State<PetRegisterScreen> {
                 },
               ),
               if (_isNeutered) _buildNeuteredDatePicker(context),
+              _buildCheckboxTile(
+                title: '질병 이력',
+                subtitle: '심장사상충, 바베시아, 혈액관련질병 등의 질병 이력이 있나요?',
+                value: _hasDisease,
+                onChanged:
+                    (value) => setState(() => _hasDisease = value ?? false),
+              ),
+              // 임신/출산 통합 셀렉터 (CLAUDE.md PregnancyBirthStatus)
+              _buildPregnancyBirthSelector(),
               const SizedBox(height: AppTheme.spacing12),
               // 재심사 안내 (정보 수정 워크플로우 — CLAUDE.md Pet contract)
               if (_isEditMode)
@@ -708,7 +787,7 @@ class _PetRegisterScreenState extends State<PetRegisterScreen> {
                       constraints: const BoxConstraints(),
                     )
                   else
-                    Icon(Icons.calendar_today, color: AppTheme.textTertiary, size: 20),
+                    Icon(Icons.calendar_today_outlined, color: AppTheme.textTertiary, size: 20),
                 ],
               ),
             ),
@@ -947,7 +1026,7 @@ class _PetRegisterScreenState extends State<PetRegisterScreen> {
           ),
           child: Row(
             children: [
-              Icon(Icons.calendar_today, size: 20, color: AppTheme.primaryBlue),
+              Icon(Icons.calendar_today_outlined, size: 20, color: AppTheme.primaryBlue),
               const SizedBox(width: 12),
               Expanded(
                 child: Column(
@@ -1164,7 +1243,7 @@ class _PetRegisterScreenState extends State<PetRegisterScreen> {
         ),
         child: Row(
           children: [
-            Icon(Icons.calendar_today, size: 18, color: AppTheme.primaryBlue),
+            Icon(Icons.calendar_today_outlined, size: 18, color: AppTheme.primaryBlue),
             const SizedBox(width: 12),
             Expanded(
               child: Column(
@@ -1198,14 +1277,14 @@ class _PetRegisterScreenState extends State<PetRegisterScreen> {
     );
   }
 
-  // 직전 헌혈 일자 선택 위젯
+  // 최근 헌혈 일자 선택 위젯
   Widget _buildPrevDonationDatePicker(BuildContext context) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         RichText(
           text: TextSpan(
-            text: '직전 헌혈 일자',
+            text: '최근 헌혈 일자',
             style: AppTheme.bodyMediumStyle.copyWith(
               fontWeight: FontWeight.w600,
             ),
@@ -1228,7 +1307,7 @@ class _PetRegisterScreenState extends State<PetRegisterScreen> {
               initialDate: _prevDonationDate ?? DateTime.now(),
               firstDate: DateTime(2010),
               lastDate: DateTime.now(),
-              helpText: '직전 헌혈 일자 선택',
+              helpText: '최근 헌혈 일자 선택',
               cancelText: '취소',
               confirmText: '선택',
             );
@@ -1285,7 +1364,7 @@ class _PetRegisterScreenState extends State<PetRegisterScreen> {
                   )
                 else
                   Icon(
-                    Icons.calendar_today,
+                    Icons.calendar_today_outlined,
                     color: AppTheme.textTertiary,
                     size: 20,
                   ),

@@ -10,7 +10,8 @@ import '../widgets/pagination_bar.dart';
 import '../widgets/state_view.dart';
 import '../models/user_model.dart';
 import '../services/user_management_service.dart';
-import 'admin_user_check_bottom_sheets.dart';
+import 'active_user_bottom_sheet.dart';
+import 'suspended_user_bottom_sheet.dart';
 
 class AdminUserCheck extends StatefulWidget {
   const AdminUserCheck({super.key});

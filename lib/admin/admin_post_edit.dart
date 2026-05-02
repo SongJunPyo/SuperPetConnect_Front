@@ -3,7 +3,6 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:interval_time_picker/interval_time_picker.dart';
 import 'dart:convert';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import '../utils/config.dart';
@@ -11,6 +10,7 @@ import '../utils/app_theme.dart';
 import '../utils/blood_type_constants.dart';
 import '../models/donation_post_time_model.dart';
 import '../models/donation_post_image_model.dart';
+import '../widgets/add_date_time_bottom_sheet.dart';
 import '../widgets/rich_text_editor.dart';
 import '../services/auth_http_client.dart';
 
@@ -326,7 +326,7 @@ class _AdminPostEditState extends State<AdminPostEdit> {
             color: Colors.white,
             borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
           ),
-          child: _AddDateTimeBottomSheet(
+          child: AddDateTimeBottomSheet(
             onSave: (dateWithTimes) {
               setState(() {
                 final existingIndex = selectedDonationDatesWithTimes.indexWhere(
@@ -768,229 +768,5 @@ class _AdminPostEditState extends State<AdminPostEdit> {
         ),
       ),
     );
-  }
-}
-
-/// 날짜+시간 추가 바텀시트 (hospital_post.dart의 AddDateTimeBottomSheet 기반)
-class _AddDateTimeBottomSheet extends StatefulWidget {
-  final Function(DonationDateWithTimes) onSave;
-  final ScrollController scrollController;
-
-  const _AddDateTimeBottomSheet({
-    required this.onSave,
-    required this.scrollController,
-  });
-
-  @override
-  State<_AddDateTimeBottomSheet> createState() => _AddDateTimeBottomSheetState();
-}
-
-class _AddDateTimeBottomSheetState extends State<_AddDateTimeBottomSheet> {
-  DateTime selectedDate = DateTime.now();
-  List<TimeOfDay> selectedTimes = [];
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          // Handle bar
-          Container(
-            width: 40,
-            height: 4,
-            margin: const EdgeInsets.symmetric(vertical: 8),
-            decoration: BoxDecoration(
-              color: Colors.grey[300],
-              borderRadius: BorderRadius.circular(2),
-            ),
-          ),
-
-          // Header
-          Padding(
-            padding: const EdgeInsets.all(20),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  '헌혈 일정 추가',
-                  style: AppTheme.h3Style.copyWith(fontWeight: FontWeight.w700),
-                ),
-                IconButton(
-                  onPressed: () => Navigator.pop(context),
-                  icon: const Icon(Icons.close),
-                ),
-              ],
-            ),
-          ),
-
-          Expanded(
-            child: ListView(
-              controller: widget.scrollController,
-              padding: const EdgeInsets.symmetric(horizontal: 20),
-              children: [
-                // 날짜 선택
-                Text(
-                  '날짜 선택',
-                  style: AppTheme.bodyLargeStyle.copyWith(fontWeight: FontWeight.w600),
-                ),
-                const SizedBox(height: 12),
-                Container(
-                  decoration: BoxDecoration(
-                    border: Border.all(color: Colors.black),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: ListTile(
-                    leading: const Icon(Icons.calendar_today, color: Colors.black),
-                    title: Text(
-                      '${selectedDate.year}년 ${selectedDate.month}월 ${selectedDate.day}일',
-                      style: const TextStyle(color: Colors.black),
-                    ),
-                    trailing: const Icon(Icons.arrow_forward_ios, size: 16, color: Colors.black),
-                    onTap: () async {
-                      final date = await showDatePicker(
-                        context: context,
-                        initialDate: selectedDate,
-                        firstDate: DateTime.now(),
-                        lastDate: DateTime.now().add(const Duration(days: 365)),
-                      );
-                      if (date != null) {
-                        setState(() => selectedDate = date);
-                      }
-                    },
-                  ),
-                ),
-
-                const SizedBox(height: 24),
-
-                // 시간 선택
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      '시간 선택',
-                      style: AppTheme.bodyLargeStyle.copyWith(fontWeight: FontWeight.w600),
-                    ),
-                    TextButton.icon(
-                      onPressed: _addTimeSlot,
-                      icon: const Icon(Icons.add, color: Colors.black, size: 20),
-                      label: const Text('시간 추가', style: TextStyle(color: Colors.black)),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 12),
-
-                if (selectedTimes.isNotEmpty) ...[
-                  ...selectedTimes.asMap().entries.map((entry) {
-                    int index = entry.key;
-                    TimeOfDay time = entry.value;
-                    return Container(
-                      margin: const EdgeInsets.only(bottom: 8),
-                      decoration: BoxDecoration(
-                        border: Border.all(color: Colors.black),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: ListTile(
-                        leading: const Icon(Icons.access_time, color: Colors.black),
-                        title: Text(
-                          '${time.hour.toString().padLeft(2, '0')}:${time.minute.toString().padLeft(2, '0')}',
-                          style: const TextStyle(color: Colors.black),
-                        ),
-                        trailing: IconButton(
-                          onPressed: () {
-                            setState(() => selectedTimes.removeAt(index));
-                          },
-                          icon: const Icon(Icons.delete_outline, color: Colors.red),
-                        ),
-                      ),
-                    );
-                  }),
-                ] else ...[
-                  Container(
-                    padding: const EdgeInsets.all(20),
-                    decoration: BoxDecoration(
-                      border: Border.all(color: Colors.grey[300]!),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: const Center(
-                      child: Text('시간을 추가해주세요', style: TextStyle(color: Colors.grey)),
-                    ),
-                  ),
-                ],
-
-                const SizedBox(height: 30),
-
-                // 저장 버튼
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton(
-                    onPressed: selectedTimes.isNotEmpty ? _saveDateTime : null,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.black,
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                    ),
-                    child: const Text('일정 저장'),
-                  ),
-                ),
-
-                const SizedBox(height: 20),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _addTimeSlot() async {
-    final time = await showIntervalTimePicker(
-      context: context,
-      initialTime: const TimeOfDay(hour: 9, minute: 0),
-      interval: 5,
-    );
-
-    if (time != null) {
-      setState(() {
-        if (!selectedTimes.any((t) => t.hour == time.hour && t.minute == time.minute)) {
-          selectedTimes.add(time);
-          selectedTimes.sort(
-            (a, b) => a.hour.compareTo(b.hour) != 0
-                ? a.hour.compareTo(b.hour)
-                : a.minute.compareTo(b.minute),
-          );
-        }
-      });
-    }
-  }
-
-  void _saveDateTime() {
-    final dateWithTimes = DonationDateWithTimes(
-      postDatesId: 0,
-      postIdx: 0,
-      donationDate: selectedDate,
-      times: selectedTimes
-          .map<DonationPostTime>(
-            (time) => DonationPostTime(
-              postTimesId: null,
-              postDatesIdx: 0,
-              donationTime: DateTime(
-                selectedDate.year,
-                selectedDate.month,
-                selectedDate.day,
-                time.hour,
-                time.minute,
-              ),
-            ),
-          )
-          .toList(),
-    );
-
-    widget.onSave(dateWithTimes);
-    Navigator.pop(context);
   }
 }

@@ -17,6 +17,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../utils/app_constants.dart';
 import '../widgets/dashboard/board_section.dart';
 import '../widgets/post_list/board_list_row.dart';
+import '../widgets/post_list/author_avatar.dart';
 import '../widgets/post_list/notice_styling.dart';
 import '../widgets/association_footer.dart';
 
@@ -160,23 +161,8 @@ class _WelcomeScreenState extends State<WelcomeScreen>
                       const SizedBox(height: 8),
                       Row(
                         children: [
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 8,
-                              vertical: 4,
-                            ),
-                            decoration: BoxDecoration(
-                              color: AppTheme.warning,
-                              borderRadius: BorderRadius.circular(4),
-                            ),
-                            child: Text(
-                              '칼럼',
-                              style: AppTheme.bodySmallStyle.copyWith(
-                                color: Colors.white,
-                                fontSize: 10,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
+                          AuthorAvatar(
+                            profileImage: detailColumn.hospitalProfileImage,
                           ),
                           const SizedBox(width: 8),
                           Expanded(
@@ -581,6 +567,10 @@ class _WelcomeScreenState extends State<WelcomeScreen>
           targetAudience: notice.targetAudience,
           noticeImportant: notice.noticeImportant,
         ),
+        titleFontWeight: NoticeStyling.titleFontWeight(
+          targetAudience: notice.targetAudience,
+          noticeImportant: notice.noticeImportant,
+        ),
         authorName: notice.authorNickname!,
         authorProfileImage: notice.authorProfileImage,
         createdAt: notice.createdAt,
@@ -650,12 +640,15 @@ class _WelcomeScreenState extends State<WelcomeScreen>
     if (!mounted) return;
 
     final bool isImportant =
-        (noticeDetail?.noticeImportant ?? notice.noticeImportant) == 0;
+        (noticeDetail?.noticeImportant ?? notice.noticeImportant) ==
+            AppConstants.noticeImportant;
     final DateTime createdAt = noticeDetail?.createdAt ?? notice.createdAt;
     final DateTime updatedAt = noticeDetail?.updatedAt ?? notice.updatedAt;
     final int viewCount = noticeDetail?.viewCount ?? notice.viewCount ?? 0;
     final String authorName =
         (noticeDetail?.authorNickname ?? notice.authorNickname)!;
+    final String? authorProfileImage =
+        noticeDetail?.authorProfileImage ?? notice.authorProfileImage;
     final String title = noticeDetail?.title ?? notice.title;
     final String content = noticeDetail?.contentPreview ?? notice.content;
     final String? noticeUrl = noticeDetail?.noticeUrl ?? notice.noticeUrl;
@@ -714,26 +707,8 @@ class _WelcomeScreenState extends State<WelcomeScreen>
                   const SizedBox(height: 12),
                   Row(
                     children: [
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 8,
-                          vertical: 4,
-                        ),
-                        decoration: BoxDecoration(
-                          color:
-                              isImportant
-                                  ? AppTheme.error
-                                  : AppTheme.primaryBlue,
-                          borderRadius: BorderRadius.circular(6),
-                        ),
-                        child: Text(
-                          isImportant ? '공지' : '알림',
-                          style: AppTheme.bodySmallStyle.copyWith(
-                            color: Colors.white,
-                            fontWeight: FontWeight.bold,
-                            fontSize: 10,
-                          ),
-                        ),
+                      AuthorAvatar(
+                        profileImage: authorProfileImage,
                       ),
                       const SizedBox(width: 8),
                       Expanded(

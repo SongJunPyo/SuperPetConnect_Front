@@ -713,6 +713,10 @@ class _AdminNoticeListScreenState extends State<AdminNoticeListScreen> {
                 targetAudience: notice.targetAudience,
                 noticeImportant: notice.noticeImportant,
               ),
+              titleFontWeight: NoticeStyling.titleFontWeight(
+                targetAudience: notice.targetAudience,
+                noticeImportant: notice.noticeImportant,
+              ),
               authorName: notice.authorNickname ?? notice.authorName,
               authorProfileImage: notice.authorProfileImage,
               createdAt: notice.createdAt,

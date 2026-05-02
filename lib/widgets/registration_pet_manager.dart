@@ -582,6 +582,10 @@ class _PetRegistrationFormState extends State<_PetRegistrationForm> {
             Center(child: _buildProfileImagePicker()),
             const SizedBox(height: AppTheme.spacing24),
 
+            // 펫 정보 입력 순서 (2026-05-02 확정 — admin_signup_management 디스플레이와 정합):
+            // 이름 → 종류 → 품종 → 성별 → 혈액형 → 체중 → 생년월일 → 최근 헌혈일 →
+            // [헌혈 관련 정보] 접종 → 예방약 → 중성화(+일자) → 질병 → 임신/출산
+
             // 이름
             _buildTextField(
               controller: _nameController,
@@ -593,9 +597,6 @@ class _PetRegistrationFormState extends State<_PetRegistrationForm> {
             // 종 선택
             _buildSpeciesSelector(),
 
-            // 성별 선택 (필수 — CLAUDE.md PetSex 미러)
-            _buildSexSelector(),
-
             // 품종
             _buildTextField(
               controller: _breedController,
@@ -604,13 +605,16 @@ class _PetRegistrationFormState extends State<_PetRegistrationForm> {
               required: true,
             ),
 
-            // 생년월일
-            _buildBirthDatePicker(),
+            // 성별 선택 (필수 — CLAUDE.md PetSex 미러)
+            _buildSexSelector(),
+
+            // 혈액형
+            _buildBloodTypeDropdown(),
 
             // 몸무게
             _buildTextField(
               controller: _weightController,
-              label: '몸무게 (kg)',
+              label: '체중 (kg)',
               hint: '몸무게를 숫자로 입력해주세요.',
               required: true,
               keyboardType: const TextInputType.numberWithOptions(decimal: true),
@@ -619,10 +623,10 @@ class _PetRegistrationFormState extends State<_PetRegistrationForm> {
               ],
             ),
 
-            // 혈액형
-            _buildBloodTypeDropdown(),
+            // 생년월일
+            _buildBirthDatePicker(),
 
-            // 직전 헌혈 일자
+            // 최근 헌혈 일자
             _buildPrevDonationDatePicker(),
 
             const SizedBox(height: AppTheme.spacing20),
@@ -635,14 +639,6 @@ class _PetRegistrationFormState extends State<_PetRegistrationForm> {
               value: _isVaccinated,
               onChanged: (v) => setState(() => _isVaccinated = v ?? false),
             ),
-            _buildCheckboxTile(
-              title: '질병 이력',
-              subtitle: '심장사상충, 바베시아, 혈액관련질병 등의 질병 이력이 있나요?',
-              value: _hasDisease,
-              onChanged: (v) => setState(() => _hasDisease = v ?? false),
-            ),
-            // 임신/출산 통합 셀렉터 (CLAUDE.md PregnancyBirthStatus 미러)
-            _buildPregnancyBirthSelector(),
             _buildCheckboxTile(
               title: '예방약 복용',
               subtitle: '심장사상충 예방약을 정기적으로 복용하고 있나요?',
@@ -661,6 +657,14 @@ class _PetRegistrationFormState extends State<_PetRegistrationForm> {
               },
             ),
             if (_isNeutered) _buildNeuteredDatePicker(),
+            _buildCheckboxTile(
+              title: '질병 이력',
+              subtitle: '심장사상충, 바베시아, 혈액관련질병 등의 질병 이력이 있나요?',
+              value: _hasDisease,
+              onChanged: (v) => setState(() => _hasDisease = v ?? false),
+            ),
+            // 임신/출산 통합 셀렉터 (CLAUDE.md PregnancyBirthStatus 미러)
+            _buildPregnancyBirthSelector(),
 
             const SizedBox(height: AppTheme.spacing12),
             // 재심사 안내 (정보 수정 워크플로우 — 가입 폼이라 첫 등록은 해당 없지만 안내)
@@ -1070,7 +1074,7 @@ class _PetRegistrationFormState extends State<_PetRegistrationForm> {
         ),
         child: Row(
           children: [
-            Icon(Icons.calendar_today, size: 18, color: AppTheme.primaryBlue),
+            Icon(Icons.calendar_today_outlined, size: 18, color: AppTheme.primaryBlue),
             const SizedBox(width: 12),
             Expanded(
               child: Column(
@@ -1244,7 +1248,7 @@ class _PetRegistrationFormState extends State<_PetRegistrationForm> {
                       constraints: const BoxConstraints(),
                     )
                   else
-                    Icon(Icons.calendar_today, color: AppTheme.textTertiary, size: 20),
+                    Icon(Icons.calendar_today_outlined, color: AppTheme.textTertiary, size: 20),
                 ],
               ),
             ),
@@ -1291,7 +1295,7 @@ class _PetRegistrationFormState extends State<_PetRegistrationForm> {
           ),
           child: Row(
             children: [
-              Icon(Icons.calendar_today, size: 20, color: AppTheme.primaryBlue),
+              Icon(Icons.calendar_today_outlined, size: 20, color: AppTheme.primaryBlue),
               const SizedBox(width: 12),
               Expanded(
                 child: Column(
@@ -1330,7 +1334,7 @@ class _PetRegistrationFormState extends State<_PetRegistrationForm> {
       children: [
         RichText(
           text: TextSpan(
-            text: '직전 헌혈 일자',
+            text: '최근 헌혈 일자',
             style: AppTheme.bodyMediumStyle.copyWith(fontWeight: FontWeight.w600),
             children: const [
               TextSpan(
@@ -1348,7 +1352,7 @@ class _PetRegistrationFormState extends State<_PetRegistrationForm> {
               initialDate: _prevDonationDate ?? DateTime.now(),
               firstDate: DateTime(2010),
               lastDate: DateTime.now(),
-              helpText: '직전 헌혈 일자 선택',
+              helpText: '최근 헌혈 일자 선택',
               cancelText: '취소',
               confirmText: '선택',
             );
@@ -1386,7 +1390,7 @@ class _PetRegistrationFormState extends State<_PetRegistrationForm> {
                     constraints: const BoxConstraints(),
                   )
                 else
-                  Icon(Icons.calendar_today, color: AppTheme.textTertiary, size: 20),
+                  Icon(Icons.calendar_today_outlined, color: AppTheme.textTertiary, size: 20),
               ],
             ),
           ),

@@ -7,10 +7,12 @@
 import 'dart:convert';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:kpostal/kpostal.dart';
 import '../utils/app_theme.dart';
 import '../utils/config.dart';
 import '../utils/debouncer.dart';
+import '../utils/phone_input_formatter.dart';
 import '../utils/preferences_manager.dart';
 import '../utils/kakao_postcode_stub.dart'
     if (dart.library.html) '../utils/kakao_postcode_web.dart';
@@ -21,7 +23,12 @@ import '../widgets/app_button.dart';
 import '../widgets/registration_pet_manager.dart';
 
 class OnboardingScreen extends StatefulWidget {
-  const OnboardingScreen({super.key});
+  /// 네이버 token-login 응답에서 자동 보강된 phone (raw 11자리 또는 빈 문자열).
+  /// 비어있지 않으면 Step 1의 전화번호 입력란에 prefill — 사용자가 확인/수정 가능.
+  /// BE가 phone_number를 응답에 포함하기 시작하면 자동 prefill 작동.
+  final String? initialPhone;
+
+  const OnboardingScreen({super.key, this.initialPhone});
 
   @override
   State<OnboardingScreen> createState() => _OnboardingScreenState();
@@ -32,12 +39,14 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   int _currentStep = 0;
   bool _isSubmitting = false;
 
-  // === Step 1: 별명 + 주소 ===
+  // === Step 1: 별명 + 전화번호 + 주소 ===
   final _nicknameController = TextEditingController();
+  final _phoneController = TextEditingController();
   final _addressController = TextEditingController();
   bool _isNicknameAvailable = true;
   bool _isCheckingNickname = false;
   String? _nicknameError;
+  String? _phoneError;
   final Debouncer _nicknameDebouncer = Debouncer(
     delay: const Duration(milliseconds: 500),
   );
@@ -46,12 +55,45 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   final List<RegistrationPetData> _pets = [];
 
   @override
+  void initState() {
+    super.initState();
+    // BE token-login 응답에서 자동 보강된 phone이 있으면 prefill.
+    // raw 11자리(예: "01012345678") → 포매터 통과시켜 "010-1234-5678"로 표시.
+    final raw = widget.initialPhone?.trim() ?? '';
+    if (raw.isEmpty) return;
+    // 숫자만 추출 (네이버 보강이 010-XXXX-XXXX로 와도 안전하게 처리)
+    final digits = raw.replaceAll(RegExp(r'\D'), '');
+    if (digits.length != 11) return; // 비정상 형식이면 prefill 스킵
+    final formatted =
+        '${digits.substring(0, 3)}-${digits.substring(3, 7)}-${digits.substring(7)}';
+    _phoneController.text = formatted;
+  }
+
+  @override
   void dispose() {
     _pageController.dispose();
     _nicknameController.dispose();
+    _phoneController.dispose();
     _addressController.dispose();
     _nicknameDebouncer.dispose();
     super.dispose();
+  }
+
+  // 전화번호 형식 검증 (010-XXXX-XXXX 등)
+  bool _isPhoneValid(String phone) {
+    return RegExp(r'^\d{3}-\d{3,4}-\d{4}$').hasMatch(phone);
+  }
+
+  void _onPhoneChanged(String value) {
+    setState(() {
+      if (value.trim().isEmpty) {
+        _phoneError = null;
+      } else if (!_isPhoneValid(value.trim())) {
+        _phoneError = '유효한 전화번호 형식을 입력해주세요.';
+      } else {
+        _phoneError = null;
+      }
+    });
   }
 
   // 닉네임 중복 체크 (debounce 적용)
@@ -118,11 +160,12 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     }
   }
 
-  // Step 1 유효성 검사
+  // Step 1 유효성 검사 (별명 통과 + 전화번호 형식 + 주소 입력)
   bool _isStep1Valid() {
     return _nicknameController.text.trim().length >= 2 &&
         _isNicknameAvailable &&
         !_isCheckingNickname &&
+        _isPhoneValid(_phoneController.text.trim()) &&
         _addressController.text.trim().isNotEmpty;
   }
 
@@ -174,6 +217,9 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     try {
       final Map<String, dynamic> body = {
         'nickname_input': _nicknameController.text.trim(),
+        // 전화번호는 BE에서 하이픈 제외 raw로 저장 (register.dart와 동일 패턴).
+        'phone_number':
+            _phoneController.text.replaceAll('-', '').trim(),
         'address': _addressController.text.trim(),
         'pets': _pets.map((p) => p.toJson()).toList(),
       };
@@ -558,6 +604,65 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                   ),
                 ],
               ),
+            ),
+          ],
+          const SizedBox(height: AppTheme.spacing24),
+
+          // 전화번호 입력 (네이버 가입자도 필수)
+          RichText(
+            text: TextSpan(
+              text: '전화번호',
+              style: AppTheme.bodyMediumStyle.copyWith(
+                fontWeight: FontWeight.w600,
+              ),
+              children: const [
+                TextSpan(text: ' *', style: TextStyle(color: AppTheme.error)),
+              ],
+            ),
+          ),
+          const SizedBox(height: AppTheme.spacing8),
+          TextField(
+            controller: _phoneController,
+            keyboardType: TextInputType.phone,
+            inputFormatters: [
+              FilteringTextInputFormatter.digitsOnly,
+              PhoneNumberFormatter(),
+            ],
+            decoration: InputDecoration(
+              hintText: '010-1234-5678',
+              hintStyle: AppTheme.bodyLargeStyle.copyWith(
+                color: AppTheme.textTertiary,
+              ),
+              filled: true,
+              fillColor: AppTheme.veryLightGray,
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(AppTheme.radius12),
+                borderSide: BorderSide.none,
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(AppTheme.radius12),
+                borderSide: BorderSide(
+                  color: _phoneError != null
+                      ? AppTheme.error
+                      : Colors.transparent,
+                ),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(AppTheme.radius12),
+                borderSide: BorderSide(
+                  color: _phoneError != null
+                      ? AppTheme.error
+                      : AppTheme.primaryBlue,
+                ),
+              ),
+            ),
+            onChanged: _onPhoneChanged,
+          ),
+          if (_phoneError != null) ...[
+            const SizedBox(height: 4),
+            Text(
+              _phoneError!,
+              style: AppTheme.bodySmallStyle.copyWith(color: AppTheme.error),
             ),
           ],
           const SizedBox(height: AppTheme.spacing24),

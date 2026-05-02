@@ -2,6 +2,7 @@
 
 import 'package:flutter/material.dart';
 import '../utils/app_theme.dart';
+import '../utils/pet_field_icons.dart';
 import '../widgets/app_app_bar.dart';
 import '../services/applied_donation_service.dart';
 import '../models/applied_donation_model.dart';
@@ -392,7 +393,7 @@ class _UserDonationApplicationsScreenState
           Row(
             children: [
               Icon(
-                Icons.local_hospital,
+                PetFieldIcons.hospital,
                 size: 16,
                 color: AppTheme.textSecondary,
               ),

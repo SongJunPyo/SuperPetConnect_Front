@@ -8,11 +8,11 @@ import '../utils/preferences_manager.dart';
 import '../models/hospital_column_model.dart';
 import '../utils/app_constants.dart';
 import '../utils/app_theme.dart';
-import '../utils/config.dart';
 import '../utils/error_display.dart';
 import '../widgets/app_app_bar.dart';
 import '../widgets/pagination_bar.dart';
 import '../widgets/rich_text_viewer.dart';
+import '../widgets/post_list/author_avatar.dart';
 import '../widgets/post_list/board_list_row.dart';
 import '../widgets/post_list/board_list_header.dart';
 import 'hospital_column_create.dart';
@@ -21,7 +21,11 @@ import '../widgets/search_date_filter_bar.dart';
 import '../widgets/state_view.dart';
 
 class HospitalColumnManagementScreen extends StatefulWidget {
-  const HospitalColumnManagementScreen({super.key});
+  /// 알림 진입 시 자동으로 상세 시트를 열 칼럼 column_idx.
+  /// column_approved / column_rejected 알림에서 전달된 ID로 fetch 완료 후 자동 시트 오픈.
+  final int? initialColumnIdx;
+
+  const HospitalColumnManagementScreen({super.key, this.initialColumnIdx});
 
   @override
   State<HospitalColumnManagementScreen> createState() =>
@@ -46,7 +50,19 @@ class _HospitalColumnManagementScreenState
   @override
   void initState() {
     super.initState();
-    _loadMyColumns();
+    _loadAndMaybeAutoOpen();
+  }
+
+  /// _loadMyColumns 완료 후 알림 진입(initialColumnIdx)이 있으면
+  /// 매칭 칼럼의 상세 시트 자동 오픈.
+  Future<void> _loadAndMaybeAutoOpen() async {
+    await _loadMyColumns();
+    if (!mounted) return;
+    final id = widget.initialColumnIdx;
+    if (id == null) return;
+    final column = _allColumns.where((c) => c.columnIdx == id).firstOrNull;
+    if (column == null) return;
+    _showColumnDetail(column);
   }
 
   @override
@@ -345,23 +361,9 @@ class _HospitalColumnManagementScreenState
                       const SizedBox(height: 8),
                       Row(
                         children: [
-                          if (detailColumn.hospitalProfileImage != null)
-                            CircleAvatar(
-                              radius: 16,
-                              backgroundImage: NetworkImage(
-                                detailColumn.hospitalProfileImage!.startsWith('http')
-                                    ? detailColumn.hospitalProfileImage!
-                                    : '${Config.serverUrl}${detailColumn.hospitalProfileImage}',
-                              ),
-                              backgroundColor: AppTheme.veryLightGray,
-                              onBackgroundImageError: (_, __) {},
-                            )
-                          else
-                            CircleAvatar(
-                              radius: 16,
-                              backgroundColor: AppTheme.veryLightGray,
-                              child: Icon(Icons.business, size: 16, color: AppTheme.textTertiary),
-                            ),
+                          AuthorAvatar(
+                            profileImage: detailColumn.hospitalProfileImage,
+                          ),
                           const SizedBox(width: 8),
                           Expanded(
                             child: Text(
@@ -817,8 +819,8 @@ class _HospitalColumnManagementScreenState
     return BoardListRow(
       index: index + 1,
       title: column.title,
-      // 미공개 칼럼은 회색으로 구분
-      titleColor: column.isPublished ? null : AppTheme.textTertiary,
+      // 미공개 칼럼은 주황으로 구분 (admin_column_management.dart와 톤 일치)
+      titleColor: column.isPublished ? null : AppTheme.warning,
       authorName: displayNickname,
       authorProfileImage: column.hospitalProfileImage,
       createdAt: column.createdAt,

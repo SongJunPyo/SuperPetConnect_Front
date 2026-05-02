@@ -10,6 +10,8 @@
     <string>헌혈 게시글에 사진을 첨부하기 위해 카메라 접근 권한이 필요합니다.</string>
     <key>NSPhotoLibraryUsageDescription</key>
     <string>헌혈 게시글에 사진을 첨부하기 위해 사진 라이브러리 접근 권한이 필요합니다.</string>
+    <key>NSPhotoLibraryAddUsageDescription</key>
+    <string>모집마감된 신청자의 반려동물 프로필 사진을 갤러리에 저장하기 위해 권한이 필요합니다.</string>
 	<!-- 네이버 로그인 URL Scheme -->
 	<key>CFBundleURLTypes</key>
 	<array>

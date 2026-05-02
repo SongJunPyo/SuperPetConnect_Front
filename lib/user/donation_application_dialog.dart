@@ -7,6 +7,7 @@ import '../models/applied_donation_model.dart';
 import '../models/donation_post_time_model.dart';
 import '../models/pet_model.dart' as pet_model;
 import '../services/applied_donation_service.dart';
+import 'cancel_application_bottom_sheet.dart';
 
 class DonationApplicationDialog extends StatefulWidget {
   final int postIdx;
@@ -554,7 +555,7 @@ class _DonationApplicationDialogState extends State<DonationApplicationDialog> {
             child: Row(
               children: [
                 Icon(
-                  Icons.calendar_today,
+                  Icons.calendar_today_outlined,
                   size: 20,
                   color:
                       isSelected
@@ -728,22 +729,50 @@ class _DonationApplicationDialogState extends State<DonationApplicationDialog> {
 
   /// 취소 바텀시트 표시
   void _showCancelBottomSheet(MyApplicationInfo application) {
-    showModalBottomSheet(
+    showModalBottomSheet<bool>(
       context: context,
       isScrollControlled: true,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
-      builder:
-          (context) => _CancelApplicationBottomSheet(
-            application: application,
-            onCancelSuccess: () {
-              // 취소 성공 후 목록 새로고침
-              _loadMyApplications();
-              _loadTimeSlotStats();
-            },
+      builder: (context) {
+        return CancelApplicationBottomSheet(
+          application: application,
+          onCancelSuccess: () {
+            // 바텀시트 닫으면서 true 반환
+            Navigator.pop(context, true);
+          },
+        );
+      },
+    ).then((cancelled) {
+      if (cancelled == true && mounted) {
+        // 취소 성공 후 목록 새로고침
+        _loadMyApplications();
+        _loadTimeSlotStats();
+
+        // 취소 성공 메시지 표시
+        showDialog(
+          context: context,
+          builder: (context) => AlertDialog(
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            title: Row(
+              children: [
+                Icon(Icons.check_circle, color: Colors.green.shade600),
+                const SizedBox(width: 8),
+                const Text('완료'),
+              ],
+            ),
+            content: const Text('신청이 취소되었습니다.'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('확인'),
+              ),
+            ],
           ),
-    );
+        );
+      }
+    });
   }
 
   bool _canSubmit() {
@@ -838,279 +867,6 @@ class _DonationApplicationDialogState extends State<DonationApplicationDialog> {
                 Icon(Icons.error_outline, color: Colors.red.shade600),
                 const SizedBox(width: 8),
                 const Text('신청 실패'),
-              ],
-            ),
-            content: Text(errorMessage),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context),
-                child: const Text('확인'),
-              ),
-            ],
-          ),
-        );
-      }
-    }
-  }
-}
-
-/// 신청 취소 바텀시트
-class _CancelApplicationBottomSheet extends StatefulWidget {
-  final MyApplicationInfo application;
-  final VoidCallback onCancelSuccess;
-
-  const _CancelApplicationBottomSheet({
-    required this.application,
-    required this.onCancelSuccess,
-  });
-
-  @override
-  State<_CancelApplicationBottomSheet> createState() =>
-      _CancelApplicationBottomSheetState();
-}
-
-class _CancelApplicationBottomSheetState
-    extends State<_CancelApplicationBottomSheet> {
-  bool isCancelling = false;
-
-  @override
-  Widget build(BuildContext context) {
-    final canCancel = widget.application.canCancel;
-
-    return Container(
-      padding: const EdgeInsets.all(24),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // 핸들바
-          Center(
-            child: Container(
-              width: 40,
-              height: 4,
-              decoration: BoxDecoration(
-                color: Colors.grey.shade300,
-                borderRadius: BorderRadius.circular(2),
-              ),
-            ),
-          ),
-          const SizedBox(height: 20),
-
-          // 제목
-          Row(
-            children: [
-              Icon(
-                canCancel ? Icons.cancel_outlined : Icons.info_outline,
-                color: canCancel ? Colors.red : Colors.orange,
-                size: 28,
-              ),
-              const SizedBox(width: 12),
-              Text(
-                canCancel ? '신청 취소' : '신청 정보',
-                style: AppTheme.h3Style.copyWith(fontWeight: FontWeight.w700),
-              ),
-            ],
-          ),
-          const SizedBox(height: 20),
-
-          // 신청 정보 카드
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: Colors.grey.shade50,
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: Colors.grey.shade200),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                _buildInfoRow('게시글', widget.application.postTitle),
-                const SizedBox(height: 8),
-                _buildInfoRow(
-                  '반려동물',
-                  '${widget.application.petName} (${widget.application.speciesText})',
-                ),
-                const SizedBox(height: 8),
-                _buildInfoRow('헌혈 시간', widget.application.donationTime),
-                const SizedBox(height: 8),
-                _buildInfoRow(
-                  '상태',
-                  widget.application.status,
-                  statusColor: AppliedDonationStatus.getStatusColorValue(
-                    widget.application.statusCode,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 20),
-
-          // 취소 가능/불가 메시지
-          if (!canCancel) ...[
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: Colors.orange.shade50,
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: Colors.orange.shade200),
-              ),
-              child: Row(
-                children: [
-                  Icon(
-                    Icons.warning_amber,
-                    color: Colors.orange.shade700,
-                    size: 20,
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      widget.application.cancelBlockMessage,
-                      style: AppTheme.bodyMediumStyle.copyWith(
-                        color: Colors.orange.shade800,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 20),
-          ],
-
-          // 버튼들
-          Row(
-            children: [
-              Expanded(
-                child: OutlinedButton(
-                  onPressed: () => Navigator.pop(context),
-                  style: OutlinedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                    side: BorderSide(color: Colors.grey.shade300),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                  ),
-                  child: const Text('닫기'),
-                ),
-              ),
-              if (canCancel) ...[
-                const SizedBox(width: 12),
-                Expanded(
-                  child: ElevatedButton(
-                    onPressed: isCancelling ? null : _handleCancel,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.red,
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                    ),
-                    child:
-                        isCancelling
-                            ? const SizedBox(
-                              width: 20,
-                              height: 20,
-                              child: CircularProgressIndicator(
-                                color: Colors.white,
-                                strokeWidth: 2,
-                              ),
-                            )
-                            : const Text('신청 취소'),
-                  ),
-                ),
-              ],
-            ],
-          ),
-          const SizedBox(height: 16),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildInfoRow(String label, String value, {Color? statusColor}) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        SizedBox(
-          width: 70,
-          child: Text(
-            label,
-            style: AppTheme.bodyMediumStyle.copyWith(
-              color: AppTheme.textSecondary,
-            ),
-          ),
-        ),
-        Expanded(
-          child: Text(
-            value,
-            style: AppTheme.bodyMediumStyle.copyWith(
-              fontWeight: FontWeight.w500,
-              color: statusColor ?? AppTheme.textPrimary,
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-
-  Future<void> _handleCancel() async {
-    setState(() {
-      isCancelling = true;
-    });
-
-    try {
-      await AppliedDonationService.cancelApplicationToServer(
-        widget.application.applicationId,
-      );
-
-      if (mounted) {
-        // 성공 팝업 표시 후 바텀시트 닫기
-        await showDialog(
-          context: context,
-          builder: (context) => AlertDialog(
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-            title: Row(
-              children: [
-                Icon(Icons.check_circle, color: Colors.green.shade600),
-                const SizedBox(width: 8),
-                const Text('완료'),
-              ],
-            ),
-            content: const Text('신청이 취소되었습니다.'),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context),
-                child: const Text('확인'),
-              ),
-            ],
-          ),
-        );
-
-        if (mounted) {
-          Navigator.pop(context);
-          widget.onCancelSuccess();
-        }
-      }
-    } catch (e) {
-      if (mounted) {
-        setState(() {
-          isCancelling = false;
-        });
-
-        String errorMessage = e.toString();
-        if (errorMessage.startsWith('Exception: ')) {
-          errorMessage = errorMessage.substring(11);
-        }
-
-        showDialog(
-          context: context,
-          builder: (context) => AlertDialog(
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-            title: Row(
-              children: [
-                Icon(Icons.error_outline, color: Colors.red.shade600),
-                const SizedBox(width: 8),
-                const Text('취소 실패'),
               ],
             ),
             content: Text(errorMessage),

@@ -3,6 +3,7 @@ import '../services/hospital_column_service.dart';
 import '../models/hospital_column_model.dart';
 import '../utils/app_theme.dart';
 import '../utils/error_display.dart';
+import '../utils/pet_field_icons.dart';
 import '../widgets/app_dialog.dart';
 import '../widgets/rich_text_viewer.dart';
 import 'hospital_column_edit.dart';
@@ -269,7 +270,7 @@ class _HospitalColumnDetailState extends State<HospitalColumnDetail> {
                     // 메타 정보
                     Row(
                       children: [
-                        Icon(Icons.business, size: 16, color: Colors.grey[600]),
+                        Icon(PetFieldIcons.hospital, size: 16, color: Colors.grey[600]),
                         const SizedBox(width: 4),
                         Text(
                           column!.hospitalName,
@@ -297,7 +298,7 @@ class _HospitalColumnDetailState extends State<HospitalColumnDetail> {
                     Row(
                       children: [
                         Icon(
-                          Icons.calendar_today,
+                          Icons.calendar_today_outlined,
                           size: 16,
                           color: Colors.grey[600],
                         ),

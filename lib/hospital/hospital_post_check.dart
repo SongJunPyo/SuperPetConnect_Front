@@ -1,29 +1,33 @@
 import 'package:flutter/material.dart';
-import '../models/unified_post_model.dart';
+import 'package:intl/intl.dart';
+
+import '../models/applied_donation_model.dart';
 import '../models/donation_application_model.dart';
 import '../models/post_time_item_model.dart';
+import '../models/unified_post_model.dart';
+import '../services/donation_post_image_service.dart';
 import '../services/hospital_post_service.dart';
 import '../utils/app_theme.dart';
-import '../utils/app_constants.dart';
 import '../utils/error_display.dart';
+import '../utils/pet_field_icons.dart';
+import '../utils/pet_image_downloader.dart';
 import '../utils/time_format_util.dart';
-import 'package:intl/intl.dart';
-import '../widgets/pet_profile_image.dart';
-import '../models/applied_donation_model.dart';
-import 'donation_completion_sheet.dart';
-import '../widgets/rich_text_viewer.dart';
+import '../widgets/app_dialog.dart';
 import '../widgets/app_search_bar.dart';
-import '../widgets/post_detail/post_detail_handle_bar.dart';
-import '../widgets/post_detail/post_detail_meta_section.dart';
+import '../widgets/info_row.dart';
+import '../widgets/pet_profile_image.dart';
+import '../widgets/pet_status_row.dart';
 import '../widgets/post_detail/post_detail_blood_type.dart';
 import '../widgets/post_detail/post_detail_description.dart';
+import '../widgets/post_detail/post_detail_handle_bar.dart';
+import '../widgets/post_detail/post_detail_meta_section.dart';
 import '../widgets/post_detail/post_detail_patient_info.dart';
-import '../widgets/pagination_bar.dart';
-import '../widgets/app_dialog.dart';
-import '../widgets/info_row.dart';
-import '../widgets/state_view.dart';
-import '../widgets/post_list/post_list_header.dart';
-import '../widgets/post_list/post_list_row.dart';
+import '../widgets/rich_text_viewer.dart';
+import 'donation_completion_sheet.dart';
+import 'hospital_active_posts_tab.dart';
+import 'hospital_closed_recruitment_tab.dart';
+import 'hospital_completed_donations_tab.dart';
+import 'hospital_pending_posts_tab.dart';
 
 class HospitalPostCheck extends StatefulWidget {
   /// 알림 탭 등 외부에서 진입 시 자동으로 열 게시글의 post_idx.
@@ -38,37 +42,40 @@ class HospitalPostCheck extends StatefulWidget {
 
 class _HospitalPostCheckState extends State<HospitalPostCheck>
     with SingleTickerProviderStateMixin {
-  List<UnifiedPostModel> posts = [];
-  List<UnifiedPostModel> filteredPosts = [];
-  List<PostTimeItem> postTimeItems = [];
-  List<PostTimeItem> filteredPostTimeItems = [];
-  bool isLoading = true;
-  String? errorMessage;
-  final TextEditingController _searchController = TextEditingController();
-  DateTime? startDate;
-  DateTime? endDate;
-
-  // 클라이언트 측 페이지네이션 (탭 0, 1에서 사용)
-  final ScrollController _scrollController = ScrollController();
-  List<UnifiedPostModel> _allPosts = []; // 서버에서 받은 전체 게시글
-  int _currentPage = 1;
-  int _totalPages = 1;
-
-  // 슬라이딩 탭 관련
+  // 탭 컨트롤러 + 현재 인덱스 (시트 빌더 분기에 사용).
   TabController? _tabController;
   int _currentTabIndex = 0;
+
+  // 검색 / 날짜 필터 (4개 탭 위젯이 props로 공유).
+  final TextEditingController _searchController = TextEditingController();
+  String _searchQuery = '';
+  DateTime? _startDate;
+  DateTime? _endDate;
+
+  // 탭 위젯 외부 refresh()용 키.
+  final GlobalKey<HospitalPendingPostsTabState> _pendingTabKey = GlobalKey();
+  final GlobalKey<HospitalActivePostsTabState> _activeTabKey = GlobalKey();
+  final GlobalKey<HospitalClosedRecruitmentTabState> _closedTabKey =
+      GlobalKey();
+  final GlobalKey<HospitalCompletedDonationsTabState> _completedTabKey =
+      GlobalKey();
 
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 4, vsync: this);
-    _tabController!.addListener(_handleTabChange);
-    _searchController.addListener(_onSearchChanged);
-    _loadPosts();
+    _tabController!.addListener(() {
+      if (_tabController!.indexIsChanging) return;
+      if (_tabController!.index != _currentTabIndex) {
+        setState(() {
+          _currentTabIndex = _tabController!.index;
+        });
+      }
+    });
+    _searchController.addListener(_onSearchTextChanged);
 
     // 알림 탭 진입 시 자동으로 해당 게시글 바텀시트 오픈.
-    // 백엔드 단건 fetch API가 status 0~5 모두 지원하므로 어느 탭이든 무관하게
-    // post_idx로 즉시 인스턴스 확보 → _showPostBottomSheet 호출.
+    // 백엔드 단건 fetch API가 status 0~5 모두 지원하므로 어느 탭이든 무관.
     if (widget.initialPostIdx != null) {
       WidgetsBinding.instance.addPostFrameCallback((_) async {
         final post = await HospitalPostService.getPostByIdx(
@@ -82,261 +89,36 @@ class _HospitalPostCheckState extends State<HospitalPostCheck>
     }
   }
 
-  void _handleTabChange() {
-    if (_tabController!.indexIsChanging ||
-        _tabController!.index != _currentTabIndex) {
+  void _onSearchTextChanged() {
+    if (_searchController.text != _searchQuery) {
       setState(() {
-        _currentTabIndex = _tabController!.index;
-        _currentPage = 1;
+        _searchQuery = _searchController.text;
       });
-      _loadPosts(page: 1);
     }
   }
 
   @override
   void dispose() {
-    _scrollController.dispose();
     _tabController?.dispose();
     _searchController.dispose();
     super.dispose();
   }
 
-  void _onPageChanged(int page) {
-    _currentPage = page;
-    if (_currentTabIndex <= 1) {
-      _applyClientPagination();
-    } else {
-      _filterPosts();
-    }
-    // 스크롤 맨 위로
-    if (_scrollController.hasClients) {
-      _scrollController.jumpTo(0);
-    }
-  }
-
-  /// 클라이언트 측 페이징: _allPosts → 필터링 → 현재 페이지 슬라이스
-  void _applyClientPagination() {
-    // 1. 탭별 status 필터링
-    List<UnifiedPostModel> statusFiltered;
-    if (_currentTabIndex == 0) {
-      statusFiltered = _allPosts.where((post) => post.status == 0).toList();
-    } else {
-      statusFiltered = _allPosts.where((post) => post.status == 1).toList();
-    }
-
-    // 2. 검색어 필터링
-    if (_searchController.text.isNotEmpty) {
-      statusFiltered = statusFiltered
-          .where((post) => post.title.toLowerCase().contains(
-                _searchController.text.toLowerCase(),
-              ))
-          .toList();
-    }
-
-    // 3. 날짜 범위 필터링
-    if (startDate != null && endDate != null) {
-      statusFiltered = statusFiltered
-          .where((post) => _isInDateRange(post.createdDate))
-          .toList();
-    }
-
-    // 4. 페이지 계산
-    const pageSize = AppConstants.detailListPageSize;
-    final totalPages = (statusFiltered.length / pageSize).ceil();
-    final safePage = _currentPage.clamp(1, totalPages > 0 ? totalPages : 1);
-    final start = (safePage - 1) * pageSize;
-    final end = start + pageSize > statusFiltered.length
-        ? statusFiltered.length
-        : start + pageSize;
-
-    setState(() {
-      filteredPosts = statusFiltered.sublist(start, end);
-      _currentPage = safePage;
-      _totalPages = totalPages > 0 ? totalPages : 1;
-    });
-  }
-
-  void _onSearchChanged() {
-    _filterPosts(resetPage: true);
-  }
-
-  void _filterPosts({bool resetPage = false}) {
-    if (resetPage) {
-      _currentPage = 1;
-    }
-
-    // 탭 0, 1은 클라이언트 페이징에서 필터링 처리
-    if (_currentTabIndex <= 1) {
-      _applyClientPagination();
-      return;
-    }
-
-    const pageSize = AppConstants.detailListPageSize;
-
+  /// 현재 탭 새로고침 — 게시글 삭제/상태 변경 후 호출.
+  void _refreshCurrentTab() {
     switch (_currentTabIndex) {
+      case 0:
+        _pendingTabKey.currentState?.refresh();
+        break;
+      case 1:
+        _activeTabKey.currentState?.refresh();
+        break;
       case 2:
-        // 모집마감: 선정(1) + 완료대기(2)
-        var allItems = postTimeItems
-            .where((item) => [1, 2].contains(item.applicantStatus))
-            .toList();
-
-        // 검색어 필터링
-        if (_searchController.text.isNotEmpty) {
-          allItems = allItems
-              .where((item) => item.postTitle
-                  .toLowerCase()
-                  .contains(_searchController.text.toLowerCase()))
-              .toList();
-        }
-
-        // 날짜 범위 필터링
-        if (startDate != null && endDate != null) {
-          allItems = allItems
-              .where((item) => _isInDateRange(DateTime.parse(item.date)))
-              .toList();
-        }
-
-        // 페이지 계산 및 슬라이스
-        final totalPages2 = (allItems.length / pageSize).ceil();
-        final safePage2 =
-            _currentPage.clamp(1, totalPages2 > 0 ? totalPages2 : 1);
-        final start2 = (safePage2 - 1) * pageSize;
-        final end2 = (start2 + pageSize).clamp(0, allItems.length);
-
-        setState(() {
-          filteredPostTimeItems = allItems.sublist(start2, end2);
-          _currentPage = safePage2;
-          _totalPages = totalPages2 > 0 ? totalPages2 : 1;
-        });
+        _closedTabKey.currentState?.refresh();
         break;
-
       case 3:
-        // 헌혈완료: applicant_status=3 (COMPLETED)
-        var allItems = postTimeItems.toList();
-
-        // 검색어 필터링
-        if (_searchController.text.isNotEmpty) {
-          allItems = allItems
-              .where((item) => item.postTitle
-                  .toLowerCase()
-                  .contains(_searchController.text.toLowerCase()))
-              .toList();
-        }
-
-        // 날짜 범위 필터링
-        if (startDate != null && endDate != null) {
-          allItems = allItems
-              .where((item) => _isInDateRange(DateTime.parse(item.date)))
-              .toList();
-        }
-
-        // 페이지 계산 및 슬라이스
-        final totalPages3 = (allItems.length / pageSize).ceil();
-        final safePage3 =
-            _currentPage.clamp(1, totalPages3 > 0 ? totalPages3 : 1);
-        final start3 = (safePage3 - 1) * pageSize;
-        final end3 = (start3 + pageSize).clamp(0, allItems.length);
-
-        setState(() {
-          filteredPostTimeItems = allItems.sublist(start3, end3);
-          _currentPage = safePage3;
-          _totalPages = totalPages3 > 0 ? totalPages3 : 1;
-        });
+        _completedTabKey.currentState?.refresh();
         break;
-
-      default:
-        setState(() {
-          filteredPosts = [];
-          filteredPostTimeItems = [];
-          _totalPages = 1;
-        });
-    }
-  }
-
-  bool _isInDateRange(DateTime date) {
-    if (startDate == null || endDate == null) return true;
-    final dateOnly = DateTime(date.year, date.month, date.day);
-    final start = DateTime(startDate!.year, startDate!.month, startDate!.day);
-    final end = DateTime(endDate!.year, endDate!.month, endDate!.day);
-    return !dateOnly.isBefore(start) && !dateOnly.isAfter(end);
-  }
-
-  Future<void> _loadPosts({int? page}) async {
-    try {
-      if (mounted) {
-        setState(() {
-          isLoading = true;
-          errorMessage = null;
-        });
-      }
-
-      // 탭에 따라 다른 API 호출
-      switch (_currentTabIndex) {
-        case 0:
-        case 1:
-          // 모집대기, 헌혈모집: 전체 로드 후 클라이언트 측 페이징
-          _allPosts = await HospitalPostService.getUnifiedPostModelsForCurrentUser();
-          _currentPage = page ?? 1;
-
-          if (mounted) {
-            setState(() {
-              posts = _allPosts;
-              isLoading = false;
-            });
-            _applyClientPagination();
-          }
-          break;
-
-        case 2:
-          // 모집마감: 선정(1) + 완료대기(2) 조회
-          final approvedItems = await HospitalPostService.getPostTimes(
-            applicantStatus: 1,
-          );
-          final pendingCompleteItems = await HospitalPostService.getPostTimes(
-            applicantStatus: 2,
-          );
-          if (mounted) {
-            setState(() {
-              postTimeItems = [...approvedItems, ...pendingCompleteItems];
-              isLoading = false;
-            });
-          }
-          break;
-
-        case 3:
-          // 헌혈완료: applicant_status=3 (COMPLETED)
-          final loadedPostTimes = await HospitalPostService.getPostTimes(
-            applicantStatus: 3,
-          );
-          if (mounted) {
-            setState(() {
-              postTimeItems = loadedPostTimes;
-              isLoading = false;
-            });
-          }
-          break;
-
-        default:
-          final loadedPosts =
-              await HospitalPostService.getUnifiedPostModelsForCurrentUser();
-          if (mounted) {
-            setState(() {
-              posts = loadedPosts;
-              isLoading = false;
-            });
-          }
-      }
-
-      if (mounted) {
-        _filterPosts();
-      }
-    } catch (e) {
-      if (mounted) {
-        setState(() {
-          errorMessage = e.toString();
-          isLoading = false;
-        });
-      }
     }
   }
 
@@ -347,8 +129,8 @@ class _HospitalPostCheckState extends State<HospitalPostCheck>
       firstDate: DateTime(2020),
       lastDate: DateTime.now().add(const Duration(days: 365)),
       initialDateRange:
-          startDate != null && endDate != null
-              ? DateTimeRange(start: startDate!, end: endDate!)
+          _startDate != null && _endDate != null
+              ? DateTimeRange(start: _startDate!, end: _endDate!)
               : null,
       builder: (context, child) {
         return Theme(
@@ -363,14 +145,12 @@ class _HospitalPostCheckState extends State<HospitalPostCheck>
     );
     if (picked != null) {
       setState(() {
-        startDate = picked.start;
-        endDate = picked.end;
+        _startDate = picked.start;
+        _endDate = picked.end;
       });
-      _filterPosts(resetPage: true);
     }
   }
 
-  // 날짜 포맷팅 함수
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -388,23 +168,22 @@ class _HospitalPostCheckState extends State<HospitalPostCheck>
         ),
         actions: [
           IconButton(
-            icon: const Icon(Icons.calendar_today, color: Colors.black),
+            icon: const Icon(Icons.calendar_today_outlined, color: Colors.black),
             onPressed: () => _selectDateRange(context),
           ),
-          if (startDate != null && endDate != null)
+          if (_startDate != null && _endDate != null)
             IconButton(
               icon: const Icon(Icons.clear, color: Colors.black),
               onPressed: () {
                 setState(() {
-                  startDate = null;
-                  endDate = null;
+                  _startDate = null;
+                  _endDate = null;
                 });
-                _filterPosts(resetPage: true);
               },
             ),
           IconButton(
             icon: const Icon(Icons.refresh, color: Colors.black),
-            onPressed: _loadPosts,
+            onPressed: _refreshCurrentTab,
           ),
         ],
       ),
@@ -420,7 +199,7 @@ class _HospitalPostCheckState extends State<HospitalPostCheck>
                       controller: _searchController,
                       hintText: '게시글 제목으로 검색...',
                       onClear: () {
-                        _onSearchChanged();
+                        // controller listener가 _searchQuery 동기화하므로 별도 처리 불필요.
                       },
                     ),
                   ),
@@ -449,107 +228,50 @@ class _HospitalPostCheckState extends State<HospitalPostCheck>
                     ),
                   ),
 
-                  // 게시글 목록
-                  Expanded(child: _buildContent()),
+                  // 탭별 콘텐츠
+                  Expanded(child: _buildTabContent()),
                 ],
               ),
     );
   }
 
-  Widget _buildContent() {
-    if (isLoading) {
-      return const StateView.loading();
+  Widget _buildTabContent() {
+    switch (_currentTabIndex) {
+      case 0:
+        return HospitalPendingPostsTab(
+          key: _pendingTabKey,
+          searchQuery: _searchQuery,
+          startDate: _startDate,
+          endDate: _endDate,
+          onTapPost: _showPostBottomSheet,
+        );
+      case 1:
+        return HospitalActivePostsTab(
+          key: _activeTabKey,
+          searchQuery: _searchQuery,
+          startDate: _startDate,
+          endDate: _endDate,
+          onTapPost: _showPostBottomSheet,
+        );
+      case 2:
+        return HospitalClosedRecruitmentTab(
+          key: _closedTabKey,
+          searchQuery: _searchQuery,
+          startDate: _startDate,
+          endDate: _endDate,
+          onTapItem: _showPostTimeBottomSheet,
+        );
+      case 3:
+        return HospitalCompletedDonationsTab(
+          key: _completedTabKey,
+          searchQuery: _searchQuery,
+          startDate: _startDate,
+          endDate: _endDate,
+          onTapItem: _showPostTimeBottomSheet,
+        );
+      default:
+        return const SizedBox.shrink();
     }
-
-    if (errorMessage != null) {
-      return StateView.error(message: errorMessage!, onRetry: _loadPosts);
-    }
-
-    // 탭에 따라 다른 데이터 소스 확인
-    bool isEmpty = false;
-    int itemCount = 0;
-
-    if (_currentTabIndex == 0 || _currentTabIndex == 1) {
-      isEmpty = filteredPosts.isEmpty;
-      itemCount = filteredPosts.length;
-    } else {
-      isEmpty = filteredPostTimeItems.isEmpty;
-      itemCount = filteredPostTimeItems.length;
-    }
-
-    if (isEmpty) {
-      String emptyMessage;
-      switch (_currentTabIndex) {
-        case 0:
-          emptyMessage = '승인 대기 중인 게시글이 없습니다.';
-          break;
-        case 1:
-          emptyMessage = '헌혈 모집 중인 게시글이 없습니다.';
-          break;
-        case 2:
-          emptyMessage = '모집 마감된 시간대가 없습니다.';
-          break;
-        case 3:
-          emptyMessage = '헌혈 완료된 시간대가 없습니다.';
-          break;
-        default:
-          emptyMessage = '게시글이 없습니다.';
-      }
-
-      return StateView.empty(
-        icon: Icons.post_add_outlined,
-        message: emptyMessage,
-      );
-    }
-
-    // 모든 탭에서 PaginationBar 표시 (15개 초과 시)
-    final int paginationBarCount = _totalPages > 1 ? 1 : 0;
-
-    return RefreshIndicator(
-      onRefresh: () => _loadPosts(page: 1),
-      color: AppTheme.primaryBlue,
-      child: ListView.builder(
-        controller: _scrollController,
-        padding: EdgeInsets.zero,
-        itemCount: itemCount + 1 + paginationBarCount, // 헤더 + 아이템 + PaginationBar
-        itemBuilder: (context, index) {
-          // 첫 번째 아이템은 헤더
-          if (index == 0) {
-            return const PostListHeader();
-          }
-
-          // 게시글 범위를 벗어나면 PaginationBar
-          if (index > itemCount) {
-            return PaginationBar(
-              currentPage: _currentPage,
-              totalPages: _totalPages,
-              onPageChanged: _onPageChanged,
-            );
-          }
-
-          // 나머지는 게시글 아이템
-          if (_currentTabIndex == 0 || _currentTabIndex == 1) {
-            // 일반 게시글
-            final post = filteredPosts[index - 1];
-            return _buildPostListItem(post);
-          } else {
-            // 시간대별 게시글 (모집마감, 헌혈완료)
-            final timeItem = filteredPostTimeItems[index - 1];
-            return _buildPostTimeListItem(timeItem);
-          }
-        },
-      ),
-    );
-  }
-
-  Widget _buildPostListItem(UnifiedPostModel post) {
-    return PostListRow(
-      badgeType: post.isUrgent ? '긴급' : '정기',
-      title: post.title,
-      dateText: TimeFormatUtils.formatShortDate(post.createdDate),
-      hospitalProfileImage: post.hospitalProfileImage,
-      onTap: () => _showPostBottomSheet(post),
-    );
   }
 
   AppliedDonation? _buildAppliedDonationFromPostTime(PostTimeItem item) {
@@ -642,7 +364,7 @@ class _HospitalPostCheckState extends State<HospitalPostCheck>
             appliedDonation: appliedDonation,
             onCompleted: (_) {
               if (!mounted) return;
-              _loadPosts();
+              _refreshCurrentTab();
               ScaffoldMessenger.of(context).showSnackBar(
                 const SnackBar(
                   content: Text('1차 헌혈 완료 처리되었습니다. 관리자 승인을 기다리고 있습니다.'),
@@ -651,24 +373,6 @@ class _HospitalPostCheckState extends State<HospitalPostCheck>
               );
             },
           ),
-    );
-  }
-
-  Widget _buildPostTimeListItem(PostTimeItem item) {
-    // 뱃지 타입 결정
-    String badgeType;
-    if (_currentTabIndex == 2) {
-      badgeType = item.applicantStatus == 2 ? '완료대기' : '마감';
-    } else {
-      badgeType = item.isUrgent ? '긴급' : '정기';
-    }
-
-    return PostListRow(
-      badgeType: badgeType,
-      title: item.postTitle,
-      dateText: TimeFormatUtils.formatFlexibleShortDate(item.createdDate),
-      hospitalProfileImage: item.hospitalProfileImage,
-      onTap: () => _showPostTimeBottomSheet(item),
     );
   }
 
@@ -682,9 +386,7 @@ class _HospitalPostCheckState extends State<HospitalPostCheck>
       builder:
           (context) => PostDetailBottomSheet(
             post: post,
-            onDeleted: () {
-              _loadPosts(); // 삭제 후 목록 새로고침
-            },
+            onDeleted: _refreshCurrentTab,
             tabIndex: _currentTabIndex,
           ),
     );
@@ -704,8 +406,8 @@ class _HospitalPostCheckState extends State<HospitalPostCheck>
             maxChildSize: 0.95,
             expand: false,
             builder: (context, scrollController) {
-              // 승인(1) 상태일 때만 헌혈 완료 버튼 표시
-              // 완료대기(5)는 이미 처리된 상태이므로 버튼 숨김
+              // 승인(1) 상태일 때만 헌혈 완료 버튼 표시.
+              // 완료대기(2)는 이미 처리된 상태이므로 버튼 숨김.
               final bool canPerformActions =
                   _currentTabIndex == 2 &&
                   item.applicantStatus == 1 &&
@@ -787,7 +489,7 @@ class _HospitalPostCheckState extends State<HospitalPostCheck>
                                 Row(
                                   children: [
                                     Icon(
-                                      Icons.business,
+                                      PetFieldIcons.hospital,
                                       size: 16,
                                       color: AppTheme.textSecondary,
                                     ),
@@ -824,7 +526,7 @@ class _HospitalPostCheckState extends State<HospitalPostCheck>
                             Row(
                               children: [
                                 Icon(
-                                  Icons.location_on,
+                                  PetFieldIcons.postLocation,
                                   size: 16,
                                   color: AppTheme.textSecondary,
                                 ),
@@ -851,7 +553,7 @@ class _HospitalPostCheckState extends State<HospitalPostCheck>
                             Row(
                               children: [
                                 Icon(
-                                  Icons.calendar_today,
+                                  Icons.calendar_today_outlined,
                                   size: 16,
                                   color: AppTheme.textSecondary,
                                 ),
@@ -950,7 +652,7 @@ class _HospitalPostCheckState extends State<HospitalPostCheck>
                                             radius: 16,
                                           ),
                                           const SizedBox(width: 8),
-                                          Icon(Icons.badge, size: 16, color: AppTheme.textSecondary),
+                                          Icon(PetFieldIcons.nickname, size: 16, color: AppTheme.textSecondary),
                                           const SizedBox(width: 8),
                                           Expanded(
                                             child: Text(
@@ -965,9 +667,17 @@ class _HospitalPostCheckState extends State<HospitalPostCheck>
                                     if (item.applicantName != null && item.applicantName!.isNotEmpty) ...[
                                       const SizedBox(height: 8),
                                       InfoRow(
-                                        icon: Icons.person,
+                                        icon: PetFieldIcons.userName,
                                         label: '이름',
                                         value: item.applicantName!,
+                                      ),
+                                    ],
+                                    if (item.applicantPhone != null && item.applicantPhone!.isNotEmpty) ...[
+                                      const SizedBox(height: 8),
+                                      InfoRow(
+                                        icon: PetFieldIcons.phone,
+                                        label: '연락처',
+                                        value: item.applicantPhone!,
                                       ),
                                     ],
                                     const Divider(height: 24),
@@ -990,7 +700,66 @@ class _HospitalPostCheckState extends State<HospitalPostCheck>
                                               overflow: TextOverflow.ellipsis,
                                             ),
                                           ),
+                                          // 모집마감 탭 + 펫 프로필 사진 있는 경우만 다운로드 버튼 노출
+                                          if (_currentTabIndex == 2 &&
+                                              item.petProfileImage != null &&
+                                              item.petProfileImage!.isNotEmpty)
+                                            TextButton.icon(
+                                              onPressed: () => _downloadPetImage(item),
+                                              icon: const Icon(
+                                                Icons.download_outlined,
+                                                size: 16,
+                                              ),
+                                              label: const Text(
+                                                '사진 다운로드',
+                                                style: TextStyle(fontSize: 12),
+                                              ),
+                                              style: TextButton.styleFrom(
+                                                foregroundColor: AppTheme.primaryBlue,
+                                                padding: const EdgeInsets.symmetric(
+                                                  horizontal: 8,
+                                                  vertical: 4,
+                                                ),
+                                                minimumSize: Size.zero,
+                                                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                              ),
+                                            ),
                                         ],
+                                      ),
+                                    ],
+                                    // 펫 정보 표시 순서 (회원가입 관리 / 관리자 펫 관리와 정합):
+                                    // (헤더에 펫 이름+종류 표시) 품종 → 성별 → 혈액형 → 체중 →
+                                    // 생년월일 → 최근 헌혈일 → 접종 → 예방약 → 중성화 → 질병 → 임신/출산
+                                    if (item.petBreed != null && item.petBreed!.isNotEmpty) ...[
+                                      const SizedBox(height: 12),
+                                      InfoRow(
+                                        icon: PetFieldIcons.breed,
+                                        label: '품종',
+                                        value: item.petBreed!,
+                                      ),
+                                    ],
+                                    if (item.petSex != null) ...[
+                                      const SizedBox(height: 12),
+                                      InfoRow(
+                                        icon: PetFieldIcons.sex(item.petSex!),
+                                        label: '성별',
+                                        value: item.petSex == 0 ? '암컷' : '수컷',
+                                      ),
+                                    ],
+                                    if (item.bloodType != null) ...[
+                                      const SizedBox(height: 12),
+                                      InfoRow(
+                                        icon: PetFieldIcons.bloodType,
+                                        label: '혈액형',
+                                        value: item.bloodType!,
+                                      ),
+                                    ],
+                                    if (item.petWeightKg != null) ...[
+                                      const SizedBox(height: 12),
+                                      InfoRow(
+                                        icon: PetFieldIcons.weight,
+                                        label: '체중',
+                                        value: '${item.petWeightKg}kg',
                                       ),
                                     ],
                                     if (item.petBirthDate != null && item.petBirthDate!.isNotEmpty) ...[
@@ -1003,16 +772,90 @@ class _HospitalPostCheckState extends State<HospitalPostCheck>
                                           final ageText = months < 12 ? '$months개월' : '${months ~/ 12}살';
                                           birthText = '$birthText ($ageText)';
                                         }
-                                        return InfoRow(icon: Icons.cake, label: '생년월일', value: birthText);
+                                        return InfoRow(icon: PetFieldIcons.birthDate, label: '생년월일', value: birthText);
                                       }(),
                                     ],
-                                    if (item.bloodType != null) ...[
+                                    // 최근 헌혈일: 값 있으면 텍스트, 없으면 회색 — (첫 헌혈)
+                                    if (item.petPrevDonationDate != null && item.petPrevDonationDate!.isNotEmpty) ...[
                                       const SizedBox(height: 12),
                                       InfoRow(
-                                        icon: Icons.bloodtype,
-                                        label: '혈액형',
-                                        value: item.bloodType!,
+                                        icon: PetFieldIcons.prevDonationDate,
+                                        label: '최근 헌혈일',
+                                        value: item.petPrevDonationDate!.replaceAll('-', '.'),
                                       ),
+                                    ] else if (item.applicantIdx != null) ...[
+                                      const SizedBox(height: 12),
+                                      const PetStatusRow(
+                                        icon: PetFieldIcons.prevDonationDate,
+                                        label: '최근 헌혈일',
+                                        status: PetStatusType.neutral,
+                                      ),
+                                    ],
+                                    // 접종: 완료 → 초록 ✓ / 미접종 → 빨강 ! (의료 행위 critical)
+                                    if (item.petVaccinated != null) ...[
+                                      const SizedBox(height: 12),
+                                      PetStatusRow(
+                                        icon: PetFieldIcons.vaccinated,
+                                        label: '접종',
+                                        status: item.petVaccinated == true
+                                            ? PetStatusType.positive
+                                            : PetStatusType.critical,
+                                      ),
+                                    ],
+                                    // 예방약: 복용 → 초록 ✓ / 미복용 → 빨강 !
+                                    if (item.petHasPreventiveMedication != null) ...[
+                                      const SizedBox(height: 12),
+                                      PetStatusRow(
+                                        icon: PetFieldIcons.medication,
+                                        label: '예방약',
+                                        status: item.petHasPreventiveMedication == true
+                                            ? PetStatusType.positive
+                                            : PetStatusType.critical,
+                                      ),
+                                    ],
+                                    // 중성화: 완료 → 초록 ✓ / 미시행 → 회색 — (자연스러운 부재)
+                                    if (item.petIsNeutered != null) ...[
+                                      const SizedBox(height: 12),
+                                      PetStatusRow(
+                                        icon: PetFieldIcons.isNeutered,
+                                        label: '중성화',
+                                        status: item.petIsNeutered == true
+                                            ? PetStatusType.positive
+                                            : PetStatusType.neutral,
+                                      ),
+                                    ],
+                                    // 질병: 없음 → 회색 — / 있음 → 빨강 ! (적극적 위험)
+                                    if (item.petHasDisease != null) ...[
+                                      const SizedBox(height: 12),
+                                      PetStatusRow(
+                                        icon: PetFieldIcons.hasDisease,
+                                        label: '질병',
+                                        status: item.petHasDisease == true
+                                            ? PetStatusType.critical
+                                            : PetStatusType.neutral,
+                                      ),
+                                    ],
+                                    // 임신/출산:
+                                    //   status=0(해당없음) → 회색 — / status=1(임신중) → 주황 ⚠
+                                    //   status=2 + 종료일 → 텍스트 "출산 YYYY.MM.DD"
+                                    if (item.petPregnancyBirthStatus != null && item.petSex == 0) ...[
+                                      const SizedBox(height: 12),
+                                      if (item.petPregnancyBirthStatus == 2 &&
+                                          item.petLastPregnancyEndDate != null &&
+                                          item.petLastPregnancyEndDate!.isNotEmpty)
+                                        InfoRow(
+                                          icon: PetFieldIcons.pregnancyBirth,
+                                          label: '임신/출산',
+                                          value: '출산 ${item.petLastPregnancyEndDate!.replaceAll('-', '.')}',
+                                        )
+                                      else
+                                        PetStatusRow(
+                                          icon: PetFieldIcons.pregnancyBirth,
+                                          label: '임신/출산',
+                                          status: item.petPregnancyBirthStatus == 1
+                                              ? PetStatusType.warning
+                                              : PetStatusType.neutral,
+                                        ),
                                     ],
                                     // 헌혈량 표시 (헌혈완료 시)
                                     if (item.bloodVolumeMl != null) ...[
@@ -1023,8 +866,8 @@ class _HospitalPostCheckState extends State<HospitalPostCheck>
                                         value: '${item.bloodVolumeMl!.toStringAsFixed(item.bloodVolumeMl! == item.bloodVolumeMl!.roundToDouble() ? 0 : 1)} mL',
                                       ),
                                     ],
-                                    // 상태 뱃지 (헌혈모집 탭에서는 숨김)
-                                    if (_currentTabIndex != 1 && item.applicantStatus != null) ...[
+                                    // 상태 뱃지 (헌혈모집/모집마감 탭에서는 숨김 — 모집마감은 행 뱃지로 이미 표현됨)
+                                    if (_currentTabIndex != 1 && _currentTabIndex != 2 && item.applicantStatus != null) ...[
                                       const SizedBox(height: 12),
                                       Row(
                                         children: [
@@ -1108,6 +951,78 @@ class _HospitalPostCheckState extends State<HospitalPostCheck>
     );
   }
 
+  /// 모집마감 시간대 시트의 펫 프로필 사진을 갤러리/디스크에 저장.
+  /// 모바일은 사진 갤러리, 웹은 브라우저 다운로드 폴더로 떨어짐.
+  Future<void> _downloadPetImage(PostTimeItem item) async {
+    if (item.petProfileImage == null || item.petProfileImage!.isEmpty) return;
+
+    final imageUrl = DonationPostImageService.getFullImageUrl(item.petProfileImage!);
+    final filename = _buildPetImageFilename(item);
+
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('사진을 받는 중...'),
+          duration: Duration(seconds: 2),
+        ),
+      );
+    }
+
+    final result = await PetImageDownloader.downloadFromUrl(
+      imageUrl: imageUrl,
+      filename: filename,
+    );
+
+    if (!mounted) return;
+
+    final messenger = ScaffoldMessenger.of(context);
+    messenger.hideCurrentSnackBar();
+
+    switch (result) {
+      case DownloadResult.success:
+        messenger.showSnackBar(
+          SnackBar(
+            content: const Text('사진을 저장했습니다.'),
+            backgroundColor: AppTheme.success,
+          ),
+        );
+        break;
+      case DownloadResult.networkFailed:
+        messenger.showSnackBar(
+          SnackBar(
+            content: const Text('사진을 받지 못했습니다. 네트워크를 확인해주세요.'),
+            backgroundColor: AppTheme.error,
+          ),
+        );
+        break;
+      case DownloadResult.permissionDenied:
+        messenger.showSnackBar(
+          SnackBar(
+            content: const Text('갤러리 접근 권한이 거부되었습니다. 설정에서 권한을 허용해주세요.'),
+            backgroundColor: AppTheme.error,
+            duration: const Duration(seconds: 4),
+          ),
+        );
+        break;
+      case DownloadResult.saveFailed:
+        messenger.showSnackBar(
+          SnackBar(
+            content: const Text('사진 저장에 실패했습니다.'),
+            backgroundColor: AppTheme.error,
+          ),
+        );
+        break;
+    }
+  }
+
+  /// 다운로드 파일명: {헌혈날짜}_{시간}_{펫이름}.jpg
+  /// 시간의 콜론(:)을 하이픈으로 치환 (Windows 파일명 호환).
+  String _buildPetImageFilename(PostTimeItem item) {
+    final date = item.date;
+    final time = item.time.replaceAll(':', '-');
+    final petName = item.petName ?? '펫';
+    return '${date}_${time}_$petName.jpg';
+  }
 }
 
 // 바텀시트 위젯 - 사용자 헌혈 모집 게시글 페이지 스타일로 변경
@@ -1417,7 +1332,7 @@ class _PostDetailBottomSheetState extends State<PostDetailBottomSheet> {
                 radius: 16,
               ),
               const SizedBox(width: 8),
-              Icon(Icons.badge, size: 16, color: AppTheme.textSecondary),
+              Icon(PetFieldIcons.nickname, size: 16, color: AppTheme.textSecondary),
               const SizedBox(width: 8),
               Expanded(
                 child: Text(
@@ -1654,7 +1569,7 @@ class _PostDetailBottomSheetState extends State<PostDetailBottomSheet> {
                     child: Row(
                       children: [
                         Icon(
-                          Icons.calendar_today,
+                          Icons.calendar_today_outlined,
                           color: Colors.black,
                           size: 20,
                         ),

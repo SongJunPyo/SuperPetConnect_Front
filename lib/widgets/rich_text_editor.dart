@@ -8,6 +8,8 @@ import '../services/donation_post_image_service.dart';
 import '../services/column_image_service.dart';
 import '../utils/app_theme.dart';
 import '../utils/config.dart';
+import 'rich_text_image_embed_builder.dart';
+import 'rich_text_image_picker_sheet.dart';
 
 /// 에디터 타입 (이미지 업로드 엔드포인트 결정)
 enum EditorType {
@@ -461,7 +463,7 @@ class RichTextEditorState extends State<RichTextEditor> {
           scrollable: true,
           textCapitalization: TextCapitalization.none,
           embedBuilders: [
-            _CustomImageEmbedBuilder(
+            RichTextImageEmbedBuilder(
               onDelete: _removeImageFromEditor,
               enabled: widget.enabled,
             ),
@@ -556,7 +558,7 @@ class RichTextEditorState extends State<RichTextEditor> {
       context: context,
       backgroundColor: Colors.transparent,
       builder:
-          (context) => _ImagePickerBottomSheet(
+          (context) => RichTextImagePickerSheet(
             onImageSelected: (XFile file) async {
               Navigator.pop(context);
               await _uploadImage(file);
@@ -877,248 +879,4 @@ class RichTextEditorState extends State<RichTextEditor> {
           .where((img) => !img.isTemporary)
           .map((img) => img.imageId)
           .toList();
-}
-
-/// 커스텀 이미지 임베드 빌더
-class _CustomImageEmbedBuilder extends EmbedBuilder {
-  final Function(String imageUrl) onDelete;
-  final bool enabled;
-
-  _CustomImageEmbedBuilder({required this.onDelete, required this.enabled});
-
-  @override
-  String get key => BlockEmbed.imageType;
-
-  @override
-  Widget build(BuildContext context, EmbedContext embedContext) {
-    final imageUrl = embedContext.node.value.data;
-
-    return Container(
-      margin: const EdgeInsets.symmetric(vertical: AppTheme.spacing8),
-      child: Stack(
-        children: [
-          // 이미지
-          ClipRRect(
-            borderRadius: BorderRadius.circular(AppTheme.radius8),
-            child: Image.network(
-              imageUrl,
-              fit: BoxFit.contain,
-              width: double.infinity,
-              errorBuilder: (context, error, stackTrace) {
-                return Container(
-                  width: double.infinity,
-                  height: 200,
-                  decoration: BoxDecoration(
-                    color: AppTheme.veryLightGray,
-                    borderRadius: BorderRadius.circular(AppTheme.radius8),
-                    border: Border.all(color: AppTheme.lightGray),
-                  ),
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(
-                        Icons.broken_image,
-                        size: 48,
-                        color: AppTheme.mediumGray,
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        '이미지를 불러올 수 없습니다',
-                        style: TextStyle(
-                          color: AppTheme.textTertiary,
-                          fontSize: AppTheme.bodySmall,
-                        ),
-                      ),
-                    ],
-                  ),
-                );
-              },
-            ),
-          ),
-
-          // 삭제 버튼
-          if (enabled)
-            Positioned(
-              top: 8,
-              right: 8,
-              child: GestureDetector(
-                onTap: () => onDelete(imageUrl),
-                child: Container(
-                  width: 28,
-                  height: 28,
-                  decoration: BoxDecoration(
-                    color: Colors.black54,
-                    shape: BoxShape.circle,
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.2),
-                        blurRadius: 4,
-                        offset: const Offset(0, 2),
-                      ),
-                    ],
-                  ),
-                  child: const Icon(Icons.close, size: 18, color: Colors.white),
-                ),
-              ),
-            ),
-        ],
-      ),
-    );
-  }
-}
-
-/// 이미지 선택 바텀시트
-class _ImagePickerBottomSheet extends StatefulWidget {
-  final Function(XFile) onImageSelected;
-
-  const _ImagePickerBottomSheet({required this.onImageSelected});
-
-  @override
-  State<_ImagePickerBottomSheet> createState() =>
-      _ImagePickerBottomSheetState();
-}
-
-class _ImagePickerBottomSheetState extends State<_ImagePickerBottomSheet> {
-  final ImagePicker _picker = ImagePicker();
-  bool _isLoading = false;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      decoration: const BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      child: SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              width: 40,
-              height: 4,
-              margin: const EdgeInsets.symmetric(vertical: 12),
-              decoration: BoxDecoration(
-                color: AppTheme.lightGray,
-                borderRadius: BorderRadius.circular(2),
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.all(16),
-              child: Text(
-                '이미지 추가',
-                style: TextStyle(
-                  fontSize: AppTheme.h4,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ),
-            if (_isLoading)
-              const Padding(
-                padding: EdgeInsets.all(20),
-                child: CircularProgressIndicator(),
-              )
-            else ...[
-              if (!kIsWeb)
-                ListTile(
-                  leading: Container(
-                    width: 48,
-                    height: 48,
-                    decoration: BoxDecoration(
-                      color: AppTheme.veryLightGray,
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Icon(Icons.camera_alt, color: AppTheme.darkGray),
-                  ),
-                  title: const Text('카메라로 촬영'),
-                  subtitle: Text(
-                    '직접 사진을 촬영합니다',
-                    style: TextStyle(color: AppTheme.textTertiary),
-                  ),
-                  onTap: () => _pickImage(ImageSource.camera),
-                ),
-              ListTile(
-                leading: Container(
-                  width: 48,
-                  height: 48,
-                  decoration: BoxDecoration(
-                    color: AppTheme.veryLightGray,
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Icon(Icons.photo_library, color: AppTheme.darkGray),
-                ),
-                title: Text(kIsWeb ? '파일 선택' : '갤러리에서 선택'),
-                subtitle: Text(
-                  kIsWeb ? '컴퓨터에서 이미지를 선택합니다' : '기기에 저장된 사진을 선택합니다',
-                  style: TextStyle(color: AppTheme.textTertiary),
-                ),
-                onTap: () => _pickImage(ImageSource.gallery),
-              ),
-            ],
-            const SizedBox(height: 8),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              child: SizedBox(
-                width: double.infinity,
-                child: TextButton(
-                  onPressed: _isLoading ? null : () => Navigator.pop(context),
-                  style: TextButton.styleFrom(
-                    backgroundColor: AppTheme.veryLightGray,
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                  ),
-                  child: const Text('취소'),
-                ),
-              ),
-            ),
-            const SizedBox(height: 16),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Future<void> _pickImage(ImageSource source) async {
-    setState(() => _isLoading = true);
-
-    try {
-      final XFile? pickedFile = await _picker.pickImage(
-        source: source,
-        maxWidth: 2048,
-        maxHeight: 2048,
-        imageQuality: 85,
-      );
-
-      if (pickedFile != null) {
-        final bytes = await pickedFile.readAsBytes();
-        if (bytes.length > 20 * 1024 * 1024) {
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('이미지 크기가 20MB를 초과합니다.'),
-                backgroundColor: Colors.red,
-              ),
-            );
-          }
-          return;
-        }
-        widget.onImageSelected(pickedFile);
-      } else {
-        if (mounted) Navigator.pop(context);
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('이미지를 불러오는데 실패했습니다: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
-        Navigator.pop(context);
-      }
-    } finally {
-      if (mounted) setState(() => _isLoading = false);
-    }
-  }
 }

@@ -23,6 +23,7 @@ import '../utils/number_format_util.dart';
 import '../utils/config.dart';
 import '../widgets/dashboard/board_section.dart';
 import '../widgets/post_list/board_list_row.dart';
+import '../widgets/post_list/author_avatar.dart';
 import '../widgets/post_list/notice_styling.dart';
 import '../services/auth_http_client.dart';
 import '../utils/text_personalization_util.dart';
@@ -526,6 +527,10 @@ class _UserDashboardState extends State<UserDashboard>
                   const SizedBox(height: 12),
                   Row(
                     children: [
+                      AuthorAvatar(
+                        profileImage: column.hospitalProfileImage,
+                      ),
+                      const SizedBox(width: 8),
                       Expanded(
                         child: Text(
                           column.authorNickname!,
@@ -671,6 +676,10 @@ class _UserDashboardState extends State<UserDashboard>
           targetAudience: notice.targetAudience,
           noticeImportant: notice.noticeImportant,
         ),
+        titleFontWeight: NoticeStyling.titleFontWeight(
+          targetAudience: notice.targetAudience,
+          noticeImportant: notice.noticeImportant,
+        ),
         authorName: notice.authorNickname!,
         authorProfileImage: notice.authorProfileImage,
         createdAt: notice.createdAt,
@@ -761,7 +770,10 @@ class _UserDashboardState extends State<UserDashboard>
     if (!mounted) return;
 
     final bool isImportant =
-        (noticeDetail?.noticeImportant ?? notice.noticeImportant) == 0;
+        (noticeDetail?.noticeImportant ?? notice.noticeImportant) ==
+            AppConstants.noticeImportant;
+    final String? authorProfileImage =
+        noticeDetail?.authorProfileImage ?? notice.authorProfileImage;
     final DateTime createdAt = noticeDetail?.createdAt ?? notice.createdAt;
     final DateTime updatedAt = noticeDetail?.updatedAt ?? notice.updatedAt;
     final int viewCount = noticeDetail?.viewCount ?? notice.viewCount ?? 0;
@@ -833,26 +845,8 @@ class _UserDashboardState extends State<UserDashboard>
                   const SizedBox(height: 12),
                   Row(
                     children: [
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 8,
-                          vertical: 4,
-                        ),
-                        decoration: BoxDecoration(
-                          color:
-                              isImportant
-                                  ? AppTheme.error
-                                  : AppTheme.primaryBlue,
-                          borderRadius: BorderRadius.circular(6),
-                        ),
-                        child: Text(
-                          isImportant ? '공지' : '알림',
-                          style: AppTheme.bodySmallStyle.copyWith(
-                            color: Colors.white,
-                            fontWeight: FontWeight.bold,
-                            fontSize: 10,
-                          ),
-                        ),
+                      AuthorAvatar(
+                        profileImage: authorProfileImage,
                       ),
                       const SizedBox(width: 8),
                       Expanded(

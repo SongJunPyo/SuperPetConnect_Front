@@ -13,7 +13,11 @@ import '../services/auth_http_client.dart';
 import 'package:http/http.dart' as http;
 
 class DonationHistoryScreen extends StatefulWidget {
-  const DonationHistoryScreen({super.key});
+  /// 알림 탭 등 외부 진입 시 강조할 신청 application_id (= applied_donation_idx).
+  /// 데이터 로딩 후 statusCode에 따라 자동 탭 전환 + 카드 일시 highlight.
+  final int? initialApplicationId;
+
+  const DonationHistoryScreen({super.key, this.initialApplicationId});
 
   @override
   State<DonationHistoryScreen> createState() => _DonationHistoryScreenState();
@@ -52,9 +56,38 @@ class _DonationHistoryScreenState extends State<DonationHistoryScreen>
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
-    _loadDonationHistory();
+    _loadDonationHistoryAndMaybeAutoOpen();
     _loadSurveyLinks();
     _loadClickStatus();
+  }
+
+  /// _loadDonationHistory 완료 후 알림 진입(initialApplicationId)이 있으면
+  /// 매칭 항목의 탭으로 자동 전환 + 상세 시트 자동 오픈 (패턴 A).
+  Future<void> _loadDonationHistoryAndMaybeAutoOpen() async {
+    await _loadDonationHistory();
+    if (!mounted) return;
+
+    final id = widget.initialApplicationId;
+    if (id == null) return;
+
+    final completedMatch =
+        completed.where((a) => a.applicationId == id).firstOrNull;
+    final applicationMatch =
+        applications.where((a) => a.applicationId == id).firstOrNull;
+    final match = completedMatch ?? applicationMatch;
+    if (match == null) return;
+
+    if (completedMatch != null) {
+      _tabController.animateTo(1);
+    } else {
+      _tabController.animateTo(0);
+    }
+
+    // 탭 애니메이션과 시트 오픈이 겹치지 않게 한 프레임 양보.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      _showApplicationDetailSheet(match);
+    });
   }
 
   @override
@@ -199,10 +232,17 @@ class _DonationHistoryScreenState extends State<DonationHistoryScreen>
                 .map((json) => DonationApplication.fromJson(json))
                 .toList();
 
-        // 신청 중인 것과 완료된 것 분리
-        // status_code: 0=대기, 1=선정, 2=완료대기, 3=완료, 4=종결
-        applications =
-            allApplications.where((app) => app.statusCode != 3).toList();
+        // 신청 중인 것과 완료된 것 분리.
+        // status_code: 0=대기, 1=선정, 2=완료대기(=사용자 표시 시 승인됨으로 통합),
+        //              3=완료, 4=종결(미선정/사용자 자발 취소 후 시스템 종결)
+        // statusCode 4는 사용자 신청 이력에서 양쪽 탭 모두 숨김 — 'recruitment_closed'
+        // 알림으로 별도 안내됨. 백엔드 데이터는 보존(admin 통계용).
+        applications = allApplications
+            .where((app) =>
+                app.statusCode == 0 ||
+                app.statusCode == 1 ||
+                app.statusCode == 2)
+            .toList();
         completed =
             allApplications.where((app) => app.statusCode == 3).toList();
 
@@ -318,7 +358,7 @@ class _DonationHistoryScreenState extends State<DonationHistoryScreen>
         foregroundColor: Colors.black87,
         actions: [
           IconButton(
-            icon: const Icon(Icons.calendar_today, color: Colors.black87),
+            icon: const Icon(Icons.calendar_today_outlined, color: Colors.black87),
             onPressed: () => _selectDate(context),
             tooltip: '날짜 선택',
           ),
@@ -361,7 +401,7 @@ class _DonationHistoryScreenState extends State<DonationHistoryScreen>
               child: Row(
                 children: [
                   Icon(
-                    Icons.calendar_today,
+                    Icons.calendar_today_outlined,
                     size: 16,
                     color: AppTheme.primaryDarkBlue,
                   ),
@@ -548,68 +588,35 @@ class _DonationHistoryScreenState extends State<DonationHistoryScreen>
     );
   }
 
-  Widget _buildSurveyButton({
-    required String label,
-    required IconData icon,
-    required bool isClicked,
-    required VoidCallback onPressed,
-  }) {
-    return Expanded(
-      child: OutlinedButton(
-        onPressed: onPressed,
-        style: OutlinedButton.styleFrom(
-          foregroundColor: isClicked ? Colors.grey : AppTheme.primaryBlue,
-          side: BorderSide(
-            color: isClicked ? Colors.grey.shade300 : AppTheme.primaryBlue,
-          ),
-          backgroundColor: isClicked ? Colors.grey.shade50 : AppTheme.primaryBlue.withAlpha(13),
-          padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 8),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(8),
-          ),
-        ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(icon, size: 16),
-            const SizedBox(width: 6),
-            Flexible(
-              child: Text(
-                label,
-                style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
-                overflow: TextOverflow.ellipsis,
-              ),
-            ),
-            const SizedBox(width: 6),
-            Icon(
-              isClicked ? Icons.check_circle : Icons.check_circle_outline,
-              size: 18,
-              color: isClicked ? Colors.green : Colors.grey.shade400,
-            ),
-          ],
-        ),
-      ),
-    );
-  }
 
   Widget _buildApplicationCard(DonationApplication application, {bool isCompleted = false}) {
+    // statusCode 기반 라벨/색 결정 (서버 status 텍스트 대신).
+    // 1(APPROVED)과 2(PENDING_COMPLETION)는 사용자 입장에서 동일하게 "승인됨" 표시.
     Color statusColor;
     Color statusBackgroundColor;
+    String statusLabel;
 
-    switch (application.status) {
-      case '대기중':
+    switch (application.statusCode) {
+      case 0:
+        statusLabel = '대기중';
         statusColor = Colors.orange.shade700;
         statusBackgroundColor = Colors.orange.shade50;
         break;
-      case '승인':
+      case 1:
+      case 2:
+        statusLabel = '승인됨';
         statusColor = Colors.green.shade700;
         statusBackgroundColor = Colors.green.shade50;
         break;
-      case '완료':
+      case 3:
+        statusLabel = '헌혈 완료';
         statusColor = AppTheme.primaryDarkBlue;
         statusBackgroundColor = AppTheme.lightBlue;
         break;
       default:
+        // statusCode 4는 _loadDonationHistory에서 이미 필터링되어 도달 불가.
+        // 알 수 없는 상태(5+)는 서버 텍스트 fallback.
+        statusLabel = application.status;
         statusColor = Colors.grey.shade700;
         statusBackgroundColor = Colors.grey.shade50;
     }
@@ -622,7 +629,10 @@ class _DonationHistoryScreenState extends State<DonationHistoryScreen>
         borderRadius: BorderRadius.circular(12),
         side: const BorderSide(color: Colors.black, width: 1),
       ),
-      child: Padding(
+      child: InkWell(
+        onTap: () => _showApplicationDetailSheet(application),
+        borderRadius: BorderRadius.circular(12),
+        child: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -651,7 +661,7 @@ class _DonationHistoryScreenState extends State<DonationHistoryScreen>
                     border: Border.all(color: statusColor, width: 1),
                   ),
                   child: Text(
-                    application.status,
+                    statusLabel,
                     style: AppTheme.bodySmallStyle.copyWith(
                       color: statusColor,
                       fontWeight: FontWeight.w600,
@@ -714,66 +724,499 @@ class _DonationHistoryScreenState extends State<DonationHistoryScreen>
                 ),
               ],
             ),
-            // 헌혈 완료 카드에만 구글폼 버튼 표시
-            if (isCompleted) ...[
-              const SizedBox(height: 12),
-              const Divider(height: 1),
-              const SizedBox(height: 12),
-              // 구글폼 버튼
-              if (_satisfactionSurveyUrl != null || _giftApplicationUrl != null) ...[
-                Row(
-                  children: [
-                    if (_satisfactionSurveyUrl != null)
-                      _buildSurveyButton(
-                        label: '만족도 조사',
-                        icon: Icons.rate_review_outlined,
-                        isClicked: _surveyClicked.contains('survey_clicked_${application.applicationId}'),
-                        onPressed: () async {
-                          await _markClicked('survey_clicked_${application.applicationId}');
-                          await _openUrl(_satisfactionSurveyUrl!);
-                        },
-                      ),
-                    if (_satisfactionSurveyUrl != null && _giftApplicationUrl != null)
-                      const SizedBox(width: 8),
-                    if (_giftApplicationUrl != null)
-                      _buildSurveyButton(
-                        label: '후원선물 신청',
-                        icon: Icons.card_giftcard_outlined,
-                        isClicked: _giftClicked.contains('gift_clicked_${application.applicationId}'),
-                        onPressed: () async {
-                          await _markClicked('gift_clicked_${application.applicationId}');
-                          await _openUrl(_giftApplicationUrl!);
-                        },
-                      ),
-                  ],
+            // 액션 버튼들(자료 요청 / 만족도 / 후원선물)은 카드에서 제외하고
+            // 상세 시트로 이동 — 카드는 한 줄 요약, 시트는 전체 정보 + 액션.
+          ],
+        ),
+        ),
+      ),
+    );
+  }
+
+  /// 신청 카드 클릭 또는 알림 진입 시 열리는 상세 시트.
+  /// 패턴 A — 다른 화면(HospitalPostCheck, PetManagementScreen 등)과 통일.
+  ///
+  /// 표시 내용:
+  /// - 신청 상태 헤더 + 게시글 제목
+  /// - 병원 정보 (이름/주소/전화) — 백엔드 응답 확장 필드 사용 (없으면 자동 숨김)
+  /// - 펫 정보 (이름/종/품종/혈액형)
+  /// - 일정 (헌혈 예정/완료 일시)
+  /// - 헌혈량 + 다음 헌혈 가능일 (statusCode==3에서만)
+  /// - 액션 버튼 (자료 요청 / 만족도 / 후원선물 — 완료 상태에서만)
+  void _showApplicationDetailSheet(DonationApplication application) {
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (sheetContext) {
+        return DraggableScrollableSheet(
+          initialChildSize: 0.85,
+          minChildSize: 0.5,
+          maxChildSize: 0.95,
+          expand: false,
+          builder: (_, scrollController) => Container(
+            decoration: const BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+            ),
+            child: _DonationApplicationDetailSheetContent(
+              application: application,
+              scrollController: scrollController,
+              satisfactionSurveyUrl: _satisfactionSurveyUrl,
+              giftApplicationUrl: _giftApplicationUrl,
+              isSurveyClicked: _surveyClicked
+                  .contains('survey_clicked_${application.applicationId}'),
+              isGiftClicked: _giftClicked
+                  .contains('gift_clicked_${application.applicationId}'),
+              onRequestDocuments: () =>
+                  _requestDocuments(application.applicationId),
+              onSurveyTap: () async {
+                await _markClicked(
+                    'survey_clicked_${application.applicationId}');
+                await _openUrl(_satisfactionSurveyUrl!);
+              },
+              onGiftTap: () async {
+                await _markClicked(
+                    'gift_clicked_${application.applicationId}');
+                await _openUrl(_giftApplicationUrl!);
+              },
+            ),
+          ),
+        );
+      },
+    );
+  }
+}
+
+/// 헌혈 신청 상세 시트의 본문. 부모 화면에서 콜백을 주입받아 액션 처리.
+class _DonationApplicationDetailSheetContent extends StatelessWidget {
+  final DonationApplication application;
+  final ScrollController scrollController;
+  final String? satisfactionSurveyUrl;
+  final String? giftApplicationUrl;
+  final bool isSurveyClicked;
+  final bool isGiftClicked;
+  final VoidCallback onRequestDocuments;
+  final Future<void> Function() onSurveyTap;
+  final Future<void> Function() onGiftTap;
+
+  const _DonationApplicationDetailSheetContent({
+    required this.application,
+    required this.scrollController,
+    required this.satisfactionSurveyUrl,
+    required this.giftApplicationUrl,
+    required this.isSurveyClicked,
+    required this.isGiftClicked,
+    required this.onRequestDocuments,
+    required this.onSurveyTap,
+    required this.onGiftTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final isCompleted = application.statusCode == 3;
+    final (statusLabel, statusColor, statusBg) = _statusVisuals(application);
+
+    return Column(
+      children: [
+        // 핸들 바
+        Container(
+          width: 40,
+          height: 4,
+          margin: const EdgeInsets.symmetric(vertical: 12),
+          decoration: BoxDecoration(
+            color: Colors.grey.shade300,
+            borderRadius: BorderRadius.circular(2),
+          ),
+        ),
+        // 헤더
+        Padding(
+          padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
+          child: Row(
+            children: [
+              Text(
+                isCompleted ? '헌혈 완료 상세' : '헌혈 신청 상세',
+                style: AppTheme.h3Style.copyWith(fontWeight: FontWeight.bold),
+              ),
+              const Spacer(),
+              IconButton(
+                onPressed: () => Navigator.of(context).pop(),
+                icon: const Icon(Icons.close),
+              ),
+            ],
+          ),
+        ),
+        const Divider(height: 1),
+        // 본문
+        Expanded(
+          child: ListView(
+            controller: scrollController,
+            padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
+            children: [
+              // 상태 뱃지
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                decoration: BoxDecoration(
+                  color: statusBg,
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(color: statusColor, width: 1),
                 ),
-                const SizedBox(height: 8),
-              ],
-              // 자료 요청 버튼
-              SizedBox(
-                width: double.infinity,
-                child: OutlinedButton.icon(
-                  onPressed: () => _requestDocuments(application.applicationId),
-                  icon: const Icon(Icons.description_outlined, size: 18),
-                  label: const Text('헌혈 자료 요청'),
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: AppTheme.textPrimary,
-                    side: BorderSide(color: AppTheme.mediumGray),
-                    padding: const EdgeInsets.symmetric(vertical: 10),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8),
-                    ),
+                child: Text(
+                  statusLabel,
+                  style: AppTheme.bodyMediumStyle.copyWith(
+                    color: statusColor,
+                    fontWeight: FontWeight.w600,
                   ),
                 ),
               ),
+              const SizedBox(height: 20),
+              // 게시글 제목
+              _section(
+                icon: Icons.description_outlined,
+                title: '게시글',
+                child: Text(
+                  application.postTitle,
+                  style: AppTheme.bodyLargeStyle.copyWith(
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+              // 병원 정보 (필드가 있으면 표시)
+              if (application.hospitalName != null) ...[
+                const SizedBox(height: 16),
+                _section(
+                  icon: Icons.local_hospital_outlined,
+                  title: '병원',
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        application.hospitalName!,
+                        style: AppTheme.bodyLargeStyle.copyWith(
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      if (application.hospitalAddress != null &&
+                          application.hospitalAddress!.isNotEmpty) ...[
+                        const SizedBox(height: 4),
+                        Row(
+                          children: [
+                            Icon(Icons.place_outlined,
+                                size: 16, color: Colors.grey.shade600),
+                            const SizedBox(width: 4),
+                            Expanded(
+                              child: Text(
+                                application.hospitalAddress!,
+                                style: AppTheme.bodyMediumStyle.copyWith(
+                                  color: Colors.grey.shade700,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                      if (application.hospitalPhone != null &&
+                          application.hospitalPhone!.isNotEmpty) ...[
+                        const SizedBox(height: 4),
+                        InkWell(
+                          onTap: () => launchUrl(
+                            Uri.parse('tel:${application.hospitalPhone}'),
+                          ),
+                          child: Row(
+                            children: [
+                              Icon(Icons.phone_outlined,
+                                  size: 16,
+                                  color: AppTheme.primaryBlue),
+                              const SizedBox(width: 4),
+                              Text(
+                                application.hospitalPhone!,
+                                style: AppTheme.bodyMediumStyle.copyWith(
+                                  color: AppTheme.primaryBlue,
+                                  decoration: TextDecoration.underline,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+              ],
+              const SizedBox(height: 16),
+              // 펫 정보
+              _section(
+                icon: application.petSpecies.contains('강아지') ||
+                        application.petSpecies.contains('개')
+                    ? Icons.pets
+                    : Icons.pets,
+                title: '헌혈 반려동물',
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _kv('이름', application.petName),
+                    const SizedBox(height: 4),
+                    _kv('종/품종', _formatSpeciesBreed(application)),
+                    const SizedBox(height: 4),
+                    _kv('혈액형', application.petBloodType),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 16),
+              // 일정
+              _section(
+                icon: Icons.calendar_today_outlined,
+                title: '일정',
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _kv(
+                      '헌혈 예정',
+                      DateFormat('yyyy-MM-dd (E) HH:mm', 'ko_KR')
+                          .format(application.donationTime),
+                    ),
+                    if (application.donationCompletedAt != null) ...[
+                      const SizedBox(height: 4),
+                      _kv(
+                        '완료 처리',
+                        DateFormat('yyyy-MM-dd (E) HH:mm', 'ko_KR')
+                            .format(application.donationCompletedAt!),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+              // 헌혈량 + 다음 헌혈 가능일 (완료 시에만)
+              if (isCompleted && application.bloodVolumeMl != null) ...[
+                const SizedBox(height: 16),
+                _section(
+                  icon: Icons.bloodtype_outlined,
+                  title: '헌혈량',
+                  child: Text(
+                    '${application.bloodVolumeMl!.toStringAsFixed(application.bloodVolumeMl! % 1 == 0 ? 0 : 1)} mL',
+                    style: AppTheme.h3Style.copyWith(
+                      fontWeight: FontWeight.bold,
+                      color: AppTheme.primaryDarkBlue,
+                    ),
+                  ),
+                ),
+              ],
+              if (isCompleted && application.nextEligibleDate != null) ...[
+                const SizedBox(height: 16),
+                _section(
+                  icon: Icons.schedule_outlined,
+                  title: '다음 헌혈 가능일',
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        '${DateFormat('yyyy-MM-dd (E)', 'ko_KR').format(application.nextEligibleDate!)} 이후',
+                        style: AppTheme.bodyLargeStyle.copyWith(
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        '※ 마지막 헌혈일로부터 180일',
+                        style: AppTheme.bodySmallStyle.copyWith(
+                          color: Colors.grey.shade600,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+              // 액션 버튼 (완료 시에만)
+              if (isCompleted) ...[
+                const SizedBox(height: 24),
+                const Divider(height: 1),
+                const SizedBox(height: 16),
+                SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton.icon(
+                    onPressed: onRequestDocuments,
+                    icon: const Icon(Icons.description_outlined, size: 18),
+                    label: const Text('헌혈 자료 요청'),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: AppTheme.textPrimary,
+                      side: BorderSide(color: AppTheme.mediumGray),
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                    ),
+                  ),
+                ),
+                if (satisfactionSurveyUrl != null ||
+                    giftApplicationUrl != null) ...[
+                  const SizedBox(height: 8),
+                  Row(
+                    children: [
+                      if (satisfactionSurveyUrl != null)
+                        Expanded(
+                          child: _surveyButton(
+                            label: '만족도 조사',
+                            icon: Icons.rate_review_outlined,
+                            isClicked: isSurveyClicked,
+                            onPressed: onSurveyTap,
+                          ),
+                        ),
+                      if (satisfactionSurveyUrl != null &&
+                          giftApplicationUrl != null)
+                        const SizedBox(width: 8),
+                      if (giftApplicationUrl != null)
+                        Expanded(
+                          child: _surveyButton(
+                            label: '후원선물 신청',
+                            icon: Icons.card_giftcard_outlined,
+                            isClicked: isGiftClicked,
+                            onPressed: onGiftTap,
+                          ),
+                        ),
+                    ],
+                  ),
+                ],
+              ],
             ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  static (String, Color, Color) _statusVisuals(DonationApplication a) {
+    switch (a.statusCode) {
+      case 0:
+        return ('대기중', Colors.orange.shade700, Colors.orange.shade50);
+      case 1:
+      case 2:
+        return ('승인됨', Colors.green.shade700, Colors.green.shade50);
+      case 3:
+        return ('헌혈 완료', AppTheme.primaryDarkBlue, AppTheme.lightBlue);
+      default:
+        return (a.status, Colors.grey.shade700, Colors.grey.shade50);
+    }
+  }
+
+  static String _formatSpeciesBreed(DonationApplication a) {
+    if (a.petBreed == null || a.petBreed!.isEmpty) return a.petSpecies;
+    return '${a.petSpecies} / ${a.petBreed}';
+  }
+
+  Widget _section({
+    required IconData icon,
+    required String title,
+    required Widget child,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Icon(icon, size: 18, color: Colors.grey.shade600),
+            const SizedBox(width: 6),
+            Text(
+              title,
+              style: AppTheme.bodyMediumStyle.copyWith(
+                color: Colors.grey.shade600,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
           ],
         ),
+        const SizedBox(height: 8),
+        Container(
+          padding: const EdgeInsets.fromLTRB(12, 0, 12, 0),
+          margin: const EdgeInsets.only(left: 24),
+          child: child,
+        ),
+      ],
+    );
+  }
+
+  Widget _kv(String key, String value) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        SizedBox(
+          width: 64,
+          child: Text(
+            key,
+            style: AppTheme.bodyMediumStyle.copyWith(
+              color: Colors.grey.shade600,
+            ),
+          ),
+        ),
+        Expanded(
+          child: Text(
+            value,
+            style: AppTheme.bodyMediumStyle.copyWith(
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _surveyButton({
+    required String label,
+    required IconData icon,
+    required bool isClicked,
+    required Future<void> Function() onPressed,
+  }) {
+    return OutlinedButton(
+      onPressed: () async => onPressed(),
+      style: OutlinedButton.styleFrom(
+        side: BorderSide(
+          color: isClicked ? Colors.grey.shade300 : AppTheme.primaryBlue,
+        ),
+        backgroundColor: isClicked
+            ? Colors.grey.shade50
+            : AppTheme.primaryBlue.withAlpha(13),
+        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(8),
+        ),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(icon, size: 16),
+          const SizedBox(width: 6),
+          Flexible(
+            child: Text(
+              label,
+              style: const TextStyle(
+                  fontSize: 12, fontWeight: FontWeight.w600),
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+          const SizedBox(width: 6),
+          Icon(
+            isClicked ? Icons.check_circle : Icons.check_circle_outline,
+            size: 18,
+            color: isClicked ? Colors.green : Colors.grey.shade400,
+          ),
+        ],
       ),
     );
   }
 }
 
+/// `/api/donation/my-applications` 응답의 한 신청 항목.
+///
+/// 백엔드 contract (CLAUDE.md "헌혈 완료 처리 contract" + 응답 확장 합의):
+/// - 기본 필드: applicationId, postId, postTitle, petName, petSpecies,
+///   petBloodType, donationTime, status, statusCode
+/// - 확장 필드 (상세 시트용):
+///   * hospitalName (NOT NULL), hospitalAddress / hospitalPhone (nullable)
+///   * petBreed (NOT NULL — 자유 텍스트)
+///   * statusCode==3에서만: bloodVolumeMl, donationCompletedAt
+///
+/// 백엔드 작업 진행 중 응답에 신규 필드가 아직 없을 수 있어 모든 신규 필드는
+/// nullable + null-safe 기본값으로 받음 (구버전 응답 호환).
 class DonationApplication {
   final int applicationId;
   final int postId;
@@ -785,6 +1228,14 @@ class DonationApplication {
   final String status;
   final int statusCode;
 
+  // 상세 시트용 확장 필드 (응답 확장 후 채워짐)
+  final String? hospitalName;
+  final String? hospitalAddress;
+  final String? hospitalPhone;
+  final String? petBreed;
+  final double? bloodVolumeMl;
+  final DateTime? donationCompletedAt;
+
   DonationApplication({
     required this.applicationId,
     required this.postId,
@@ -795,6 +1246,12 @@ class DonationApplication {
     required this.donationTime,
     required this.status,
     required this.statusCode,
+    this.hospitalName,
+    this.hospitalAddress,
+    this.hospitalPhone,
+    this.petBreed,
+    this.bloodVolumeMl,
+    this.donationCompletedAt,
   });
 
   factory DonationApplication.fromJson(Map<String, dynamic> json) {
@@ -809,6 +1266,22 @@ class DonationApplication {
           DateTime.tryParse(json['donation_time'] ?? '') ?? DateTime.now(),
       status: json['status'] ?? '대기중',
       statusCode: json['status_code'] ?? 0,
+      hospitalName: json['hospital_name'] as String?,
+      hospitalAddress: json['hospital_address'] as String?,
+      hospitalPhone: json['hospital_phone'] as String?,
+      petBreed: json['pet_breed'] as String?,
+      bloodVolumeMl: (json['blood_volume_ml'] as num?)?.toDouble(),
+      donationCompletedAt: json['donation_completed_at'] != null
+          ? DateTime.tryParse(json['donation_completed_at'] as String)
+          : null,
     );
+  }
+
+  /// 다음 헌혈 가능일 = donation_completed_at + 180일 (CLAUDE.md
+  /// "헌혈 완료 처리 contract" - DONATION_INTERVAL_DAYS=180).
+  /// statusCode != 3이거나 donation_completed_at이 없으면 null.
+  DateTime? get nextEligibleDate {
+    if (donationCompletedAt == null) return null;
+    return donationCompletedAt!.add(const Duration(days: 180));
   }
 }
