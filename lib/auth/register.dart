@@ -4,7 +4,6 @@ import 'package:flutter/services.dart';
 import 'package:kpostal/kpostal.dart';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
-import 'package:firebase_messaging/firebase_messaging.dart';
 import '../services/registration_pet_uploader.dart';
 import '../utils/app_theme.dart';
 import '../utils/config.dart';
@@ -38,7 +37,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final _addressController = TextEditingController();
   bool _isObscurePassword = true;
   bool _isObscureConfirmPassword = true;
-  String? _fcmToken;
 
   // Step 2: 반려동물
   final List<RegistrationPetData> _pets = [];
@@ -46,7 +44,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
   @override
   void initState() {
     super.initState();
-    _getFcmToken();
+    // FCM 토큰 등록은 회원가입 후 첫 로그인 시점에 처리됨
+    // (NotificationService.updateTokenAfterLogin → POST /api/user/fcm-token).
+    // 회원가입 본 요청에는 토큰 미포함 (option b, 2026-05-02 BE 합의).
   }
 
   @override
@@ -60,14 +60,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
     _phoneController.dispose();
     _addressController.dispose();
     super.dispose();
-  }
-
-  Future<void> _getFcmToken() async {
-    try {
-      _fcmToken = await FirebaseMessaging.instance.getToken();
-    } catch (e) {
-      debugPrint('Failed to get FCM token: $e');
-    }
   }
 
   void _showSnackBar(String message, {bool isSuccess = false}) {
@@ -181,7 +173,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
         'nickname_input': _nicknameController.text.trim(),
         'phone_number': formattedPhoneNumber.trim(),
         'address': _addressController.text,
-        'fcm_token': _fcmToken ?? '',
         'pets': _pets.map((p) => p.toJson()).toList(),
       };
 

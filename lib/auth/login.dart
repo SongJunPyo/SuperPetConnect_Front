@@ -5,7 +5,6 @@ import 'package:connect/user/user_dashboard.dart';
 import 'package:connect/admin/admin_dashboard.dart';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
-import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter_naver_login/flutter_naver_login.dart';
 import 'package:flutter_naver_login/interface/types/naver_login_status.dart';
 import 'package:flutter_naver_login/interface/types/naver_login_result.dart';
@@ -148,26 +147,13 @@ class _LoginScreenState extends State<LoginScreen> {
               (context) => const Center(child: CircularProgressIndicator()),
         );
 
-        // FCM 토큰 가져오기 (웹에서는 스킵)
-        String? fcmToken;
-        if (!kIsWeb) {
-          try {
-            fcmToken = await FirebaseMessaging.instance.getToken();
-          } catch (e) {
-            // FCM 토큰이 없어도 로그인은 계속 진행
-          }
-        }
-
-        // API 요청 body 구성
+        // FCM 토큰은 별도 endpoint로 등록 — 로그인 직후 NotificationService.updateTokenAfterLogin()이
+        // POST /api/user/fcm-token (platform 필드 포함) 호출하므로 login body에 포함하지 않음.
+        // BE는 fcm_tokens 테이블 단일 진입점으로 정리 (option b, 2026-05-02 합의).
         final requestBody = {
           'username': _emailController.text,
           'password': _passwordController.text,
         };
-
-        // FCM 토큰이 있으면 추가
-        if (fcmToken != null && fcmToken.isNotEmpty) {
-          requestBody['fcm_token'] = fcmToken;
-        }
 
         final response = await http
             .post(
