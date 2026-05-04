@@ -20,6 +20,7 @@ import 'package:flutter/foundation.dart';
 import '../models/notification_model.dart';
 import '../utils/api_endpoints.dart';
 import '../utils/config.dart';
+import '../utils/preferences_manager.dart';
 import 'auth_http_client.dart';
 import 'notification_converter.dart';
 import 'notification_service.dart';
@@ -158,7 +159,15 @@ class WebFcmInit {
   }
 
   /// 토큰을 백엔드에 등록 (platform: 'web' 명시).
+  /// auth_token이 없으면 조용히 스킵 — 로그인 후 updateTokenAfterLogin()에서 재시도.
+  /// 모바일 FCMHandler._sendTokenToServer와 동일 패턴.
   static Future<void> _sendTokenToServer(String token) async {
+    final authToken = (await PreferencesManager.getAuthToken()) ?? '';
+    if (authToken.isEmpty) {
+      // 로그인 전이거나 토큰 만료 상태 — 등록 스킵, _currentToken은 보존되어
+      // updateTokenAfterLogin() 호출 시 재시도됨
+      return;
+    }
     try {
       final response = await AuthHttpClient.post(
         Uri.parse('${Config.serverUrl}${ApiEndpoints.fcmToken}'),

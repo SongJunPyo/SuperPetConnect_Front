@@ -25,6 +25,7 @@ import '../utils/preferences_manager.dart';
 import '../web/web_storage_helper_stub.dart'
     if (dart.library.html) '../web/web_storage_helper.dart';
 import 'fcm_handler.dart';
+import 'unified_notification_manager.dart';
 
 class NotificationService {
   static final GlobalKey<NavigatorState> navigatorKey =
@@ -259,10 +260,15 @@ class NotificationService {
     }
   }
 
-  /// 로그인 직후 FCM 토큰을 서버에 재전송. [FCMHandler]로 위임.
+  /// 로그인 직후 FCM 토큰을 서버에 재전송.
+  /// 모바일은 [FCMHandler]로, 웹은 [UnifiedNotificationManager]를 통해 [WebFcmInit]으로 위임.
+  /// auth_token 저장 직후 호출되어야 토큰 등록이 성공함.
   static Future<void> updateTokenAfterLogin() async {
-    if (kIsWeb) return;
-    await FCMHandler.instance.updateFCMToken();
+    if (kIsWeb) {
+      await UnifiedNotificationManager.instance.updateTokenAfterLogin();
+    } else {
+      await FCMHandler.instance.updateFCMToken();
+    }
   }
 
   // donation_post_approved / all_timeslots_filled / post_suspended /
