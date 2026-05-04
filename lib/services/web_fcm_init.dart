@@ -56,7 +56,12 @@ class WebFcmInit {
     }
 
     try {
-      // 1. 알림 권한 요청 (브라우저가 사용자에게 다이얼로그 표시)
+      // 1. Service Worker 명시 등록 + activated 대기
+      // firebase_messaging의 자동 등록에 의존하면 좀비 SW 상태(activated 도달 실패)로
+      // PushManager.subscribe가 AbortError 발생할 수 있음. 명시 등록 + ready 대기로 해소.
+      await _ensureServiceWorkerReady();
+
+      // 2. 알림 권한 요청 (브라우저가 사용자에게 다이얼로그 표시)
       final settings = await FirebaseMessaging.instance.requestPermission(
         alert: true,
         badge: true,
@@ -70,7 +75,7 @@ class WebFcmInit {
         return;
       }
 
-      // 2. FCM 토큰 발급 (VAPID 키 필요)
+      // 3. FCM 토큰 발급 (VAPID 키 필요)
       final token =
           await FirebaseMessaging.instance.getToken(vapidKey: _vapidKey);
       if (token == null || token.isEmpty) {
@@ -168,6 +173,22 @@ class WebFcmInit {
     } catch (e) {
       debugPrint('[WebFcmInit] 토큰 등록 예외: $e');
     }
+  }
+
+  /// firebase-messaging-sw.js를 명시 등록하고 activated 상태까지 대기.
+  ///
+  /// firebase_messaging 패키지가 SW 자동 등록을 시도하지만 좀비 상태(Source/Status
+  /// 비어있음, activated 미도달)에 빠지는 케이스 발생. 이 경우 PushManager.subscribe가
+  /// AbortError로 실패해 토큰 발급 안 됨. 명시 등록 + sw.ready 대기로 활성 보장.
+  static Future<void> _ensureServiceWorkerReady() async {
+    final sw = html.window.navigator.serviceWorker;
+    if (sw == null) {
+      throw StateError('Service Worker not supported in this browser');
+    }
+    // 이미 등록되어 있으면 register가 기존 등록을 반환, 아니면 신규 등록
+    await sw.register('/firebase-messaging-sw.js');
+    // activated 상태까지 대기 (activating 단계가 끝날 때까지)
+    await sw.ready;
   }
 
   /// SW의 notificationclick → window.postMessage 메시지 구독.
