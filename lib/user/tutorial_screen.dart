@@ -1,10 +1,14 @@
 // lib/user/tutorial_screen.dart
-// 사용자 튜토리얼 화면 — 신규 가입자가 승인 후 첫 진입 시 자동 표시 + 프로필에서 다시 보기 가능.
-// 콘텐츠는 lib/models/tutorial_slide.dart::TutorialContent.userSlides 단일 원천.
+// 사용자 튜토리얼 — 3장 인터랙티브 슬라이드.
+//
+// 각 슬라이드 = 상단 텍스트 + 가데이터 모형 + 스포트라이트 시퀀스 + 정보/주의 박스.
+// 시퀀스 완료 전에는 [다음] 버튼 비활성. 완료 시 활성화.
 
 import 'package:flutter/material.dart';
-import '../models/tutorial_slide.dart';
 import '../utils/app_theme.dart';
+import '../widgets/tutorial/scene_donation_board.dart';
+import '../widgets/tutorial/scene_application_card.dart';
+import '../widgets/tutorial/scene_pet_management.dart';
 
 class TutorialScreen extends StatefulWidget {
   /// 튜토리얼 종료 시 (스킵/완료 모두) 호출되는 콜백.
@@ -20,8 +24,9 @@ class TutorialScreen extends StatefulWidget {
 class _TutorialScreenState extends State<TutorialScreen> {
   final PageController _pageController = PageController();
   int _currentPage = 0;
+  final Set<int> _completedPages = <int>{};
 
-  List<TutorialSlide> get _slides => TutorialContent.userSlides;
+  static const int _totalPages = 3;
 
   @override
   void dispose() {
@@ -29,8 +34,13 @@ class _TutorialScreenState extends State<TutorialScreen> {
     super.dispose();
   }
 
+  void _markCurrentComplete() {
+    setState(() => _completedPages.add(_currentPage));
+  }
+
   void _onNext() {
-    if (_currentPage < _slides.length - 1) {
+    if (!_completedPages.contains(_currentPage)) return;
+    if (_currentPage < _totalPages - 1) {
       _pageController.nextPage(
         duration: const Duration(milliseconds: 250),
         curve: Curves.easeOut,
@@ -49,7 +59,8 @@ class _TutorialScreenState extends State<TutorialScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final isLastPage = _currentPage == _slides.length - 1;
+    final isLastPage = _currentPage == _totalPages - 1;
+    final canAdvance = _completedPages.contains(_currentPage);
 
     return Scaffold(
       backgroundColor: Colors.white,
@@ -78,24 +89,27 @@ class _TutorialScreenState extends State<TutorialScreen> {
 
             // 슬라이드 영역
             Expanded(
-              child: PageView.builder(
+              child: PageView(
                 controller: _pageController,
-                itemCount: _slides.length,
+                physics: const NeverScrollableScrollPhysics(),
                 onPageChanged: (idx) => setState(() => _currentPage = idx),
-                itemBuilder: (context, idx) =>
-                    _SlideView(slide: _slides[idx]),
+                children: [
+                  _Slide1Donation(onComplete: _markCurrentComplete),
+                  _Slide2Application(onComplete: _markCurrentComplete),
+                  _Slide3PetManagement(onComplete: _markCurrentComplete),
+                ],
               ),
             ),
 
             // 페이지 인디케이터
             Padding(
               padding: const EdgeInsets.symmetric(
-                vertical: AppTheme.spacing16,
+                vertical: AppTheme.spacing12,
               ),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: List.generate(
-                  _slides.length,
+                  _totalPages,
                   (idx) => _PageDot(active: idx == _currentPage),
                 ),
               ),
@@ -107,16 +121,18 @@ class _TutorialScreenState extends State<TutorialScreen> {
                 AppTheme.spacing24,
                 0,
                 AppTheme.spacing24,
-                AppTheme.spacing24,
+                AppTheme.spacing16,
               ),
               child: SizedBox(
                 width: double.infinity,
                 height: 52,
                 child: ElevatedButton(
-                  onPressed: _onNext,
+                  onPressed: canAdvance ? _onNext : null,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppTheme.primaryBlue,
                     foregroundColor: Colors.white,
+                    disabledBackgroundColor: AppTheme.lightGray,
+                    disabledForegroundColor: Colors.white,
                     elevation: 0,
                     shape: RoundedRectangleBorder(
                       borderRadius:
@@ -124,7 +140,9 @@ class _TutorialScreenState extends State<TutorialScreen> {
                     ),
                   ),
                   child: Text(
-                    isLastPage ? '시작하기' : '다음',
+                    canAdvance
+                        ? (isLastPage ? '시작하기' : '다음')
+                        : '안내에 따라 탭해주세요',
                     style: const TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.w600,
@@ -140,11 +158,99 @@ class _TutorialScreenState extends State<TutorialScreen> {
   }
 }
 
-/// 슬라이드 1장의 본문.
-class _SlideView extends StatelessWidget {
-  final TutorialSlide slide;
+// ============================================================
+// 슬라이드 1 — 헌혈 신청
+// ============================================================
+class _Slide1Donation extends StatelessWidget {
+  final VoidCallback onComplete;
 
-  const _SlideView({required this.slide});
+  const _Slide1Donation({required this.onComplete});
+
+  @override
+  Widget build(BuildContext context) {
+    return _SlideShell(
+      title: '헌혈이 필요한 친구들에게\n도움을 주세요',
+      subtitle: '헌혈 게시판에서 우리 아이가 도울 수 있는 글을 찾아보세요',
+      scene: DonationBoardScene(onComplete: onComplete),
+      highlight: const _HighlightInfo(
+        title: '헌혈 자격 조건',
+        lines: [
+          '체중 20kg 이상 (강아지 기준)',
+          '직전 헌혈 후 180일 경과',
+          '임신·출산 후 12개월 경과',
+          '종합백신 24개월 이내 / 항체 12개월',
+          '예방약 3개월 이내 복용',
+        ],
+      ),
+    );
+  }
+}
+
+// ============================================================
+// 슬라이드 2 — 신청 후 흐름
+// ============================================================
+class _Slide2Application extends StatelessWidget {
+  final VoidCallback onComplete;
+
+  const _Slide2Application({required this.onComplete});
+
+  @override
+  Widget build(BuildContext context) {
+    return _SlideShell(
+      title: '신청 후 진행 상태를\n확인해요',
+      subtitle: '대기 → 선정 → 사전 설문 → 헌혈 → 완료 순서로 진행돼요',
+      scene: ApplicationCardScene(onComplete: onComplete),
+      highlight: const _HighlightWarning(
+        title: '꼭 확인해주세요',
+        lines: [
+          '신청 취소는 "대기" 상태에서만 가능',
+          '선정 후 D-2 23:55까지 사전 설문 미작성 시\n신청이 자동 종결돼요',
+        ],
+      ),
+    );
+  }
+}
+
+// ============================================================
+// 슬라이드 3 — 반려동물 관리
+// ============================================================
+class _Slide3PetManagement extends StatelessWidget {
+  final VoidCallback onComplete;
+
+  const _Slide3PetManagement({required this.onComplete});
+
+  @override
+  Widget build(BuildContext context) {
+    return _SlideShell(
+      title: '여러 마리 등록하고\n관리할 수 있어요',
+      subtitle: '한 계정에 여러 반려동물을 등록할 수 있어요',
+      scene: PetManagementScene(onComplete: onComplete),
+      highlight: const _HighlightWarning(
+        title: '정보 수정 시 주의',
+        lines: [
+          '체중·혈액형·임신/출산·중성화·예방접종 등\n자격 검증 영향 항목 수정 시 재심사 진입',
+          '백신·항체·예방약 일자, 외부 헌혈 횟수는\n재심사 없이 즉시 반영',
+        ],
+      ),
+    );
+  }
+}
+
+// ============================================================
+// 공용 슬라이드 셸 — 제목 + scene + highlight 박스
+// ============================================================
+class _SlideShell extends StatelessWidget {
+  final String title;
+  final String? subtitle;
+  final Widget scene;
+  final Widget highlight;
+
+  const _SlideShell({
+    required this.title,
+    this.subtitle,
+    required this.scene,
+    required this.highlight,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -155,186 +261,123 @@ class _SlideView extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // 일러스트 자리 (placeholder: 둥근 사각형 + 큰 아이콘)
-          _IllustrationPlaceholder(
-            asset: slide.illustrationAsset,
-            icon: slide.placeholderIcon,
-          ),
-          const SizedBox(height: AppTheme.spacing32),
-
-          // 제목
           Text(
-            slide.title,
+            title,
             style: AppTheme.h2Style.copyWith(
               fontWeight: FontWeight.bold,
-              height: 1.35,
+              height: 1.3,
             ),
           ),
-
-          // 부제 (있는 경우)
-          if (slide.subtitle != null) ...[
-            const SizedBox(height: AppTheme.spacing12),
+          if (subtitle != null) ...[
+            const SizedBox(height: AppTheme.spacing8),
             Text(
-              slide.subtitle!,
-              style: AppTheme.bodyMediumStyle.copyWith(
+              subtitle!,
+              style: AppTheme.bodySmallStyle.copyWith(
                 color: AppTheme.textSecondary,
                 height: 1.5,
               ),
             ),
           ],
-
-          const SizedBox(height: AppTheme.spacing24),
-
-          // 단계 리스트 (① ② ③ 자동 번호)
-          ...List.generate(slide.steps.length, (idx) {
-            return Padding(
-              padding: const EdgeInsets.only(bottom: AppTheme.spacing12),
-              child: _StepRow(
-                index: idx + 1,
-                text: slide.steps[idx],
-              ),
-            );
-          }),
-
-          // 강조 박스 (있는 경우)
-          if (slide.highlight != null) ...[
-            const SizedBox(height: AppTheme.spacing20),
-            _HighlightBoxWidget(box: slide.highlight!),
-          ],
-
-          const SizedBox(height: AppTheme.spacing24),
+          const SizedBox(height: AppTheme.spacing16),
+          scene,
+          const SizedBox(height: AppTheme.spacing16),
+          highlight,
         ],
       ),
     );
   }
 }
 
-class _IllustrationPlaceholder extends StatelessWidget {
-  final String? asset;
+// ============================================================
+// 정보 / 주의 박스
+// ============================================================
+class _HighlightInfo extends StatelessWidget {
+  final String title;
+  final List<String> lines;
+
+  const _HighlightInfo({required this.title, required this.lines});
+
+  @override
+  Widget build(BuildContext context) {
+    return _HighlightBox(
+      icon: Icons.lightbulb_outline,
+      color: AppTheme.primaryBlue,
+      title: title,
+      lines: lines,
+    );
+  }
+}
+
+class _HighlightWarning extends StatelessWidget {
+  final String title;
+  final List<String> lines;
+
+  const _HighlightWarning({required this.title, required this.lines});
+
+  @override
+  Widget build(BuildContext context) {
+    return _HighlightBox(
+      icon: Icons.warning_amber_rounded,
+      color: AppTheme.warning,
+      title: title,
+      lines: lines,
+    );
+  }
+}
+
+class _HighlightBox extends StatelessWidget {
   final IconData icon;
+  final Color color;
+  final String title;
+  final List<String> lines;
 
-  const _IllustrationPlaceholder({this.asset, required this.icon});
-
-  @override
-  Widget build(BuildContext context) {
-    if (asset != null) {
-      return ClipRRect(
-        borderRadius: BorderRadius.circular(AppTheme.radius16),
-        child: Image.asset(
-          asset!,
-          width: double.infinity,
-          height: 200,
-          fit: BoxFit.cover,
-        ),
-      );
-    }
-    return Container(
-      width: double.infinity,
-      height: 200,
-      decoration: BoxDecoration(
-        color: AppTheme.veryLightGray,
-        borderRadius: BorderRadius.circular(AppTheme.radius16),
-      ),
-      child: Icon(
-        icon,
-        size: 80,
-        color: AppTheme.primaryBlue.withValues(alpha: 0.6),
-      ),
-    );
-  }
-}
-
-class _StepRow extends StatelessWidget {
-  final int index;
-  final String text;
-
-  const _StepRow({required this.index, required this.text});
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Container(
-          width: 24,
-          height: 24,
-          margin: const EdgeInsets.only(top: 2),
-          decoration: BoxDecoration(
-            color: AppTheme.primaryBlue,
-            shape: BoxShape.circle,
-          ),
-          alignment: Alignment.center,
-          child: Text(
-            '$index',
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 13,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-        ),
-        const SizedBox(width: AppTheme.spacing12),
-        Expanded(
-          child: Text(
-            text,
-            style: AppTheme.bodyMediumStyle.copyWith(
-              color: AppTheme.textPrimary,
-              height: 1.5,
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _HighlightBoxWidget extends StatelessWidget {
-  final HighlightBox box;
-
-  const _HighlightBoxWidget({required this.box});
+  const _HighlightBox({
+    required this.icon,
+    required this.color,
+    required this.title,
+    required this.lines,
+  });
 
   @override
   Widget build(BuildContext context) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(AppTheme.spacing16),
+      padding: const EdgeInsets.all(AppTheme.spacing12),
       decoration: BoxDecoration(
-        color: box.accentColor.withValues(alpha: 0.08),
+        color: color.withValues(alpha: 0.08),
         borderRadius: BorderRadius.circular(AppTheme.radius12),
-        border: Border.all(
-          color: box.accentColor.withValues(alpha: 0.3),
-        ),
+        border: Border.all(color: color.withValues(alpha: 0.3)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              Icon(box.icon, size: 18, color: box.accentColor),
-              const SizedBox(width: AppTheme.spacing8),
+              Icon(icon, size: 16, color: color),
+              const SizedBox(width: 6),
               Text(
-                box.title,
-                style: AppTheme.bodyMediumStyle.copyWith(
-                  color: box.accentColor,
+                title,
+                style: AppTheme.bodySmallStyle.copyWith(
+                  color: color,
                   fontWeight: FontWeight.bold,
                 ),
               ),
             ],
           ),
-          const SizedBox(height: AppTheme.spacing12),
-          ...box.lines.map(
+          const SizedBox(height: AppTheme.spacing8),
+          ...lines.map(
             (line) => Padding(
-              padding: const EdgeInsets.only(bottom: 6),
+              padding: const EdgeInsets.only(bottom: 4),
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Padding(
-                    padding: const EdgeInsets.only(top: 7, right: 8),
+                    padding: const EdgeInsets.only(top: 6, right: 6),
                     child: Container(
-                      width: 4,
-                      height: 4,
+                      width: 3,
+                      height: 3,
                       decoration: BoxDecoration(
-                        color: box.accentColor,
+                        color: color,
                         shape: BoxShape.circle,
                       ),
                     ),
@@ -344,7 +387,7 @@ class _HighlightBoxWidget extends StatelessWidget {
                       line,
                       style: AppTheme.bodySmallStyle.copyWith(
                         color: AppTheme.textPrimary,
-                        height: 1.5,
+                        height: 1.45,
                       ),
                     ),
                   ),
