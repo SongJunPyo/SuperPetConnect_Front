@@ -2,9 +2,10 @@
 // 슬라이드 2 — 헌혈 신청 ② 폼 작성.
 //
 // 시간대 탭 후 진입하는 신청 폼 화면.
+// 상단에 자세한 게시글 정보 헤더 (이전 바텀시트 내용 재표시).
 // 스텝 0: 반려동물 카드 ("초코") 탭 → 선택됨 표시
 // 스텝 1: 사전 안내사항 동의 체크박스 탭 → 체크됨
-// 스텝 2: [확인] 버튼 탭 → 신청 완료 + onComplete
+// 스텝 2: [확인] 버튼 탭 → 신청 완료 토스트 + onComplete
 
 import 'package:flutter/material.dart';
 import '../../utils/app_theme.dart';
@@ -80,7 +81,7 @@ class _DonationFormSceneState extends State<DonationFormScene> {
                   left: 16,
                   right: 16,
                   bottom: 16,
-                  child: _CompletedToast(),
+                  child: const _CompletedToast(),
                 ),
             ],
           ),
@@ -103,34 +104,8 @@ class _DonationFormSceneState extends State<DonationFormScene> {
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
             children: [
-              // 헤더 (게시글 정보)
-              Container(
-                padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(
-                  color: AppTheme.veryLightGray,
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Row(
-                  children: [
-                    Icon(
-                      Icons.bloodtype_outlined,
-                      size: 16,
-                      color: AppTheme.error,
-                    ),
-                    const SizedBox(width: 6),
-                    Expanded(
-                      child: Text(
-                        '행복동물병원 · 5/15 (월) 14:00',
-                        style: AppTheme.bodySmallStyle.copyWith(
-                          color: AppTheme.textPrimary,
-                          fontSize: 11,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
+              // 자세한 게시글 정보 헤더 (이전 바텀시트 내용)
+              _buildPostInfoHeader(),
               const SizedBox(height: 14),
 
               // 반려동물 선택 섹션
@@ -155,7 +130,7 @@ class _DonationFormSceneState extends State<DonationFormScene> {
                 ),
               ),
               const SizedBox(height: 6),
-              _PetCard(
+              const _PetCard(
                 name: '멍멍이',
                 breed: '푸들',
                 weight: '8kg',
@@ -203,9 +178,83 @@ class _DonationFormSceneState extends State<DonationFormScene> {
               HighlightTarget(
                 isActive: !_completed && _step == 2,
                 onTap: _onConfirmTap,
-                child: _ConfirmButton(),
+                child: const _ConfirmButton(),
               ),
             ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildPostInfoHeader() {
+    return Container(
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: AppTheme.veryLightGray,
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 6,
+                  vertical: 2,
+                ),
+                decoration: BoxDecoration(
+                  color: AppTheme.error,
+                  borderRadius: BorderRadius.circular(4),
+                ),
+                child: const Text(
+                  '긴급',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 9,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 6),
+              Flexible(
+                child: Text(
+                  '강아지 긴급 헌혈 필요',
+                  style: AppTheme.bodySmallStyle.copyWith(
+                    fontWeight: FontWeight.bold,
+                    color: AppTheme.textPrimary,
+                    fontSize: 12,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          _infoLine(Icons.local_hospital_outlined, '행복동물병원'),
+          const SizedBox(height: 3),
+          _infoLine(Icons.event, '5/15 (월) 14:00'),
+          const SizedBox(height: 3),
+          _infoLine(Icons.pets, '환자: 7세 보더콜리 · 12kg'),
+          const SizedBox(height: 3),
+          _infoLine(Icons.medical_information_outlined, '필요 혈액형: DEA 1.1+'),
+        ],
+      ),
+    );
+  }
+
+  Widget _infoLine(IconData icon, String text) {
+    return Row(
+      children: [
+        Icon(icon, size: 12, color: AppTheme.textSecondary),
+        const SizedBox(width: 5),
+        Flexible(
+          child: Text(
+            text,
+            style: AppTheme.bodySmallStyle.copyWith(
+              color: AppTheme.textPrimary,
+              fontSize: 10,
+            ),
           ),
         ),
       ],
@@ -355,11 +404,13 @@ class _ConsentCheckRow extends StatelessWidget {
 }
 
 class _ConfirmButton extends StatelessWidget {
+  const _ConfirmButton();
+
   @override
   Widget build(BuildContext context) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.symmetric(vertical: 12),
+      height: 44,
       decoration: BoxDecoration(
         color: AppTheme.primaryBlue,
         borderRadius: BorderRadius.circular(10),
@@ -377,26 +428,41 @@ class _ConfirmButton extends StatelessWidget {
   }
 }
 
+/// 신청 완료 토스트 — 부드러운 성공 톤 (이전 너무 진했음).
 class _CompletedToast extends StatelessWidget {
+  const _CompletedToast();
+
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      height: 44,
+      padding: const EdgeInsets.symmetric(horizontal: 14),
       decoration: BoxDecoration(
-        color: AppTheme.success.withValues(alpha: 0.95),
+        color: Colors.white,
         borderRadius: BorderRadius.circular(10),
+        border: Border.all(
+          color: AppTheme.success.withValues(alpha: 0.4),
+          width: 1,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.08),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
       ),
       child: Row(
         children: [
-          const Icon(Icons.check_circle, size: 18, color: Colors.white),
+          Icon(Icons.check_circle_outline, size: 18, color: AppTheme.success),
           const SizedBox(width: 8),
           Expanded(
             child: Text(
               '신청이 완료됐어요',
               style: AppTheme.bodySmallStyle.copyWith(
-                color: Colors.white,
+                color: AppTheme.textPrimary,
                 fontSize: 12,
-                fontWeight: FontWeight.bold,
+                fontWeight: FontWeight.w600,
               ),
             ),
           ),

@@ -46,6 +46,8 @@ class TutorialMockAppBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // 실제 AppDashboardAppBar는 actions에 [알림, 반려동물 관리, 프로필]을
+    // 우측 정렬로 배치. 여기도 동일하게 모든 액션을 오른쪽에.
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(
@@ -54,26 +56,38 @@ class TutorialMockAppBar extends StatelessWidget {
       ),
       child: Row(
         children: [
-          Icon(
-            Icons.notifications_none,
-            size: 20,
-            color: AppTheme.textPrimary,
-          ),
-          const SizedBox(width: 4),
-          petButton ?? _defaultPetButton(),
           const Spacer(),
-          Container(
-            width: 28,
-            height: 28,
-            decoration: BoxDecoration(
-              color: AppTheme.veryLightGray,
-              shape: BoxShape.circle,
-            ),
-            child: Icon(
-              Icons.person_outline,
-              size: 18,
-              color: AppTheme.textPrimary,
-            ),
+          // 알림 아이콘 + 빨간 점(미읽음 뱃지 느낌)
+          Stack(
+            clipBehavior: Clip.none,
+            children: [
+              Icon(
+                Icons.notifications_none,
+                size: 22,
+                color: AppTheme.textPrimary,
+              ),
+              Positioned(
+                right: -1,
+                top: -1,
+                child: Container(
+                  width: 7,
+                  height: 7,
+                  decoration: BoxDecoration(
+                    color: AppTheme.error,
+                    shape: BoxShape.circle,
+                    border: Border.all(color: Colors.white, width: 1),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(width: 8),
+          petButton ?? _defaultPetButton(),
+          const SizedBox(width: 8),
+          Icon(
+            Icons.person_outline,
+            size: 22,
+            color: AppTheme.textPrimary,
           ),
         ],
       ),
@@ -82,12 +96,12 @@ class TutorialMockAppBar extends StatelessWidget {
 
   Widget _defaultPetButton() {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
           Icon(Icons.pets, size: 16, color: AppTheme.textPrimary),
-          const SizedBox(width: 4),
+          const SizedBox(width: 3),
           Text(
             '반려동물 관리',
             style: AppTheme.bodySmallStyle.copyWith(

@@ -1,17 +1,23 @@
 // lib/user/tutorial_screen.dart
-// 사용자 튜토리얼 — 팝업(Dialog) 형태, 4 슬라이드.
+// 사용자 튜토리얼 — 팝업(Dialog) 형태, 7 슬라이드.
 //
-// 슬라이드 1: 헌혈 신청 ① 게시판 진입 (3 step 인터랙티브)
-// 슬라이드 2: 헌혈 신청 ② 폼 작성 (3 step 인터랙티브)
-// 슬라이드 3: 신청 후 흐름 (정보 시각화, 자동 재생, 0 step)
-// 슬라이드 4: 반려동물 추가/삭제 (3 step 인터랙티브)
+// 슬라이드 0: 환영 (사용 가이드 + 로고)
+// 슬라이드 1: 헌혈 신청 ① 게시판 진입 (3 step)
+// 슬라이드 2: 헌혈 신청 ② 폼 작성 (3 step)
+// 슬라이드 3: 신청 후 흐름 (자동 재생, 0 step)
+// 슬라이드 4: 사전 설문 작성 (2 step)
+// 슬라이드 5: 반려동물 등록 (3 step)
+// 슬라이드 6: 반려동물 삭제 (3 step)
 
 import 'package:flutter/material.dart';
 import '../utils/app_theme.dart';
+import '../widgets/tutorial/scene_welcome.dart';
 import '../widgets/tutorial/scene_donation_board.dart';
 import '../widgets/tutorial/scene_donation_form.dart';
 import '../widgets/tutorial/scene_application_timeline.dart';
-import '../widgets/tutorial/scene_pet_management.dart';
+import '../widgets/tutorial/scene_survey.dart';
+import '../widgets/tutorial/scene_pet_register.dart';
+import '../widgets/tutorial/scene_pet_delete.dart';
 
 class TutorialScreen extends StatefulWidget {
   /// 튜토리얼 종료 시 (스킵/완료 모두) 호출.
@@ -28,7 +34,7 @@ class _TutorialScreenState extends State<TutorialScreen> {
   int _currentPage = 0;
   final Set<int> _completedPages = <int>{};
 
-  static const int _totalPages = 4;
+  static const int _totalPages = 7;
 
   @override
   void dispose() {
@@ -89,10 +95,15 @@ class _TutorialScreenState extends State<TutorialScreen> {
                 physics: const NeverScrollableScrollPhysics(),
                 onPageChanged: (idx) => setState(() => _currentPage = idx),
                 children: [
+                  _SlideShellPlain(
+                    child: WelcomeScene(onComplete: _markCurrentComplete),
+                  ),
                   _Slide1BoardEntry(onComplete: _markCurrentComplete),
                   _Slide2Form(onComplete: _markCurrentComplete),
                   _Slide3Timeline(onComplete: _markCurrentComplete),
-                  _Slide4PetManagement(onComplete: _markCurrentComplete),
+                  _Slide4Survey(onComplete: _markCurrentComplete),
+                  _Slide5PetRegister(onComplete: _markCurrentComplete),
+                  _Slide6PetDelete(onComplete: _markCurrentComplete),
                 ],
               ),
             ),
@@ -140,7 +151,7 @@ class _TutorialScreenState extends State<TutorialScreen> {
 }
 
 // ============================================================
-// 헤더
+// 헤더 — 페이지 닷 + 닫기
 // ============================================================
 class _Header extends StatelessWidget {
   final int currentPage;
@@ -164,14 +175,15 @@ class _Header extends StatelessWidget {
       ),
       child: Row(
         children: [
-          Row(
-            mainAxisSize: MainAxisSize.min,
-            children: List.generate(
-              totalPages,
-              (idx) => _PageDot(active: idx == currentPage),
+          Expanded(
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: List.generate(
+                totalPages,
+                (idx) => _PageDot(active: idx == currentPage),
+              ),
             ),
           ),
-          const Spacer(),
           IconButton(
             onPressed: onClose,
             icon: Icon(
@@ -197,12 +209,12 @@ class _PageDot extends StatelessWidget {
   Widget build(BuildContext context) {
     return AnimatedContainer(
       duration: const Duration(milliseconds: 200),
-      margin: const EdgeInsets.only(right: 6),
-      width: active ? 22 : 7,
-      height: 7,
+      margin: const EdgeInsets.only(right: 5),
+      width: active ? 18 : 6,
+      height: 6,
       decoration: BoxDecoration(
         color: active ? AppTheme.primaryBlue : AppTheme.lightGray,
-        borderRadius: BorderRadius.circular(4),
+        borderRadius: BorderRadius.circular(3),
       ),
     );
   }
@@ -221,16 +233,6 @@ class _Slide1BoardEntry extends StatelessWidget {
       title: '헌혈 신청 ①\n게시판에서 시간대를 선택해요',
       subtitle: '대시보드 → 헌혈 모집 → 게시글 → 시간대 선택',
       scene: DonationBoardScene(onComplete: onComplete),
-      highlight: const _HighlightInfo(
-        title: '헌혈 자격 조건',
-        lines: [
-          '체중 20kg 이상 (강아지 기준)',
-          '직전 헌혈 후 180일 경과',
-          '임신·출산 후 12개월 경과',
-          '종합백신 24개월 이내 / 항체 12개월',
-          '예방약 3개월 이내 복용',
-        ],
-      ),
     );
   }
 }
@@ -246,15 +248,8 @@ class _Slide2Form extends StatelessWidget {
   Widget build(BuildContext context) {
     return _SlideShell(
       title: '헌혈 신청 ②\n반려동물 선택 + 안내사항 동의',
-      subtitle: '시간대를 선택하면 신청 폼이 열려요',
+      subtitle: '신청이 완료되면 관리자가 검토 후 선정 여부를 결정해요',
       scene: DonationFormScene(onComplete: onComplete),
-      highlight: const _HighlightInfo(
-        title: '신청 후',
-        lines: [
-          '관리자가 신청자를 검토 후 선정 여부를 결정해요',
-          '선정되면 사전 설문 작성 단계로 진행돼요 (다음 슬라이드)',
-        ],
-      ),
     );
   }
 }
@@ -284,23 +279,40 @@ class _Slide3Timeline extends StatelessWidget {
 }
 
 // ============================================================
-// 슬라이드 4 — 반려동물 관리
+// 슬라이드 4 — 사전 설문 작성
 // ============================================================
-class _Slide4PetManagement extends StatelessWidget {
+class _Slide4Survey extends StatelessWidget {
   final VoidCallback onComplete;
-  const _Slide4PetManagement({required this.onComplete});
+  const _Slide4Survey({required this.onComplete});
 
   @override
   Widget build(BuildContext context) {
     return _SlideShell(
-      title: '여러 마리 등록하고\n관리할 수 있어요',
-      subtitle: '한 계정에 여러 반려동물을 등록할 수 있어요',
-      scene: PetManagementScene(onComplete: onComplete),
+      title: '사전 설문 작성\n(선정 후 필수)',
+      subtitle: '동의 5개 + 펫/병원 관련 설문 항목들. 헌혈일 D-2 23:55까지 제출하면 돼요',
+      scene: SurveyScene(onComplete: onComplete),
+    );
+  }
+}
+
+// ============================================================
+// 슬라이드 5 — 반려동물 등록
+// ============================================================
+class _Slide5PetRegister extends StatelessWidget {
+  final VoidCallback onComplete;
+  const _Slide5PetRegister({required this.onComplete});
+
+  @override
+  Widget build(BuildContext context) {
+    return _SlideShell(
+      title: '반려동물 등록',
+      subtitle: '대시보드 → 반려동물 관리 → [+] → 정보 입력 → 등록',
+      scene: PetRegisterScene(onComplete: onComplete),
       highlight: const _HighlightWarning(
-        title: '정보 수정 시 주의',
+        title: '등록 후',
         lines: [
-          '체중·혈액형·임신/출산·중성화·예방접종 등\n자격 검증 영향 항목 수정 시 재심사 진입',
-          '백신·항체·예방약 일자, 외부 헌혈 횟수는\n재심사 없이 즉시 반영',
+          '관리자 승인 후 헌혈 신청에 사용 가능',
+          '체중·혈액형·접종 등 자격 검증 영향 항목 수정 시\n재심사 진입',
         ],
       ),
     );
@@ -308,19 +320,36 @@ class _Slide4PetManagement extends StatelessWidget {
 }
 
 // ============================================================
-// 공용 슬라이드 셸
+// 슬라이드 6 — 반려동물 삭제
+// ============================================================
+class _Slide6PetDelete extends StatelessWidget {
+  final VoidCallback onComplete;
+  const _Slide6PetDelete({required this.onComplete});
+
+  @override
+  Widget build(BuildContext context) {
+    return _SlideShell(
+      title: '반려동물 삭제',
+      subtitle: '카드 ⋮ 메뉴 → "삭제" → 확인 다이얼로그',
+      scene: PetDeleteScene(onComplete: onComplete),
+    );
+  }
+}
+
+// ============================================================
+// 공용 — 슬라이드 셸 (scene + 옵션 highlight)
 // ============================================================
 class _SlideShell extends StatelessWidget {
   final String title;
   final String? subtitle;
   final Widget scene;
-  final Widget highlight;
+  final Widget? highlight;
 
   const _SlideShell({
     required this.title,
     this.subtitle,
     required this.scene,
-    required this.highlight,
+    this.highlight,
   });
 
   @override
@@ -354,10 +383,26 @@ class _SlideShell extends StatelessWidget {
           ],
           const SizedBox(height: AppTheme.spacing16),
           scene,
-          const SizedBox(height: AppTheme.spacing16),
-          highlight,
+          if (highlight != null) ...[
+            const SizedBox(height: AppTheme.spacing16),
+            highlight!,
+          ],
         ],
       ),
+    );
+  }
+}
+
+/// 환영 페이지(슬라이드 0) 전용 — 폰 프레임 / 미니어처 없는 단순 셸.
+class _SlideShellPlain extends StatelessWidget {
+  final Widget child;
+
+  const _SlideShellPlain({required this.child});
+
+  @override
+  Widget build(BuildContext context) {
+    return SingleChildScrollView(
+      child: child,
     );
   }
 }
@@ -365,23 +410,6 @@ class _SlideShell extends StatelessWidget {
 // ============================================================
 // 정보 / 주의 박스
 // ============================================================
-class _HighlightInfo extends StatelessWidget {
-  final String title;
-  final List<String> lines;
-
-  const _HighlightInfo({required this.title, required this.lines});
-
-  @override
-  Widget build(BuildContext context) {
-    return _HighlightBox(
-      icon: Icons.lightbulb_outline,
-      color: AppTheme.primaryBlue,
-      title: title,
-      lines: lines,
-    );
-  }
-}
-
 class _HighlightWarning extends StatelessWidget {
   final String title;
   final List<String> lines;
@@ -390,49 +418,29 @@ class _HighlightWarning extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return _HighlightBox(
-      icon: Icons.warning_amber_rounded,
-      color: AppTheme.warning,
-      title: title,
-      lines: lines,
-    );
-  }
-}
-
-class _HighlightBox extends StatelessWidget {
-  final IconData icon;
-  final Color color;
-  final String title;
-  final List<String> lines;
-
-  const _HighlightBox({
-    required this.icon,
-    required this.color,
-    required this.title,
-    required this.lines,
-  });
-
-  @override
-  Widget build(BuildContext context) {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(AppTheme.spacing12),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.08),
+        color: AppTheme.warning.withValues(alpha: 0.08),
         borderRadius: BorderRadius.circular(AppTheme.radius12),
-        border: Border.all(color: color.withValues(alpha: 0.3)),
+        border: Border.all(color: AppTheme.warning.withValues(alpha: 0.3)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              Icon(icon, size: 16, color: color),
+              Icon(
+                Icons.warning_amber_rounded,
+                size: 16,
+                color: AppTheme.warning,
+              ),
               const SizedBox(width: 6),
               Text(
                 title,
                 style: AppTheme.bodySmallStyle.copyWith(
-                  color: color,
+                  color: AppTheme.warning,
                   fontWeight: FontWeight.bold,
                 ),
               ),
@@ -451,7 +459,7 @@ class _HighlightBox extends StatelessWidget {
                       width: 3,
                       height: 3,
                       decoration: BoxDecoration(
-                        color: color,
+                        color: AppTheme.warning,
                         shape: BoxShape.circle,
                       ),
                     ),

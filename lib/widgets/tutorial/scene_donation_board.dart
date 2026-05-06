@@ -1,11 +1,9 @@
 // lib/widgets/tutorial/scene_donation_board.dart
 // 슬라이드 1 — 헌혈 신청 ① 게시판 진입.
 //
-// 스텝 0: 대시보드 (헌혈 모집 + 헌혈 이력 둘 다 표시) → "헌혈 모집" 카드 탭
+// 스텝 0: 대시보드 (헌혈 모집 + 헌혈 이력 + 공지/칼럼) → "헌혈 모집" 카드 탭
 // 스텝 1: 헌혈 게시판 list (정기/긴급 뱃지 + 제목 + 작성일) → 첫 게시글 탭
-// 스텝 2: 바텀시트 (헌혈 예정일 + 시간대 list) → 첫 시간대 탭 → 완료
-//
-// 폼 작성은 슬라이드 2에서 진행 (scene_donation_form).
+// 스텝 2: 자세한 바텀시트 (병원 + 환자 정보 + 헌혈 예정일 + 시간대 list) → 첫 시간대 탭
 
 import 'package:flutter/material.dart';
 import '../../utils/app_theme.dart';
@@ -100,7 +98,8 @@ class _DonationBoardSceneState extends State<DonationBoardScene> {
 }
 
 // ====================================================================
-// 대시보드 미니어처 (스텝 0) — 헌혈 모집 + 헌혈 이력 둘 다 표시
+// 대시보드 미니어처 (스텝 0)
+// 헌혈 모집 + 헌혈 이력 + 공지사항/칼럼 가짜 데이터까지 표시
 // ====================================================================
 class _DashboardMock extends StatelessWidget {
   final bool isCardActive;
@@ -162,14 +161,85 @@ class _DashboardMock extends StatelessWidget {
               ),
               const SizedBox(height: 8),
 
-              // 헌혈 이력 카드 (visual, 비강조)
+              // 헌혈 이력 카드 (visual)
               const _LongActionCard(
                 icon: Icons.bloodtype,
                 iconBg: Color(0xFF1976D2),
                 title: '헌혈 이력',
                 subtitle: '헌혈 신청 및 완료 내역',
               ),
+              const SizedBox(height: 14),
+
+              // 공지사항/칼럼 탭 헤더
+              Row(
+                children: [
+                  _tab('공지사항', active: true),
+                  const SizedBox(width: 14),
+                  _tab('칼럼', active: false),
+                ],
+              ),
+              const SizedBox(height: 8),
+
+              // 공지/칼럼 가짜 데이터
+              const _NoticeRow(title: '시스템 점검 안내', date: '2026.05.05'),
+              const SizedBox(height: 4),
+              const _NoticeRow(title: '5월 헌혈 캠페인', date: '2026.05.04'),
+              const SizedBox(height: 4),
+              const _NoticeRow(title: '협회 운영 안내', date: '2026.05.02'),
             ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _tab(String text, {required bool active}) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          text,
+          style: TextStyle(
+            color: active ? AppTheme.textPrimary : AppTheme.textSecondary,
+            fontSize: 13,
+            fontWeight: active ? FontWeight.bold : FontWeight.normal,
+          ),
+        ),
+        const SizedBox(height: 4),
+        Container(
+          width: 36,
+          height: 2,
+          color: active ? AppTheme.primaryBlue : Colors.transparent,
+        ),
+      ],
+    );
+  }
+}
+
+class _NoticeRow extends StatelessWidget {
+  final String title;
+  final String date;
+
+  const _NoticeRow({required this.title, required this.date});
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Expanded(
+          child: Text(
+            title,
+            style: AppTheme.bodySmallStyle.copyWith(
+              color: AppTheme.textPrimary,
+              fontSize: 12,
+            ),
+          ),
+        ),
+        Text(
+          date,
+          style: AppTheme.bodySmallStyle.copyWith(
+            color: AppTheme.textSecondary,
+            fontSize: 10,
           ),
         ),
       ],
@@ -246,7 +316,7 @@ class _LongActionCard extends StatelessWidget {
 }
 
 // ====================================================================
-// 게시판 list 미니어처 (스텝 1) — 정기/긴급 뱃지 + 제목 + 작성일
+// 게시판 list 미니어처 (스텝 1)
 // ====================================================================
 class _BoardListMock extends StatelessWidget {
   final bool isFirstPostActive;
@@ -363,7 +433,8 @@ class _PostListCard extends StatelessWidget {
 }
 
 // ====================================================================
-// 바텀시트 미니어처 (스텝 2) — 헌혈 예정일 + 시간대
+// 자세한 바텀시트 미니어처 (스텝 2)
+// 병원 + 환자 정보 + 헌혈 예정일 + 시간대 list (신청자 수 X)
 // ====================================================================
 class _BottomSheetMock extends StatelessWidget {
   final bool isFirstSlotActive;
@@ -379,11 +450,10 @@ class _BottomSheetMock extends StatelessWidget {
   Widget build(BuildContext context) {
     return Stack(
       children: [
-        // 뒤편 board list (살짝 어두워진 상태)
+        // 뒤편 board list (살짝 dim)
         Column(
           children: [
             const TutorialMockSubAppBar(title: '헌혈 모집'),
-            // 카드 1~2개만 살짝 보이게
             Padding(
               padding: const EdgeInsets.all(12),
               child: Column(
@@ -404,13 +474,13 @@ class _BottomSheetMock extends StatelessWidget {
             ),
           ],
         ),
-        // 살짝 어둡게 (검은 풀 오버레이는 아니고 약한 dim)
+        // 약한 dim
         Positioned.fill(
           child: IgnorePointer(
             child: Container(color: Colors.black.withValues(alpha: 0.15)),
           ),
         ),
-        // 바텀시트
+        // 바텀시트 (자세한 정보)
         Positioned(
           left: 0,
           right: 0,
@@ -484,14 +554,15 @@ class _BottomSheetMock extends StatelessWidget {
               ),
             ],
           ),
+          const SizedBox(height: 8),
+          // 자세한 정보 — 병원 / 주소 / 환자 정보
+          _infoLine(Icons.local_hospital_outlined, '행복동물병원'),
           const SizedBox(height: 4),
-          Text(
-            '행복동물병원 · 서울 강남',
-            style: AppTheme.bodySmallStyle.copyWith(
-              color: AppTheme.textSecondary,
-              fontSize: 11,
-            ),
-          ),
+          _infoLine(Icons.location_on_outlined, '서울 강남구 테헤란로 123'),
+          const SizedBox(height: 4),
+          _infoLine(Icons.pets, '환자: 7세 보더콜리 · 12kg'),
+          const SizedBox(height: 4),
+          _infoLine(Icons.medical_information_outlined, '필요 혈액형: DEA 1.1+'),
           const SizedBox(height: 12),
           Container(height: 1, color: AppTheme.lightGray),
           const SizedBox(height: 12),
@@ -503,7 +574,7 @@ class _BottomSheetMock extends StatelessWidget {
               fontSize: 12,
             ),
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 4),
           Text(
             '5/15 (월)',
             style: AppTheme.bodySmallStyle.copyWith(
@@ -512,27 +583,44 @@ class _BottomSheetMock extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 8),
-          // 시간대 list
+          // 시간대 list (신청자 수 표시 X)
           HighlightTarget(
             isActive: isFirstSlotActive,
             onTap: onFirstSlotTap,
-            child: const _TimeSlotRow(time: '14:00', count: '3/5'),
+            child: const _TimeSlotRow(time: '14:00'),
           ),
           const SizedBox(height: 6),
-          const _TimeSlotRow(time: '15:00', count: '1/5'),
+          const _TimeSlotRow(time: '15:00'),
           const SizedBox(height: 6),
-          const _TimeSlotRow(time: '16:00', count: '0/5'),
+          const _TimeSlotRow(time: '16:00'),
         ],
       ),
+    );
+  }
+
+  Widget _infoLine(IconData icon, String text) {
+    return Row(
+      children: [
+        Icon(icon, size: 14, color: AppTheme.textSecondary),
+        const SizedBox(width: 6),
+        Expanded(
+          child: Text(
+            text,
+            style: AppTheme.bodySmallStyle.copyWith(
+              color: AppTheme.textPrimary,
+              fontSize: 11,
+            ),
+          ),
+        ),
+      ],
     );
   }
 }
 
 class _TimeSlotRow extends StatelessWidget {
   final String time;
-  final String count;
 
-  const _TimeSlotRow({required this.time, required this.count});
+  const _TimeSlotRow({required this.time});
 
   @override
   Widget build(BuildContext context) {
@@ -559,12 +647,10 @@ class _TimeSlotRow extends StatelessWidget {
             ),
           ),
           const Spacer(),
-          Text(
-            count,
-            style: AppTheme.bodySmallStyle.copyWith(
-              color: AppTheme.textSecondary,
-              fontSize: 11,
-            ),
+          Icon(
+            Icons.arrow_forward_ios,
+            size: 12,
+            color: AppTheme.textSecondary,
           ),
         ],
       ),
