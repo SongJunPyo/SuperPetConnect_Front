@@ -1,15 +1,16 @@
 // lib/widgets/tutorial/scene_donation_board.dart
-// 슬라이드 1 — 실제 대시보드 → 헌혈 게시판 list 흐름.
+// 슬라이드 1 — 헌혈 신청 ① 게시판 진입.
 //
-// 스텝 0: 대시보드 모형 + "헌혈 모집" 카드 강조 → 탭 → 게시판 list로 전환
-// 스텝 1: 게시판 list + 첫 게시글 강조 → 탭 → 완료
+// 스텝 0: 대시보드 (헌혈 모집 + 헌혈 이력 둘 다 표시) → "헌혈 모집" 카드 탭
+// 스텝 1: 헌혈 게시판 list (정기/긴급 뱃지 + 제목 + 작성일) → 첫 게시글 탭
+// 스텝 2: 바텀시트 (헌혈 예정일 + 시간대 list) → 첫 시간대 탭 → 완료
 //
-// 대시보드 모형은 실제 UserDashboard의 핵심 요소를 미니어처로 재현
-// (AppBar, 인사말, 헌혈 모집 카드, 탭 헤더). 가데이터.
+// 폼 작성은 슬라이드 2에서 진행 (scene_donation_form).
 
 import 'package:flutter/material.dart';
 import '../../utils/app_theme.dart';
 import 'highlight_target.dart';
+import 'tutorial_phone_frame.dart';
 
 class DonationBoardScene extends StatefulWidget {
   final VoidCallback onComplete;
@@ -29,19 +30,31 @@ class _DonationBoardSceneState extends State<DonationBoardScene> {
     setState(() => _step = 1);
   }
 
-  void _onPostTap() {
+  void _onPostCardTap() {
     if (_step != 1) return;
+    setState(() => _step = 2);
+  }
+
+  void _onTimeSlotTap() {
+    if (_step != 2) return;
     setState(() {
-      _step = 2;
+      _step = 3;
       _completed = true;
     });
     widget.onComplete();
   }
 
   String get _helperText {
-    if (_step == 0) return '"헌혈 모집" 카드를 탭하면 게시판으로 이동해요';
-    if (_step == 1) return '관심 있는 게시글을 탭해보세요';
-    return '게시글을 골라 안내문 → 시간대 선택 → 신청 순서로 진행해요';
+    switch (_step) {
+      case 0:
+        return '[탭] 헌혈 게시판으로 이동 (대시보드엔 "헌혈 이력"도 별도로 있어요)';
+      case 1:
+        return '[탭] 게시글을 누르면 상세 정보가 바텀시트로 올라와요';
+      case 2:
+        return '[탭] 가능한 시간대를 선택합니다';
+      default:
+        return '시간대 선택 완료. 다음 슬라이드에서 신청 폼을 작성해요';
+    }
   }
 
   @override
@@ -49,23 +62,12 @@ class _DonationBoardSceneState extends State<DonationBoardScene> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        // 미니어처 화면 (실제 phone screen 느낌으로 외곽 그림자 + 둥근 모서리)
-        _PhoneFrame(
+        TutorialPhoneFrame(
           child: AnimatedSwitcher(
             duration: const Duration(milliseconds: 300),
             switchInCurve: Curves.easeOut,
             switchOutCurve: Curves.easeIn,
-            child: _step == 0
-                ? _DashboardMock(
-                    key: const ValueKey('dashboard'),
-                    isCardActive: !_completed && _step == 0,
-                    onCardTap: _onDashboardCardTap,
-                  )
-                : _BoardListMock(
-                    key: const ValueKey('boardList'),
-                    isFirstPostActive: !_completed && _step == 1,
-                    onFirstPostTap: _onPostTap,
-                  ),
+            child: _buildCurrentView(),
           ),
         ),
         const SizedBox(height: AppTheme.spacing12),
@@ -73,41 +75,32 @@ class _DonationBoardSceneState extends State<DonationBoardScene> {
       ],
     );
   }
-}
 
-// ====================================================================
-// 폰 화면 프레임 — 미니어처 느낌
-// ====================================================================
-class _PhoneFrame extends StatelessWidget {
-  final Widget child;
-
-  const _PhoneFrame({required this.child});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: AppTheme.lightGray, width: 1),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.06),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(20),
-        child: child,
-      ),
+  Widget _buildCurrentView() {
+    if (_step == 0) {
+      return _DashboardMock(
+        key: const ValueKey('dashboard'),
+        isCardActive: !_completed,
+        onCardTap: _onDashboardCardTap,
+      );
+    }
+    if (_step == 1) {
+      return _BoardListMock(
+        key: const ValueKey('board'),
+        isFirstPostActive: true,
+        onFirstPostTap: _onPostCardTap,
+      );
+    }
+    return _BottomSheetMock(
+      key: const ValueKey('sheet'),
+      isFirstSlotActive: !_completed,
+      onFirstSlotTap: _onTimeSlotTap,
     );
   }
 }
 
 // ====================================================================
-// 대시보드 미니어처 (스텝 0)
+// 대시보드 미니어처 (스텝 0) — 헌혈 모집 + 헌혈 이력 둘 다 표시
 // ====================================================================
 class _DashboardMock extends StatelessWidget {
   final bool isCardActive;
@@ -124,8 +117,7 @@ class _DashboardMock extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        // AppBar 모형
-        const _MockAppBar(),
+        const TutorialMockAppBar(),
         Padding(
           padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
           child: Column(
@@ -136,7 +128,7 @@ class _DashboardMock extends StatelessWidget {
                 style: AppTheme.bodyMediumStyle.copyWith(
                   fontWeight: FontWeight.bold,
                   color: AppTheme.textPrimary,
-                  fontSize: 17,
+                  fontSize: 16,
                 ),
               ),
               Text(
@@ -144,7 +136,7 @@ class _DashboardMock extends StatelessWidget {
                 style: AppTheme.bodyMediumStyle.copyWith(
                   fontWeight: FontWeight.bold,
                   color: AppTheme.textPrimary,
-                  fontSize: 17,
+                  fontSize: 16,
                 ),
               ),
               const SizedBox(height: 4),
@@ -155,22 +147,28 @@ class _DashboardMock extends StatelessWidget {
                   fontSize: 11,
                 ),
               ),
-              const SizedBox(height: AppTheme.spacing16),
+              const SizedBox(height: 14),
 
               // 헌혈 모집 카드 (강조 대상)
               HighlightTarget(
                 isActive: isCardActive,
                 onTap: onCardTap,
-                child: _DonationEntryCard(),
+                child: const _LongActionCard(
+                  icon: Icons.bloodtype_outlined,
+                  iconBg: Color(0xFFE53935),
+                  title: '헌혈 모집',
+                  subtitle: '진행 중인 헌혈 요청 모아보기',
+                ),
               ),
-              const SizedBox(height: AppTheme.spacing12),
+              const SizedBox(height: 8),
 
-              // 탭 헤더 모형
-              const _MockTabHeader(),
-              const SizedBox(height: AppTheme.spacing8),
-
-              // 탭 컨텐츠 list 모형
-              const _MockTabContent(),
+              // 헌혈 이력 카드 (visual, 비강조)
+              const _LongActionCard(
+                icon: Icons.bloodtype,
+                iconBg: Color(0xFF1976D2),
+                title: '헌혈 이력',
+                subtitle: '헌혈 신청 및 완료 내역',
+              ),
             ],
           ),
         ),
@@ -179,47 +177,55 @@ class _DashboardMock extends StatelessWidget {
   }
 }
 
-class _DonationEntryCard extends StatelessWidget {
+class _LongActionCard extends StatelessWidget {
+  final IconData icon;
+  final Color iconBg;
+  final String title;
+  final String subtitle;
+
+  const _LongActionCard({
+    required this.icon,
+    required this.iconBg,
+    required this.title,
+    required this.subtitle,
+  });
+
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: Colors.red.shade50,
+        color: Colors.white,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.red.shade100),
+        border: Border.all(color: AppTheme.lightGray.withValues(alpha: 0.6)),
       ),
       child: Row(
         children: [
           Container(
-            width: 40,
-            height: 40,
+            width: 36,
+            height: 36,
             decoration: BoxDecoration(
-              color: Colors.red.shade600,
-              borderRadius: BorderRadius.circular(10),
+              color: iconBg,
+              borderRadius: BorderRadius.circular(8),
             ),
-            child: const Icon(
-              Icons.bloodtype_outlined,
-              color: Colors.white,
-              size: 22,
-            ),
+            child: Icon(icon, color: Colors.white, size: 20),
           ),
-          const SizedBox(width: 12),
+          const SizedBox(width: 10),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  '헌혈 모집',
+                  title,
                   style: AppTheme.bodyMediumStyle.copyWith(
                     fontWeight: FontWeight.bold,
                     color: AppTheme.textPrimary,
-                    fontSize: 14,
+                    fontSize: 13,
                   ),
                 ),
                 const SizedBox(height: 2),
                 Text(
-                  '진행 중인 헌혈 요청 모아보기',
+                  subtitle,
                   style: AppTheme.bodySmallStyle.copyWith(
                     color: AppTheme.textSecondary,
                     fontSize: 11,
@@ -230,7 +236,7 @@ class _DonationEntryCard extends StatelessWidget {
           ),
           Icon(
             Icons.arrow_forward_ios,
-            size: 14,
+            size: 12,
             color: AppTheme.textSecondary,
           ),
         ],
@@ -240,7 +246,7 @@ class _DonationEntryCard extends StatelessWidget {
 }
 
 // ====================================================================
-// 게시판 list 미니어처 (스텝 1)
+// 게시판 list 미니어처 (스텝 1) — 정기/긴급 뱃지 + 제목 + 작성일
 // ====================================================================
 class _BoardListMock extends StatelessWidget {
   final bool isFirstPostActive;
@@ -257,34 +263,7 @@ class _BoardListMock extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        // 헌혈 게시판 헤더 (간단한 AppBar 형태)
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            border: Border(
-              bottom: BorderSide(color: AppTheme.lightGray),
-            ),
-          ),
-          child: Row(
-            children: [
-              Icon(
-                Icons.arrow_back_ios_new,
-                size: 16,
-                color: AppTheme.textPrimary,
-              ),
-              const SizedBox(width: 12),
-              Text(
-                '헌혈 게시판',
-                style: AppTheme.bodyMediumStyle.copyWith(
-                  fontWeight: FontWeight.bold,
-                  color: AppTheme.textPrimary,
-                  fontSize: 15,
-                ),
-              ),
-            ],
-          ),
-        ),
+        const TutorialMockSubAppBar(title: '헌혈 모집'),
         Padding(
           padding: const EdgeInsets.all(12),
           child: Column(
@@ -294,24 +273,21 @@ class _BoardListMock extends StatelessWidget {
                 onTap: onFirstPostTap,
                 child: const _PostListCard(
                   urgent: true,
-                  title: '강아지 헌혈 필요',
-                  hospital: '행복동물병원',
-                  distance: '5km',
+                  title: '강아지 긴급 헌혈 필요',
+                  date: '2026.05.05',
                 ),
               ),
-              const SizedBox(height: 10),
+              const SizedBox(height: 8),
               const _PostListCard(
                 urgent: false,
                 title: '정기 헌혈 모집',
-                hospital: '사랑동물병원',
-                distance: '12km',
+                date: '2026.05.04',
               ),
-              const SizedBox(height: 10),
+              const SizedBox(height: 8),
               const _PostListCard(
                 urgent: false,
                 title: '강아지 정기 헌혈',
-                hospital: '연세동물병원',
-                distance: '8km',
+                date: '2026.05.02',
               ),
             ],
           ),
@@ -324,14 +300,12 @@ class _BoardListMock extends StatelessWidget {
 class _PostListCard extends StatelessWidget {
   final bool urgent;
   final String title;
-  final String hospital;
-  final String distance;
+  final String date;
 
   const _PostListCard({
     required this.urgent,
     required this.title,
-    required this.hospital,
-    required this.distance,
+    required this.date,
   });
 
   @override
@@ -345,120 +319,41 @@ class _PostListCard extends StatelessWidget {
       ),
       child: Row(
         children: [
-          Icon(
-            Icons.bloodtype_outlined,
-            color: urgent ? AppTheme.error : AppTheme.primaryBlue,
-            size: 24,
-          ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    if (urgent) ...[
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 6,
-                          vertical: 2,
-                        ),
-                        decoration: BoxDecoration(
-                          color: AppTheme.error,
-                          borderRadius: BorderRadius.circular(4),
-                        ),
-                        child: const Text(
-                          '긴급',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 9,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 6),
-                    ],
-                    Flexible(
-                      child: Text(
-                        title,
-                        style: AppTheme.bodySmallStyle.copyWith(
-                          fontWeight: FontWeight.w600,
-                          color: AppTheme.textPrimary,
-                          fontSize: 13,
-                        ),
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  '$hospital · $distance',
-                  style: AppTheme.bodySmallStyle.copyWith(
-                    color: AppTheme.textSecondary,
-                    fontSize: 11,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-// ====================================================================
-// 공용 — AppBar / 탭 헤더 / 탭 컨텐츠 모형
-// ====================================================================
-class _MockAppBar extends StatelessWidget {
-  const _MockAppBar();
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        border: Border(bottom: BorderSide(color: AppTheme.lightGray)),
-      ),
-      child: Row(
-        children: [
-          Icon(
-            Icons.notifications_none,
-            size: 20,
-            color: AppTheme.textPrimary,
-          ),
-          const SizedBox(width: 4),
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(Icons.pets, size: 16, color: AppTheme.textPrimary),
-                const SizedBox(width: 4),
-                Text(
-                  '반려동물 관리',
-                  style: AppTheme.bodySmallStyle.copyWith(
-                    color: AppTheme.textPrimary,
-                    fontSize: 11,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const Spacer(),
-          Container(
-            width: 28,
-            height: 28,
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
             decoration: BoxDecoration(
-              color: AppTheme.veryLightGray,
-              shape: BoxShape.circle,
+              color: urgent
+                  ? AppTheme.error
+                  : AppTheme.primaryBlue.withValues(alpha: 0.85),
+              borderRadius: BorderRadius.circular(4),
             ),
-            child: Icon(
-              Icons.person_outline,
-              size: 18,
-              color: AppTheme.textPrimary,
+            child: Text(
+              urgent ? '긴급' : '정기',
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 10,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              title,
+              style: AppTheme.bodySmallStyle.copyWith(
+                fontWeight: FontWeight.w600,
+                color: AppTheme.textPrimary,
+                fontSize: 13,
+              ),
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+          const SizedBox(width: 6),
+          Text(
+            date,
+            style: AppTheme.bodySmallStyle.copyWith(
+              color: AppTheme.textSecondary,
+              fontSize: 10,
             ),
           ),
         ],
@@ -467,80 +362,212 @@ class _MockAppBar extends StatelessWidget {
   }
 }
 
-class _MockTabHeader extends StatelessWidget {
-  const _MockTabHeader();
+// ====================================================================
+// 바텀시트 미니어처 (스텝 2) — 헌혈 예정일 + 시간대
+// ====================================================================
+class _BottomSheetMock extends StatelessWidget {
+  final bool isFirstSlotActive;
+  final VoidCallback onFirstSlotTap;
+
+  const _BottomSheetMock({
+    super.key,
+    required this.isFirstSlotActive,
+    required this.onFirstSlotTap,
+  });
 
   @override
   Widget build(BuildContext context) {
-    return Row(
+    return Stack(
       children: [
-        _tab('공지사항', active: true),
-        const SizedBox(width: 16),
-        _tab('칼럼', active: false),
-      ],
-    );
-  }
-
-  Widget _tab(String text, {required bool active}) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          text,
-          style: TextStyle(
-            color: active ? AppTheme.textPrimary : AppTheme.textSecondary,
-            fontSize: 13,
-            fontWeight: active ? FontWeight.bold : FontWeight.normal,
+        // 뒤편 board list (살짝 어두워진 상태)
+        Column(
+          children: [
+            const TutorialMockSubAppBar(title: '헌혈 모집'),
+            // 카드 1~2개만 살짝 보이게
+            Padding(
+              padding: const EdgeInsets.all(12),
+              child: Column(
+                children: const [
+                  _PostListCard(
+                    urgent: true,
+                    title: '강아지 긴급 헌혈 필요',
+                    date: '2026.05.05',
+                  ),
+                  SizedBox(height: 8),
+                  _PostListCard(
+                    urgent: false,
+                    title: '정기 헌혈 모집',
+                    date: '2026.05.04',
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+        // 살짝 어둡게 (검은 풀 오버레이는 아니고 약한 dim)
+        Positioned.fill(
+          child: IgnorePointer(
+            child: Container(color: Colors.black.withValues(alpha: 0.15)),
           ),
         ),
-        const SizedBox(height: 4),
-        Container(
-          width: 32,
-          height: 2,
-          color: active ? AppTheme.primaryBlue : Colors.transparent,
+        // 바텀시트
+        Positioned(
+          left: 0,
+          right: 0,
+          bottom: 0,
+          child: _bottomSheet(
+            onFirstSlotTap: onFirstSlotTap,
+            isFirstSlotActive: isFirstSlotActive,
+          ),
         ),
       ],
     );
   }
-}
 
-class _MockTabContent extends StatelessWidget {
-  const _MockTabContent();
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        _row('시스템 점검 안내', '2026.05.05'),
-        const SizedBox(height: 6),
-        _row('헌혈견 협회 공지사항', '2026.05.04'),
-        const SizedBox(height: 6),
-        _row('5월 헌혈 캠페인', '2026.05.01'),
-      ],
-    );
-  }
-
-  Widget _row(String title, String date) {
-    return Row(
-      children: [
-        Expanded(
-          child: Text(
-            title,
+  Widget _bottomSheet({
+    required bool isFirstSlotActive,
+    required VoidCallback onFirstSlotTap,
+  }) {
+    return Container(
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // grab handle
+          Center(
+            child: Container(
+              width: 36,
+              height: 4,
+              decoration: BoxDecoration(
+                color: AppTheme.lightGray,
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+          ),
+          const SizedBox(height: 12),
+          // 게시글 헤더
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 6,
+                  vertical: 2,
+                ),
+                decoration: BoxDecoration(
+                  color: AppTheme.error,
+                  borderRadius: BorderRadius.circular(4),
+                ),
+                child: const Text(
+                  '긴급',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 9,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 6),
+              Flexible(
+                child: Text(
+                  '강아지 긴급 헌혈 필요',
+                  style: AppTheme.bodyMediumStyle.copyWith(
+                    fontWeight: FontWeight.bold,
+                    color: AppTheme.textPrimary,
+                    fontSize: 13,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 4),
+          Text(
+            '행복동물병원 · 서울 강남',
             style: AppTheme.bodySmallStyle.copyWith(
+              color: AppTheme.textSecondary,
+              fontSize: 11,
+            ),
+          ),
+          const SizedBox(height: 12),
+          Container(height: 1, color: AppTheme.lightGray),
+          const SizedBox(height: 12),
+          Text(
+            '헌혈 예정일',
+            style: AppTheme.bodySmallStyle.copyWith(
+              fontWeight: FontWeight.bold,
               color: AppTheme.textPrimary,
               fontSize: 12,
             ),
           ),
-        ),
-        Text(
-          date,
-          style: AppTheme.bodySmallStyle.copyWith(
-            color: AppTheme.textSecondary,
-            fontSize: 10,
+          const SizedBox(height: 8),
+          Text(
+            '5/15 (월)',
+            style: AppTheme.bodySmallStyle.copyWith(
+              color: AppTheme.textSecondary,
+              fontSize: 11,
+            ),
           ),
-        ),
-      ],
+          const SizedBox(height: 8),
+          // 시간대 list
+          HighlightTarget(
+            isActive: isFirstSlotActive,
+            onTap: onFirstSlotTap,
+            child: const _TimeSlotRow(time: '14:00', count: '3/5'),
+          ),
+          const SizedBox(height: 6),
+          const _TimeSlotRow(time: '15:00', count: '1/5'),
+          const SizedBox(height: 6),
+          const _TimeSlotRow(time: '16:00', count: '0/5'),
+        ],
+      ),
+    );
+  }
+}
+
+class _TimeSlotRow extends StatelessWidget {
+  final String time;
+  final String count;
+
+  const _TimeSlotRow({required this.time, required this.count});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: AppTheme.veryLightGray,
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Row(
+        children: [
+          Icon(
+            Icons.access_time,
+            size: 14,
+            color: AppTheme.textSecondary,
+          ),
+          const SizedBox(width: 6),
+          Text(
+            time,
+            style: AppTheme.bodySmallStyle.copyWith(
+              color: AppTheme.textPrimary,
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          const Spacer(),
+          Text(
+            count,
+            style: AppTheme.bodySmallStyle.copyWith(
+              color: AppTheme.textSecondary,
+              fontSize: 11,
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

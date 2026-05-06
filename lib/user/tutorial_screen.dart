@@ -1,16 +1,16 @@
 // lib/user/tutorial_screen.dart
-// 사용자 튜토리얼 — 팝업(Dialog) 형태, 인터랙티브 3 슬라이드.
+// 사용자 튜토리얼 — 팝업(Dialog) 형태, 4 슬라이드.
 //
-// 진입 방식:
-//   showDialog(context: ..., barrierDismissible: false, builder: (_) => TutorialScreen(onFinished: ...))
-//
-// 각 슬라이드 = 팝업 카드 안에 미니어처 화면(scene) + 도움말 텍스트 + 정보/주의 박스.
-// 시퀀스 미완료 시 [다음] 비활성, 완료 시 활성.
+// 슬라이드 1: 헌혈 신청 ① 게시판 진입 (3 step 인터랙티브)
+// 슬라이드 2: 헌혈 신청 ② 폼 작성 (3 step 인터랙티브)
+// 슬라이드 3: 신청 후 흐름 (정보 시각화, 자동 재생, 0 step)
+// 슬라이드 4: 반려동물 추가/삭제 (3 step 인터랙티브)
 
 import 'package:flutter/material.dart';
 import '../utils/app_theme.dart';
 import '../widgets/tutorial/scene_donation_board.dart';
-import '../widgets/tutorial/scene_application_card.dart';
+import '../widgets/tutorial/scene_donation_form.dart';
+import '../widgets/tutorial/scene_application_timeline.dart';
 import '../widgets/tutorial/scene_pet_management.dart';
 
 class TutorialScreen extends StatefulWidget {
@@ -28,7 +28,7 @@ class _TutorialScreenState extends State<TutorialScreen> {
   int _currentPage = 0;
   final Set<int> _completedPages = <int>{};
 
-  static const int _totalPages = 3;
+  static const int _totalPages = 4;
 
   @override
   void dispose() {
@@ -77,29 +77,25 @@ class _TutorialScreenState extends State<TutorialScreen> {
         child: Column(
           mainAxisSize: MainAxisSize.max,
           children: [
-            // 헤더: 페이지 닷 + 닫기
             _Header(
               currentPage: _currentPage,
               totalPages: _totalPages,
               onClose: _finish,
             ),
             const Divider(height: 1, thickness: 1),
-
-            // 본문 (Expanded로 남은 공간 다 차지)
             Expanded(
               child: PageView(
                 controller: _pageController,
                 physics: const NeverScrollableScrollPhysics(),
                 onPageChanged: (idx) => setState(() => _currentPage = idx),
                 children: [
-                  _Slide1Donation(onComplete: _markCurrentComplete),
-                  _Slide2Application(onComplete: _markCurrentComplete),
-                  _Slide3PetManagement(onComplete: _markCurrentComplete),
+                  _Slide1BoardEntry(onComplete: _markCurrentComplete),
+                  _Slide2Form(onComplete: _markCurrentComplete),
+                  _Slide3Timeline(onComplete: _markCurrentComplete),
+                  _Slide4PetManagement(onComplete: _markCurrentComplete),
                 ],
               ),
             ),
-
-            // 푸터: 다음/시작하기 버튼
             const Divider(height: 1, thickness: 1),
             Padding(
               padding: const EdgeInsets.fromLTRB(
@@ -144,7 +140,7 @@ class _TutorialScreenState extends State<TutorialScreen> {
 }
 
 // ============================================================
-// 헤더 — 페이지 닷 + 닫기 버튼
+// 헤더
 // ============================================================
 class _Header extends StatelessWidget {
   final int currentPage;
@@ -168,7 +164,6 @@ class _Header extends StatelessWidget {
       ),
       child: Row(
         children: [
-          // 페이지 닷 (왼쪽 정렬)
           Row(
             mainAxisSize: MainAxisSize.min,
             children: List.generate(
@@ -214,18 +209,17 @@ class _PageDot extends StatelessWidget {
 }
 
 // ============================================================
-// 슬라이드 1 — 헌혈 신청
+// 슬라이드 1 — 헌혈 신청 ① 게시판 진입
 // ============================================================
-class _Slide1Donation extends StatelessWidget {
+class _Slide1BoardEntry extends StatelessWidget {
   final VoidCallback onComplete;
-
-  const _Slide1Donation({required this.onComplete});
+  const _Slide1BoardEntry({required this.onComplete});
 
   @override
   Widget build(BuildContext context) {
     return _SlideShell(
-      title: '헌혈이 필요한 친구들에게\n도움을 주세요',
-      subtitle: '헌혈 게시판에서 우리 아이가 도울 수 있는 글을 찾아보세요',
+      title: '헌혈 신청 ①\n게시판에서 시간대를 선택해요',
+      subtitle: '대시보드 → 헌혈 모집 → 게시글 → 시간대 선택',
       scene: DonationBoardScene(onComplete: onComplete),
       highlight: const _HighlightInfo(
         title: '헌혈 자격 조건',
@@ -242,19 +236,42 @@ class _Slide1Donation extends StatelessWidget {
 }
 
 // ============================================================
-// 슬라이드 2 — 신청 후 흐름
+// 슬라이드 2 — 헌혈 신청 ② 폼 작성
 // ============================================================
-class _Slide2Application extends StatelessWidget {
+class _Slide2Form extends StatelessWidget {
   final VoidCallback onComplete;
+  const _Slide2Form({required this.onComplete});
 
-  const _Slide2Application({required this.onComplete});
+  @override
+  Widget build(BuildContext context) {
+    return _SlideShell(
+      title: '헌혈 신청 ②\n반려동물 선택 + 안내사항 동의',
+      subtitle: '시간대를 선택하면 신청 폼이 열려요',
+      scene: DonationFormScene(onComplete: onComplete),
+      highlight: const _HighlightInfo(
+        title: '신청 후',
+        lines: [
+          '관리자가 신청자를 검토 후 선정 여부를 결정해요',
+          '선정되면 사전 설문 작성 단계로 진행돼요 (다음 슬라이드)',
+        ],
+      ),
+    );
+  }
+}
+
+// ============================================================
+// 슬라이드 3 — 신청 후 흐름
+// ============================================================
+class _Slide3Timeline extends StatelessWidget {
+  final VoidCallback onComplete;
+  const _Slide3Timeline({required this.onComplete});
 
   @override
   Widget build(BuildContext context) {
     return _SlideShell(
       title: '신청 후 진행 상태를\n확인해요',
-      subtitle: '대기 → 선정 → 사전 설문 → 헌혈 → 완료 순서로 진행돼요',
-      scene: ApplicationCardScene(onComplete: onComplete),
+      subtitle: '대부분의 단계는 관리자/병원이 처리. 사용자가 직접 하는 건 사전 설문 작성 한 번',
+      scene: ApplicationTimelineScene(onComplete: onComplete),
       highlight: const _HighlightWarning(
         title: '꼭 확인해주세요',
         lines: [
@@ -267,12 +284,11 @@ class _Slide2Application extends StatelessWidget {
 }
 
 // ============================================================
-// 슬라이드 3 — 반려동물 관리
+// 슬라이드 4 — 반려동물 관리
 // ============================================================
-class _Slide3PetManagement extends StatelessWidget {
+class _Slide4PetManagement extends StatelessWidget {
   final VoidCallback onComplete;
-
-  const _Slide3PetManagement({required this.onComplete});
+  const _Slide4PetManagement({required this.onComplete});
 
   @override
   Widget build(BuildContext context) {
@@ -292,7 +308,7 @@ class _Slide3PetManagement extends StatelessWidget {
 }
 
 // ============================================================
-// 공용 슬라이드 셸 — 제목 + scene + highlight 박스
+// 공용 슬라이드 셸
 // ============================================================
 class _SlideShell extends StatelessWidget {
   final String title;
