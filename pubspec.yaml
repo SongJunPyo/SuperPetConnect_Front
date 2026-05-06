@@ -71,6 +71,11 @@ dependencies:
   app_badge_plus: ^1.2.7
   # 커스텀 달력 (관리자 날짜 범위 picker — 한국 공휴일/일요일 빨강 표시)
   table_calendar: ^3.1.2
+  # 마크다운 렌더 (헌혈 동의 안내문 — 2026-05 PR-2)
+  flutter_markdown: ^0.7.4
+  # 헌혈 설문 PDF/Excel 다운로드 (모바일 임시 저장 + 시스템 viewer 열기 — 2026-05 PR-4)
+  path_provider: ^2.1.5
+  open_filex: ^4.5.0
 
 dev_dependencies:
   flutter_test:

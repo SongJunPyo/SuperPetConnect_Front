@@ -63,6 +63,72 @@ class ApiEndpoints {
   // ===== Applied Donation =====
   static const String appliedDonation = '$api/applied-donations';
 
+  // ===== Donation Survey (2026-05 PR-2) =====
+  /// 동의 텍스트 + 5개 동의 항목: GET /api/donation-consent/items
+  /// 신청 시점/설문 시점 모두 동일 endpoint 사용 (UI에서 분기).
+  static const String donationConsentItems = '$api/donation-consent/items';
+
+  /// 설문 작성용 자동 채움 데이터: GET /api/applied-donations/{id}/survey/template
+  static String donationSurveyTemplate(int applicationId) =>
+      '$appliedDonation/$applicationId/survey/template';
+
+  /// 설문 본문 CRUD: /api/applied-donations/{id}/survey
+  /// - GET: 본인 설문 조회 (잠금 후에도 read-only로 200)
+  /// - POST: 신규 작성 (status==APPROVED, 1신청당 1설문, 409 SURVEY_ALREADY_EXISTS 가드)
+  /// - PATCH: 수정 (잠금 시 400 SURVEY_LOCKED, admin 열람 후엔 admin_reviewed_at NULL 복귀 옵션 A+C)
+  static String donationSurvey(int applicationId) =>
+      '$appliedDonation/$applicationId/survey';
+
+  // ===== Donation Survey — Admin (2026-05 PR-3) =====
+  /// 관리자 설문 목록: GET /api/admin/donation-surveys
+  /// query: review_status, post_idx, hospital_code, donation_date_from/to,
+  ///        application_status, sort, page, page_size
+  static const String adminDonationSurveys = '$admin/donation-surveys';
+
+  /// 검토 대기 카운트 (배지 전용 경량): GET /api/admin/donation-surveys/pending-count
+  static const String adminDonationSurveysPendingCount =
+      '$admin/donation-surveys/pending-count';
+
+  /// 관리자 설문 단건 (옵션 a 자동 PATCH): GET /api/admin/donation-surveys/{idx}
+  /// 첫 GET 시 admin_reviewed_at = NOW + admin_reviewed_by 설정. 두 번째 이후 read-only.
+  static String adminDonationSurvey(int surveyIdx) =>
+      '$admin/donation-surveys/$surveyIdx';
+
+  /// 게시글별 설문 일괄 (admin): GET /api/admin/posts/{post_idx}/donation-surveys
+  static String adminPostDonationSurveys(int postIdx) =>
+      '$admin/posts/$postIdx/donation-surveys';
+
+  // ===== Donation Survey — Hospital (2026-05 PR-3) =====
+  /// 병원 게시글의 신청자 설문 일괄: GET /api/hospital/posts/{post_idx}/donation-surveys
+  /// 자동 권한 필터 (post.hospital_idx 검증). 다른 병원 → 403.
+  static String hospitalPostDonationSurveys(int postIdx) =>
+      '$hospitalPosts/$postIdx/donation-surveys';
+
+  /// 병원 설문 단건: GET /api/hospital/donation-surveys/{idx}
+  /// assert_hospital_owns_application 가드 (다른 병원 설문 → 403).
+  static String hospitalDonationSurvey(int surveyIdx) =>
+      '$hospital/donation-surveys/$surveyIdx';
+
+  // ===== Donation Survey — Downloads (2026-05 PR-4) =====
+  /// 관리자 단건 PDF: GET /api/admin/donation-surveys/{idx}/pdf
+  /// 응답: application/pdf + Content-Disposition: attachment; filename*=UTF-8''<%encoded>
+  static String adminDonationSurveyPdf(int surveyIdx) =>
+      '$admin/donation-surveys/$surveyIdx/pdf';
+
+  /// 관리자 게시글 일괄 Excel: GET /api/admin/posts/{post_idx}/donation-surveys.xlsx
+  static String adminPostDonationSurveysXlsx(int postIdx) =>
+      '$admin/posts/$postIdx/donation-surveys.xlsx';
+
+  /// 병원 단건 PDF: GET /api/hospital/donation-surveys/{idx}/pdf
+  /// assert_hospital_owns_application 가드.
+  static String hospitalDonationSurveyPdf(int surveyIdx) =>
+      '$hospital/donation-surveys/$surveyIdx/pdf';
+
+  /// 병원 게시글 일괄 Excel: GET /api/hospital/posts/{post_idx}/donation-surveys.xlsx
+  /// assert_hospital_owns_post 가드.
+  static String hospitalPostDonationSurveysXlsx(int postIdx) =>
+      '$hospitalPosts/$postIdx/donation-surveys.xlsx';
+
   // ===== Helper methods =====
 
   /// 병원 게시물 상세: /api/hospital/posts/{postIdx}

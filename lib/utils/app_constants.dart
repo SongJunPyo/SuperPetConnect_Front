@@ -67,6 +67,25 @@ class AppConstants {
   static const int noticeNormal = 0;
   static const int noticeImportant = 1;
 
+  // ===== 채혈 부위 (Blood Collection Site) — 2026-05 PR-2 =====
+  // 백엔드 constants/enums.py::BloodCollectionSite와 1:1 동기화. 값 변경 금지.
+  // 카페 설문지 18-6번 (직전 외부 헌혈 채혈 부위)에서 사용.
+  static const int bloodCollectionSiteJugular = 0; // 경정맥
+  static const int bloodCollectionSiteLimb = 1; // 사지
+  static const int bloodCollectionSiteBoth = 2; // 둘 다
+  /// OTHER 선택 시 `prev_blood_collection_site_etc` 컬럼에 자유 텍스트 입력 필수.
+  static const int bloodCollectionSiteOther = 3;
+
+  // ===== 직전 외부 헌혈 출처 (Prev Donation Source) — 2026-05 PR-2 =====
+  // GET /api/applied-donations/{id}/survey/template 응답의 prev_donation_source 필드.
+  // 백엔드는 string 그대로 emit. 프론트는 분기 안전성을 위해 상수로 박제.
+  /// 시스템 헌혈 이력 있음 → 직전 헌혈 정보 자동 채움 (수정 불가).
+  static const String prevDonationSourceSystem = 'system';
+  /// `prior_last_donation_date`만 있음 → 사용자가 prev_* 필드 직접 입력.
+  static const String prevDonationSourceExternal = 'external';
+  /// 첫 헌혈 → 직전 헌혈 섹션 숨김 또는 비활성.
+  static const String prevDonationSourceNone = 'none';
+
   // ===== 대시보드 페이지 크기 =====
   static const int dashboardItemLimit = 10;
   static const int detailListPageSize = 15;
@@ -172,6 +191,23 @@ class AppConstants {
         return animalTypeCatKr;
       default:
         return '알 수 없음';
+    }
+  }
+
+  /// 채혈 부위 텍스트 반환 (BloodCollectionSite enum 값 → 한국어).
+  /// `bloodCollectionSiteOther`는 `prev_blood_collection_site_etc`에 자유 텍스트가 별도 입력됨.
+  static String getBloodCollectionSiteText(int? value) {
+    switch (value) {
+      case bloodCollectionSiteJugular:
+        return '경정맥';
+      case bloodCollectionSiteLimb:
+        return '사지';
+      case bloodCollectionSiteBoth:
+        return '둘 다';
+      case bloodCollectionSiteOther:
+        return '기타';
+      default:
+        return '미입력';
     }
   }
 }

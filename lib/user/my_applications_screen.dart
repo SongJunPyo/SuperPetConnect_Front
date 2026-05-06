@@ -5,6 +5,7 @@ import '../services/hospital_post_service.dart';
 import '../utils/app_theme.dart';
 import '../widgets/app_dialog.dart';
 import '../widgets/state_view.dart';
+import 'donation_survey_form_page.dart';
 
 /// 내 헌혈 신청 내역 화면 (사용자용)
 class MyApplicationsScreen extends StatefulWidget {
@@ -212,6 +213,21 @@ class _MyApplicationsScreenState extends State<MyApplicationsScreen> {
     return '${dateTime.year}-${dateTime.month.toString().padLeft(2, '0')}-${dateTime.day.toString().padLeft(2, '0')} ${dateTime.hour.toString().padLeft(2, '0')}:${dateTime.minute.toString().padLeft(2, '0')}';
   }
 
+  /// 헌혈 사전 정보 설문 작성/수정 화면 진입.
+  /// APPROVED 신청에서만 호출. 페이지에서 GET survey로 신규/수정/잠금 자동 분기.
+  /// 제출 성공(true) 반환 시 목록을 다시 불러와 상태 변동 가능성 반영.
+  Future<void> _openSurveyForm(int applicationId) async {
+    final result = await Navigator.push<bool>(
+      context,
+      MaterialPageRoute(
+        builder: (_) => DonationSurveyFormPage(applicationId: applicationId),
+      ),
+    );
+    if (result == true && mounted) {
+      _loadApplications();
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -390,6 +406,34 @@ class _MyApplicationsScreenState extends State<MyApplicationsScreen> {
                                         ),
                                       ],
                                     ),
+                                    // APPROVED(선정) 상태에서만 설문 작성 진입점 노출.
+                                    // PENDING(대기): 아직 선정 안 됨 / COMPLETED·CLOSED: 헌혈 종료.
+                                    if (application.status ==
+                                        AppliedDonationStatus.approved) ...[
+                                      const SizedBox(height: 12),
+                                      SizedBox(
+                                        width: double.infinity,
+                                        child: OutlinedButton.icon(
+                                          onPressed: () => _openSurveyForm(
+                                            application.appliedDonationIdx,
+                                          ),
+                                          icon: const Icon(
+                                            Icons.edit_note,
+                                            size: 18,
+                                          ),
+                                          label: const Text('헌혈 사전 정보 설문'),
+                                          style: OutlinedButton.styleFrom(
+                                            foregroundColor: AppTheme.primaryBlue,
+                                            side: const BorderSide(
+                                              color: AppTheme.primaryBlue,
+                                            ),
+                                            padding: const EdgeInsets.symmetric(
+                                              vertical: 10,
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                    ],
                                   ],
                                 ),
                               ),

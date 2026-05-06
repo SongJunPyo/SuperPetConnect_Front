@@ -7,6 +7,7 @@ import '../models/post_time_item_model.dart';
 import '../models/unified_post_model.dart';
 import '../services/donation_post_image_service.dart';
 import '../services/hospital_post_service.dart';
+import 'hospital_donation_survey_list.dart';
 import '../utils/app_theme.dart';
 import '../utils/error_display.dart';
 import '../utils/pet_field_icons.dart';
@@ -802,6 +803,29 @@ class _HospitalPostCheckState extends State<HospitalPostCheck>
                                             : PetStatusType.critical,
                                       ),
                                     ],
+                                    // 종합백신 + 항체검사 (카페 정책 — 2026-05 PR-1)
+                                    if (item.petVaccinated == true &&
+                                        item.petLastVaccinationDate != null &&
+                                        item.petLastVaccinationDate!.isNotEmpty) ...[
+                                      const SizedBox(height: 12),
+                                      InfoRow(
+                                        icon: PetFieldIcons.vaccinationDate,
+                                        label: '종합백신',
+                                        value: item.petLastVaccinationDate!
+                                            .replaceAll('-', '.'),
+                                      ),
+                                    ],
+                                    if (item.petVaccinated == true &&
+                                        item.petLastAntibodyTestDate != null &&
+                                        item.petLastAntibodyTestDate!.isNotEmpty) ...[
+                                      const SizedBox(height: 12),
+                                      InfoRow(
+                                        icon: PetFieldIcons.antibodyTestDate,
+                                        label: '항체검사',
+                                        value: item.petLastAntibodyTestDate!
+                                            .replaceAll('-', '.'),
+                                      ),
+                                    ],
                                     // 예방약: 복용 → 초록 ✓ / 미복용 → 빨강 !
                                     if (item.petHasPreventiveMedication != null) ...[
                                       const SizedBox(height: 12),
@@ -811,6 +835,18 @@ class _HospitalPostCheckState extends State<HospitalPostCheck>
                                         status: item.petHasPreventiveMedication == true
                                             ? PetStatusType.positive
                                             : PetStatusType.critical,
+                                      ),
+                                    ],
+                                    // 예방약 복용일 (카페 정책 — 2026-05 PR-1)
+                                    if (item.petHasPreventiveMedication == true &&
+                                        item.petLastPreventiveMedicationDate != null &&
+                                        item.petLastPreventiveMedicationDate!.isNotEmpty) ...[
+                                      const SizedBox(height: 12),
+                                      InfoRow(
+                                        icon: PetFieldIcons.preventiveMedicationDate,
+                                        label: '예방약 복용',
+                                        value: item.petLastPreventiveMedicationDate!
+                                            .replaceAll('-', '.'),
                                       ),
                                     ],
                                     // 중성화: 완료 → 초록 ✓ / 미시행 → 회색 — (자연스러운 부재)
@@ -1203,6 +1239,25 @@ class _PostDetailBottomSheetState extends State<PostDetailBottomSheet> {
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
                       ),
+                    ),
+                    // 사전 설문 일괄 조회 (2026-05 PR-3 — F-D-4 진입점)
+                    IconButton(
+                      icon: const Icon(
+                        Icons.fact_check_outlined,
+                        color: AppTheme.primaryBlue,
+                      ),
+                      onPressed: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => HospitalDonationSurveyList(
+                              postIdx: widget.post.id,
+                              postTitle: widget.post.title,
+                            ),
+                          ),
+                        );
+                      },
+                      tooltip: '신청자 사전 설문',
                     ),
                     IconButton(
                       icon: const Icon(Icons.close, color: Colors.black),

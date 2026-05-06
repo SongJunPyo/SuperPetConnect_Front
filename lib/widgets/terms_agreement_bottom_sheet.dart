@@ -1,8 +1,15 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_markdown/flutter_markdown.dart';
 
+import '../models/donation_consent_model.dart';
+import '../services/donation_survey_service.dart';
 import '../utils/app_theme.dart';
 
-/// 헌혈 신청 직전에 띄우는 주의사항 + 개인정보 처리 동의 바텀시트.
+/// 헌혈 신청 직전에 띄우는 안내사항 정독 동의 바텀시트.
+///
+/// 백엔드 `GET /api/donation-consent/items`에서 받은 `guidance_html` 마크다운을 렌더하고
+/// 단일 정독 체크박스를 노출. 신청 시점에는 DB 저장 X (단순 진입 게이트).
+/// 설문 시점 5개 동의는 별도 화면(`donation_survey_form_page.dart`)에서 처리.
 ///
 /// 동의 체크 후 "확인"을 누르면 시트를 먼저 닫고, 다음 프레임에 [onConfirm]을
 /// 호출. 이렇게 두 단계로 분리하는 이유는 [onConfirm]에서 또 다른 다이얼로그를
@@ -19,6 +26,32 @@ class TermsAgreementBottomSheet extends StatefulWidget {
 
 class _TermsAgreementBottomSheetState extends State<TermsAgreementBottomSheet> {
   bool isAgreed = false;
+  DonationConsentItems? _consentItems;
+  String? _loadError;
+  bool _loading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadConsent();
+  }
+
+  Future<void> _loadConsent() async {
+    try {
+      final items = await DonationSurveyService.getConsentItems();
+      if (!mounted) return;
+      setState(() {
+        _consentItems = items;
+        _loading = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _loadError = e.toString().replaceFirst('Exception: ', '');
+        _loading = false;
+      });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -52,54 +85,18 @@ class _TermsAgreementBottomSheetState extends State<TermsAgreementBottomSheet> {
             ),
             child: Row(
               children: [
-                Icon(Icons.warning_amber, color: Colors.red, size: 24),
+                const Icon(Icons.warning_amber, color: Colors.red, size: 24),
                 const SizedBox(width: 8),
                 Text(
-                  '헌혈 주의사항 및 동의',
+                  '헌혈 사전 안내사항',
                   style: AppTheme.h3Style.copyWith(fontWeight: FontWeight.bold),
                 ),
               ],
             ),
           ),
 
-          // 주의사항 내용
-          Expanded(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.all(20),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    '헌혈 전 주의사항',
-                    style: AppTheme.h4Style.copyWith(
-                      fontWeight: FontWeight.bold,
-                      color: Colors.red,
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  _buildNoticeItem('• 헌혈 전 8시간 이상 금식이 필요합니다.'),
-                  _buildNoticeItem('• 건강한 상태의 반려동물만 헌혈 가능합니다.'),
-                  _buildNoticeItem('• 헌혈 후 충분한 휴식이 필요합니다.'),
-                  _buildNoticeItem('• 예방접종이 완료된 반려동물만 참여 가능합니다.'),
-                  _buildNoticeItem('• 헌혈량은 체중에 따라 결정됩니다.'),
-
-                  const SizedBox(height: 24),
-
-                  Text(
-                    '개인정보 처리 동의',
-                    style: AppTheme.h4Style.copyWith(
-                      fontWeight: FontWeight.bold,
-                      color: Colors.green,
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  _buildNoticeItem('• 헌혈 신청을 위한 개인정보 수집에 동의합니다.'),
-                  _buildNoticeItem('• 수집된 정보는 헌혈 관련 목적으로만 사용됩니다.'),
-                  _buildNoticeItem('• 개인정보는 안전하게 보관되며 목적 달성 후 파기됩니다.'),
-                ],
-              ),
-            ),
-          ),
+          // 안내문 본문 (백엔드 guidance_html 마크다운)
+          Expanded(child: _buildBody()),
 
           // 동의 체크박스 및 버튼
           Container(
@@ -113,16 +110,18 @@ class _TermsAgreementBottomSheetState extends State<TermsAgreementBottomSheet> {
                   children: [
                     Checkbox(
                       value: isAgreed,
-                      onChanged: (value) {
-                        setState(() {
-                          isAgreed = value ?? false;
-                        });
-                      },
+                      onChanged: _consentItems == null
+                          ? null
+                          : (value) {
+                              setState(() {
+                                isAgreed = value ?? false;
+                              });
+                            },
                       activeColor: AppTheme.success,
                     ),
                     Expanded(
                       child: Text(
-                        '위의 주의사항을 숙지 및 개인정보 처리에 동의합니다.',
+                        '위 안내문을 정독했습니다',
                         style: AppTheme.bodyMediumStyle.copyWith(
                           fontWeight: FontWeight.w500,
                         ),
@@ -151,17 +150,15 @@ class _TermsAgreementBottomSheetState extends State<TermsAgreementBottomSheet> {
                     const SizedBox(width: 12),
                     Expanded(
                       child: OutlinedButton(
-                        onPressed:
-                            isAgreed
-                                ? () {
-                                  Navigator.pop(context);
-                                  WidgetsBinding.instance.addPostFrameCallback((
-                                    _,
-                                  ) {
-                                    widget.onConfirm();
-                                  });
-                                }
-                                : null,
+                        onPressed: isAgreed
+                            ? () {
+                                Navigator.pop(context);
+                                WidgetsBinding.instance
+                                    .addPostFrameCallback((_) {
+                                  widget.onConfirm();
+                                });
+                              }
+                            : null,
                         style: OutlinedButton.styleFrom(
                           foregroundColor: AppTheme.success,
                           side: BorderSide(
@@ -192,10 +189,55 @@ class _TermsAgreementBottomSheetState extends State<TermsAgreementBottomSheet> {
     );
   }
 
-  Widget _buildNoticeItem(String text) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
-      child: Text(text, style: AppTheme.bodyMediumStyle.copyWith(height: 1.5)),
+  Widget _buildBody() {
+    if (_loading) {
+      return const Center(child: CircularProgressIndicator());
+    }
+    if (_loadError != null) {
+      return Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(Icons.error_outline, color: Colors.red, size: 48),
+            const SizedBox(height: 12),
+            Text(
+              '안내문을 불러오지 못했습니다',
+              style: AppTheme.bodyLargeStyle
+                  .copyWith(fontWeight: FontWeight.w600),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              _loadError!,
+              style: AppTheme.bodySmallStyle
+                  .copyWith(color: AppTheme.textSecondary),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 16),
+            OutlinedButton(
+              onPressed: () {
+                setState(() {
+                  _loading = true;
+                  _loadError = null;
+                });
+                _loadConsent();
+              },
+              child: const Text('다시 시도'),
+            ),
+          ],
+        ),
+      );
+    }
+    return Markdown(
+      data: _consentItems!.guidanceHtml,
+      padding: const EdgeInsets.all(20),
+      styleSheet: MarkdownStyleSheet.fromTheme(Theme.of(context)).copyWith(
+        p: AppTheme.bodyMediumStyle.copyWith(height: 1.6),
+        h1: AppTheme.h2Style.copyWith(fontWeight: FontWeight.bold),
+        h2: AppTheme.h3Style.copyWith(fontWeight: FontWeight.bold),
+        h3: AppTheme.h4Style.copyWith(fontWeight: FontWeight.bold),
+        listBullet: AppTheme.bodyMediumStyle.copyWith(height: 1.6),
+      ),
     );
   }
 }
