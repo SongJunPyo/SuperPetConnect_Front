@@ -18,10 +18,12 @@ import 'dart:async';
 import '../utils/config.dart';
 import '../services/auth_http_client.dart';
 import '../services/dashboard_service.dart';
+import '../services/hospital_post_service.dart';
 import '../models/column_post_model.dart';
 import '../models/notice_post_model.dart';
 import '../models/hospital_column_model.dart';
 import '../models/notice_model.dart';
+import '../models/unified_post_model.dart';
 import '../utils/number_format_util.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../widgets/dashboard/board_section.dart';
@@ -56,6 +58,10 @@ class _HospitalDashboardState extends State<HospitalDashboard>
   bool isLoadingNotices = false;
   bool isLoadingDashboard = false;
 
+  // 모집중 게시글의 누적 신청자 수. 0이면 알림 카드 숨김.
+  int activeApplicationsCount = 0;
+  bool isLoadingApplications = true;
+
   @override
   void initState() {
     super.initState();
@@ -70,6 +76,7 @@ class _HospitalDashboardState extends State<HospitalDashboard>
     _updateDateTime();
     _startTimer();
     _loadDashboardData();
+    _fetchActiveApplicationsCount();
 
     // 알림 Provider 초기화 (페이지 새로고침 시에도 알림 수신 가능하도록)
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -99,6 +106,39 @@ class _HospitalDashboardState extends State<HospitalDashboard>
     await _loadHospitalName();
     _updateDateTime();
     await _loadDashboardData();
+    await _fetchActiveApplicationsCount();
+  }
+
+  // 본 병원의 모집중(status=1) 게시글에 달린 신청자 수 합계.
+  // 백엔드 dedicated endpoint 부재 — UnifiedPostModel.applicantCount 합산으로 대체.
+  Future<void> _fetchActiveApplicationsCount() async {
+    if (mounted) {
+      setState(() {
+        isLoadingApplications = true;
+      });
+    }
+
+    try {
+      final posts =
+          await HospitalPostService.getUnifiedPostModelsForCurrentUser();
+      if (!mounted) return;
+
+      final count = posts
+          .where(
+            (UnifiedPostModel p) => p.status == AppConstants.postStatusApproved,
+          )
+          .fold<int>(0, (sum, p) => sum + p.applicantCount);
+
+      setState(() {
+        activeApplicationsCount = count;
+        isLoadingApplications = false;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        isLoadingApplications = false;
+      });
+    }
   }
 
   void _startTimer() {
@@ -305,22 +345,27 @@ class _HospitalDashboardState extends State<HospitalDashboard>
                         ),
                       ),
                       const SizedBox(height: AppTheme.spacing20),
-                      SizedBox(
-                        width: double.infinity,
-                        child: AppInfoCard(
-                          icon: Icons.info_outline,
-                          title: '새로운 헌혈 신청 2건이 도착했습니다!',
-                          description: '신청 현황 보기',
-                          onTap: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) => const HospitalPostCheck(),
-                              ),
-                            );
-                          },
+                      if (!isLoadingApplications &&
+                          activeApplicationsCount > 0)
+                        SizedBox(
+                          width: double.infinity,
+                          child: AppInfoCard(
+                            icon: Icons.bloodtype_outlined,
+                            title: '헌혈 신청 $activeApplicationsCount건이 있습니다.',
+                            description: '신청 현황 보기',
+                            iconColor: Colors.blue,
+                            backgroundColor: Colors.blue.withValues(alpha: 0.08),
+                            onTap: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder:
+                                      (context) => const HospitalPostCheck(),
+                                ),
+                              );
+                            },
+                          ),
                         ),
-                      ),
                     ],
                   ),
                 ),
