@@ -38,7 +38,6 @@ class _LoginScreenState extends State<LoginScreen> {
 
   // 로그인 성공 후 공통 처리 로직
   Future<void> _handleLoginSuccess(Map<String, dynamic> data) async {
-    print('[LOGIN] step1: handleLoginSuccess entered, account_type=${data['account_type']}, approved=${data['approved']}, onboarding_completed=${data['onboarding_completed']}, hospital_code=${data['hospital_code']}');
     await PreferencesManager.setAuthToken(data['access_token']);
     // Refresh Token 저장 (보안 업데이트: Access Token 15분 + Refresh Token 7일)
     if (data['refresh_token'] != null) {
@@ -50,14 +49,12 @@ class _LoginScreenState extends State<LoginScreen> {
     await PreferencesManager.setUserName(data['name'] ?? '');
     await PreferencesManager.setAccountType(data['account_type'] ?? 0);
     await PreferencesManager.setAccountIdx(data['account_idx'] ?? 0);
-    print('[LOGIN] step2: prefs saved');
 
     // 병원 사용자인 경우 hospital_code 저장
     if (data['account_type'] == AppConstants.accountTypeHospital &&
         data['hospital_code'] != null) {
       await PreferencesManager.setHospitalCode(data['hospital_code']);
     }
-    print('[LOGIN] step3: hospital_code saved');
 
     // 로그인 성공 후 FCM 토큰 서버 업데이트
     try {
@@ -65,28 +62,18 @@ class _LoginScreenState extends State<LoginScreen> {
     } catch (e) {
       // FCM 토큰 서버 업데이트 실패
     }
-    print('[LOGIN] step4: FCM token update done');
 
     // 알림 Provider 초기화 (대시보드에서 뱃지 표시용)
     // 이전 사용자의 알림 상태가 남아있을 수 있으므로 reset 후 재초기화
     if (mounted) {
       final provider = context.read<NotificationProvider>();
       provider.reset();
-      print('[LOGIN] step5: about to call provider.initialize()');
-      try {
-        await provider.initialize().timeout(const Duration(seconds: 5));
-        print('[LOGIN] step6: provider.initialize() done');
-      } catch (e) {
-        print('[LOGIN] step6: provider.initialize() FAILED or TIMED OUT: $e');
-      }
-    } else {
-      print('[LOGIN] step5: mounted=false, skipped provider.initialize');
+      await provider.initialize();
     }
 
     // 온보딩 완료 여부 저장
     final onboardingCompleted = data['onboarding_completed'] ?? true;
     await PreferencesManager.setOnboardingCompleted(onboardingCompleted);
-    print('[LOGIN] step7: onboarding flag saved, value=$onboardingCompleted, mounted=$mounted');
 
     // 온보딩 미완료 시 온보딩 화면으로 이동.
     // 네이버 token-login 응답에 phone_number가 자동 보강되어 있으면 prefill.
@@ -119,11 +106,9 @@ class _LoginScreenState extends State<LoginScreen> {
     }
 
     // 사용자 유형에 따라 적절한 화면으로 이동
-    print('[LOGIN] step8: about to navigate, mounted=$mounted, account_type=${data['account_type']}');
     if (mounted) {
       switch (data['account_type']) {
         case AppConstants.accountTypeAdmin: // 관리자
-          print('[LOGIN] step9: navigating to AdminDashboard');
           Navigator.pushAndRemoveUntil(
             context,
             MaterialPageRoute(builder: (context) => const AdminDashboard()),
@@ -131,7 +116,6 @@ class _LoginScreenState extends State<LoginScreen> {
           );
           break;
         case AppConstants.accountTypeHospital: // 병원
-          print('[LOGIN] step9: navigating to HospitalDashboard');
           Navigator.pushAndRemoveUntil(
             context,
             MaterialPageRoute(builder: (context) => const HospitalDashboard()),
@@ -139,7 +123,6 @@ class _LoginScreenState extends State<LoginScreen> {
           );
           break;
         case AppConstants.accountTypeUser: // 일반 사용자
-          print('[LOGIN] step9: navigating to UserDashboard');
           Navigator.pushAndRemoveUntil(
             context,
             MaterialPageRoute(builder: (context) => const UserDashboard()),
@@ -147,11 +130,8 @@ class _LoginScreenState extends State<LoginScreen> {
           );
           break;
         default:
-          print('[LOGIN] step9: unknown account_type=${data['account_type']}');
           _showAlertDialog(context, '오류', '알 수 없는 사용자 유형입니다.');
       }
-    } else {
-      print('[LOGIN] step9: mounted=false, navigation skipped!');
     }
   }
 
