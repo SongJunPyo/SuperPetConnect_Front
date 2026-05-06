@@ -19,6 +19,7 @@ import '../widgets/pet_profile_image.dart';
 import 'package:image_picker/image_picker.dart';
 import '../web/web_storage_helper_stub.dart'
     if (dart.library.html) '../web/web_storage_helper.dart';
+import '../user/tutorial_screen.dart';
 
 class ProfileManagement extends StatefulWidget {
   const ProfileManagement({super.key});
@@ -800,8 +801,83 @@ class _ProfileManagementState extends State<ProfileManagement> {
                 ),
               ),
             ),
+            // 도움말 카드 (일반 사용자만 노출)
+            if (isRegularUser) _buildHelpCard(),
             const SizedBox(height: AppTheme.spacing20),
           ],
+        ),
+      ),
+    );
+  }
+
+  /// 사용자 전용 도움말 카드 — 튜토리얼 다시 보기 진입점.
+  Widget _buildHelpCard() {
+    return Container(
+      margin: const EdgeInsets.only(top: AppTheme.spacing16),
+      child: Material(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(AppTheme.radius16),
+        elevation: 2,
+        shadowColor: Colors.black.withValues(alpha: 0.1),
+        child: Container(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(AppTheme.radius16),
+            border: Border.all(
+              color: AppTheme.lightGray.withValues(alpha: 0.8),
+              width: 1,
+            ),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(
+                  AppTheme.spacing20,
+                  AppTheme.spacing20,
+                  AppTheme.spacing20,
+                  AppTheme.spacing12,
+                ),
+                child: Text(
+                  '도움말',
+                  style: AppTheme.bodyMediumStyle.copyWith(
+                    color: AppTheme.textSecondary,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+              ListTile(
+                leading: Icon(
+                  Icons.lightbulb_outline,
+                  color: AppTheme.primaryBlue,
+                ),
+                title: Text(
+                  '튜토리얼 다시 보기',
+                  style: AppTheme.bodyMediumStyle.copyWith(
+                    color: AppTheme.textPrimary,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                subtitle: Text(
+                  '헌혈 신청 / 신청 후 흐름 / 반려동물 관리',
+                  style: AppTheme.bodySmallStyle.copyWith(
+                    color: AppTheme.textSecondary,
+                  ),
+                ),
+                trailing: Icon(
+                  Icons.chevron_right,
+                  color: AppTheme.textSecondary,
+                ),
+                onTap: () {
+                  Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) => const TutorialScreen(),
+                      fullscreenDialog: true,
+                    ),
+                  );
+                },
+              ),
+            ],
+          ),
         ),
       ),
     );

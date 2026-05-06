@@ -208,6 +208,20 @@ class PreferencesManager {
     return prefs.setBool('hospital_column_viewed_$columnIdx', true);
   }
 
+  // ===== 사용자 튜토리얼 (계정별 동적 키) =====
+  // 키: tutorial_seen_user_$accountIdx
+  // 자동 진입: UserDashboard 첫 빌드 시 false면 표시 → 종료 시 true 저장.
+  // logout 시 clearAll()이 prefs.clear()로 모든 키 정리하므로 다음 로그인 때 다시 표시됨.
+  static Future<bool> isTutorialSeenUser(int accountIdx) async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool('tutorial_seen_user_$accountIdx') ?? false;
+  }
+
+  static Future<bool> setTutorialSeenUser(int accountIdx) async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.setBool('tutorial_seen_user_$accountIdx', true);
+  }
+
   // ===== 유틸리티 =====
   static Future<bool> isLoggedIn() async {
     final token = await getAuthToken();

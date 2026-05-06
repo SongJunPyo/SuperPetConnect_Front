@@ -32,6 +32,7 @@ import '../providers/notification_provider.dart';
 import '../widgets/rich_text_viewer.dart';
 import '../utils/app_constants.dart';
 import '../widgets/association_footer.dart';
+import 'tutorial_screen.dart';
 
 class UserDashboard extends StatefulWidget {
   const UserDashboard({super.key});
@@ -77,6 +78,27 @@ class _UserDashboardState extends State<UserDashboard>
         provider.initialize();
       }
     });
+
+    // 첫 진입 시 튜토리얼 자동 표시 (계정별 1회)
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _maybeShowTutorial();
+    });
+  }
+
+  Future<void> _maybeShowTutorial() async {
+    final accountIdx = await PreferencesManager.getAccountIdx();
+    if (accountIdx == null) return;
+    final seen = await PreferencesManager.isTutorialSeenUser(accountIdx);
+    if (seen) return;
+    if (!mounted) return;
+    await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => TutorialScreen(
+          onFinished: () => PreferencesManager.setTutorialSeenUser(accountIdx),
+        ),
+        fullscreenDialog: true,
+      ),
+    );
   }
 
   void _updateDateTime() {
