@@ -73,18 +73,7 @@ class _DonationFormSceneState extends State<DonationFormScene> {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         TutorialPhoneFrame(
-          child: Stack(
-            children: [
-              _buildForm(),
-              if (_showCompleteToast)
-                Positioned(
-                  left: 16,
-                  right: 16,
-                  bottom: 16,
-                  child: const _CompletedToast(),
-                ),
-            ],
-          ),
+          child: _buildForm(),
         ),
         const SizedBox(height: AppTheme.spacing12),
         TutorialHelperText(text: _helperText),
@@ -123,29 +112,38 @@ class _DonationFormSceneState extends State<DonationFormScene> {
                 onTap: _onPetTap,
                 child: _PetCard(
                   name: '초코',
-                  breed: '골든리트리버',
-                  weight: '28kg',
-                  bloodType: 'DEA 1.1+',
+                  summary: '골든리트리버 · 4세 · 28kg',
+                  details: 'DEA 1.1+ · 수컷 · 최근 헌혈 2025-11-08',
+                  statusFlags: const ['접종', '예방약', '중성화'],
                   selected: _petSelected,
                 ),
               ),
               const SizedBox(height: 6),
               const _PetCard(
                 name: '멍멍이',
-                breed: '푸들',
-                weight: '8kg',
-                bloodType: 'DEA 1.1−',
+                summary: '푸들 · 2세 · 8kg',
+                details: 'DEA 1.1− · 암컷 · 첫 헌혈',
+                statusFlags: ['접종', '예방약'],
                 selected: false,
               ),
               const SizedBox(height: 14),
 
-              // 사전 안내사항 섹션
+              // 사전 안내사항 섹션 (실제 앱은 별도 바텀시트로 뜸)
               Text(
                 '헌혈 사전 안내사항',
                 style: AppTheme.bodySmallStyle.copyWith(
                   fontWeight: FontWeight.bold,
                   color: AppTheme.textPrimary,
                   fontSize: 12,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                '실제 앱에서는 [신청] 시 별도 바텀시트로 안내문이 노출돼요',
+                style: AppTheme.bodySmallStyle.copyWith(
+                  color: AppTheme.textSecondary,
+                  fontSize: 9,
+                  fontStyle: FontStyle.italic,
                 ),
               ),
               const SizedBox(height: 6),
@@ -158,10 +156,11 @@ class _DonationFormSceneState extends State<DonationFormScene> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    _bullet('헌혈 12시간 전부터 금식'),
-                    _bullet('당일 충분한 휴식 후 방문'),
-                    _bullet('보호자 동행 필수'),
-                    _bullet('과거 병력·복용약 사전 안내'),
+                    _bullet('헌혈 자격 조건 안내 (체중·간격·접종 등)'),
+                    _bullet('헌혈 절차 (검사 → 채혈 → 휴식)'),
+                    _bullet('헌혈 후 주의사항 (충분한 휴식)'),
+                    _bullet('응급 상황 시 협회 연락처'),
+                    _bullet('⋯ 외 다수 안내'),
                   ],
                 ),
               ),
@@ -174,12 +173,15 @@ class _DonationFormSceneState extends State<DonationFormScene> {
               ),
               const SizedBox(height: 14),
 
-              // 확인 버튼
-              HighlightTarget(
-                isActive: !_completed && _step == 2,
-                onTap: _onConfirmTap,
-                child: const _ConfirmButton(),
-              ),
+              // 확인 버튼 — 완료 시 토스트로 자리 교체 (가려짐 방지)
+              if (_showCompleteToast)
+                const _CompletedToast()
+              else
+                HighlightTarget(
+                  isActive: !_completed && _step == 2,
+                  onTap: _onConfirmTap,
+                  child: const _ConfirmButton(),
+                ),
             ],
           ),
         ),
@@ -296,16 +298,16 @@ class _DonationFormSceneState extends State<DonationFormScene> {
 
 class _PetCard extends StatelessWidget {
   final String name;
-  final String breed;
-  final String weight;
-  final String bloodType;
+  final String summary; // "골든리트리버 · 4세 · 28kg"
+  final String details; // "DEA 1.1+ · 수컷 · 최근 헌혈 2025-11-08"
+  final List<String> statusFlags; // "접종", "예방약", "중성화" 등
   final bool selected;
 
   const _PetCard({
     required this.name,
-    required this.breed,
-    required this.weight,
-    required this.bloodType,
+    required this.summary,
+    required this.details,
+    required this.statusFlags,
     required this.selected,
   });
 
@@ -325,15 +327,15 @@ class _PetCard extends StatelessWidget {
           width: selected ? 1.5 : 1,
         ),
       ),
-      child: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text('🐾', style: TextStyle(fontSize: 20)),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
+          Row(
+            children: [
+              const Text('🐾', style: TextStyle(fontSize: 20)),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
                   name,
                   style: AppTheme.bodySmallStyle.copyWith(
                     fontWeight: FontWeight.bold,
@@ -341,18 +343,64 @@ class _PetCard extends StatelessWidget {
                     fontSize: 13,
                   ),
                 ),
+              ),
+              if (selected)
+                Icon(Icons.check_circle, size: 18, color: AppTheme.primaryBlue),
+            ],
+          ),
+          const SizedBox(height: 4),
+          Padding(
+            padding: const EdgeInsets.only(left: 28),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
                 Text(
-                  '$breed · $weight · $bloodType',
+                  summary,
+                  style: AppTheme.bodySmallStyle.copyWith(
+                    color: AppTheme.textPrimary,
+                    fontSize: 10,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  details,
                   style: AppTheme.bodySmallStyle.copyWith(
                     color: AppTheme.textSecondary,
                     fontSize: 10,
                   ),
                 ),
+                const SizedBox(height: 4),
+                Wrap(
+                  spacing: 4,
+                  runSpacing: 3,
+                  children: [
+                    for (final flag in statusFlags)
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 5,
+                          vertical: 1,
+                        ),
+                        decoration: BoxDecoration(
+                          color: AppTheme.success.withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(3),
+                          border: Border.all(
+                            color: AppTheme.success.withValues(alpha: 0.4),
+                          ),
+                        ),
+                        child: Text(
+                          '✓ $flag',
+                          style: TextStyle(
+                            color: AppTheme.success,
+                            fontSize: 9,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
               ],
             ),
           ),
-          if (selected)
-            Icon(Icons.check_circle, size: 18, color: AppTheme.primaryBlue),
         ],
       ),
     );

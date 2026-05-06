@@ -230,9 +230,21 @@ class PreferencesManager {
 
   /// 모든 데이터 삭제 (로그아웃)
   /// SharedPreferences 2.5.x에서 clear()만으로는 인메모리 캐시가 완전히 삭제되지 않는
-  /// 버그가 있어, 각 키를 개별적으로 remove() 호출하여 캐시를 확실히 삭제
+  /// 버그가 있어, 각 키를 개별적으로 remove() 호출하여 캐시를 확실히 삭제.
+  ///
+  /// 단, `tutorial_seen_user_*` 플래그는 로그아웃 후 재로그인 시에도 보존
+  /// (한 번 본 튜토리얼이 다시 안 뜨도록). 백업 → clear → 복원 패턴.
   static Future<bool> clearAll() async {
     final prefs = await SharedPreferences.getInstance();
+
+    // 보존할 동적 키(튜토리얼 시청 기록) 백업
+    final preservedKeys = prefs.getKeys()
+        .where((k) => k.startsWith('tutorial_seen_user_'))
+        .toList();
+    final preserved = <String, bool>{
+      for (final k in preservedKeys) k: prefs.getBool(k) ?? false,
+    };
+
     // 인메모리 캐시에서 확실히 삭제하기 위해 각 키를 개별 remove
     await Future.wait([
       prefs.remove(keyAuthToken),
@@ -253,6 +265,13 @@ class PreferencesManager {
       prefs.remove(keyPreferredMediumRegions),
     ]);
     // 마지막으로 clear()도 호출하여 동적 키(column_viewed_* 등)도 삭제
-    return prefs.clear();
+    final cleared = await prefs.clear();
+
+    // 보존된 튜토리얼 플래그 복원
+    for (final entry in preserved.entries) {
+      await prefs.setBool(entry.key, entry.value);
+    }
+
+    return cleared;
   }
 }

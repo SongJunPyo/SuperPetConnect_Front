@@ -45,7 +45,7 @@ class _DonationBoardSceneState extends State<DonationBoardScene> {
   String get _helperText {
     switch (_step) {
       case 0:
-        return '[탭] 헌혈 게시판으로 이동 (대시보드엔 "헌혈 이력"도 별도로 있어요)';
+        return '[탭] 헌혈 게시판으로 이동';
       case 1:
         return '[탭] 게시글을 누르면 상세 정보가 바텀시트로 올라와요';
       case 2:
@@ -170,13 +170,20 @@ class _DashboardMock extends StatelessWidget {
               ),
               const SizedBox(height: 14),
 
-              // 공지사항/칼럼 탭 헤더
-              Row(
-                children: [
-                  _tab('공지사항', active: true),
-                  const SizedBox(width: 14),
-                  _tab('칼럼', active: false),
-                ],
+              // 공지사항/칼럼 탭 헤더 (실제 앱처럼 좌우 균등 분포)
+              Container(
+                decoration: BoxDecoration(
+                  border: Border(
+                    bottom: BorderSide(color: AppTheme.lightGray, width: 0.5),
+                  ),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceAround,
+                  children: [
+                    _tab('공지사항', active: true),
+                    _tab('칼럼', active: false),
+                  ],
+                ),
               ),
               const SizedBox(height: 8),
 
@@ -434,7 +441,9 @@ class _PostListCard extends StatelessWidget {
 
 // ====================================================================
 // 자세한 바텀시트 미니어처 (스텝 2)
-// 병원 + 환자 정보 + 헌혈 예정일 + 시간대 list (신청자 수 X)
+// 병원 + 환자 정보 + 헌혈 예정일 + 시간대 list (신청자 수 X).
+// 뒤편 dim 패턴 폐기 — 콘텐츠 전체 가시성 우선.
+// 폰 프레임 안에서 바텀시트 외관 유지 + 내부 스크롤로 모든 정보 노출.
 // ====================================================================
 class _BottomSheetMock extends StatelessWidget {
   final bool isFirstSlotActive;
@@ -448,160 +457,129 @@ class _BottomSheetMock extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Stack(
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      mainAxisSize: MainAxisSize.min,
       children: [
-        // 뒤편 board list (살짝 dim)
-        Column(
-          children: [
-            const TutorialMockSubAppBar(title: '헌혈 모집'),
-            Padding(
-              padding: const EdgeInsets.all(12),
-              child: Column(
-                children: const [
-                  _PostListCard(
-                    urgent: true,
-                    title: '강아지 긴급 헌혈 필요',
-                    date: '2026.05.05',
+        const TutorialMockSubAppBar(title: '헌혈 모집'),
+        // 짧은 dim 영역 (바텀시트가 올라온 느낌)
+        Container(
+          height: 30,
+          color: Colors.black.withValues(alpha: 0.06),
+        ),
+        // 바텀시트 본문 — grab handle + 헤더 + 정보 + 시간대
+        Container(
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+            boxShadow: [
+              BoxShadow(
+                color: Color(0x1A000000),
+                blurRadius: 6,
+                offset: Offset(0, -2),
+              ),
+            ],
+          ),
+          padding: const EdgeInsets.fromLTRB(16, 10, 16, 14),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // grab handle
+              Center(
+                child: Container(
+                  width: 36,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: AppTheme.lightGray,
+                    borderRadius: BorderRadius.circular(2),
                   ),
-                  SizedBox(height: 8),
-                  _PostListCard(
-                    urgent: false,
-                    title: '정기 헌혈 모집',
-                    date: '2026.05.04',
+                ),
+              ),
+              const SizedBox(height: 10),
+              // 게시글 헤더 (긴급 뱃지 + 제목)
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 6,
+                      vertical: 2,
+                    ),
+                    decoration: BoxDecoration(
+                      color: AppTheme.error,
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                    child: const Text(
+                      '긴급',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 9,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 6),
+                  Flexible(
+                    child: Text(
+                      '강아지 긴급 헌혈 필요',
+                      style: AppTheme.bodyMediumStyle.copyWith(
+                        fontWeight: FontWeight.bold,
+                        color: AppTheme.textPrimary,
+                        fontSize: 13,
+                      ),
+                    ),
                   ),
                 ],
               ),
-            ),
-          ],
-        ),
-        // 약한 dim
-        Positioned.fill(
-          child: IgnorePointer(
-            child: Container(color: Colors.black.withValues(alpha: 0.15)),
-          ),
-        ),
-        // 바텀시트 (자세한 정보)
-        Positioned(
-          left: 0,
-          right: 0,
-          bottom: 0,
-          child: _bottomSheet(
-            onFirstSlotTap: onFirstSlotTap,
-            isFirstSlotActive: isFirstSlotActive,
+              const SizedBox(height: 8),
+              // 자세한 정보
+              _infoLine(Icons.local_hospital_outlined, '행복동물병원'),
+              const SizedBox(height: 3),
+              _infoLine(Icons.location_on_outlined, '서울 강남구 테헤란로 123'),
+              const SizedBox(height: 3),
+              _infoLine(Icons.pets, '환자: 7세 보더콜리 · 12kg'),
+              const SizedBox(height: 3),
+              _infoLine(Icons.medical_information_outlined,
+                  '필요 혈액형: DEA 1.1+'),
+              const SizedBox(height: 10),
+              Container(height: 1, color: AppTheme.lightGray),
+              const SizedBox(height: 10),
+              Row(
+                children: [
+                  Icon(Icons.event, size: 13, color: AppTheme.primaryBlue),
+                  const SizedBox(width: 4),
+                  Text(
+                    '헌혈 예정일 · 5/15 (월)',
+                    style: AppTheme.bodySmallStyle.copyWith(
+                      fontWeight: FontWeight.bold,
+                      color: AppTheme.textPrimary,
+                      fontSize: 12,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              // 시간대 list (신청자 수 표시 X)
+              HighlightTarget(
+                isActive: isFirstSlotActive,
+                onTap: onFirstSlotTap,
+                child: const _TimeSlotRow(time: '14:00'),
+              ),
+              const SizedBox(height: 6),
+              const _TimeSlotRow(time: '15:00'),
+              const SizedBox(height: 6),
+              const _TimeSlotRow(time: '16:00'),
+            ],
           ),
         ),
       ],
     );
   }
 
-  Widget _bottomSheet({
-    required bool isFirstSlotActive,
-    required VoidCallback onFirstSlotTap,
-  }) {
-    return Container(
-      decoration: const BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          // grab handle
-          Center(
-            child: Container(
-              width: 36,
-              height: 4,
-              decoration: BoxDecoration(
-                color: AppTheme.lightGray,
-                borderRadius: BorderRadius.circular(2),
-              ),
-            ),
-          ),
-          const SizedBox(height: 12),
-          // 게시글 헤더
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 6,
-                  vertical: 2,
-                ),
-                decoration: BoxDecoration(
-                  color: AppTheme.error,
-                  borderRadius: BorderRadius.circular(4),
-                ),
-                child: const Text(
-                  '긴급',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 9,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ),
-              const SizedBox(width: 6),
-              Flexible(
-                child: Text(
-                  '강아지 긴급 헌혈 필요',
-                  style: AppTheme.bodyMediumStyle.copyWith(
-                    fontWeight: FontWeight.bold,
-                    color: AppTheme.textPrimary,
-                    fontSize: 13,
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          // 자세한 정보 — 병원 / 주소 / 환자 정보
-          _infoLine(Icons.local_hospital_outlined, '행복동물병원'),
-          const SizedBox(height: 4),
-          _infoLine(Icons.location_on_outlined, '서울 강남구 테헤란로 123'),
-          const SizedBox(height: 4),
-          _infoLine(Icons.pets, '환자: 7세 보더콜리 · 12kg'),
-          const SizedBox(height: 4),
-          _infoLine(Icons.medical_information_outlined, '필요 혈액형: DEA 1.1+'),
-          const SizedBox(height: 12),
-          Container(height: 1, color: AppTheme.lightGray),
-          const SizedBox(height: 12),
-          Text(
-            '헌혈 예정일',
-            style: AppTheme.bodySmallStyle.copyWith(
-              fontWeight: FontWeight.bold,
-              color: AppTheme.textPrimary,
-              fontSize: 12,
-            ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            '5/15 (월)',
-            style: AppTheme.bodySmallStyle.copyWith(
-              color: AppTheme.textSecondary,
-              fontSize: 11,
-            ),
-          ),
-          const SizedBox(height: 8),
-          // 시간대 list (신청자 수 표시 X)
-          HighlightTarget(
-            isActive: isFirstSlotActive,
-            onTap: onFirstSlotTap,
-            child: const _TimeSlotRow(time: '14:00'),
-          ),
-          const SizedBox(height: 6),
-          const _TimeSlotRow(time: '15:00'),
-          const SizedBox(height: 6),
-          const _TimeSlotRow(time: '16:00'),
-        ],
-      ),
-    );
-  }
-
   Widget _infoLine(IconData icon, String text) {
     return Row(
       children: [
-        Icon(icon, size: 14, color: AppTheme.textSecondary),
+        Icon(icon, size: 13, color: AppTheme.textSecondary),
         const SizedBox(width: 6),
         Expanded(
           child: Text(

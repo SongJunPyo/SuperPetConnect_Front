@@ -63,18 +63,7 @@ class _SurveySceneState extends State<SurveyScene> {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         TutorialPhoneFrame(
-          child: Stack(
-            children: [
-              _buildSurveyView(),
-              if (_showToast)
-                Positioned(
-                  left: 16,
-                  right: 16,
-                  bottom: 16,
-                  child: const _SurveySubmittedToast(),
-                ),
-            ],
-          ),
+          child: _buildSurveyView(),
         ),
         const SizedBox(height: AppTheme.spacing12),
         TutorialHelperText(text: _helperText),
@@ -217,28 +206,31 @@ class _SurveySceneState extends State<SurveyScene> {
               ),
               const SizedBox(height: 14),
 
-              // 제출 버튼 (스텝 1 강조)
-              HighlightTarget(
-                isActive: !_completed && _step == 1,
-                onTap: _onSubmitTap,
-                child: Container(
-                  width: double.infinity,
-                  height: 44,
-                  decoration: BoxDecoration(
-                    color: AppTheme.primaryBlue,
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  alignment: Alignment.center,
-                  child: const Text(
-                    '제출하기',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 14,
-                      fontWeight: FontWeight.bold,
+              // 제출 버튼 — 완료 시 토스트로 자리 교체
+              if (_showToast)
+                const _SurveySubmittedToast()
+              else
+                HighlightTarget(
+                  isActive: !_completed && _step == 1,
+                  onTap: _onSubmitTap,
+                  child: Container(
+                    width: double.infinity,
+                    height: 44,
+                    decoration: BoxDecoration(
+                      color: AppTheme.primaryBlue,
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    alignment: Alignment.center,
+                    child: const Text(
+                      '제출하기',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 14,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                   ),
                 ),
-              ),
             ],
           ),
         ),

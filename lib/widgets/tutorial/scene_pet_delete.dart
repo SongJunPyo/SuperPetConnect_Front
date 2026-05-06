@@ -96,12 +96,19 @@ class _PetDeleteSceneState extends State<PetDeleteScene> {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         TutorialPhoneFrame(
-          child: Stack(
-            children: [
-              _buildPetList(),
-              if (_overlay == _OverlayState.menu) _buildMenuPopup(),
-              if (_overlay == _OverlayState.dialog) _buildConfirmDialog(),
-            ],
+          // 명시적 SizedBox로 Stack에 bounded height 부여 — 그렇지 않으면
+          // 비-positioned Column이 무한 height를 요청해 레이아웃 실패.
+          child: SizedBox(
+            height: 320,
+            child: Stack(
+              children: [
+                _buildPetList(),
+                if (_overlay == _OverlayState.menu)
+                  Positioned.fill(child: _buildMenuPopup()),
+                if (_overlay == _OverlayState.dialog)
+                  Positioned.fill(child: _buildConfirmDialog()),
+              ],
+            ),
           ),
         ),
         const SizedBox(height: AppTheme.spacing12),
@@ -112,6 +119,7 @@ class _PetDeleteSceneState extends State<PetDeleteScene> {
 
   Widget _buildPetList() {
     return Column(
+      mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         const TutorialMockSubAppBar(title: '반려동물 관리'),
@@ -121,6 +129,7 @@ class _PetDeleteSceneState extends State<PetDeleteScene> {
             duration: const Duration(milliseconds: 250),
             curve: Curves.easeOut,
             child: Column(
+              mainAxisSize: MainAxisSize.min,
               children: [
                 for (var i = 0; i < _pets.length; i++) ...[
                   _MockPetCard(

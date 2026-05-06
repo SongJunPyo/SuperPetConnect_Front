@@ -63,22 +63,11 @@ class _PetRegisterSceneState extends State<PetRegisterScene> {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         TutorialPhoneFrame(
-          child: Stack(
-            children: [
-              AnimatedSwitcher(
-                duration: const Duration(milliseconds: 300),
-                switchInCurve: Curves.easeOut,
-                switchOutCurve: Curves.easeIn,
-                child: _buildCurrentView(),
-              ),
-              if (_showToast)
-                Positioned(
-                  left: 16,
-                  right: 16,
-                  bottom: 16,
-                  child: const _RegisteredToast(),
-                ),
-            ],
+          child: AnimatedSwitcher(
+            duration: const Duration(milliseconds: 300),
+            switchInCurve: Curves.easeOut,
+            switchOutCurve: Curves.easeIn,
+            child: _buildCurrentView(),
           ),
         ),
         const SizedBox(height: AppTheme.spacing12),
@@ -104,6 +93,7 @@ class _PetRegisterSceneState extends State<PetRegisterScene> {
       key: const ValueKey('form'),
       isRegisterActive: !_completed,
       onRegisterTap: _onRegisterTap,
+      showToastInsteadOfButton: _showToast,
     );
   }
 }
@@ -127,17 +117,17 @@ class _DashboardWithPetButton extends StatelessWidget {
             onTap: onTap,
             borderRadius: 8,
             child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+              padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 4),
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(Icons.pets, size: 16, color: AppTheme.textPrimary),
+                  Icon(Icons.pets, size: 14, color: AppTheme.textPrimary),
                   const SizedBox(width: 3),
                   Text(
                     '반려동물 관리',
                     style: AppTheme.bodySmallStyle.copyWith(
                       color: AppTheme.textPrimary,
-                      fontSize: 11,
+                      fontSize: 10,
                       fontWeight: FontWeight.w500,
                     ),
                   ),
@@ -356,11 +346,13 @@ class _MockPetCardSimple extends StatelessWidget {
 class _RegisterFormMock extends StatelessWidget {
   final bool isRegisterActive;
   final VoidCallback onRegisterTap;
+  final bool showToastInsteadOfButton;
 
   const _RegisterFormMock({
     super.key,
     required this.isRegisterActive,
     required this.onRegisterTap,
+    this.showToastInsteadOfButton = false,
   });
 
   @override
@@ -453,28 +445,31 @@ class _RegisterFormMock extends StatelessWidget {
               ),
               const SizedBox(height: 14),
 
-              // 등록 버튼
-              HighlightTarget(
-                isActive: isRegisterActive,
-                onTap: onRegisterTap,
-                child: Container(
-                  width: double.infinity,
-                  height: 44,
-                  decoration: BoxDecoration(
-                    color: AppTheme.primaryBlue,
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  alignment: Alignment.center,
-                  child: const Text(
-                    '등록',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 14,
-                      fontWeight: FontWeight.bold,
+              // 등록 버튼 — 완료 시 토스트로 자리 교체
+              if (showToastInsteadOfButton)
+                const _RegisteredToast()
+              else
+                HighlightTarget(
+                  isActive: isRegisterActive,
+                  onTap: onRegisterTap,
+                  child: Container(
+                    width: double.infinity,
+                    height: 44,
+                    decoration: BoxDecoration(
+                      color: AppTheme.primaryBlue,
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    alignment: Alignment.center,
+                    child: const Text(
+                      '등록',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 14,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                   ),
                 ),
-              ),
             ],
           ),
         ),
