@@ -56,6 +56,20 @@ class PetFieldIcons {
   /// 최근 헌혈일.
   static const IconData prevDonationDate = Icons.history_outlined;
 
+  /// 종합백신 접종일 (DATE 필드 — 카페 정책: 2년 이내 / 2년 초과 시 항체검사 필수).
+  /// `vaccinated` (Boolean 게이트)와 별개. 시기 표시용.
+  static const IconData vaccinationDate = Icons.vaccines_outlined;
+
+  /// 항체검사 일자 (DATE 필드 — 카페 정책: 백신 2년 초과 시 12개월 이내 검사 필수).
+  static const IconData antibodyTestDate = Icons.science_outlined;
+
+  /// 예방약 복용일 (DATE 필드 — 카페 정책: 헌혈 예정일 3개월 전부터 복용 필수).
+  /// `medication` (Boolean 게이트)과 별개. 시기 표시용.
+  static const IconData preventiveMedicationDate = Icons.medication_outlined;
+
+  /// 외부 헌혈 누적 횟수 (시스템 외부에서 헌혈한 횟수, 사용자 입력).
+  static const IconData priorDonationCount = Icons.history_outlined;
+
   /// 성별 — 펫 sex 값(0=암컷, 1=수컷)에 따라 동적으로 다른 아이콘.
   /// 라벨 아이콘이 펫마다 달라져 시각적 정보 풍부함.
   static IconData sex(int sexValue) =>
@@ -139,6 +153,19 @@ class PetFieldIcons {
         return neuteredDate;
       case 'has_preventive_medication':
         return medication;
+      case 'last_vaccination_date':
+        return vaccinationDate;
+      case 'last_antibody_test_date':
+        return antibodyTestDate;
+      case 'last_preventive_medication_date':
+        return preventiveMedicationDate;
+      case 'prior_donation_count':
+        return priorDonationCount;
+      // 백엔드 컬럼 분리(2026-05): prior_last_donation_date(사용자) /
+      // prev_donation_date_system(시스템 자동) 둘 다 prevDonationDate 아이콘 공유.
+      case 'prior_last_donation_date':
+      case 'prev_donation_date_system':
+        return prevDonationDate;
       default:
         return Icons.edit_outlined;
     }

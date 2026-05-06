@@ -727,12 +727,13 @@ class _PetDetailBottomSheetState extends State<_PetDetailBottomSheet> {
                                 status: PetStatusType.warning,
                               ),
                             // 최근 헌혈일: 미입력 시 회색 — (첫 헌혈)
-                            if (pet.prevDonationDate != null)
+                            // effective date (max of system / prior) — 2026-05 PR-1 컬럼 분리.
+                            if (pet.effectiveLastDonationDate != null)
                               _buildDetailRow(
                                 icon: PetFieldIcons.prevDonationDate,
                                 label: '최근 헌혈일',
                                 value:
-                                    '${pet.prevDonationDate!.year}.${pet.prevDonationDate!.month.toString().padLeft(2, '0')}.${pet.prevDonationDate!.day.toString().padLeft(2, '0')}',
+                                    '${pet.effectiveLastDonationDate!.year}.${pet.effectiveLastDonationDate!.month.toString().padLeft(2, '0')}.${pet.effectiveLastDonationDate!.day.toString().padLeft(2, '0')}',
                               )
                             else
                               const PetStatusRow(
@@ -750,6 +751,24 @@ class _PetDetailBottomSheetState extends State<_PetDetailBottomSheet> {
                                   ? PetStatusType.positive
                                   : PetStatusType.critical,
                             ),
+                            // 종합백신 접종일 + 항체검사 일자 (카페 정책 — 2026-05 PR-1).
+                            // vaccinated=true일 때만 의미 있음. 없으면 표시 생략.
+                            if (pet.vaccinated == true &&
+                                pet.lastVaccinationDate != null)
+                              _buildDetailRow(
+                                icon: PetFieldIcons.vaccinationDate,
+                                label: '종합백신',
+                                value:
+                                    '${pet.lastVaccinationDate!.year}.${pet.lastVaccinationDate!.month.toString().padLeft(2, '0')}.${pet.lastVaccinationDate!.day.toString().padLeft(2, '0')}',
+                              ),
+                            if (pet.vaccinated == true &&
+                                pet.lastAntibodyTestDate != null)
+                              _buildDetailRow(
+                                icon: PetFieldIcons.antibodyTestDate,
+                                label: '항체검사',
+                                value:
+                                    '${pet.lastAntibodyTestDate!.year}.${pet.lastAntibodyTestDate!.month.toString().padLeft(2, '0')}.${pet.lastAntibodyTestDate!.day.toString().padLeft(2, '0')}',
+                              ),
                             PetStatusRow(
                               icon: PetFieldIcons.medication,
                               label: '예방약',
@@ -758,6 +777,15 @@ class _PetDetailBottomSheetState extends State<_PetDetailBottomSheet> {
                                   ? PetStatusType.positive
                                   : PetStatusType.critical,
                             ),
+                            // 예방약 복용일 (카페 정책 — 2026-05 PR-1).
+                            if (pet.hasPreventiveMedication == true &&
+                                pet.lastPreventiveMedicationDate != null)
+                              _buildDetailRow(
+                                icon: PetFieldIcons.preventiveMedicationDate,
+                                label: '예방약 복용',
+                                value:
+                                    '${pet.lastPreventiveMedicationDate!.year}.${pet.lastPreventiveMedicationDate!.month.toString().padLeft(2, '0')}.${pet.lastPreventiveMedicationDate!.day.toString().padLeft(2, '0')}',
+                              ),
                             PetStatusRow(
                               icon: PetFieldIcons.isNeutered,
                               label: '중성화',

@@ -32,9 +32,16 @@ class PostTimeItem {
   final bool? petVaccinated;
   final bool? petHasPreventiveMedication;
   final bool? petHasDisease;
+  // pet_prev_donation_date 응답 필드명 유지 — 값은 effective date (max(system, prior)).
+  // 컬럼 분리 정책 (2026-05 PR-1) 후에도 의료진 화면 호환성 위해 필드명 유지.
   final String? petPrevDonationDate; // YYYY-MM-DD
   final int? petPregnancyBirthStatus; // 0=NONE, 1=PREGNANT, 2=POST_BIRTH
   final String? petLastPregnancyEndDate; // YYYY-MM-DD
+  // 카페 정책 의료 정보 (2026-05 PR-1) — 모집마감 시트에서 의료진 검토용.
+  final String? petLastVaccinationDate; // YYYY-MM-DD
+  final String? petLastAntibodyTestDate; // YYYY-MM-DD
+  final String? petLastPreventiveMedicationDate; // YYYY-MM-DD
+  final int? petPriorDonationCount; // 외부 헌혈 누적 횟수
   final String? bloodType;
   final int? animalType;
   final String location;
@@ -77,6 +84,10 @@ class PostTimeItem {
     this.petPrevDonationDate,
     this.petPregnancyBirthStatus,
     this.petLastPregnancyEndDate,
+    this.petLastVaccinationDate,
+    this.petLastAntibodyTestDate,
+    this.petLastPreventiveMedicationDate,
+    this.petPriorDonationCount,
     this.bloodType,
     this.animalType,
     this.bloodVolumeMl,
@@ -121,6 +132,11 @@ class PostTimeItem {
       petPrevDonationDate: json['pet_prev_donation_date'] as String?,
       petPregnancyBirthStatus: json['pet_pregnancy_birth_status'] as int?,
       petLastPregnancyEndDate: json['pet_last_pregnancy_end_date'] as String?,
+      petLastVaccinationDate: json['pet_last_vaccination_date'] as String?,
+      petLastAntibodyTestDate: json['pet_last_antibody_test_date'] as String?,
+      petLastPreventiveMedicationDate:
+          json['pet_last_preventive_medication_date'] as String?,
+      petPriorDonationCount: json['pet_prior_donation_count'] as int?,
       bloodType: json['blood_type'] as String?,
       animalType: json['animal_type'] as int?,
       bloodVolumeMl: (json['blood_volume_ml'] ?? json['blood_volume'])?.toDouble(),

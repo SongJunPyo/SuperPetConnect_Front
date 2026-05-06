@@ -855,12 +855,13 @@ class _AdminSignupManagementState extends State<AdminSignupManagement> {
                 status: PetStatusType.warning,
               ),
             // 최근 헌혈일: 입력값 있으면 날짜 텍스트, 없으면 회색 — (첫 헌혈 = 자연스러운 부재)
-            if (pet.prevDonationDate != null)
+            // effective date (max of system / prior) — 2026-05 PR-1 컬럼 분리.
+            if (pet.effectiveLastDonationDate != null)
               _buildDetailRow(
                 context,
                 PetFieldIcons.prevDonationDate,
                 '최근 헌혈일',
-                '${pet.prevDonationDate!.year}.${pet.prevDonationDate!.month.toString().padLeft(2, '0')}.${pet.prevDonationDate!.day.toString().padLeft(2, '0')}',
+                '${pet.effectiveLastDonationDate!.year}.${pet.effectiveLastDonationDate!.month.toString().padLeft(2, '0')}.${pet.effectiveLastDonationDate!.day.toString().padLeft(2, '0')}',
               )
             else
               PetStatusRow(
@@ -876,6 +877,21 @@ class _AdminSignupManagementState extends State<AdminSignupManagement> {
                   ? PetStatusType.positive
                   : PetStatusType.critical,
             ),
+            // 종합백신 + 항체검사 (카페 정책 — 2026-05 PR-1)
+            if (pet.vaccinated == true && pet.lastVaccinationDate != null)
+              _buildDetailRow(
+                context,
+                PetFieldIcons.vaccinationDate,
+                '종합백신',
+                '${pet.lastVaccinationDate!.year}.${pet.lastVaccinationDate!.month.toString().padLeft(2, '0')}.${pet.lastVaccinationDate!.day.toString().padLeft(2, '0')}',
+              ),
+            if (pet.vaccinated == true && pet.lastAntibodyTestDate != null)
+              _buildDetailRow(
+                context,
+                PetFieldIcons.antibodyTestDate,
+                '항체검사',
+                '${pet.lastAntibodyTestDate!.year}.${pet.lastAntibodyTestDate!.month.toString().padLeft(2, '0')}.${pet.lastAntibodyTestDate!.day.toString().padLeft(2, '0')}',
+              ),
             // 예방약 복용: 복용중 → 초록 ✓ / 미복용 → 빨강 !
             PetStatusRow(
               icon: PetFieldIcons.medication,
@@ -884,6 +900,15 @@ class _AdminSignupManagementState extends State<AdminSignupManagement> {
                   ? PetStatusType.positive
                   : PetStatusType.critical,
             ),
+            // 예방약 복용일 (카페 정책 — 2026-05 PR-1)
+            if (pet.hasPreventiveMedication == true &&
+                pet.lastPreventiveMedicationDate != null)
+              _buildDetailRow(
+                context,
+                PetFieldIcons.preventiveMedicationDate,
+                '예방약 복용',
+                '${pet.lastPreventiveMedicationDate!.year}.${pet.lastPreventiveMedicationDate!.month.toString().padLeft(2, '0')}.${pet.lastPreventiveMedicationDate!.day.toString().padLeft(2, '0')}',
+              ),
             // 중성화: 완료 → 초록 ✓ / 미시행 → 회색 — (자연스러운 부재)
             PetStatusRow(
               icon: PetFieldIcons.isNeutered,

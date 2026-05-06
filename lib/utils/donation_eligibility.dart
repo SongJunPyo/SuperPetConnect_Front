@@ -35,8 +35,21 @@ class EligibilityReason {
   // === vaccination ===
   static const String notVaccinated = 'not_vaccinated';
 
+  /// 종합백신 24개월 초과 + 항체검사 NULL — 카페 정책 (2026-05 PR-1).
+  /// 백엔드 EligibilityReason.VACCINATION_EXPIRED 미러.
+  static const String vaccinationExpired = 'vaccination_expired';
+
+  /// 백신 24개월 초과 + 항체검사 12개월 초과 — 카페 정책 (2026-05 PR-1).
+  /// 백엔드 EligibilityReason.ANTIBODY_TEST_EXPIRED 미러.
+  static const String antibodyTestExpired = 'antibody_test_expired';
+
   // === preventive medication ===
   static const String notTaken = 'not_taken';
+
+  /// 예방약 복용 후 3개월 초과 — 카페 정책 (2026-05 PR-1).
+  /// 백엔드 EligibilityReason.PREVENTIVE_MEDICATION_EXPIRED 미러.
+  static const String preventiveMedicationExpired =
+      'preventive_medication_expired';
 
   // === disease ===
   static const String hasDisease = 'has_disease';
@@ -224,6 +237,19 @@ class CatEligibilityConditions {
 class DonationEligibility {
   // ========== 조건 설정 (여기서 값만 변경하면 전체 앱에 적용) ==========
 
+  /// 종합백신 유효 기간 (개월) — 카페 정책: 최소 2년 이내 접종 필수.
+  /// 24개월 초과 시 항체검사 양성 확인 없이 헌혈 신청 불가.
+  /// 백엔드 constants/donation_eligibility.py::VACCINATION_MAX_MONTHS와 1:1 동기화.
+  static const int vaccinationMaxMonths = 24;
+
+  /// 항체검사 유효 기간 (개월) — 카페 정책: 종합백신 2년 초과 시 12개월 이내 항체검사 필수.
+  /// 백엔드 constants/donation_eligibility.py::ANTIBODY_TEST_MAX_MONTHS와 1:1 동기화.
+  static const int antibodyTestMaxMonths = 12;
+
+  /// 예방약 복용 기간 (개월) — 카페 정책: 헌혈 예정일 최소 3개월 전부터 복용 필수.
+  /// 백엔드 constants/donation_eligibility.py::PREVENTIVE_MEDICATION_MAX_MONTHS와 1:1 동기화.
+  static const int preventiveMedicationMaxMonths = 3;
+
   /// 강아지 헌혈 조건
   static const dogConditions = DogEligibilityConditions(
     minAgeMonths: 18, // 최소 18개월
@@ -243,6 +269,17 @@ class DonationEligibility {
     pregnancyCooldownMonths: 12,
     donationIntervalDays: 180,
   );
+
+  // ========== 헬퍼 ==========
+
+  /// 두 날짜 사이의 캘린더 월 차이.
+  ///
+  /// 백엔드 services/donation_eligibility_service.py::_months_since_date 미러.
+  /// 일자(day) 비교 없이 (year, month) 차이만 계산. 한국 의료 운영에서 일 단위 정확도 불필요.
+  /// `later`가 `earlier` 이전이면 음수.
+  static int monthsBetween(DateTime earlier, DateTime later) {
+    return (later.year - earlier.year) * 12 + (later.month - earlier.month);
+  }
 
   // ========== 검증 메서드 ==========
 
@@ -273,13 +310,18 @@ class DonationEligibility {
     final weightResult = _checkDogWeight(pet.weightKg, conditions);
     results.add(weightResult);
 
-    // 3. 백신 접종 여부
-    final vaccinatedResult = _checkVaccinated(pet.vaccinated);
+    // 3. 백신 접종 검증 (카페 정책 — 2026-05 PR-1)
+    final vaccinatedResult = _checkVaccinated(
+      pet.vaccinated,
+      pet.lastVaccinationDate,
+      pet.lastAntibodyTestDate,
+    );
     results.add(vaccinatedResult);
 
-    // 4. 예방약 복용 여부
+    // 4. 예방약 복용 검증 (강아지 한정 — 2026-05 PR-1)
     final preventiveResult = _checkPreventiveMedication(
       pet.hasPreventiveMedication,
+      pet.lastPreventiveMedicationDate,
     );
     results.add(preventiveResult);
 
@@ -303,9 +345,9 @@ class DonationEligibility {
     );
     results.add(neuteredResult);
 
-    // 8. 헌혈 간격
+    // 8. 헌혈 간격 (effective date = max(system, prior). 우회 차단 — 2026-05 PR-1)
     final intervalResult = _checkDonationInterval(
-      pet.prevDonationDate,
+      pet.effectiveLastDonationDate,
       conditions.donationIntervalDays,
     );
     results.add(intervalResult);
@@ -333,8 +375,12 @@ class DonationEligibility {
     final weightResult = _checkCatWeight(pet.weightKg, conditions);
     results.add(weightResult);
 
-    // 3. 백신 접종 여부
-    final vaccinatedResult = _checkVaccinated(pet.vaccinated);
+    // 3. 백신 접종 검증 (카페 정책 — 2026-05 PR-1, 강아지·고양이 공통)
+    final vaccinatedResult = _checkVaccinated(
+      pet.vaccinated,
+      pet.lastVaccinationDate,
+      pet.lastAntibodyTestDate,
+    );
     results.add(vaccinatedResult);
 
     // 4. 질병 이력
@@ -349,9 +395,9 @@ class DonationEligibility {
     );
     results.add(pregnancyBirthResult);
 
-    // 6. 헌혈 간격
+    // 6. 헌혈 간격 (effective date = max(system, prior). 우회 차단 — 2026-05 PR-1)
     final intervalResult = _checkDonationInterval(
-      pet.prevDonationDate,
+      pet.effectiveLastDonationDate,
       conditions.donationIntervalDays,
     );
     results.add(intervalResult);
@@ -488,50 +534,114 @@ class DonationEligibility {
     );
   }
 
-  /// 백신 접종 여부 검증
+  /// 백신 접종 검증 (카페 정책 — 2026-05 PR-1)
   ///
-  /// null → infoIncomplete (사용자가 채우면 풀림)
-  /// false → ineligible + not_vaccinated reason (실제 접종 필요)
-  static ConditionResult _checkVaccinated(bool? vaccinated) {
+  /// 백엔드 services/donation_eligibility_service.py::_check_vaccinated 미러.
+  /// 판정 순서:
+  ///   1. vaccinated == null → missing
+  ///   2. vaccinated == false → not_vaccinated
+  ///   3. last_vaccination_date == null → missing
+  ///   4. 백신 24개월 초과 + 항체검사 == null → vaccination_expired
+  ///   5. 백신 24개월 초과 + 항체검사 12개월 초과 → antibody_test_expired
+  ///   6. 그 외 → 통과
+  static ConditionResult _checkVaccinated(
+    bool? vaccinated,
+    DateTime? lastVaccinationDate,
+    DateTime? lastAntibodyTestDate,
+  ) {
     if (vaccinated == null) {
       return const ConditionResult(
         conditionName: '예방접종',
-        description: '예방접종 완료',
+        description: '예방접종 완료 (24개월 이내 또는 항체검사 12개월 이내)',
         status: EligibilityStatus.infoIncomplete,
-        // 백엔드 messages.py::ELIGIBILITY_VACCINATION_MISSING 미러
         message: '예방접종 여부 미입력',
         reason: EligibilityReason.missing,
       );
     }
 
-    if (vaccinated == true) {
+    if (vaccinated == false) {
       return const ConditionResult(
         conditionName: '예방접종',
         description: '예방접종 완료',
-        status: EligibilityStatus.eligible,
-        message: '접종 완료',
+        status: EligibilityStatus.ineligible,
+        message: '예방접종이 필요합니다',
+        reason: EligibilityReason.notVaccinated,
       );
     }
 
-    // vaccinated == false
+    // vaccinated == true
+    if (lastVaccinationDate == null) {
+      return const ConditionResult(
+        conditionName: '예방접종',
+        description: '종합백신 접종일 입력',
+        status: EligibilityStatus.infoIncomplete,
+        // 백엔드 messages.py::ELIGIBILITY_VACCINATION_DATE_MISSING 미러
+        message: '종합백신 접종일을 펫 프로필에 입력해주세요',
+        reason: EligibilityReason.missing,
+      );
+    }
+
+    final now = DateTime.now();
+    final monthsSinceVaccination = monthsBetween(lastVaccinationDate, now);
+
+    if (monthsSinceVaccination <= vaccinationMaxMonths) {
+      return ConditionResult(
+        conditionName: '예방접종',
+        description: '종합백신 $vaccinationMaxMonths개월 이내',
+        status: EligibilityStatus.eligible,
+        message: '백신 접종 후 $monthsSinceVaccination개월 경과',
+      );
+    }
+
+    // 백신 24개월 초과 — 항체검사로 대체 가능 여부 확인
+    if (lastAntibodyTestDate == null) {
+      return const ConditionResult(
+        conditionName: '예방접종',
+        description: '종합백신 24개월 이내 또는 항체검사',
+        status: EligibilityStatus.ineligible,
+        // 백엔드 messages.py::ELIGIBILITY_VACCINATION_EXPIRED 미러
+        message: '종합백신 2년 경과 - 추가 접종 또는 항체검사 필수',
+        reason: EligibilityReason.vaccinationExpired,
+      );
+    }
+
+    final monthsSinceAntibody = monthsBetween(lastAntibodyTestDate, now);
+    if (monthsSinceAntibody <= antibodyTestMaxMonths) {
+      return ConditionResult(
+        conditionName: '예방접종',
+        description: '항체검사 $antibodyTestMaxMonths개월 이내',
+        status: EligibilityStatus.eligible,
+        message: '항체검사 후 $monthsSinceAntibody개월 경과',
+      );
+    }
+
     return const ConditionResult(
       conditionName: '예방접종',
-      description: '예방접종 완료',
+      description: '항체검사 12개월 이내',
       status: EligibilityStatus.ineligible,
-      message: '예방접종이 필요합니다',
-      reason: EligibilityReason.notVaccinated,
+      // 백엔드 messages.py::ELIGIBILITY_ANTIBODY_TEST_EXPIRED 미러
+      message: '항체검사 12개월 경과 - 재검사 필요',
+      reason: EligibilityReason.antibodyTestExpired,
     );
   }
 
-  /// 예방약 복용 여부 검증
+  /// 예방약 복용 검증 (카페 정책 — 2026-05 PR-1, 강아지 한정)
   ///
-  /// null → infoIncomplete (사용자가 채우면 풀림)
-  /// false → ineligible + not_taken reason (실제 복용 필요)
-  static ConditionResult _checkPreventiveMedication(bool? hasTakenPreventive) {
+  /// 백엔드 services/donation_eligibility_service.py::_check_preventive_medication 미러.
+  /// 판정 순서:
+  ///   1. has_preventive_medication == null → missing
+  ///   2. has_preventive_medication == false → not_taken
+  ///   3. last_preventive_medication_date == null → missing
+  ///   4. 예방약 3개월 초과 → preventive_medication_expired
+  ///   5. 그 외 → 통과
+  static ConditionResult _checkPreventiveMedication(
+    bool? hasTakenPreventive,
+    DateTime? lastPreventiveMedicationDate,
+  ) {
     if (hasTakenPreventive == null) {
       return const ConditionResult(
         conditionName: '예방약',
-        description: '예방약 복용',
+        description: '예방약 복용 (3개월 이내)',
         status: EligibilityStatus.infoIncomplete,
         // 백엔드 messages.py::ELIGIBILITY_PREVENTIVE_MEDICATION_UNKNOWN 미러
         message: '예방약 복용 여부 미입력',
@@ -539,21 +649,50 @@ class DonationEligibility {
       );
     }
 
-    if (hasTakenPreventive) {
+    if (hasTakenPreventive == false) {
       return const ConditionResult(
         conditionName: '예방약',
         description: '예방약 복용',
+        status: EligibilityStatus.ineligible,
+        message: '예방약 복용이 필요합니다',
+        reason: EligibilityReason.notTaken,
+      );
+    }
+
+    // hasTakenPreventive == true
+    if (lastPreventiveMedicationDate == null) {
+      return const ConditionResult(
+        conditionName: '예방약',
+        description: '예방약 복용일 입력',
+        status: EligibilityStatus.infoIncomplete,
+        // 백엔드 messages.py::ELIGIBILITY_PREVENTIVE_MEDICATION_DATE_MISSING 미러
+        message: '예방약 복용일을 펫 프로필에 입력해주세요',
+        reason: EligibilityReason.missing,
+      );
+    }
+
+    final now = DateTime.now();
+    final monthsSinceMedication = monthsBetween(
+      lastPreventiveMedicationDate,
+      now,
+    );
+
+    if (monthsSinceMedication <= preventiveMedicationMaxMonths) {
+      return ConditionResult(
+        conditionName: '예방약',
+        description: '예방약 $preventiveMedicationMaxMonths개월 이내 복용',
         status: EligibilityStatus.eligible,
-        message: '복용 완료',
+        message: '예방약 복용 후 $monthsSinceMedication개월 경과',
       );
     }
 
     return const ConditionResult(
       conditionName: '예방약',
-      description: '예방약 복용',
+      description: '예방약 3개월 이내 복용',
       status: EligibilityStatus.ineligible,
-      message: '예방약 복용이 필요합니다',
-      reason: EligibilityReason.notTaken,
+      // 백엔드 messages.py::ELIGIBILITY_PREVENTIVE_MEDICATION_EXPIRED 미러
+      message: '헌혈 예정일 최소 3개월 전부터 예방약 복용 필수',
+      reason: EligibilityReason.preventiveMedicationExpired,
     );
   }
 

@@ -34,7 +34,15 @@ class RegistrationPetData {
   bool isNeutered;
   DateTime? neuteredDate;
   bool hasPreventiveMedication;
-  DateTime? prevDonationDate;
+  // 외부 헌혈 마지막 일자 (사용자 자기신고). 시스템 자동 갱신값(prev_donation_date_system)은
+  // 가입 시점에 존재하지 않으며, 백엔드 PUT 화이트리스트가 차단.
+  DateTime? priorLastDonationDate;
+  // 외부 헌혈 누적 횟수 (default 0).
+  int priorDonationCount;
+  // 카페 정책 의료 정보 (2026-05 PR-1).
+  DateTime? lastVaccinationDate;
+  DateTime? lastAntibodyTestDate;
+  DateTime? lastPreventiveMedicationDate;
   XFile? profileImage;
 
   RegistrationPetData({
@@ -54,7 +62,11 @@ class RegistrationPetData {
     this.isNeutered = false,
     this.neuteredDate,
     this.hasPreventiveMedication = false,
-    this.prevDonationDate,
+    this.priorLastDonationDate,
+    this.priorDonationCount = 0,
+    this.lastVaccinationDate,
+    this.lastAntibodyTestDate,
+    this.lastPreventiveMedicationDate,
     this.profileImage,
   });
 
@@ -77,7 +89,19 @@ class RegistrationPetData {
       'is_neutered': isNeutered,
       'neutered_date': neuteredDate?.toIso8601String().split('T')[0],
       'has_preventive_medication': hasPreventiveMedication,
-      'prev_donation_date': prevDonationDate?.toIso8601String().split('T')[0],
+      'prior_donation_count': priorDonationCount,
+      'prior_last_donation_date':
+          priorLastDonationDate?.toIso8601String().split('T')[0],
+      // 카페 정책 의료 정보 (2026-05 PR-1). 토글 false일 때 date도 null 유지.
+      'last_vaccination_date': vaccinated
+          ? lastVaccinationDate?.toIso8601String().split('T')[0]
+          : null,
+      'last_antibody_test_date': vaccinated
+          ? lastAntibodyTestDate?.toIso8601String().split('T')[0]
+          : null,
+      'last_preventive_medication_date': hasPreventiveMedication
+          ? lastPreventiveMedicationDate?.toIso8601String().split('T')[0]
+          : null,
     };
   }
 }
@@ -441,7 +465,13 @@ class _PetRegistrationFormState extends State<_PetRegistrationForm> {
   bool _isNeutered = false;
   DateTime? _neuteredDate;
   bool _hasPreventiveMedication = false;
-  DateTime? _prevDonationDate;
+  DateTime? _priorLastDonationDate;
+  // 외부 헌혈 누적 횟수 (사용자 자기신고). default 0 = 헌혈 경험 없음.
+  final _priorDonationCountController = TextEditingController(text: '0');
+  // 카페 정책 의료 정보 (2026-05 PR-1) — vaccinated=true / hasPreventiveMedication=true일 때만 표시.
+  DateTime? _lastVaccinationDate;
+  DateTime? _lastAntibodyTestDate;
+  DateTime? _lastPreventiveMedicationDate;
   XFile? _profileImage;
   Uint8List? _profileImageBytes; // 미리보기용 (웹/모바일 공통, MemoryImage)
 
@@ -450,6 +480,7 @@ class _PetRegistrationFormState extends State<_PetRegistrationForm> {
     _nameController.dispose();
     _breedController.dispose();
     _weightController.dispose();
+    _priorDonationCountController.dispose();
     super.dispose();
   }
 
@@ -557,7 +588,14 @@ class _PetRegistrationFormState extends State<_PetRegistrationForm> {
       isNeutered: _isNeutered,
       neuteredDate: _neuteredDate,
       hasPreventiveMedication: _hasPreventiveMedication,
-      prevDonationDate: _prevDonationDate,
+      priorLastDonationDate: _priorLastDonationDate,
+      priorDonationCount:
+          int.tryParse(_priorDonationCountController.text.trim()) ?? 0,
+      lastVaccinationDate: _isVaccinated ? _lastVaccinationDate : null,
+      lastAntibodyTestDate: _isVaccinated ? _lastAntibodyTestDate : null,
+      lastPreventiveMedicationDate: _hasPreventiveMedication
+          ? _lastPreventiveMedicationDate
+          : null,
       profileImage: _profileImage,
     );
 
@@ -626,6 +664,9 @@ class _PetRegistrationFormState extends State<_PetRegistrationForm> {
             // 생년월일
             _buildBirthDatePicker(),
 
+            // 외부 헌혈 누적 횟수 (사용자 자기신고)
+            _buildPriorDonationCountField(),
+
             // 최근 헌혈 일자
             _buildPrevDonationDatePicker(),
 
@@ -637,14 +678,56 @@ class _PetRegistrationFormState extends State<_PetRegistrationForm> {
               title: '백신 접종 여부',
               subtitle: '정기적으로 종합백신을 접종했나요?',
               value: _isVaccinated,
-              onChanged: (v) => setState(() => _isVaccinated = v ?? false),
+              onChanged: (v) => setState(() {
+                _isVaccinated = v ?? false;
+                if (!_isVaccinated) {
+                  _lastVaccinationDate = null;
+                  _lastAntibodyTestDate = null;
+                }
+              }),
             ),
+            // 카페 정책 (2026-05 PR-1): 종합백신 24개월 이내 또는 항체검사 12개월 이내.
+            if (_isVaccinated) ...[
+              _buildOptionalDatePicker(
+                label: '종합백신 접종일',
+                hint: '최근 종합백신 접종일을 선택하세요',
+                icon: Icons.vaccines_outlined,
+                value: _lastVaccinationDate,
+                onChanged: (picked) =>
+                    setState(() => _lastVaccinationDate = picked),
+                helperText: '카페 정책: 2년 이내 접종 필수 (2년 초과 시 항체검사 12개월 이내 필수)',
+              ),
+              _buildOptionalDatePicker(
+                label: '항체검사 일자 (백신 2년 초과 시 필수)',
+                hint: '항체검사 일자를 선택하세요',
+                icon: Icons.science_outlined,
+                value: _lastAntibodyTestDate,
+                onChanged: (picked) =>
+                    setState(() => _lastAntibodyTestDate = picked),
+              ),
+            ],
             _buildCheckboxTile(
               title: '예방약 복용',
               subtitle: '심장사상충 예방약을 정기적으로 복용하고 있나요?',
               value: _hasPreventiveMedication,
-              onChanged: (v) => setState(() => _hasPreventiveMedication = v ?? false),
+              onChanged: (v) => setState(() {
+                _hasPreventiveMedication = v ?? false;
+                if (!_hasPreventiveMedication) {
+                  _lastPreventiveMedicationDate = null;
+                }
+              }),
             ),
+            // 카페 정책 (2026-05 PR-1): 헌혈 예정일 최소 3개월 전부터 복용 필수.
+            if (_hasPreventiveMedication)
+              _buildOptionalDatePicker(
+                label: '예방약 복용일',
+                hint: '최근 예방약 복용일을 선택하세요',
+                icon: Icons.medication_outlined,
+                value: _lastPreventiveMedicationDate,
+                onChanged: (picked) =>
+                    setState(() => _lastPreventiveMedicationDate = picked),
+                helperText: '카페 정책: 헌혈 예정일 3개월 전부터 복용 필수',
+              ),
             _buildCheckboxTile(
               title: '중성화 수술',
               subtitle: '중성화 수술을 받았나요? (수술 후 6개월 이후 헌혈 가능, 수술일 필수)',
@@ -1329,88 +1412,173 @@ class _PetRegistrationFormState extends State<_PetRegistrationForm> {
   }
 
   Widget _buildPrevDonationDatePicker() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        RichText(
-          text: TextSpan(
-            text: '최근 헌혈 일자',
-            style: AppTheme.bodyMediumStyle.copyWith(fontWeight: FontWeight.w600),
-            children: const [
-              TextSpan(
-                text: ' (선택)',
-                style: TextStyle(color: AppTheme.textTertiary, fontWeight: FontWeight.w400),
+    return _buildOptionalDatePicker(
+      label: '최근 외부 헌혈 일자',
+      hint: '헌혈 경험이 있다면 날짜를 선택하세요',
+      icon: Icons.bloodtype_outlined,
+      value: _priorLastDonationDate,
+      onChanged: (picked) =>
+          setState(() => _priorLastDonationDate = picked),
+    );
+  }
+
+  /// 외부 헌혈 누적 횟수 입력 위젯 (사용자 자기신고).
+  /// 0이면 헌혈 경험 없음, 빈 문자열은 0으로 간주.
+  Widget _buildPriorDonationCountField() {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: AppTheme.spacing16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          RichText(
+            text: TextSpan(
+              text: '이전 외부 헌혈 횟수',
+              style: AppTheme.bodyMediumStyle.copyWith(
+                fontWeight: FontWeight.w600,
               ),
-            ],
-          ),
-        ),
-        const SizedBox(height: AppTheme.spacing8),
-        InkWell(
-          onTap: () async {
-            final picked = await showDatePicker(
-              context: context,
-              initialDate: _prevDonationDate ?? DateTime.now(),
-              firstDate: DateTime(2010),
-              lastDate: DateTime.now(),
-              helpText: '최근 헌혈 일자 선택',
-              cancelText: '취소',
-              confirmText: '선택',
-            );
-            if (picked != null) setState(() => _prevDonationDate = picked);
-          },
-          child: Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: AppTheme.veryLightGray,
-              borderRadius: BorderRadius.circular(AppTheme.radius12),
-            ),
-            child: Row(
-              children: [
-                Icon(
-                  Icons.bloodtype_outlined,
-                  size: 20,
-                  color: _prevDonationDate != null ? AppTheme.primaryBlue : AppTheme.textTertiary,
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Text(
-                    _prevDonationDate != null
-                        ? '${_prevDonationDate!.year}년 ${_prevDonationDate!.month}월 ${_prevDonationDate!.day}일'
-                        : '헌혈 경험이 있다면 날짜를 선택하세요',
-                    style: AppTheme.bodyLargeStyle.copyWith(
-                      color: _prevDonationDate != null ? AppTheme.textPrimary : AppTheme.textTertiary,
-                    ),
+              children: const [
+                TextSpan(
+                  text: ' (선택)',
+                  style: TextStyle(
+                    color: AppTheme.textTertiary,
+                    fontWeight: FontWeight.w400,
                   ),
                 ),
-                if (_prevDonationDate != null)
-                  IconButton(
-                    icon: Icon(Icons.close, color: AppTheme.textTertiary, size: 20),
-                    onPressed: () => setState(() => _prevDonationDate = null),
-                    padding: EdgeInsets.zero,
-                    constraints: const BoxConstraints(),
-                  )
-                else
-                  Icon(Icons.calendar_today_outlined, color: AppTheme.textTertiary, size: 20),
               ],
             ),
           ),
-        ),
-        if (_prevDonationDate != null) ...[
           const SizedBox(height: AppTheme.spacing8),
-          Builder(builder: (context) {
-            final daysSince = DateTime.now().difference(_prevDonationDate!).inDays;
-            final canDonate = daysSince >= 56;
-            return Text(
-              canDonate
-                  ? '✓ 마지막 헌혈 후 $daysSince일 경과 (헌혈 가능)'
-                  : '⏳ 마지막 헌혈 후 $daysSince일 경과 (${56 - daysSince}일 후 헌혈 가능)',
-              style: AppTheme.bodySmallStyle.copyWith(
-                color: canDonate ? Colors.green.shade600 : Colors.orange.shade600,
+          TextFormField(
+            controller: _priorDonationCountController,
+            keyboardType: TextInputType.number,
+            inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+            decoration: InputDecoration(
+              hintText: '0 (헌혈 경험 없음)',
+              prefixIcon: const Icon(
+                Icons.history_outlined,
+                color: AppTheme.textTertiary,
               ),
-            );
-          }),
+              filled: true,
+              fillColor: AppTheme.veryLightGray,
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(AppTheme.radius12),
+                borderSide: BorderSide.none,
+              ),
+            ),
+          ),
         ],
-      ],
+      ),
+    );
+  }
+
+  /// 일반 옵셔널 날짜 picker (label/hint/icon 받아 일관된 모양). 빈 값에서는 캘린더 아이콘,
+  /// 값 있을 때 닫기 버튼으로 클리어 가능. helperText는 picker 아래 카페 정책 안내문 등에 사용.
+  Widget _buildOptionalDatePicker({
+    required String label,
+    required String hint,
+    required IconData icon,
+    required DateTime? value,
+    required ValueChanged<DateTime?> onChanged,
+    String? helperText,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: AppTheme.spacing16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          RichText(
+            text: TextSpan(
+              text: label,
+              style: AppTheme.bodyMediumStyle.copyWith(
+                fontWeight: FontWeight.w600,
+              ),
+              children: const [
+                TextSpan(
+                  text: ' (선택)',
+                  style: TextStyle(
+                    color: AppTheme.textTertiary,
+                    fontWeight: FontWeight.w400,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: AppTheme.spacing8),
+          InkWell(
+            onTap: () async {
+              final DateTime? picked = await showDatePicker(
+                context: context,
+                initialDate: value ?? DateTime.now(),
+                firstDate: DateTime(2010),
+                lastDate: DateTime.now(),
+                helpText: '$label 선택',
+                cancelText: '취소',
+                confirmText: '선택',
+              );
+              if (picked != null) {
+                onChanged(picked);
+              }
+            },
+            child: Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: AppTheme.veryLightGray,
+                borderRadius: BorderRadius.circular(AppTheme.radius12),
+              ),
+              child: Row(
+                children: [
+                  Icon(
+                    icon,
+                    size: 20,
+                    color: value != null
+                        ? AppTheme.primaryBlue
+                        : AppTheme.textTertiary,
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      value != null
+                          ? '${value.year}년 ${value.month}월 ${value.day}일'
+                          : hint,
+                      style: AppTheme.bodyLargeStyle.copyWith(
+                        color: value != null
+                            ? AppTheme.textPrimary
+                            : AppTheme.textTertiary,
+                      ),
+                    ),
+                  ),
+                  if (value != null)
+                    IconButton(
+                      icon: const Icon(
+                        Icons.close,
+                        color: AppTheme.textTertiary,
+                        size: 20,
+                      ),
+                      onPressed: () => onChanged(null),
+                      padding: EdgeInsets.zero,
+                      constraints: const BoxConstraints(),
+                    )
+                  else
+                    const Icon(
+                      Icons.calendar_today_outlined,
+                      color: AppTheme.textTertiary,
+                      size: 20,
+                    ),
+                ],
+              ),
+            ),
+          ),
+          if (helperText != null) ...[
+            const SizedBox(height: AppTheme.spacing8),
+            Text(
+              helperText,
+              style: AppTheme.bodySmallStyle.copyWith(
+                color: AppTheme.textTertiary,
+              ),
+            ),
+          ],
+        ],
+      ),
     );
   }
 }

@@ -716,11 +716,13 @@ class _DonationApplicationPageState extends State<DonationApplicationPage> {
                   padding: EdgeInsets.symmetric(vertical: 6),
                 ),
               // 최근 헌혈일: 미입력 시 회색 — (첫 헌혈)
-              if (pet.prevDonationDate != null)
+              // effective date (max of system / prior) — 2026-05 PR-1 컬럼 분리.
+              if (pet.effectiveLastDonationDate != null)
                 _buildInfoRow(
                   icon: PetFieldIcons.prevDonationDate,
                   label: '최근 헌혈일',
-                  value: DateFormat('yyyy-MM-dd').format(pet.prevDonationDate!),
+                  value: DateFormat('yyyy-MM-dd')
+                      .format(pet.effectiveLastDonationDate!),
                 )
               else
                 const PetStatusRow(
@@ -740,6 +742,21 @@ class _DonationApplicationPageState extends State<DonationApplicationPage> {
                     : PetStatusType.critical,
                 padding: const EdgeInsets.symmetric(vertical: 6),
               ),
+              // 종합백신 접종일 + 항체검사 일자 (카페 정책 — 2026-05 PR-1)
+              if (pet.vaccinated == true && pet.lastVaccinationDate != null)
+                _buildInfoRow(
+                  icon: PetFieldIcons.vaccinationDate,
+                  label: '종합백신',
+                  value:
+                      DateFormat('yyyy-MM-dd').format(pet.lastVaccinationDate!),
+                ),
+              if (pet.vaccinated == true && pet.lastAntibodyTestDate != null)
+                _buildInfoRow(
+                  icon: PetFieldIcons.antibodyTestDate,
+                  label: '항체검사',
+                  value: DateFormat('yyyy-MM-dd')
+                      .format(pet.lastAntibodyTestDate!),
+                ),
               PetStatusRow(
                 icon: PetFieldIcons.medication,
                 label: '예방약',
@@ -749,6 +766,15 @@ class _DonationApplicationPageState extends State<DonationApplicationPage> {
                     : PetStatusType.critical,
                 padding: const EdgeInsets.symmetric(vertical: 6),
               ),
+              // 예방약 복용일 (카페 정책 — 2026-05 PR-1)
+              if (pet.hasPreventiveMedication == true &&
+                  pet.lastPreventiveMedicationDate != null)
+                _buildInfoRow(
+                  icon: PetFieldIcons.preventiveMedicationDate,
+                  label: '예방약 복용',
+                  value: DateFormat('yyyy-MM-dd')
+                      .format(pet.lastPreventiveMedicationDate!),
+                ),
               // 중성화: 완료 시 날짜 텍스트, 미완료 시 회색 — (자연스러운 부재)
               if (pet.isNeutered == true && pet.neuteredDate != null)
                 _buildInfoRow(

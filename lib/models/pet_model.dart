@@ -19,7 +19,17 @@ class Pet {
   final DateTime? lastPregnancyEndDate;
   final bool? vaccinated; // 백신 접종 여부 (DB에서 NULL 허용)
   final bool? hasDisease; // 질병 이력 여부 (DB에서 NULL 허용)
-  final DateTime? prevDonationDate; // 이전 헌혈 일자
+  // 헌혈 일자는 컬럼 분리됨 (2026-05 PR-1):
+  // - prev_donation_date_system: 시스템 자동 갱신 (admin 최종 승인 시). 사용자 PUT 차단.
+  // - prior_last_donation_date: 사용자 자기신고 (외부 헌혈). 사용자 입력 가능.
+  // 자격 검증/표시는 effectiveLastDonationDate getter (max) 사용.
+  final DateTime? prevDonationDateSystem;
+  final DateTime? priorLastDonationDate;
+  final int priorDonationCount; // 외부 헌혈 누적 횟수 (사용자 입력, default 0, NOT NULL)
+  // 카페 정책 의료 정보 (2026-05 PR-1)
+  final DateTime? lastVaccinationDate; // 종합백신 접종일
+  final DateTime? lastAntibodyTestDate; // 항체검사 일자
+  final DateTime? lastPreventiveMedicationDate; // 예방약 복용일
   final bool? isNeutered; // 중성화 수술 여부
   final DateTime? neuteredDate; // 중성화 수술 일자
   final bool? hasPreventiveMedication; // 예방약 복용 여부
@@ -51,7 +61,12 @@ class Pet {
     this.lastPregnancyEndDate,
     this.vaccinated,
     this.hasDisease,
-    this.prevDonationDate,
+    this.prevDonationDateSystem,
+    this.priorLastDonationDate,
+    this.priorDonationCount = 0,
+    this.lastVaccinationDate,
+    this.lastAntibodyTestDate,
+    this.lastPreventiveMedicationDate,
     this.isNeutered,
     this.neuteredDate,
     this.hasPreventiveMedication,
@@ -138,9 +153,25 @@ class Pet {
           json['has_disease'] == null
               ? null
               : (json['has_disease'] == 1 || json['has_disease'] == true),
-      prevDonationDate:
-          json['prev_donation_date'] != null
-              ? DateTime.tryParse(json['prev_donation_date'])
+      // 헌혈 일자 컬럼 분리 (2026-05 PR-1)
+      prevDonationDateSystem: json['prev_donation_date_system'] != null
+          ? DateTime.tryParse(json['prev_donation_date_system'])
+          : null,
+      priorLastDonationDate: json['prior_last_donation_date'] != null
+          ? DateTime.tryParse(json['prior_last_donation_date'])
+          : null,
+      priorDonationCount: json['prior_donation_count'] is int
+          ? json['prior_donation_count'] as int
+          : 0,
+      lastVaccinationDate: json['last_vaccination_date'] != null
+          ? DateTime.tryParse(json['last_vaccination_date'])
+          : null,
+      lastAntibodyTestDate: json['last_antibody_test_date'] != null
+          ? DateTime.tryParse(json['last_antibody_test_date'])
+          : null,
+      lastPreventiveMedicationDate:
+          json['last_preventive_medication_date'] != null
+              ? DateTime.tryParse(json['last_preventive_medication_date'])
               : null,
       isNeutered:
           json['is_neutered'] == null
@@ -193,7 +224,16 @@ class Pet {
           lastPregnancyEndDate?.toIso8601String().split('T')[0],
       'vaccinated': vaccinated == null ? null : (vaccinated! ? 1 : 0),
       'has_disease': hasDisease == null ? null : (hasDisease! ? 1 : 0),
-      'prev_donation_date': prevDonationDate?.toIso8601String(),
+      // prev_donation_date_system은 시스템 자동 갱신 컬럼 (PUT 차단). toMap에서 제외.
+      'prior_last_donation_date':
+          priorLastDonationDate?.toIso8601String().split('T')[0],
+      'prior_donation_count': priorDonationCount,
+      'last_vaccination_date':
+          lastVaccinationDate?.toIso8601String().split('T')[0],
+      'last_antibody_test_date':
+          lastAntibodyTestDate?.toIso8601String().split('T')[0],
+      'last_preventive_medication_date':
+          lastPreventiveMedicationDate?.toIso8601String().split('T')[0],
       'is_neutered': isNeutered == null ? null : (isNeutered! ? 1 : 0),
       'neutered_date': neuteredDate?.toIso8601String().split('T')[0],
       'has_preventive_medication':
@@ -205,26 +245,42 @@ class Pet {
     };
   }
 
+  /// 자격 검증/표시용 마지막 헌혈일 — `max(prev_donation_date_system, prior_last_donation_date)`.
+  ///
+  /// 백엔드 `utils/pet_helpers.py::get_effective_last_donation_date()` 미러.
+  /// 컬럼 분리 정책 (2026-05 PR-1):
+  /// - 시스템 자동 갱신값(`prevDonationDateSystem`)과 사용자 자기신고(`priorLastDonationDate`)
+  ///   둘 다 후보. 더 늦은 날짜를 채택해 우회 시나리오 차단.
+  DateTime? get effectiveLastDonationDate {
+    if (prevDonationDateSystem == null) return priorLastDonationDate;
+    if (priorLastDonationDate == null) return prevDonationDateSystem;
+    return prevDonationDateSystem!.isAfter(priorLastDonationDate!)
+        ? prevDonationDateSystem
+        : priorLastDonationDate;
+  }
+
   // 헌혈 가능 여부 판단 (6개월 간격, 백엔드 동기화 2026-04-29)
   bool get canDonate {
-    if (prevDonationDate == null) return true; // 첫 헌혈
+    final lastDate = effectiveLastDonationDate;
+    if (lastDate == null) return true; // 첫 헌혈
 
     final now = DateTime.now();
-    final daysSince = now.difference(prevDonationDate!).inDays;
+    final daysSince = now.difference(lastDate).inDays;
 
     return daysSince >= 180; // 6개월(180일) 이상 경과
   }
 
   // 다음 헌혈 가능일
   DateTime? get nextDonationDate {
-    if (prevDonationDate == null) return null; // 첫 헌혈인 경우
+    final lastDate = effectiveLastDonationDate;
+    if (lastDate == null) return null; // 첫 헌혈인 경우
 
-    return prevDonationDate!.add(const Duration(days: 180));
+    return lastDate.add(const Duration(days: 180));
   }
 
   // 헌혈 상태 텍스트
   String get donationStatusText {
-    if (prevDonationDate == null) {
+    if (effectiveLastDonationDate == null) {
       return '첫 헌혈 예정';
     }
 
