@@ -862,6 +862,10 @@ class _UnifiedNotificationPageState extends State<UnifiedNotificationPage> {
           return const Color(0xFF14B8A6); // 틸
         case AdminNotificationType.documentRequestResponded:
           return const Color(0xFF6366F1); // 인디고
+        case AdminNotificationType.donationDayBeforeReminder:
+          return AppTheme.warning;
+        case AdminNotificationType.donationSurveySubmitted:
+          return const Color(0xFF14B8A6); // 틸 — 검토 요청 그룹
       }
     }
     // 병원 알림
@@ -886,6 +890,8 @@ class _UnifiedNotificationPageState extends State<UnifiedNotificationPage> {
           return const Color(0xFF64748B); // 슬레이트
         case HospitalNotificationType.documentRequest:
           return const Color(0xFF6366F1); // 인디고
+        case HospitalNotificationType.donationDayBeforeReminder:
+          return AppTheme.warning;
       }
     }
     // 사용자 알림
@@ -908,6 +914,14 @@ class _UnifiedNotificationPageState extends State<UnifiedNotificationPage> {
           return AppTheme.success;
         case UserNotificationType.documentRequestResponded:
           return const Color(0xFF6366F1); // 인디고
+        case UserNotificationType.donationDayBeforeReminder:
+          return AppTheme.warning;
+        case UserNotificationType.applicationAutoClosed:
+          return AppTheme.error;
+        case UserNotificationType.petInfoUpdateRequest:
+          return const Color(0xFFF59E0B); // 앰버 — 정보 보완 요청
+        case UserNotificationType.surveyPreLockReminder:
+          return AppTheme.error; // 빨강 — 마감 임박 강조
       }
     }
     return AppTheme.primaryBlue;
@@ -1026,6 +1040,10 @@ class _UnifiedNotificationPageState extends State<UnifiedNotificationPage> {
         return Icons.photo_camera;
       case AdminNotificationType.documentRequestResponded:
         return Icons.description;
+      case AdminNotificationType.donationDayBeforeReminder:
+        return Icons.event;
+      case AdminNotificationType.donationSurveySubmitted:
+        return Icons.fact_check_outlined;
     }
   }
 
@@ -1053,6 +1071,8 @@ class _UnifiedNotificationPageState extends State<UnifiedNotificationPage> {
         return Icons.campaign;
       case HospitalNotificationType.documentRequest:
         return Icons.description;
+      case HospitalNotificationType.donationDayBeforeReminder:
+        return Icons.event;
     }
   }
 
@@ -1078,6 +1098,14 @@ class _UnifiedNotificationPageState extends State<UnifiedNotificationPage> {
         return Icons.no_photography;
       case UserNotificationType.documentRequestResponded:
         return Icons.description;
+      case UserNotificationType.donationDayBeforeReminder:
+        return Icons.event;
+      case UserNotificationType.applicationAutoClosed:
+        return Icons.do_not_disturb_on_outlined;
+      case UserNotificationType.petInfoUpdateRequest:
+        return Icons.edit_note;
+      case UserNotificationType.surveyPreLockReminder:
+        return Icons.alarm; // 마감 임박 알람
     }
   }
 

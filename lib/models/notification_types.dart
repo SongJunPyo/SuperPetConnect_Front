@@ -40,6 +40,9 @@ enum AdminNotificationType {
   petReviewRequest, // 반려동물 재심사 요청
   petPhotoReviewRequest, // 반려동물 프로필 사진 변경 검토 요청
   documentRequestResponded, // 헌혈 자료 요청 응답 수신
+  // 2026-05 PR-5
+  donationDayBeforeReminder, // 헌혈 D-1 09:00 일정 모니터링 알림
+  donationSurveySubmitted, // 헌혈 사전 설문 제출 (옵션 A+C — 신규/재제출)
 }
 
 // 병원 알림 타입
@@ -55,6 +58,8 @@ enum HospitalNotificationType {
   columnRejected, // 칼럼 게시글 거절
   systemNotice, // 시스템 공지
   documentRequest, // 헌혈 자료 요청
+  // 2026-05 PR-5
+  donationDayBeforeReminder, // 헌혈 D-1 09:00 신청자 수 알림
 }
 
 // 사용자 알림 타입
@@ -69,6 +74,12 @@ enum UserNotificationType {
   petPhotoApproved, // 반려동물 프로필 사진 승인
   petPhotoRejected, // 반려동물 프로필 사진 거절
   documentRequestResponded, // 헌혈 자료 요청 응답 수신
+  // 2026-05 PR-5
+  donationDayBeforeReminder, // 헌혈 D-1 09:00 본인 헌혈 일정 알림 (survey_filled로 멘트 분기)
+  applicationAutoClosed, // D-2 23:55 설문 미작성 자동 종결
+  petInfoUpdateRequest, // 펫 정보 보완 요청 (운영진 수동 트리거)
+  // 2026-05 PR-5 보강 — D-2 09:00 미작성자에게 마감 임박 경고 (D-2 23:55 자동 종결 직전)
+  surveyPreLockReminder,
 }
 
 // 알림 타입 한국어 이름 매핑
@@ -85,6 +96,8 @@ class NotificationTypeNames {
     AdminNotificationType.petReviewRequest: '반려동물 재심사 요청',
     AdminNotificationType.petPhotoReviewRequest: '반려동물 사진 변경 검토',
     AdminNotificationType.documentRequestResponded: '자료 요청 응답',
+    AdminNotificationType.donationDayBeforeReminder: '헌혈 일정 D-1 알림',
+    AdminNotificationType.donationSurveySubmitted: '헌혈 설문 검토 요청',
   };
 
   // 병원 알림 이름
@@ -100,6 +113,7 @@ class NotificationTypeNames {
     HospitalNotificationType.columnRejected: '칼럼 게시글 거절',
     HospitalNotificationType.systemNotice: '시스템 공지',
     HospitalNotificationType.documentRequest: '헌혈 자료 요청',
+    HospitalNotificationType.donationDayBeforeReminder: '헌혈 일정 D-1 알림',
   };
 
   // 사용자 알림 이름
@@ -114,6 +128,10 @@ class NotificationTypeNames {
     UserNotificationType.petPhotoApproved: '반려동물 사진 승인',
     UserNotificationType.petPhotoRejected: '반려동물 사진 거절',
     UserNotificationType.documentRequestResponded: '자료 요청 응답',
+    UserNotificationType.donationDayBeforeReminder: '헌혈 D-1 알림',
+    UserNotificationType.applicationAutoClosed: '신청 자동 종결',
+    UserNotificationType.petInfoUpdateRequest: '반려동물 정보 보완 요청',
+    UserNotificationType.surveyPreLockReminder: '사전 설문 마감 임박',
   };
 }
 
@@ -131,6 +149,8 @@ class NotificationTypeIcons {
     AdminNotificationType.petReviewRequest: '🔄',
     AdminNotificationType.petPhotoReviewRequest: '📸',
     AdminNotificationType.documentRequestResponded: '📄',
+    AdminNotificationType.donationDayBeforeReminder: '📅',
+    AdminNotificationType.donationSurveySubmitted: '📋',
   };
 
   // 병원 알림 아이콘
@@ -146,6 +166,7 @@ class NotificationTypeIcons {
     HospitalNotificationType.columnRejected: '❌',
     HospitalNotificationType.systemNotice: '🔔',
     HospitalNotificationType.documentRequest: '📋',
+    HospitalNotificationType.donationDayBeforeReminder: '📅',
   };
 
   // 사용자 알림 아이콘
@@ -160,6 +181,10 @@ class NotificationTypeIcons {
     UserNotificationType.petPhotoApproved: '📸',
     UserNotificationType.petPhotoRejected: '🚫',
     UserNotificationType.documentRequestResponded: '📄',
+    UserNotificationType.donationDayBeforeReminder: '📅',
+    UserNotificationType.applicationAutoClosed: '⛔',
+    UserNotificationType.petInfoUpdateRequest: '📝',
+    UserNotificationType.surveyPreLockReminder: '⏰',
   };
 }
 
@@ -182,6 +207,8 @@ class NotificationPriority {
     AdminNotificationType.petReviewRequest: normal,
     AdminNotificationType.petPhotoReviewRequest: normal,
     AdminNotificationType.documentRequestResponded: high,
+    AdminNotificationType.donationDayBeforeReminder: high,
+    AdminNotificationType.donationSurveySubmitted: high,
   };
 
   // 병원 알림 우선순위
@@ -197,6 +224,7 @@ class NotificationPriority {
     HospitalNotificationType.columnRejected: normal,
     HospitalNotificationType.systemNotice: urgent,
     HospitalNotificationType.documentRequest: high,
+    HospitalNotificationType.donationDayBeforeReminder: high,
   };
 
   // 사용자 알림 우선순위
@@ -211,6 +239,10 @@ class NotificationPriority {
     UserNotificationType.petPhotoApproved: normal,
     UserNotificationType.petPhotoRejected: high,
     UserNotificationType.documentRequestResponded: high,
+    UserNotificationType.donationDayBeforeReminder: urgent,
+    UserNotificationType.applicationAutoClosed: urgent,
+    UserNotificationType.petInfoUpdateRequest: high,
+    UserNotificationType.surveyPreLockReminder: urgent,
   };
 }
 
@@ -228,6 +260,8 @@ class NotificationTypeIds {
     AdminNotificationType.petReviewRequest: 108,
     AdminNotificationType.petPhotoReviewRequest: 109,
     AdminNotificationType.documentRequestResponded: 110,
+    AdminNotificationType.donationDayBeforeReminder: 111,
+    AdminNotificationType.donationSurveySubmitted: 112,
   };
 
   // 병원 알림 ID
@@ -243,6 +277,7 @@ class NotificationTypeIds {
     HospitalNotificationType.columnRejected: 208,
     HospitalNotificationType.systemNotice: 209,
     HospitalNotificationType.documentRequest: 211,
+    HospitalNotificationType.donationDayBeforeReminder: 212,
   };
 
   // 사용자 알림 ID
@@ -257,6 +292,10 @@ class NotificationTypeIds {
     UserNotificationType.petPhotoApproved: 309,
     UserNotificationType.petPhotoRejected: 310,
     UserNotificationType.documentRequestResponded: 311,
+    UserNotificationType.donationDayBeforeReminder: 312,
+    UserNotificationType.applicationAutoClosed: 313,
+    UserNotificationType.petInfoUpdateRequest: 314,
+    UserNotificationType.surveyPreLockReminder: 315,
   };
 
   // ID에서 타입으로 역매핑

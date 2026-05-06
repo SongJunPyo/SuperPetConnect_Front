@@ -8,6 +8,8 @@ import 'package:provider/provider.dart';
 import '../admin/admin_column_management.dart';
 import '../admin/admin_dashboard.dart';
 import '../admin/admin_donation_approval_page.dart';
+import '../admin/admin_donation_survey_detail.dart';
+import '../admin/admin_donation_survey_list.dart';
 import '../admin/admin_pet_management.dart';
 import '../admin/admin_post_check.dart';
 import '../admin/admin_signup_management.dart';
@@ -16,6 +18,7 @@ import '../hospital/hospital_dashboard.dart';
 import '../hospital/hospital_post_check.dart';
 import '../providers/notification_provider.dart';
 import '../user/donation_history_screen.dart';
+import '../user/donation_survey_form_page.dart';
 import '../user/my_applications_screen.dart';
 import '../user/pet_management.dart';
 import '../user/user_dashboard.dart';
@@ -143,6 +146,26 @@ class NotificationService {
       case 'document_request_responded':
         // 자료 요청 응답 — admin/user 양쪽 수신.
         _navigateForDocumentRequestResponded(parsedData);
+        break;
+      case 'donation_day_before_reminder':
+        // D-1 09:00 헌혈 일정 알림 (admin/hospital/user 3분기 — 2026-05 PR-5).
+        _navigateForDayBeforeReminder(parsedData);
+        break;
+      case 'donation_application_auto_closed':
+        // D-2 23:55 설문 미작성 자동 종결 (USER, 2026-05 PR-5).
+        _navigateForApplicationAutoClosed(parsedData);
+        break;
+      case 'donation_survey_submitted':
+        // ADMIN 전용 — 사전 설문 신규/재제출 검토 요청 (옵션 A+C, 2026-05 PR-5).
+        _navigateForSurveySubmitted(parsedData);
+        break;
+      case 'pet_info_update_request':
+        // 펫 정보 보완 요청 (운영진 수동 트리거, USER, 2026-05 PR-5).
+        _navigateToUserPetManagement(parsedData);
+        break;
+      case 'donation_survey_pre_lock_reminder':
+        // 사전 설문 마감 임박 경고 (D-2 09:00 미작성자, USER, 2026-05 PR-5 보강).
+        _navigateForSurveyPreLockReminder(parsedData);
         break;
       case 'pet_approved':
       case 'pet_rejected':
@@ -576,6 +599,143 @@ class NotificationService {
       }
     } catch (e) {
       debugPrint('[NotificationService] document_request_responded 분기 실패: $e');
+    }
+  }
+
+  /// donation_day_before_reminder 알림 분기 (2026-05 PR-5).
+  ///
+  /// 백엔드 emit: donation_reminder_scheduler 확장 (D-1 09:00 cron).
+  /// 다중 수신 라우팅 — admin/hospital/user 3분기.
+  ///
+  /// data 키 (역할별 상이):
+  /// - USER: post_idx, application_id, donation_date, donation_time, survey_filled
+  /// - HOSPITAL: post_idx, donation_date, donation_time, applicant_count, post_title
+  /// - ADMIN: post_idx, donation_date, donation_time, post_title
+  ///
+  /// 도착 화면:
+  /// - user(3): 본인 헌혈 이력 (application_id 강조). survey_filled 분기는 본문 텍스트로만 안내.
+  /// - hospital(2): HospitalPostCheck (게시글 시간대 모니터링)
+  /// - admin(1): AdminPostCheck (모니터링)
+  static Future<void> _navigateForDayBeforeReminder(
+    Map<String, dynamic> data,
+  ) async {
+    final context = navigatorKey.currentContext;
+    if (context == null) return;
+
+    final accountType = await PreferencesManager.getAccountType();
+    if (!context.mounted) return;
+
+    final raw = data['post_idx'] ?? data['post_id'];
+    final postIdx = raw is int ? raw : int.tryParse(raw?.toString() ?? '');
+
+    try {
+      if (accountType == 1) {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => AdminPostCheck(initialPostIdx: postIdx),
+          ),
+        );
+      } else if (accountType == 2) {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => HospitalPostCheck(initialPostIdx: postIdx),
+          ),
+        );
+      } else {
+        // user(3): 본인 헌혈 이력 (application_id로 카드 highlight).
+        _navigateToDonationHistory(data);
+      }
+    } catch (e) {
+      debugPrint('[NotificationService] day_before_reminder 분기 실패: $e');
+    }
+  }
+
+  /// donation_application_auto_closed 알림 진입 (2026-05 PR-5).
+  ///
+  /// D-2 23:55 설문 미작성으로 자동 종결됐음을 USER에게 안내.
+  /// 도착 화면: 내 신청 내역 (MyApplicationsScreen).
+  /// data 키: post_idx, application_id, reason="survey_not_submitted",
+  ///         donation_date, donation_time, post_title.
+  static void _navigateForApplicationAutoClosed(Map<String, dynamic> data) {
+    final context = navigatorKey.currentContext;
+    if (context == null) return;
+    try {
+      Navigator.push(
+        context,
+        MaterialPageRoute(builder: (_) => const MyApplicationsScreen()),
+      );
+    } catch (e) {
+      debugPrint('[NotificationService] application_auto_closed 진입 실패: $e');
+    }
+  }
+
+  /// donation_survey_submitted 알림 진입 (ADMIN, 2026-05 PR-5).
+  ///
+  /// 옵션 A+C: 첫 제출 + 사용자가 admin 열람 후 수정 시 발송.
+  /// data 키: application_id, post_idx, pet_idx, pet_name, hospital_name, is_resubmission.
+  ///
+  /// 도착 화면 (F-D 진입 후 정정 — 2026-05 PR-3):
+  /// - data에 survey_idx가 있으면 AdminDonationSurveyDetail로 직접 진입 (자동 PATCH 발생)
+  /// - survey_idx가 없으면 목록 화면(AdminDonationSurveyList)으로 fallback
+  static void _navigateForSurveySubmitted(Map<String, dynamic> data) {
+    final context = navigatorKey.currentContext;
+    if (context == null) return;
+    try {
+      final raw = data['survey_idx'];
+      final surveyIdx =
+          raw is int ? raw : int.tryParse(raw?.toString() ?? '');
+      if (surveyIdx != null) {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => AdminDonationSurveyDetail(surveyIdx: surveyIdx),
+          ),
+        );
+      } else {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => const AdminDonationSurveyList(),
+          ),
+        );
+      }
+    } catch (e) {
+      debugPrint('[NotificationService] survey_submitted 진입 실패: $e');
+    }
+  }
+
+  /// donation_survey_pre_lock_reminder 알림 진입 (USER, 2026-05 PR-5 보강).
+  ///
+  /// D-2 09:00에 미작성자에게만 발송되는 마감 임박 경고.
+  /// 도착 화면: DonationSurveyFormPage (application_id로 작성 화면 진입).
+  /// data 키: post_idx, application_id, donation_date, donation_time.
+  ///
+  /// application_id 없으면 MyApplicationsScreen으로 fallback (사용자가 직접 선택).
+  static void _navigateForSurveyPreLockReminder(Map<String, dynamic> data) {
+    final context = navigatorKey.currentContext;
+    if (context == null) return;
+    try {
+      final raw = data['application_id'];
+      final applicationId =
+          raw is int ? raw : int.tryParse(raw?.toString() ?? '');
+      if (applicationId != null) {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) =>
+                DonationSurveyFormPage(applicationId: applicationId),
+          ),
+        );
+      } else {
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => const MyApplicationsScreen()),
+        );
+      }
+    } catch (e) {
+      debugPrint('[NotificationService] survey_pre_lock_reminder 진입 실패: $e');
     }
   }
 

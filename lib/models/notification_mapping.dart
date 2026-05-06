@@ -149,6 +149,51 @@ class ServerNotificationMapping {
       UserType.admin: AdminNotificationType.documentRequestResponded,
       UserType.user: UserNotificationType.documentRequestResponded,
     },
+
+    // === 헌혈 D-1 09:00 알림 (USER + HOSPITAL + ADMIN, 2026-05 PR-5) ===
+    // 트리거: donation_reminder_scheduler 확장 (D-1 09:00 cron)
+    // data 키:
+    //   USER: { type, post_idx, application_id, donation_date, donation_time, survey_filled (bool) }
+    //   HOSPITAL: { type, post_idx, donation_date, donation_time, applicant_count, post_title }
+    //   ADMIN: { type, post_idx, donation_date, donation_time, post_title }
+    'donation_day_before_reminder': {
+      UserType.admin: AdminNotificationType.donationDayBeforeReminder,
+      UserType.hospital: HospitalNotificationType.donationDayBeforeReminder,
+      UserType.user: UserNotificationType.donationDayBeforeReminder,
+    },
+
+    // === 설문 미작성 자동 종결 (USER, 2026-05 PR-5) ===
+    // 트리거: donation_survey_lock_scheduler (D-2 23:55) 미작성자 status=CLOSED 처리
+    // data 키: { type, post_idx, application_id, reason: "survey_not_submitted",
+    //           donation_date, donation_time, post_title }
+    'donation_application_auto_closed': {
+      UserType.user: UserNotificationType.applicationAutoClosed,
+    },
+
+    // === 헌혈 사전 설문 제출 알림 (ADMIN, 2026-05 PR-5) ===
+    // 옵션 A+C: 첫 제출 + admin 열람 후 사용자 재제출 시 발송.
+    // 미열람 상태 수정은 알림 X.
+    // data 키: { type, application_id, post_idx, pet_idx, pet_name, hospital_name,
+    //           is_resubmission ("true"/"false" string) }
+    'donation_survey_submitted': {
+      UserType.admin: AdminNotificationType.donationSurveySubmitted,
+    },
+
+    // === 펫 정보 보완 요청 (USER, 2026-05 PR-5) ===
+    // 트리거: 운영진 수동 호출 (자동 마이그 일괄 X).
+    // data 키: { type, missing_fields (list of "last_vaccination_date" / "last_preventive_medication_date") }
+    // FCM은 list/dict를 string으로 직렬화 — 프론트 파싱 시 jsonDecode 필요.
+    'pet_info_update_request': {
+      UserType.user: UserNotificationType.petInfoUpdateRequest,
+    },
+
+    // === 사전 설문 마감 임박 경고 (USER, 2026-05 PR-5 보강) ===
+    // 트리거: D-2 09:00 cron — 미작성자에게만 발송 (작성자는 일반 donation_reminder 수신).
+    // 백엔드 충돌 방지: filled_survey_only 플래그로 한 사용자에게 두 알림 발송 안 함.
+    // data 키: { type, post_idx, application_id, donation_date, donation_time }
+    'donation_survey_pre_lock_reminder': {
+      UserType.user: UserNotificationType.surveyPreLockReminder,
+    },
   };
 
   /// 프론트엔드 타입 -> 서버 타입 역매핑 (필요시 사용)
