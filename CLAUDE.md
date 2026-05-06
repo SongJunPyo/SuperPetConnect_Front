@@ -55,6 +55,7 @@
   - 사용자 승인 워크플로우
   - 병원 검증 관리
   - 시스템 전체 콘텐츠 조정
+  - 헌혈 사전 설문 검토 (`admin_donation_survey_list.dart`, `_detail.dart`)
 - `lib/auth/` - 인증 플로우
   - 헌혈 게시판 미리보기가 있는 환영 화면
   - 역할 선택이 있는 로그인/회원가입
@@ -63,16 +64,24 @@
   - 헌혈 게시물 생성/관리
   - 지원자 검토 및 승인
   - 시간대 스케줄링 인터페이스
+  - 신청자 사전 설문 조회 (`hospital_donation_survey_list.dart`, `_detail.dart`)
 - `lib/user/` - 반려동물 소유자 기능
   - 반려동물 등록 및 프로필 관리
   - 헌혈 기회 탐색/지원
   - 교육 콘텐츠 (칼럼)
+  - 헌혈 사전 설문 작성/수정 (`donation_survey_form_page.dart` — 신규/수정/잠금 자동 분기)
 - `lib/models/` - 핵심 데이터 모델
+  - 헌혈 설문: `donation_consent_model.dart`, `donation_survey_model.dart`
 - `lib/services/` - API 통신 레이어
+  - 헌혈 설문 CRUD: `donation_survey_service.dart` (사용자/admin/hospital 3 클래스)
+  - PDF/Excel 다운로드: `donation_survey_download_service.dart` + `file_download_helper_{stub,io,web}.dart` (conditional import)
 - `lib/utils/` - 설정 및 유틸리티
   - `config.dart`: 백엔드 서버 URL 설정
   - `app_theme.dart`: 중앙집중식 테마 (토스 스타일 디자인)
+  - `app_constants.dart`: enum/상수 (BloodCollectionSite, PrevDonationSource 등)
+  - `donation_eligibility.dart`: 헌혈 자격 검증 (백엔드 1:1 동기화)
 - `lib/widgets/` - 재사용 가능한 UI 컴포넌트
+  - `terms_agreement_bottom_sheet.dart`: 헌혈 신청 시 동의 마크다운 렌더
 
 ### 주요 설정
 
@@ -142,6 +151,12 @@
 - `kpostal: 1.1.0` - 한국 우편번호 검색
 - `cupertino_icons: ^1.0.8` - iOS 스타일 아이콘
 - `font_awesome_flutter: ^10.7.0` - Font Awesome 아이콘
+- `flutter_markdown: ^0.7.4` - 마크다운 렌더 (헌혈 동의 안내문, 2026-05 PR-2)
+
+**파일/다운로드** (2026-05 PR-4 헌혈 설문 PDF/Excel 다운로드)
+- `path_provider: ^2.1.5` - 모바일 임시 디렉토리 (앱 내 파일 저장)
+- `open_filex: ^4.5.0` - 시스템 viewer로 PDF/Excel 열기 (모바일 한정)
+- 웹은 의존성 없이 `dart:html` Blob + anchor download 사용 (`file_download_helper_web.dart`)
 
 **개발 도구**
 - `flutter_lints: ^5.0.0` - 코드 품질 강화
