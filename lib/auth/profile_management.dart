@@ -868,11 +868,11 @@ class _ProfileManagementState extends State<ProfileManagement> {
                   color: AppTheme.textSecondary,
                 ),
                 onTap: () {
-                  Navigator.of(context).push(
-                    MaterialPageRoute(
-                      builder: (_) => const TutorialScreen(),
-                      fullscreenDialog: true,
-                    ),
+                  showDialog<void>(
+                    context: context,
+                    barrierDismissible: false,
+                    barrierColor: Colors.black.withValues(alpha: 0.3),
+                    builder: (_) => const TutorialScreen(),
                   );
                 },
               ),

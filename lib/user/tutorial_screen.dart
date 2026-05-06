@@ -1,8 +1,11 @@
 // lib/user/tutorial_screen.dart
-// 사용자 튜토리얼 — 3장 인터랙티브 슬라이드.
+// 사용자 튜토리얼 — 팝업(Dialog) 형태, 인터랙티브 3 슬라이드.
 //
-// 각 슬라이드 = 상단 텍스트 + 가데이터 모형 + 스포트라이트 시퀀스 + 정보/주의 박스.
-// 시퀀스 완료 전에는 [다음] 버튼 비활성. 완료 시 활성화.
+// 진입 방식:
+//   showDialog(context: ..., barrierDismissible: false, builder: (_) => TutorialScreen(onFinished: ...))
+//
+// 각 슬라이드 = 팝업 카드 안에 미니어처 화면(scene) + 도움말 텍스트 + 정보/주의 박스.
+// 시퀀스 미완료 시 [다음] 비활성, 완료 시 활성.
 
 import 'package:flutter/material.dart';
 import '../utils/app_theme.dart';
@@ -11,8 +14,7 @@ import '../widgets/tutorial/scene_application_card.dart';
 import '../widgets/tutorial/scene_pet_management.dart';
 
 class TutorialScreen extends StatefulWidget {
-  /// 튜토리얼 종료 시 (스킵/완료 모두) 호출되는 콜백.
-  /// 자동 진입 시 플래그 저장용. 다시 보기에서는 null 전달 가능.
+  /// 튜토리얼 종료 시 (스킵/완료 모두) 호출.
   final VoidCallback? onFinished;
 
   const TutorialScreen({super.key, this.onFinished});
@@ -52,9 +54,7 @@ class _TutorialScreenState extends State<TutorialScreen> {
 
   void _finish() {
     widget.onFinished?.call();
-    if (mounted) {
-      Navigator.of(context).pop();
-    }
+    if (mounted) Navigator.of(context).pop();
   }
 
   @override
@@ -62,32 +62,30 @@ class _TutorialScreenState extends State<TutorialScreen> {
     final isLastPage = _currentPage == _totalPages - 1;
     final canAdvance = _completedPages.contains(_currentPage);
 
-    return Scaffold(
+    return Dialog(
+      insetPadding: const EdgeInsets.symmetric(
+        horizontal: AppTheme.spacing12,
+        vertical: AppTheme.spacing24,
+      ),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(AppTheme.radius16),
+      ),
       backgroundColor: Colors.white,
-      body: SafeArea(
+      clipBehavior: Clip.antiAlias,
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 480),
         child: Column(
+          mainAxisSize: MainAxisSize.max,
           children: [
-            // 상단: 닫기(스킵) 버튼
-            Align(
-              alignment: Alignment.centerRight,
-              child: TextButton(
-                onPressed: _finish,
-                style: TextButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: AppTheme.spacing16,
-                    vertical: AppTheme.spacing12,
-                  ),
-                ),
-                child: Text(
-                  '건너뛰기',
-                  style: AppTheme.bodyMediumStyle.copyWith(
-                    color: AppTheme.textSecondary,
-                  ),
-                ),
-              ),
+            // 헤더: 페이지 닷 + 닫기
+            _Header(
+              currentPage: _currentPage,
+              totalPages: _totalPages,
+              onClose: _finish,
             ),
+            const Divider(height: 1, thickness: 1),
 
-            // 슬라이드 영역
+            // 본문 (Expanded로 남은 공간 다 차지)
             Expanded(
               child: PageView(
                 controller: _pageController,
@@ -101,31 +99,18 @@ class _TutorialScreenState extends State<TutorialScreen> {
               ),
             ),
 
-            // 페이지 인디케이터
-            Padding(
-              padding: const EdgeInsets.symmetric(
-                vertical: AppTheme.spacing12,
-              ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: List.generate(
-                  _totalPages,
-                  (idx) => _PageDot(active: idx == _currentPage),
-                ),
-              ),
-            ),
-
-            // 다음/시작하기 버튼
+            // 푸터: 다음/시작하기 버튼
+            const Divider(height: 1, thickness: 1),
             Padding(
               padding: const EdgeInsets.fromLTRB(
-                AppTheme.spacing24,
-                0,
-                AppTheme.spacing24,
+                AppTheme.spacing16,
+                AppTheme.spacing12,
+                AppTheme.spacing16,
                 AppTheme.spacing16,
               ),
               child: SizedBox(
                 width: double.infinity,
-                height: 52,
+                height: 48,
                 child: ElevatedButton(
                   onPressed: canAdvance ? _onNext : null,
                   style: ElevatedButton.styleFrom(
@@ -144,7 +129,7 @@ class _TutorialScreenState extends State<TutorialScreen> {
                         ? (isLastPage ? '시작하기' : '다음')
                         : '안내에 따라 탭해주세요',
                     style: const TextStyle(
-                      fontSize: 16,
+                      fontSize: 15,
                       fontWeight: FontWeight.w600,
                     ),
                   ),
@@ -153,6 +138,76 @@ class _TutorialScreenState extends State<TutorialScreen> {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+// ============================================================
+// 헤더 — 페이지 닷 + 닫기 버튼
+// ============================================================
+class _Header extends StatelessWidget {
+  final int currentPage;
+  final int totalPages;
+  final VoidCallback onClose;
+
+  const _Header({
+    required this.currentPage,
+    required this.totalPages,
+    required this.onClose,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(
+        AppTheme.spacing16,
+        AppTheme.spacing12,
+        AppTheme.spacing8,
+        AppTheme.spacing12,
+      ),
+      child: Row(
+        children: [
+          // 페이지 닷 (왼쪽 정렬)
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: List.generate(
+              totalPages,
+              (idx) => _PageDot(active: idx == currentPage),
+            ),
+          ),
+          const Spacer(),
+          IconButton(
+            onPressed: onClose,
+            icon: Icon(
+              Icons.close,
+              color: AppTheme.textSecondary,
+              size: 22,
+            ),
+            visualDensity: VisualDensity.compact,
+            tooltip: '건너뛰기',
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _PageDot extends StatelessWidget {
+  final bool active;
+
+  const _PageDot({required this.active});
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 200),
+      margin: const EdgeInsets.only(right: 6),
+      width: active ? 22 : 7,
+      height: 7,
+      decoration: BoxDecoration(
+        color: active ? AppTheme.primaryBlue : AppTheme.lightGray,
+        borderRadius: BorderRadius.circular(4),
       ),
     );
   }
@@ -255,21 +310,24 @@ class _SlideShell extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SingleChildScrollView(
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppTheme.spacing24,
+      padding: const EdgeInsets.fromLTRB(
+        AppTheme.spacing16,
+        AppTheme.spacing12,
+        AppTheme.spacing16,
+        AppTheme.spacing16,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
             title,
-            style: AppTheme.h2Style.copyWith(
+            style: AppTheme.h3Style.copyWith(
               fontWeight: FontWeight.bold,
               height: 1.3,
             ),
           ),
           if (subtitle != null) ...[
-            const SizedBox(height: AppTheme.spacing8),
+            const SizedBox(height: 6),
             Text(
               subtitle!,
               style: AppTheme.bodySmallStyle.copyWith(
@@ -396,26 +454,6 @@ class _HighlightBox extends StatelessWidget {
             ),
           ),
         ],
-      ),
-    );
-  }
-}
-
-class _PageDot extends StatelessWidget {
-  final bool active;
-
-  const _PageDot({required this.active});
-
-  @override
-  Widget build(BuildContext context) {
-    return AnimatedContainer(
-      duration: const Duration(milliseconds: 200),
-      margin: const EdgeInsets.symmetric(horizontal: 4),
-      width: active ? 24 : 8,
-      height: 8,
-      decoration: BoxDecoration(
-        color: active ? AppTheme.primaryBlue : AppTheme.lightGray,
-        borderRadius: BorderRadius.circular(4),
       ),
     );
   }

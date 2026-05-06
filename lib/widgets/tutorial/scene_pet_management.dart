@@ -1,12 +1,13 @@
 // lib/widgets/tutorial/scene_pet_management.dart
-// 슬라이드 3 — 반려동물 관리 미니 모형. 2스텝 시퀀스.
+// 슬라이드 3 — 대시보드 → 반려동물 관리 화면 흐름.
 //
-// 스텝 1: + 버튼 → 가짜 펫 한 마리 추가 (슬라이드 인 애니메이션)
-// 스텝 2: 첫 펫의 ⋮ 메뉴 → 해당 펫 제거 (페이드 아웃) + onComplete
+// 스텝 0: 대시보드 모형 + AppBar의 "반려동물 관리" 버튼 강조 → 탭 → 펫 관리 화면 전환
+// 스텝 1: 펫 관리 화면 + [+] 버튼 강조 → 탭 → 가짜 펫 추가
+// 스텝 2: 첫 펫 카드의 ⋮ 메뉴 강조 → 탭 → 해당 펫 제거 + 완료
 
 import 'package:flutter/material.dart';
 import '../../utils/app_theme.dart';
-import 'spotlight_stage.dart';
+import 'highlight_target.dart';
 
 class _MockPet {
   final String name;
@@ -31,11 +32,10 @@ class PetManagementScene extends StatefulWidget {
 }
 
 class _PetManagementSceneState extends State<PetManagementScene> {
-  final GlobalKey _addButtonKey = GlobalKey();
+  int _step = 0;
+  bool _completed = false;
 
   late List<_MockPet> _pets;
-  int _stepIndex = 0;
-  bool _completed = false;
 
   @override
   void initState() {
@@ -46,89 +46,304 @@ class _PetManagementSceneState extends State<PetManagementScene> {
     ];
   }
 
-  void _addPet() {
-    if (_stepIndex != 0 || _completed) return;
+  void _onPetMgmtButtonTap() {
+    if (_step != 0) return;
+    setState(() => _step = 1);
+  }
+
+  void _onAddTap() {
+    if (_step != 1) return;
     setState(() {
-      _pets.add(
-        _MockPet(name: '새친구', breed: '비글', weight: '12kg'),
-      );
-      _stepIndex = 1;
+      _pets.add(_MockPet(name: '새친구', breed: '비글', weight: '12kg'));
+      _step = 2;
     });
   }
 
-  void _removeFirstPet() {
-    if (_stepIndex != 1 || _completed) return;
+  void _onMenuTap() {
+    if (_step != 2 || _pets.isEmpty) return;
     setState(() {
-      if (_pets.isNotEmpty) {
-        _pets.removeAt(0);
-      }
-      _stepIndex = 2;
+      _pets.removeAt(0);
+      _step = 3;
       _completed = true;
     });
     widget.onComplete();
   }
 
-  List<SpotlightStep> _buildSteps() {
-    if (_completed) return const [];
-    if (_stepIndex == 0) {
-      return [
-        SpotlightStep(
-          targetKey: _addButtonKey,
-          tooltip: '여기를 눌러 새 반려동물을 등록해보세요',
-          shape: SpotlightShape.circle,
-          onTap: _addPet,
-        ),
-      ];
-    } else if (_stepIndex == 1 && _pets.isNotEmpty) {
-      return [
-        SpotlightStep(
-          targetKey: _pets.first.menuKey,
-          tooltip: '메뉴를 눌러 반려동물을 삭제할 수 있어요',
-          shape: SpotlightShape.circle,
-          onTap: _removeFirstPet,
-        ),
-      ];
+  String get _helperText {
+    if (_completed) return '🎉 등록과 삭제 흐름을 모두 익혔어요';
+    switch (_step) {
+      case 0:
+        return 'AppBar의 "반려동물 관리" 버튼을 탭해보세요';
+      case 1:
+        return '우측 상단 [+] 버튼으로 새 반려동물을 등록할 수 있어요';
+      case 2:
+        return '카드 우측 ⋮ 메뉴로 반려동물을 삭제해보세요';
+      default:
+        return '';
     }
-    return const [];
   }
 
   @override
   Widget build(BuildContext context) {
-    return SpotlightStage(
-      steps: _buildSteps(),
-      onComplete: () {},
-      child: _buildPetList(),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        _PhoneFrame(
+          child: AnimatedSwitcher(
+            duration: const Duration(milliseconds: 300),
+            switchInCurve: Curves.easeOut,
+            switchOutCurve: Curves.easeIn,
+            child: _step == 0
+                ? _DashboardWithPetButton(
+                    key: const ValueKey('dashboard'),
+                    isButtonActive: true,
+                    onButtonTap: _onPetMgmtButtonTap,
+                  )
+                : _PetManagementMock(
+                    key: const ValueKey('petMgmt'),
+                    pets: _pets,
+                    isAddActive: !_completed && _step == 1,
+                    activeMenuPetIndex: !_completed && _step == 2 ? 0 : null,
+                    onAddTap: _onAddTap,
+                    onMenuTap: _onMenuTap,
+                  ),
+          ),
+        ),
+        const SizedBox(height: AppTheme.spacing12),
+        TutorialHelperText(text: _helperText),
+      ],
     );
   }
+}
 
-  Widget _buildPetList() {
-    return Container(
-      padding: const EdgeInsets.all(AppTheme.spacing12),
-      decoration: BoxDecoration(
-        color: AppTheme.veryLightGray,
-        borderRadius: BorderRadius.circular(AppTheme.radius12),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // 헤더
-          Padding(
-            padding: const EdgeInsets.symmetric(
-              horizontal: AppTheme.spacing8,
-              vertical: AppTheme.spacing8,
-            ),
-            child: Row(
-              children: [
-                Text(
-                  '반려동물',
-                  style: AppTheme.bodyMediumStyle.copyWith(
-                    fontWeight: FontWeight.bold,
-                    color: AppTheme.textPrimary,
+// ====================================================================
+// 대시보드 미니어처 (스텝 0) — 반려동물 관리 버튼 강조
+// ====================================================================
+class _DashboardWithPetButton extends StatelessWidget {
+  final bool isButtonActive;
+  final VoidCallback onButtonTap;
+
+  const _DashboardWithPetButton({
+    super.key,
+    required this.isButtonActive,
+    required this.onButtonTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        // AppBar with highlighted pet button
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            border: Border(bottom: BorderSide(color: AppTheme.lightGray)),
+          ),
+          child: Row(
+            children: [
+              Icon(
+                Icons.notifications_none,
+                size: 20,
+                color: AppTheme.textPrimary,
+              ),
+              const SizedBox(width: 4),
+              // 반려동물 관리 버튼 — 강조 대상
+              HighlightTarget(
+                isActive: isButtonActive,
+                onTap: onButtonTap,
+                borderRadius: 8,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 6,
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        Icons.pets,
+                        size: 16,
+                        color: AppTheme.textPrimary,
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        '반려동물 관리',
+                        style: AppTheme.bodySmallStyle.copyWith(
+                          color: AppTheme.textPrimary,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
-                const Spacer(),
-                Container(
-                  key: _addButtonKey,
+              ),
+              const Spacer(),
+              Container(
+                width: 28,
+                height: 28,
+                decoration: BoxDecoration(
+                  color: AppTheme.veryLightGray,
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(
+                  Icons.person_outline,
+                  size: 18,
+                  color: AppTheme.textPrimary,
+                ),
+              ),
+            ],
+          ),
+        ),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                '안녕하세요,',
+                style: AppTheme.bodyMediumStyle.copyWith(
+                  fontWeight: FontWeight.bold,
+                  color: AppTheme.textPrimary,
+                  fontSize: 17,
+                ),
+              ),
+              Text(
+                '사용자 님!',
+                style: AppTheme.bodyMediumStyle.copyWith(
+                  fontWeight: FontWeight.bold,
+                  color: AppTheme.textPrimary,
+                  fontSize: 17,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                '2026년 5월 6일 (수) 14:30',
+                style: AppTheme.bodySmallStyle.copyWith(
+                  color: AppTheme.textSecondary,
+                  fontSize: 11,
+                ),
+              ),
+              const SizedBox(height: AppTheme.spacing16),
+              // 헌혈 모집 카드 (visual, 비강조)
+              Container(
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: Colors.red.shade50,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: Colors.red.shade100),
+                ),
+                child: Row(
+                  children: [
+                    Container(
+                      width: 36,
+                      height: 36,
+                      decoration: BoxDecoration(
+                        color: Colors.red.shade600,
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: const Icon(
+                        Icons.bloodtype_outlined,
+                        color: Colors.white,
+                        size: 20,
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            '헌혈 모집',
+                            style: AppTheme.bodyMediumStyle.copyWith(
+                              fontWeight: FontWeight.bold,
+                              color: AppTheme.textPrimary,
+                              fontSize: 13,
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            '진행 중인 헌혈 요청 모아보기',
+                            style: AppTheme.bodySmallStyle.copyWith(
+                              color: AppTheme.textSecondary,
+                              fontSize: 11,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    Icon(
+                      Icons.arrow_forward_ios,
+                      size: 12,
+                      color: AppTheme.textSecondary,
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+// ====================================================================
+// 펫 관리 화면 미니어처 (스텝 1, 2)
+// ====================================================================
+class _PetManagementMock extends StatelessWidget {
+  final List<_MockPet> pets;
+  final bool isAddActive;
+  final int? activeMenuPetIndex;
+  final VoidCallback onAddTap;
+  final VoidCallback onMenuTap;
+
+  const _PetManagementMock({
+    super.key,
+    required this.pets,
+    required this.isAddActive,
+    required this.activeMenuPetIndex,
+    required this.onAddTap,
+    required this.onMenuTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        // 헤더
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            border: Border(bottom: BorderSide(color: AppTheme.lightGray)),
+          ),
+          child: Row(
+            children: [
+              Icon(
+                Icons.arrow_back_ios_new,
+                size: 16,
+                color: AppTheme.textPrimary,
+              ),
+              const SizedBox(width: 12),
+              Text(
+                '반려동물 관리',
+                style: AppTheme.bodyMediumStyle.copyWith(
+                  fontWeight: FontWeight.bold,
+                  color: AppTheme.textPrimary,
+                  fontSize: 15,
+                ),
+              ),
+              const Spacer(),
+              // [+] 버튼 — 강조 대상
+              HighlightTarget(
+                isActive: isAddActive,
+                onTap: onAddTap,
+                shape: HighlightShape.circle,
+                child: Container(
                   width: 32,
                   height: 32,
                   decoration: BoxDecoration(
@@ -139,52 +354,61 @@ class _PetManagementSceneState extends State<PetManagementScene> {
                   child: const Icon(
                     Icons.add,
                     color: Colors.white,
-                    size: 20,
+                    size: 18,
                   ),
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
-          // 펫 카드 목록
-          AnimatedSize(
+        ),
+        Padding(
+          padding: const EdgeInsets.all(12),
+          child: AnimatedSize(
             duration: const Duration(milliseconds: 250),
             curve: Curves.easeOut,
             child: Column(
               children: [
-                for (var i = 0; i < _pets.length; i++) ...[
-                  _MockPetCard(pet: _pets[i]),
-                  if (i < _pets.length - 1) const SizedBox(height: 8),
+                for (var i = 0; i < pets.length; i++) ...[
+                  _MockPetCard(
+                    pet: pets[i],
+                    isMenuActive: activeMenuPetIndex == i,
+                    onMenuTap: onMenuTap,
+                  ),
+                  if (i < pets.length - 1) const SizedBox(height: 8),
                 ],
               ],
             ),
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 }
 
 class _MockPetCard extends StatelessWidget {
   final _MockPet pet;
+  final bool isMenuActive;
+  final VoidCallback onMenuTap;
 
-  const _MockPetCard({required this.pet});
+  const _MockPetCard({
+    required this.pet,
+    required this.isMenuActive,
+    required this.onMenuTap,
+  });
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppTheme.spacing12,
-        vertical: AppTheme.spacing12,
-      ),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(AppTheme.radius12),
+        borderRadius: BorderRadius.circular(12),
         border: Border.all(color: AppTheme.lightGray.withValues(alpha: 0.6)),
       ),
       child: Row(
         children: [
-          const Text('🐾', style: TextStyle(fontSize: 24)),
-          const SizedBox(width: AppTheme.spacing12),
+          const Text('🐾', style: TextStyle(fontSize: 22)),
+          const SizedBox(width: 10),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -194,6 +418,7 @@ class _MockPetCard extends StatelessWidget {
                   style: AppTheme.bodyMediumStyle.copyWith(
                     fontWeight: FontWeight.w600,
                     color: AppTheme.textPrimary,
+                    fontSize: 13,
                   ),
                 ),
                 const SizedBox(height: 2),
@@ -201,23 +426,59 @@ class _MockPetCard extends StatelessWidget {
                   '${pet.breed} · ${pet.weight}',
                   style: AppTheme.bodySmallStyle.copyWith(
                     color: AppTheme.textSecondary,
+                    fontSize: 11,
                   ),
                 ),
               ],
             ),
           ),
-          Container(
-            key: pet.menuKey,
-            width: 32,
-            height: 32,
-            alignment: Alignment.center,
-            child: Icon(
-              Icons.more_vert,
-              color: AppTheme.textSecondary,
-              size: 20,
+          // ⋮ 메뉴 — 활성 펫에서만 강조
+          HighlightTarget(
+            isActive: isMenuActive,
+            onTap: onMenuTap,
+            shape: HighlightShape.circle,
+            child: Container(
+              key: pet.menuKey,
+              width: 28,
+              height: 28,
+              alignment: Alignment.center,
+              child: Icon(
+                Icons.more_vert,
+                color: AppTheme.textSecondary,
+                size: 18,
+              ),
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+// 폰 프레임 (각 scene에 복사 — 추후 공용 추출 가능)
+class _PhoneFrame extends StatelessWidget {
+  final Widget child;
+
+  const _PhoneFrame({required this.child});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: AppTheme.lightGray, width: 1),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.06),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(20),
+        child: child,
       ),
     );
   }

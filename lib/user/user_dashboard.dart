@@ -91,12 +91,12 @@ class _UserDashboardState extends State<UserDashboard>
     final seen = await PreferencesManager.isTutorialSeenUser(accountIdx);
     if (seen) return;
     if (!mounted) return;
-    await Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (_) => TutorialScreen(
-          onFinished: () => PreferencesManager.setTutorialSeenUser(accountIdx),
-        ),
-        fullscreenDialog: true,
+    await showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      barrierColor: Colors.black.withValues(alpha: 0.3),
+      builder: (_) => TutorialScreen(
+        onFinished: () => PreferencesManager.setTutorialSeenUser(accountIdx),
       ),
     );
   }

@@ -1,14 +1,14 @@
 // lib/widgets/tutorial/scene_application_card.dart
-// 슬라이드 2 — 내 신청 카드 미니 모형. 4스텝 시퀀스로 상태 전이 + 사전 설문 작성.
+// 슬라이드 2 — 내 신청 화면 미니어처. 4스텝 시퀀스로 상태 전이 + 사전 설문.
 //
-// 스텝 1: 대기 chip → 선정 (설문 행 펼쳐짐)
-// 스텝 2: 설문 행 → 작성 완료 표시
-// 스텝 3: 선정 chip → 완료대기
-// 스텝 4: 완료대기 chip → 완료 + onComplete
+// 스텝 0: 대기 chip → 선정 (설문 행 펼쳐짐)
+// 스텝 1: 설문 행 → 작성 완료 표시
+// 스텝 2: 선정 chip → 완료대기
+// 스텝 3: 완료대기 chip → 완료 + onComplete
 
 import 'package:flutter/material.dart';
 import '../../utils/app_theme.dart';
-import 'spotlight_stage.dart';
+import 'highlight_target.dart';
 
 enum _ApplicationStatus { waiting, approved, pendingCompletion, completed }
 
@@ -22,97 +22,147 @@ class ApplicationCardScene extends StatefulWidget {
 }
 
 class _ApplicationCardSceneState extends State<ApplicationCardScene> {
-  final GlobalKey _chipKey = GlobalKey();
-  final GlobalKey _surveyKey = GlobalKey();
-
   _ApplicationStatus _status = _ApplicationStatus.waiting;
   bool _surveyDone = false;
-  int _stepIndex = 0;
+  int _step = 0;
   bool _completed = false;
 
   void _advance() {
     if (_completed) return;
     setState(() {
-      switch (_stepIndex) {
+      switch (_step) {
         case 0:
           _status = _ApplicationStatus.approved;
-          _stepIndex = 1;
+          _step = 1;
           break;
         case 1:
           _surveyDone = true;
-          _stepIndex = 2;
+          _step = 2;
           break;
         case 2:
           _status = _ApplicationStatus.pendingCompletion;
-          _stepIndex = 3;
+          _step = 3;
           break;
         case 3:
           _status = _ApplicationStatus.completed;
-          _stepIndex = 4;
+          _step = 4;
           _completed = true;
           break;
       }
     });
-    if (_completed) {
-      widget.onComplete();
-    }
+    if (_completed) widget.onComplete();
   }
 
-  List<SpotlightStep> _buildSteps() {
-    if (_completed) return const [];
-    switch (_stepIndex) {
+  String get _helperText {
+    if (_completed) return '🎉 완료! 헌혈이 정식으로 인정됐어요';
+    switch (_step) {
       case 0:
-        return [
-          SpotlightStep(
-            targetKey: _chipKey,
-            tooltip: '병원이 신청자를 검토 중이에요. 탭해보세요',
-            onTap: _advance,
-          ),
-        ];
+        return '"대기 중" 칩을 탭해 선정 단계로 이동해보세요';
       case 1:
-        return [
-          SpotlightStep(
-            targetKey: _surveyKey,
-            tooltip: '선정됐어요! D-2까지 사전 설문 작성이 필수예요',
-            onTap: _advance,
-          ),
-        ];
+        return '"사전 설문 작성 필요" 영역을 탭해보세요 (D-2까지 필수)';
       case 2:
-        return [
-          SpotlightStep(
-            targetKey: _chipKey,
-            tooltip: '헌혈일에 방문하면 병원이 1차 완료 처리해요',
-            onTap: _advance,
-          ),
-        ];
+        return '"선정" 칩을 탭하면 헌혈 후 흐름으로 이동해요';
       case 3:
-        return [
-          SpotlightStep(
-            targetKey: _chipKey,
-            tooltip: '관리자 최종 승인 후 정식 완료돼요',
-            onTap: _advance,
-          ),
-        ];
+        return '"완료 대기" 칩을 탭하면 관리자 최종 승인 → 완료';
       default:
-        return const [];
+        return '';
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    return SpotlightStage(
-      steps: _buildSteps(),
-      onComplete: () {},
-      child: _buildCard(),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        // 미니어처 — 내 신청 화면
+        _PhoneFrame(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              // AppBar 모형 - "내 신청"
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 14,
+                ),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  border: Border(
+                    bottom: BorderSide(color: AppTheme.lightGray),
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    Icon(
+                      Icons.arrow_back_ios_new,
+                      size: 16,
+                      color: AppTheme.textPrimary,
+                    ),
+                    const SizedBox(width: 12),
+                    Text(
+                      '내 헌혈 신청',
+                      style: AppTheme.bodyMediumStyle.copyWith(
+                        fontWeight: FontWeight.bold,
+                        color: AppTheme.textPrimary,
+                        fontSize: 15,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              // 필터 chip 영역 (visual)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+                child: Row(
+                  children: [
+                    _filterChip('전체', active: true),
+                    const SizedBox(width: 8),
+                    _filterChip('진행 중', active: false),
+                    const SizedBox(width: 8),
+                    _filterChip('완료', active: false),
+                  ],
+                ),
+              ),
+              // 신청 카드
+              Padding(
+                padding: const EdgeInsets.all(16),
+                child: _buildApplicationCard(),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: AppTheme.spacing12),
+        TutorialHelperText(text: _helperText),
+      ],
     );
   }
 
-  Widget _buildCard() {
+  Widget _filterChip(String text, {required bool active}) {
     return Container(
-      padding: const EdgeInsets.all(AppTheme.spacing16),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      decoration: BoxDecoration(
+        color: active
+            ? AppTheme.primaryBlue.withValues(alpha: 0.1)
+            : AppTheme.veryLightGray,
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: Text(
+        text,
+        style: TextStyle(
+          color: active ? AppTheme.primaryBlue : AppTheme.textSecondary,
+          fontSize: 11,
+          fontWeight: active ? FontWeight.bold : FontWeight.normal,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildApplicationCard() {
+    return Container(
+      padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(AppTheme.radius12),
+        borderRadius: BorderRadius.circular(12),
         border: Border.all(color: AppTheme.lightGray.withValues(alpha: 0.6)),
       ),
       child: Column(
@@ -120,8 +170,8 @@ class _ApplicationCardSceneState extends State<ApplicationCardScene> {
         children: [
           Row(
             children: [
-              const Text('🐾', style: TextStyle(fontSize: 24)),
-              const SizedBox(width: AppTheme.spacing8),
+              const Text('🐾', style: TextStyle(fontSize: 22)),
+              const SizedBox(width: 10),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -131,6 +181,7 @@ class _ApplicationCardSceneState extends State<ApplicationCardScene> {
                       style: AppTheme.bodyMediumStyle.copyWith(
                         fontWeight: FontWeight.bold,
                         color: AppTheme.textPrimary,
+                        fontSize: 14,
                       ),
                     ),
                     const SizedBox(height: 2),
@@ -138,6 +189,7 @@ class _ApplicationCardSceneState extends State<ApplicationCardScene> {
                       '행복동물병원 · 5/15 14:00',
                       style: AppTheme.bodySmallStyle.copyWith(
                         color: AppTheme.textSecondary,
+                        fontSize: 11,
                       ),
                     ),
                   ],
@@ -145,89 +197,94 @@ class _ApplicationCardSceneState extends State<ApplicationCardScene> {
               ),
             ],
           ),
-          const SizedBox(height: AppTheme.spacing12),
-          // 상태 칩
-          Container(
-            key: _chipKey,
-            padding: const EdgeInsets.symmetric(
-              horizontal: AppTheme.spacing12,
-              vertical: 6,
-            ),
-            decoration: BoxDecoration(
-              color: _statusColor().withValues(alpha: 0.12),
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: _statusColor().withValues(alpha: 0.4)),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(_statusIcon(), size: 14, color: _statusColor()),
-                const SizedBox(width: 6),
-                Text(
-                  _statusLabel(),
-                  style: AppTheme.bodySmallStyle.copyWith(
-                    color: _statusColor(),
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ],
+          const SizedBox(height: 12),
+          // 상태 칩 (스텝 0/2/3에서 강조)
+          Align(
+            alignment: Alignment.centerLeft,
+            child: HighlightTarget(
+              isActive: !_completed && (_step == 0 || _step == 2 || _step == 3),
+              onTap: _advance,
+              borderRadius: 20,
+              child: _statusChip(),
             ),
           ),
-          // 사전 설문 행 (선정 이후만 노출)
+          // 사전 설문 행 (선정 이후만 노출, 스텝 1에서 강조)
           AnimatedSize(
             duration: const Duration(milliseconds: 250),
             curve: Curves.easeOut,
             child: _showSurveyRow()
                 ? Padding(
-                    padding: const EdgeInsets.only(top: AppTheme.spacing12),
-                    child: Container(
-                      key: _surveyKey,
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: AppTheme.spacing12,
-                        vertical: AppTheme.spacing12,
-                      ),
-                      decoration: BoxDecoration(
-                        color: _surveyDone
-                            ? AppTheme.success.withValues(alpha: 0.1)
-                            : AppTheme.warning.withValues(alpha: 0.1),
-                        borderRadius:
-                            BorderRadius.circular(AppTheme.radius12),
-                        border: Border.all(
-                          color: _surveyDone
-                              ? AppTheme.success.withValues(alpha: 0.4)
-                              : AppTheme.warning.withValues(alpha: 0.4),
-                        ),
-                      ),
-                      child: Row(
-                        children: [
-                          Icon(
-                            _surveyDone
-                                ? Icons.check_circle
-                                : Icons.assignment_outlined,
-                            size: 18,
-                            color: _surveyDone
-                                ? AppTheme.success
-                                : AppTheme.warning,
-                          ),
-                          const SizedBox(width: AppTheme.spacing8),
-                          Expanded(
-                            child: Text(
-                              _surveyDone
-                                  ? '사전 설문 작성 완료'
-                                  : '사전 설문 작성 필요',
-                              style: AppTheme.bodySmallStyle.copyWith(
-                                color: _surveyDone
-                                    ? AppTheme.success
-                                    : AppTheme.warning,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
+                    padding: const EdgeInsets.only(top: 12),
+                    child: HighlightTarget(
+                      isActive: !_completed && _step == 1,
+                      onTap: _advance,
+                      child: _surveyRow(),
                     ),
                   )
                 : const SizedBox.shrink(),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _statusChip() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      decoration: BoxDecoration(
+        color: _statusColor().withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: _statusColor().withValues(alpha: 0.4)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(_statusIcon(), size: 13, color: _statusColor()),
+          const SizedBox(width: 5),
+          Text(
+            _statusLabel(),
+            style: AppTheme.bodySmallStyle.copyWith(
+              color: _statusColor(),
+              fontWeight: FontWeight.bold,
+              fontSize: 12,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _surveyRow() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: _surveyDone
+            ? AppTheme.success.withValues(alpha: 0.1)
+            : AppTheme.warning.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: _surveyDone
+              ? AppTheme.success.withValues(alpha: 0.4)
+              : AppTheme.warning.withValues(alpha: 0.4),
+        ),
+      ),
+      child: Row(
+        children: [
+          Icon(
+            _surveyDone ? Icons.check_circle : Icons.assignment_outlined,
+            size: 16,
+            color: _surveyDone ? AppTheme.success : AppTheme.warning,
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              _surveyDone ? '사전 설문 작성 완료' : '사전 설문 작성 필요',
+              style: AppTheme.bodySmallStyle.copyWith(
+                color: _surveyDone ? AppTheme.success : AppTheme.warning,
+                fontWeight: FontWeight.w600,
+                fontSize: 12,
+              ),
+            ),
           ),
         ],
       ),
@@ -277,5 +334,34 @@ class _ApplicationCardSceneState extends State<ApplicationCardScene> {
       case _ApplicationStatus.completed:
         return Icons.celebration_outlined;
     }
+  }
+}
+
+// 폰 화면 프레임 (slide 1과 동일 디자인 — 별도 export 안 하고 각 scene에 복사)
+class _PhoneFrame extends StatelessWidget {
+  final Widget child;
+
+  const _PhoneFrame({required this.child});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: AppTheme.lightGray, width: 1),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.06),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(20),
+        child: child,
+      ),
+    );
   }
 }
