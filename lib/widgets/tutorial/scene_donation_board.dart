@@ -27,7 +27,8 @@ class _DonationBoardSceneState extends State<DonationBoardScene> {
   // step 4: post detail bottom sheet 첫 시간대 → 완료
   int _step = 0;
   bool _completed = false;
-  final bool _seoulSelected = true; // 가입 주소 디폴트로 서울 선택돼 있음
+  // 디폴트로 서울 선택. 부산 탭 시 추가됨.
+  final List<String> _selectedRegions = ['서울'];
 
   void _onDashboardCardTap() {
     if (_step != 0) return;
@@ -41,7 +42,10 @@ class _DonationBoardSceneState extends State<DonationBoardScene> {
 
   void _onRegionRowTap() {
     if (_step != 2) return;
-    setState(() => _step = 3);
+    setState(() {
+      _selectedRegions.add('부산');
+      _step = 3;
+    });
   }
 
   void _onPostCardTap() {
@@ -65,9 +69,9 @@ class _DonationBoardSceneState extends State<DonationBoardScene> {
       case 1:
         return '[탭] 우측 상단 지역 아이콘으로 선호 지역을 선택해요\n(가입 시 주소 기반으로 디폴트 1개 자동 선택돼 있어요)';
       case 2:
-        return '[탭] 원하는 지역을 선택 (최대 5개) — "전체 지역"도 가능';
+        return '[탭] 원하는 지역을 추가 선택 (최대 5개) — "전체 지역"도 가능';
       case 3:
-        return '[탭] 게시글을 누르면 상세 정보가 바텀시트로 올라와요';
+        return '선호 지역에 부산이 추가됐어요. [탭] 게시글을 누르면 상세 정보가 올라와요';
       case 4:
         return '[탭] 가능한 시간대를 선택합니다';
       default:
@@ -110,6 +114,7 @@ class _DonationBoardSceneState extends State<DonationBoardScene> {
         isFirstPostActive: _step == 3,
         onLocationTap: _onLocationIconTap,
         onFirstPostTap: _onPostCardTap,
+        selectedRegions: _selectedRegions,
       );
     }
     if (_step == 2) {
@@ -117,7 +122,7 @@ class _DonationBoardSceneState extends State<DonationBoardScene> {
         key: const ValueKey('region'),
         isFirstRegionActive: true,
         onRegionTap: _onRegionRowTap,
-        seoulSelected: _seoulSelected,
+        selectedRegions: _selectedRegions,
       );
     }
     return _BottomSheetMock(
@@ -363,6 +368,7 @@ class _BoardListMock extends StatelessWidget {
   final bool isFirstPostActive;
   final VoidCallback onLocationTap;
   final VoidCallback onFirstPostTap;
+  final List<String> selectedRegions;
 
   const _BoardListMock({
     super.key,
@@ -370,6 +376,7 @@ class _BoardListMock extends StatelessWidget {
     required this.isFirstPostActive,
     required this.onLocationTap,
     required this.onFirstPostTap,
+    required this.selectedRegions,
   });
 
   @override
@@ -430,7 +437,7 @@ class _BoardListMock extends StatelessWidget {
             ],
           ),
         ),
-        // 지역 필터 표시 (디폴트 서울 선택)
+        // 지역 필터 표시
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
           color: AppTheme.veryLightGray,
@@ -438,12 +445,17 @@ class _BoardListMock extends StatelessWidget {
             children: [
               Icon(Icons.place, size: 12, color: AppTheme.primaryBlue),
               const SizedBox(width: 4),
-              Text(
-                '선호 지역: 서울',
-                style: AppTheme.bodySmallStyle.copyWith(
-                  color: AppTheme.primaryBlue,
-                  fontSize: 11,
-                  fontWeight: FontWeight.w600,
+              Flexible(
+                child: Text(
+                  selectedRegions.isEmpty
+                      ? '선호 지역: 전체'
+                      : '선호 지역: ${selectedRegions.join(", ")}',
+                  style: AppTheme.bodySmallStyle.copyWith(
+                    color: AppTheme.primaryBlue,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                  ),
+                  overflow: TextOverflow.ellipsis,
                 ),
               ),
             ],
@@ -490,13 +502,13 @@ class _BoardListMock extends StatelessWidget {
 class _RegionSheetMock extends StatelessWidget {
   final bool isFirstRegionActive;
   final VoidCallback onRegionTap;
-  final bool seoulSelected;
+  final List<String> selectedRegions;
 
   const _RegionSheetMock({
     super.key,
     required this.isFirstRegionActive,
     required this.onRegionTap,
-    required this.seoulSelected,
+    required this.selectedRegions,
   });
 
   @override
@@ -572,60 +584,41 @@ class _RegionSheetMock extends StatelessWidget {
                   ],
                 ),
               ),
-              // 선택된 지역 칩 (서울)
-              if (seoulSelected)
+              // 선택된 지역 칩 (애니메이션으로 부산 추가됨)
+              if (selectedRegions.isNotEmpty)
                 Container(
                   padding: const EdgeInsets.symmetric(
                     horizontal: 16,
                     vertical: 8,
                   ),
                   alignment: Alignment.centerLeft,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 8,
-                      vertical: 3,
-                    ),
-                    decoration: BoxDecoration(
-                      color: AppTheme.primaryBlue.withValues(alpha: 0.1),
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(
-                          '서울특별시',
-                          style: AppTheme.bodySmallStyle.copyWith(
-                            color: AppTheme.primaryBlue,
-                            fontSize: 11,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                        const SizedBox(width: 4),
-                        Icon(
-                          Icons.close,
-                          size: 12,
-                          color: AppTheme.primaryBlue,
-                        ),
-                      ],
+                  child: AnimatedSize(
+                    duration: const Duration(milliseconds: 250),
+                    curve: Curves.easeOut,
+                    child: Wrap(
+                      spacing: 6,
+                      runSpacing: 4,
+                      children: selectedRegions
+                          .map((r) => _selectedChip(r))
+                          .toList(),
                     ),
                   ),
                 ),
               const Divider(height: 1),
               // 지역 목록 (전체 + 일부 시도)
-              _regionRow('전체 지역', selected: false, isHighlighted: false),
-              _regionRow('서울특별시', selected: true, isHighlighted: false),
+              _regionRow('전체 지역', selected: selectedRegions.isEmpty),
+              _regionRow('서울특별시', selected: selectedRegions.contains('서울')),
               // 부산 — 강조 대상 (사용자가 추가 선택할 지역)
               HighlightTarget(
                 isActive: isFirstRegionActive,
                 onTap: onRegionTap,
                 child: _regionRow(
                   '부산광역시',
-                  selected: false,
-                  isHighlighted: true,
+                  selected: selectedRegions.contains('부산'),
                 ),
               ),
-              _regionRow('대구광역시', selected: false, isHighlighted: false),
-              _regionRow('인천광역시', selected: false, isHighlighted: false),
+              _regionRow('대구광역시', selected: selectedRegions.contains('대구')),
+              _regionRow('인천광역시', selected: selectedRegions.contains('인천')),
             ],
           ),
         ),
@@ -633,10 +626,44 @@ class _RegionSheetMock extends StatelessWidget {
     );
   }
 
+  Widget _selectedChip(String name) {
+    // 칩 라벨은 시도 풀네임 (서울 → 서울특별시 등)
+    const fullName = {
+      '서울': '서울특별시',
+      '부산': '부산광역시',
+      '대구': '대구광역시',
+      '인천': '인천광역시',
+      '광주': '광주광역시',
+      '대전': '대전광역시',
+      '울산': '울산광역시',
+    };
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      decoration: BoxDecoration(
+        color: AppTheme.primaryBlue.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            fullName[name] ?? name,
+            style: AppTheme.bodySmallStyle.copyWith(
+              color: AppTheme.primaryBlue,
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          const SizedBox(width: 4),
+          Icon(Icons.close, size: 12, color: AppTheme.primaryBlue),
+        ],
+      ),
+    );
+  }
+
   Widget _regionRow(
     String name, {
     required bool selected,
-    required bool isHighlighted,
   }) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),

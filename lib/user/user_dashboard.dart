@@ -316,22 +316,38 @@ class _UserDashboardState extends State<UserDashboard>
               ),
             );
           },
-          additionalAction: TextButton.icon(
-            style: TextButton.styleFrom(
-              padding: const EdgeInsets.symmetric(horizontal: 4),
-              minimumSize: Size.zero,
-              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-            ),
-            icon: const Icon(Icons.pets, color: AppTheme.textPrimary, size: 20),
-            label: const Text('반려동물 관리', style: TextStyle(color: AppTheme.textPrimary, fontSize: 14)),
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => const PetManagementScreen(),
+          // 알림/프로필 버튼과 동일한 패턴(IconButton + GestureDetector) —
+          // TextButton.icon은 Material surface tint를 보여서 검은 배경처럼
+          // 보이는 이슈가 있어 제거.
+          additionalAction: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              IconButton(
+                icon: const Icon(Icons.pets, color: Colors.black87, size: 24),
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const PetManagementScreen(),
+                    ),
+                  );
+                },
+              ),
+              GestureDetector(
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const PetManagementScreen(),
+                    ),
+                  );
+                },
+                child: const Text(
+                  '반려동물 관리',
+                  style: TextStyle(color: Colors.black87, fontSize: 14),
                 ),
-              );
-            },
+              ),
+            ],
           ),
         ),
         body: RefreshIndicator(
