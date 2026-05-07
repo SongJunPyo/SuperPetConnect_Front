@@ -20,23 +20,39 @@ class DonationBoardScene extends StatefulWidget {
 }
 
 class _DonationBoardSceneState extends State<DonationBoardScene> {
+  // step 0: dashboard 헌혈 모집 카드 → board list
+  // step 1: board list 지역 아이콘 → region bottom sheet
+  // step 2: region bottom sheet 지역 선택 → board list (시트 닫힘)
+  // step 3: board list 첫 게시글 카드 → post detail bottom sheet
+  // step 4: post detail bottom sheet 첫 시간대 → 완료
   int _step = 0;
   bool _completed = false;
+  final bool _seoulSelected = true; // 가입 주소 디폴트로 서울 선택돼 있음
 
   void _onDashboardCardTap() {
     if (_step != 0) return;
     setState(() => _step = 1);
   }
 
-  void _onPostCardTap() {
+  void _onLocationIconTap() {
     if (_step != 1) return;
     setState(() => _step = 2);
   }
 
-  void _onTimeSlotTap() {
+  void _onRegionRowTap() {
     if (_step != 2) return;
+    setState(() => _step = 3);
+  }
+
+  void _onPostCardTap() {
+    if (_step != 3) return;
+    setState(() => _step = 4);
+  }
+
+  void _onTimeSlotTap() {
+    if (_step != 4) return;
     setState(() {
-      _step = 3;
+      _step = 5;
       _completed = true;
     });
     widget.onComplete();
@@ -47,8 +63,12 @@ class _DonationBoardSceneState extends State<DonationBoardScene> {
       case 0:
         return '[탭] 헌혈 게시판으로 이동';
       case 1:
-        return '[탭] 게시글을 누르면 상세 정보가 바텀시트로 올라와요';
+        return '[탭] 우측 상단 지역 아이콘으로 선호 지역을 선택해요\n(가입 시 주소 기반으로 디폴트 1개 자동 선택돼 있어요)';
       case 2:
+        return '[탭] 원하는 지역을 선택 (최대 5개) — "전체 지역"도 가능';
+      case 3:
+        return '[탭] 게시글을 누르면 상세 정보가 바텀시트로 올라와요';
+      case 4:
         return '[탭] 가능한 시간대를 선택합니다';
       default:
         return '시간대 선택 완료. 다음 슬라이드에서 신청 폼을 작성해요';
@@ -82,11 +102,22 @@ class _DonationBoardSceneState extends State<DonationBoardScene> {
         onCardTap: _onDashboardCardTap,
       );
     }
-    if (_step == 1) {
+    if (_step == 1 || _step == 3) {
+      // 지역 아이콘 클릭 단계 OR 시트 닫힌 후 board list로 복귀
       return _BoardListMock(
-        key: const ValueKey('board'),
-        isFirstPostActive: true,
+        key: ValueKey('board_step$_step'),
+        isLocationActive: _step == 1,
+        isFirstPostActive: _step == 3,
+        onLocationTap: _onLocationIconTap,
         onFirstPostTap: _onPostCardTap,
+      );
+    }
+    if (_step == 2) {
+      return _RegionSheetMock(
+        key: const ValueKey('region'),
+        isFirstRegionActive: true,
+        onRegionTap: _onRegionRowTap,
+        seoulSelected: _seoulSelected,
       );
     }
     return _BottomSheetMock(
@@ -323,15 +354,21 @@ class _LongActionCard extends StatelessWidget {
 }
 
 // ====================================================================
-// 게시판 list 미니어처 (스텝 1)
+// 게시판 list 미니어처 (스텝 1, 3)
+// 우측 상단에 지역 선택 아이콘(location_on_outlined) — 스텝 1에서 강조,
+// 첫 게시글 카드 — 스텝 3에서 강조.
 // ====================================================================
 class _BoardListMock extends StatelessWidget {
+  final bool isLocationActive;
   final bool isFirstPostActive;
+  final VoidCallback onLocationTap;
   final VoidCallback onFirstPostTap;
 
   const _BoardListMock({
     super.key,
+    required this.isLocationActive,
     required this.isFirstPostActive,
+    required this.onLocationTap,
     required this.onFirstPostTap,
   });
 
@@ -340,7 +377,78 @@ class _BoardListMock extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        const TutorialMockSubAppBar(title: '헌혈 모집'),
+        // 헤더 — 뒤로가기 + 제목 + 우측 액션 (지역 아이콘 + 새로고침)
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            border: Border(bottom: BorderSide(color: AppTheme.lightGray)),
+          ),
+          child: Row(
+            children: [
+              Icon(
+                Icons.arrow_back_ios_new,
+                size: 16,
+                color: AppTheme.textPrimary,
+              ),
+              const SizedBox(width: 12),
+              Text(
+                '헌혈 모집 게시글',
+                style: AppTheme.bodyMediumStyle.copyWith(
+                  fontWeight: FontWeight.bold,
+                  color: AppTheme.textPrimary,
+                  fontSize: 14,
+                ),
+              ),
+              const Spacer(),
+              // 지역 선택 아이콘 — 디폴트 선택 있으면 파란색
+              HighlightTarget(
+                isActive: isLocationActive,
+                onTap: onLocationTap,
+                shape: HighlightShape.circle,
+                child: Container(
+                  width: 32,
+                  height: 32,
+                  alignment: Alignment.center,
+                  child: Icon(
+                    Icons.location_on_outlined,
+                    size: 20,
+                    color: AppTheme.primaryBlue, // 서울 선택돼 있어 파란색
+                  ),
+                ),
+              ),
+              Container(
+                width: 28,
+                height: 28,
+                alignment: Alignment.center,
+                child: Icon(
+                  Icons.refresh_outlined,
+                  size: 18,
+                  color: AppTheme.textPrimary,
+                ),
+              ),
+            ],
+          ),
+        ),
+        // 지역 필터 표시 (디폴트 서울 선택)
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          color: AppTheme.veryLightGray,
+          child: Row(
+            children: [
+              Icon(Icons.place, size: 12, color: AppTheme.primaryBlue),
+              const SizedBox(width: 4),
+              Text(
+                '선호 지역: 서울',
+                style: AppTheme.bodySmallStyle.copyWith(
+                  color: AppTheme.primaryBlue,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
+        ),
         Padding(
           padding: const EdgeInsets.all(12),
           child: Column(
@@ -370,6 +478,189 @@ class _BoardListMock extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+// ====================================================================
+// 선호 지역 선택 바텀시트 (스텝 2)
+// 헤더 + 선택된 칩 + "전체 지역" + 17개 시도. 가입 주소 디폴트로 서울 선택.
+// 사용자가 다른 지역(예: 부산) 탭하면 → 추가 → 시트 닫힘.
+// ====================================================================
+class _RegionSheetMock extends StatelessWidget {
+  final bool isFirstRegionActive;
+  final VoidCallback onRegionTap;
+  final bool seoulSelected;
+
+  const _RegionSheetMock({
+    super.key,
+    required this.isFirstRegionActive,
+    required this.onRegionTap,
+    required this.seoulSelected,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        const TutorialMockSubAppBar(title: '헌혈 모집 게시글'),
+        // 짧은 dim peek
+        Container(height: 24, color: Colors.black.withValues(alpha: 0.06)),
+        // 시트 본문
+        Container(
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+            boxShadow: [
+              BoxShadow(
+                color: Color(0x1A000000),
+                blurRadius: 6,
+                offset: Offset(0, -2),
+              ),
+            ],
+          ),
+          padding: const EdgeInsets.fromLTRB(0, 8, 0, 12),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // 핸들바
+              Center(
+                child: Container(
+                  width: 36,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: AppTheme.lightGray,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              ),
+              // 헤더
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 12, 8, 8),
+                child: Row(
+                  children: [
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          '선호 지역 선택',
+                          style: AppTheme.bodyMediumStyle.copyWith(
+                            fontWeight: FontWeight.bold,
+                            color: AppTheme.textPrimary,
+                            fontSize: 13,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          '다중 선택 가능 (최대 5개)',
+                          style: AppTheme.bodySmallStyle.copyWith(
+                            color: AppTheme.textSecondary,
+                            fontSize: 10,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const Spacer(),
+                    Icon(
+                      Icons.close,
+                      size: 18,
+                      color: AppTheme.textSecondary,
+                    ),
+                  ],
+                ),
+              ),
+              // 선택된 지역 칩 (서울)
+              if (seoulSelected)
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 8,
+                  ),
+                  alignment: Alignment.centerLeft,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 3,
+                    ),
+                    decoration: BoxDecoration(
+                      color: AppTheme.primaryBlue.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          '서울특별시',
+                          style: AppTheme.bodySmallStyle.copyWith(
+                            color: AppTheme.primaryBlue,
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        const SizedBox(width: 4),
+                        Icon(
+                          Icons.close,
+                          size: 12,
+                          color: AppTheme.primaryBlue,
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              const Divider(height: 1),
+              // 지역 목록 (전체 + 일부 시도)
+              _regionRow('전체 지역', selected: false, isHighlighted: false),
+              _regionRow('서울특별시', selected: true, isHighlighted: false),
+              // 부산 — 강조 대상 (사용자가 추가 선택할 지역)
+              HighlightTarget(
+                isActive: isFirstRegionActive,
+                onTap: onRegionTap,
+                child: _regionRow(
+                  '부산광역시',
+                  selected: false,
+                  isHighlighted: true,
+                ),
+              ),
+              _regionRow('대구광역시', selected: false, isHighlighted: false),
+              _regionRow('인천광역시', selected: false, isHighlighted: false),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _regionRow(
+    String name, {
+    required bool selected,
+    required bool isHighlighted,
+  }) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+      decoration: BoxDecoration(
+        color: selected ? AppTheme.primaryBlue.withValues(alpha: 0.06) : null,
+      ),
+      child: Row(
+        children: [
+          Icon(
+            selected ? Icons.check_circle : Icons.circle_outlined,
+            size: 16,
+            color: selected ? AppTheme.primaryBlue : AppTheme.textTertiary,
+          ),
+          const SizedBox(width: 10),
+          Text(
+            name,
+            style: AppTheme.bodySmallStyle.copyWith(
+              color: selected ? AppTheme.primaryBlue : AppTheme.textPrimary,
+              fontSize: 12,
+              fontWeight: selected ? FontWeight.w600 : FontWeight.normal,
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
