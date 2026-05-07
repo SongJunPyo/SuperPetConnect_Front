@@ -27,7 +27,7 @@ class NotificationBadge extends StatelessWidget {
 
   const NotificationBadge({
     super.key,
-    this.icon = Icons.notifications_outlined,
+    this.icon = Icons.notifications_none,
     this.iconColor,
     this.iconSize = 24,
     this.onPressed,
@@ -117,7 +117,7 @@ class NotificationDotBadge extends StatelessWidget {
 
   const NotificationDotBadge({
     super.key,
-    this.icon = Icons.notifications_outlined,
+    this.icon = Icons.notifications_none,
     this.iconColor,
     this.iconSize = 24,
     this.onPressed,
@@ -184,7 +184,7 @@ class StaticNotificationBadge extends StatelessWidget {
   const StaticNotificationBadge({
     super.key,
     required this.unreadCount,
-    this.icon = Icons.notifications_outlined,
+    this.icon = Icons.notifications_none,
     this.iconColor,
     this.iconSize = 24,
     this.onPressed,

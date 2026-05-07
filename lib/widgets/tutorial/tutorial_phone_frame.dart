@@ -66,7 +66,7 @@ class TutorialMockAppBar extends StatelessWidget {
                 clipBehavior: Clip.none,
                 children: [
                   Icon(
-                    Icons.notifications_outlined,
+                    Icons.notifications_none,
                     size: 18,
                     color: AppTheme.textPrimary,
                   ),
