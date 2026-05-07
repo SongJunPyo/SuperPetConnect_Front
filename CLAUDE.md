@@ -391,6 +391,8 @@ Windows에서는 `.git/hooks/pre-commit.cmd` 사용.
 - `"external"`: `prior_last_donation_date`만 있음 → 사용자가 prev_* 필드 직접 입력
 - `"none"`: 첫 헌혈 → 직전 헌혈 섹션 숨김 또는 비활성
 
+**2026-05-06 메모** — 사용자 입력 폼에서 `prior_last_donation_date` / `prior_donation_count` 두 필드가 제거됨 (Issue #5). `"external"` 케이스는 admin이 수동으로 보정한 펫에서만 발생. 일반 사용자 가입/펫 추가 흐름에서는 system 또는 none만 가능. external 분기는 dead path가 아니라 admin 보정 데이터를 반영하기 위해 유지.
+
 프론트 박제: [lib/utils/app_constants.dart](lib/utils/app_constants.dart) `prevDonationSource*` 상수.
 
 ### 동의 텍스트 버전 (Donation Consent Version)
@@ -869,11 +871,18 @@ APPROVED 펫의 프로필 사진 변경에 한해 관리자 검토를 거치는 
 
 | 시점 | type | data | 수신자 | body |
 |------|------|------|--------|------|
-| 사용자가 APPROVED 펫 사진 변경 (202 응답 후) | `pet_profile_image_review_request` | `{pet_idx}` | admin **only** (hospital 발송 안 됨) | — |
+| ~~사용자가 APPROVED 펫 사진 변경 (202 응답 후)~~ | ~~`pet_profile_image_review_request`~~ | — | — | **2026-05-06 폐기** — 아래 참조 |
 | 관리자 승인 | `pet_profile_image_approved` | `{pet_idx}` | user | 정형 메시지 |
 | 관리자 거절 | `pet_profile_image_rejected` | `{pet_idx}` | user | "반려동물 'X'의 새 프로필 사진이 거절되었습니다." (사유 있으면 ` 사유: {reason}` append). **`rejection_reason`은 data에 없음** — body 텍스트로만 전달 |
 
-프론트 [notification_mapping.dart](lib/models/notification_mapping.dart)의 `serverToClientMapping`은 `pet_profile_image_review_request`를 `UserType.admin`에만 매핑 (hospital 매핑 없음 — 발송 자체가 안 되므로 dual-sync 누락 아님).
+**2026-05-06 변경 (Issue #6 사진 업로드 알림 통합)** — 사진 업로드 시점에 발송하던 `pet_profile_image_review_request` 알림을 폐기. 사진은 여전히 `pending_profile_image`에 저장되지만 관리자 알림은 후속 `PUT /api/pets/{pet_idx}` 호출 시 `pet_review_request` 통합 알림으로 1회 발송. 사용자가 사진만 변경하고 PUT을 호출하지 않으면 검토 워크플로우 진입 안 됨 (pending 사진 그대로 대기).
+
+**프론트 측 인지 강화** ([lib/user/pet_register.dart](lib/user/pet_register.dart)):
+- 202 응답 SnackBar 메시지: 백엔드 `message` 필드를 단일 원천으로 사용 (프론트 fallback만 보유). 백엔드 카탈로그 `messages.py::PetProfileImageMsg.UPLOAD_SUCCESS_PENDING_REVIEW` 권장 텍스트: "사진이 변경되었습니다. '정보 수정' 버튼을 눌러야 관리자 검토가 요청됩니다."
+- `_photoPendingReviewRequest` 플래그: 202 응답 수신 시 set, `_savePet` PUT 성공 시 클리어
+- `PopScope.canPop=false` + `onPopInvokedWithResult` 콜백: 플래그 true 상태로 페이지 떠나려 하면 confirm 다이얼로그 ("사진 변경이 저장되지 않았습니다 / 계속 작성 / 나가기")
+
+프론트 [notification_mapping.dart](lib/models/notification_mapping.dart)의 `serverToClientMapping`에서 `pet_profile_image_review_request` 매핑은 dead code 상태로 남아있을 수 있음. 백엔드 emit 0건이라 실제 silent degrade 없음. 다음 정리 라운드에서 함께 제거 가능.
 
 **정보 수정 ↔ 사진 검토는 별개 결정 단위**
 
@@ -941,15 +950,48 @@ APPROVED 펫의 프로필 사진 변경에 한해 관리자 검토를 거치는 
 
 **헌혈 일자 컬럼 분리 (system vs user input)**
 
-| 컬럼 | 타입 | 설명 | PUT 화이트리스트 |
-|------|------|------|----------------|
-| `prev_donation_date_system` | DATE \| null | admin 최종 승인 시점에 시스템이 자동 갱신 | **차단** (사용자 수정 불가) |
-| `prior_last_donation_date` | DATE \| null | 외부 헌혈 마지막 일자 (사용자 자기신고) | 허용 |
-| `prior_donation_count` | int (default 0, NOT NULL) | 외부 헌혈 누적 횟수 (사용자 자기신고) | 허용 |
+| 컬럼 | 타입 | 설명 | 요청 (POST/PUT) | 응답 |
+|------|------|------|----------------|------|
+| `prev_donation_date_system` | DATE \| null | admin 최종 승인 시점에 시스템이 자동 갱신 | **차단** (사용자 수정 불가) | 포함 |
+| `prior_last_donation_date` | DATE \| null | 외부 헌혈 마지막 일자 (사용자 자기신고) | **차단** (2026-05-06부터 사용자 입력 불가) | 포함 (admin 보정용) |
+| `prior_donation_count` | int (default 0, NOT NULL) | 외부 헌혈 누적 횟수 (사용자 자기신고) | **차단** (2026-05-06부터 사용자 입력 불가) | 포함 (admin 보정용) |
 
-**자격 검증은 effective date로 비교** — `max(prev_donation_date_system, prior_last_donation_date)`. 사용자가 `prior_last_donation_date`를 NULL로 만들어도 system 값이 있으면 그 날짜로 180일 비교. 백엔드 헬퍼 `utils/pet_helpers.py::get_effective_last_donation_date()` ↔ 프론트 [Pet.effectiveLastDonationDate](lib/models/pet_model.dart) getter 1:1 동기화.
+**2026-05-06 변경 (Issue #5 헌혈 이력 입력 차단)** — 백엔드가 `PetCreate` / `PetUpdate` 요청 스키마에서 `prior_donation_count`, `prior_last_donation_date` 두 필드를 제거. 영향 받는 엔드포인트: `POST /api/register`, `POST /api/auth/onboarding`, `POST /api/pets`, `PUT /api/pets/{pet_idx}`. 응답 (`PetResponse`) 에는 두 필드 유지 (관리자 수동 조회용). 자격 검증은 시스템 자동 갱신 컬럼만 기준으로 작동.
+
+**프론트 작업 박제 (2026-05-06)**:
+- `RegistrationPetData` (가입 폼) `priorLastDonationDate` / `priorDonationCount` 필드 + `toJson` 키 제거 ([lib/widgets/registration_pet_manager.dart](lib/widgets/registration_pet_manager.dart))
+- `lib/user/pet_register.dart` (펫 추가/수정) 입력 필드 + petData 키 제거
+- `lib/user/pet_management.dart` 헌혈 이력 "+ 추가" / 수정 / 삭제 시트 제거. 시스템 자동 기록 read-only 표시는 유지
+- `lib/services/donation_history_service.dart` `addHistory` / `addHistoryBulk` / `updateHistory` / `deleteHistory` 4개 메서드 + `dart:convert` import 제거. `getHistory` (GET) 만 유지
+- `lib/utils/api_endpoints.dart` `petDonationHistoryBulk` / `petDonationHistoryItem` 제거. `petDonationHistoryByPet` (GET) 만 유지
+- `lib/models/donation_history_model.dart` `DonationHistoryCreateRequest` / `DonationHistoryUpdateRequest` 클래스 + `canEdit`/`canDelete` getter 제거
+- `Pet` 모델 자체는 변경 없음 — 응답 fromJson + `effectiveLastDonationDate` getter 유지 (백엔드 응답에 두 필드 여전히 포함)
+
+**자격 검증은 effective date로 비교** — `max(prev_donation_date_system, prior_last_donation_date)`. admin이 수동으로 `prior_last_donation_date`를 보정하면 system 값과 비교해 더 큰 값 사용 (180일 헌혈 간격 카운트). 백엔드 헬퍼 `utils/pet_helpers.py::get_effective_last_donation_date()` ↔ 프론트 [Pet.effectiveLastDonationDate](lib/models/pet_model.dart) getter 1:1 동기화.
 
 **구버전 응답 호환** — `GET /api/hospital/post-times`의 `pet_prev_donation_date` 응답 필드명은 유지. 값은 effective date로 자동 변환되어 의료진 화면 호환 보장.
+
+**헌혈 이력 응답 contract — 옵션 A (계약 확정 2026-05-07)**
+
+`GET /api/pet-donation-history/{pet_idx}` 응답 의미:
+
+| 필드 | 정의 |
+|------|------|
+| `histories` | system record만 (manual 입력은 2026-05-06 폐기) |
+| `total_count` | `system_record_count + pet.prior_donation_count` (시스템 + 외부 합산) |
+| `system_record_count` | 시스템 자동 기록 수 |
+| `manual_record_count` | **항상 0** (deprecated, 모델 필드는 1년 안정 운영 후 제거 라운드) |
+| `total_blood_volume_ml` | system만 합산 (외부 채혈량 정보 없음) |
+| `last_donation_date` | `max(system 가장 최근, pet.prior_last_donation_date)` — effective date |
+| `first_donation_date` | system만 (외부 첫 헌혈일 정보 없음) |
+| `total_pages` | system 기록 list 기준 페이지 수 |
+
+**백엔드 헬퍼**: `utils/donation_utils.py::record_donation_completion(application, db)` — 두 admin 최종 승인 흐름(`POST /api/admin/donation-final-approval` 시간대 일괄 / `POST /api/admin/completed-donations/approve-completion/{id}` 단건)이 모두 이 헬퍼로 통일. `pet.prev_donation_date_system` 갱신 + `pet_donation_history` INSERT를 한 번에 박제. 분기 비대칭 버그 (2026-05-07 #1) 영구 차단.
+
+**프론트 측 박제**:
+- 모델 [DonationHistoryResponse](lib/models/donation_history_model.dart) 변경 없음 — `totalCount`가 자동 합산값
+- [pet_management.dart::_buildDonationHistorySection](lib/user/pet_management.dart) — `histories.isEmpty && totalCount > 0` 케이스(외부만 있는 펫)에 "외부 헌혈 N회 기록 — 이 앱을 통한 헌혈은 아직 없습니다" 안내 박스 추가. 시스템 기록 없는 외부 헌혈은 list row를 만들 수 없음 (병원명/채혈량 정보 부재)
+- `manualRecordCount` 모델 필드는 응답에 항상 0이 와도 dead defensive 유지 (1년 후 제거 라운드)
 
 **카페 정책 의료 정보 (3 컬럼 추가)**
 
@@ -1168,12 +1210,67 @@ admin이 user 신청 이력을 조회할 때 status=4 (사용자 신청 취소) 
 
 백엔드 `services/donation_survey_lock_scheduler.py` (2026-05 PR-5 신규). 매일 23:55 cron.
 
-로직:
-1. 헌혈일 == today + 2 (D-2)인 APPROVED 신청 조회
-2. 작성된 설문 → `survey.locked_at = NOW()` 설정 (read-only 전환)
-3. 미작성자 → `applied_donation.status = CLOSED(4)` + `donation_application_auto_closed` 푸시 발송
+**잠금 cron 동작 (D-2 23:55)**
 
-기존 `donation_reminder_scheduler` 확장 (D-1 09:00 cron 추가):
+로직 (scheduler:74-78, 97-145):
+1. `today = datetime.now().date()` → `target_date = today + timedelta(days=2)` → 헌혈일 == target_date인 APPROVED 신청 조회 (단순 캘린더 계산, 시각 비교 X)
+2. 작성된 설문 → `survey.locked_at = NOW()` 설정, **잠금 알림 별도 발송 X** (FE에서 `is_locked=true` 응답 보고 UI 잠금)
+3. 미작성자 → `applied_donation.status = CLOSED(4)` + `donation_application_auto_closed` 푸시 즉시 발송
+
+**Timezone (계약 확정 2026-05 PR-5 BE 검증)**
+
+- "23:55"는 **서버 로컬 시간 (KST 환경 가정)**. APScheduler `AsyncIOScheduler()`를 timezone 인자 없이 생성 → default `tzlocal()` = 시스템 OS timezone
+- `datetime.now()`도 naive (tzinfo 미부착). 운영 머신 OS TZ가 `Asia/Seoul`이 아니면 24시간 - 오프셋만큼 어긋남
+- **운영 머신 TZ가 Asia/Seoul인 게 전제**. 헌혈 완료 처리 contract와 동일 가정
+
+**사전 알림 (D-2 09:00 pre-lock reminder)**
+
+`reminder_scheduler::send_survey_pre_lock_reminders`:
+- 미작성자에게만 "오늘 자정까지 작성 안 하면 자동 종결" 푸시 (`donation_survey_pre_lock_reminder`)
+- D-2 09:00 → 잠금 23:55까지 **약 14시간 55분 전** 사전 알림
+- 같은 D-2 09:00에 일반 `donation_reminder`도 돌지만 `filled_survey_only=True`로 작성자만 받음 → 미작성자/작성자 분기 + 중복 방지 (reminder_scheduler:166-177)
+
+**잠금 후 사용자 수정 시도**
+
+`services/donation_survey_service.py:374-376`:
+```python
+if survey.locked_at is not None:
+    raise HTTPException(400, detail=ErrorMsg.SURVEY_LOCKED)
+```
+- 응답 메시지 (`constants/messages.py:304`): `"헌혈 전날 자정 이후로는 설문을 수정할 수 없습니다."`
+- ⚠️ **메시지 카피와 실제 정책 불일치**: 메시지는 "전날 자정" (D-1 00:00 뉘앙스), 실제는 D-2 23:55. 정책 정렬 시 메시지도 같이 수정 필요
+
+**자동 종결 트랜잭션 패턴 (주의)**
+
+```python
+async with AsyncSessionLocal() as db:
+    for applied in applications:
+        applied.status = CLOSED  # in-memory 변경
+        await notification_service.send_notification_to_account(...)  # 내부에서 db.commit()
+    await db.commit()  # 마지막 일괄 commit
+```
+`send_notification_to_account`가 내부에서 `db.commit()` 호출 → 첫 알림 발송 시점에 그때까지 변경된 `applied.status = CLOSED`가 함께 commit됨. **all-or-nothing 트랜잭션 아니라 "순차 commit"**. 알림 도중 에러 시 이미 CLOSED된 신청은 롤백 안 됨.
+
+**자동 종결 vs 수동 종결 구분 라벨 — 없음**
+
+DB에 `closed_reason` 같은 구분 컬럼 없음. 둘 다 `status=CLOSED(4)`로만 표시. admin 화면에서 "사전 설문 미작성으로 자동 종결" 라벨 표시 불가. 알림 type (`donation_application_auto_closed`)으로 사용자 채널만 구분.
+
+**Deferred Work (운영 갭, PR-5 후속 검토 대상)**
+
+| 갭 | 현황 | 우회 |
+|----|------|------|
+| 헌혈일 변경 시 잠금 재계산 | hook 미구현 — 이미 잠긴 신청은 헌혈일 옮겨도 풀리지 않음 | 수동 SQL `UPDATE donation_survey SET locked_at=NULL WHERE ...` |
+| admin 수동 unlock endpoint | 미구현 (코드 검색 0건) | 직접 DB UPDATE만 가능 (위험) |
+| 자동/수동 종결 구분 라벨 | DB 컬럼/플래그 없음 | 추가 컬럼 (예: `closed_reason` enum) 필요 |
+| 메시지 카피 정렬 | "헌혈 전날 자정" 메시지 vs D-2 23:55 정책 | `constants/messages.py:304` 정정 또는 정책 변경 |
+
+**튜토리얼/사용자 안내 카피 작성 시 주의**
+
+- ✅ "D-2 23:55까지 사전 설문 미작성 시 자동 종결" — 코드 동작과 일치
+- ❌ "헌혈일이 변경되면 잠금이 자동 재계산됩니다" — 미구현
+- ❌ "관리자에게 문의하면 잠금을 풀 수 있어요" — endpoint 없음, 수동 SQL만 가능
+
+**기존 `donation_reminder_scheduler` 확장 (D-1 09:00 cron 추가)**:
 - USER (보호자별): `survey_filled` 플래그로 멘트 분기
 - HOSPITAL (게시글 작성 병원, 게시글당 1회): 신청자 수 포함
 - ADMIN (admin 전체, 게시글당 1회): post_title 포함
@@ -1198,6 +1295,9 @@ async def reject_post(post_idx, reason):
 - `donation_post_dates.post_idx → donation_posts.post_idx`
 - `emergency_donation_post.post_idx → donation_posts.post_idx`
 - `donation_post_image`은 이미 CASCADE 명시됨
+- **`donation_post_times.post_dates_idx → donation_post_dates.post_dates_id`** (2026-05-07 추가, alembic `5d91455c0c88`)
+
+**거절 시 cascade 체인 완성** (2026-05-07): 거절 = `db.delete(post)` 후 `db.commit()` 패턴이 자식 collection을 lazy-load 안 한 상태에서 호출되므로 ORM cascade만으로는 부족. DB-level FK ondelete=CASCADE + ORM `cascade='all, delete-orphan', passive_deletes=True` 둘 다 박제. donation_posts → donation_post_dates → donation_post_times 3단 cascade 완성. 이전(2026-05-06 PR-1)에 손자 단계 누락으로 IntegrityError 발생하던 버그 해소.
 
 **PUT 가드 정책 (admin 전용)** — `PUT /api/admin/posts/{idx}/edit`
 
@@ -1219,6 +1319,100 @@ BLOCKED_STATUSES_FOR_EDIT = {PostStatus.COMPLETED, PostStatus.SUSPENDED}
 **donation-dates 엔드포인트 폐기 이력 (PR-0)**
 
 `PUT/DELETE /api/donation-dates/{id}` 엔드포인트 제거됨. 시간대 변경은 admin의 `PUT /api/admin/posts/{idx}/edit`로 통합. 프론트 [hospital_donation_date_management.dart](lib/hospital/hospital_donation_date_management.dart) dead code 삭제 완료.
+
+**hospital 모집대기 탭 필터 + 뱃지 (계약 확정 2026-05-06)**
+
+[hospital_pending_posts_tab.dart:_filteredPosts](lib/hospital/hospital_pending_posts_tab.dart) 는 `status == 0 || status == 5` 두 상태를 모두 모집대기 탭에 노출. 의미:
+- `WAIT (0)`: 등록 직후 관리자 검토 대기
+- `SUSPENDED (5)`: 관리자가 모집중 → 대기로 전환
+
+병원 사용자 입장에서는 둘 다 "내 게시글이 보류된 상태"로 동일하게 인식되므로 한 탭에 묶음. 백엔드 `GET /api/hospital/posts`는 status 필터 없이 모든 게시글 반환하므로 필터링은 클라이언트에서 처리. 응답에 두 상태가 모두 포함됨이 보장.
+
+**뱃지 표시** — PostListRow의 `badgeType` 결정 로직은 `admin_pending_posts_tab._getPostType`과 동일:
+- status==5 → `'대기'` (purple — PostTypeBadge 색상 매핑)
+- 그 외 → `post.isUrgent ? '긴급' : '정기'`
+
+[PostTypeBadge](lib/widgets/post_type_badge.dart)는 '긴급'/'정기'/'대기'/'마감'/'완료'/'완료대기'/'거절'/'진행' type을 모두 단일 위젯에서 색상 매핑. status==0(WAIT) 게시글은 일반 긴급/정기 뱃지가 노출되며 탭 이름 자체가 "모집대기"라 별도 라벨 불필요.
+
+**admin 승인/거절 핸들러의 404 처리 (계약 확정 2026-05-06)**
+
+[admin_post_check.dart::approvePost](lib/admin/admin_post_check.dart) / [admin_post_management_page.dart::_approvePost](lib/admin/admin_post_management_page.dart) 는 `PUT /api/admin/posts/{idx}/approval` 응답이 **404**일 때 "이미 삭제된 게시글입니다. 목록을 갱신합니다." SnackBar + 자동 `_fetchDataForCurrentTab()` / `_loadPosts()` 호출로 stale 항목 제거. 사용자 경합(병원이 WAIT 상태에서 게시글 삭제 → 관리자가 그 사이 승인 시도) 케이스 대응. 백엔드는 `services/admin_post_service.py::approve_reject_post_service`에서 정상 404 raise (`POST_NOT_FOUND`).
+
+**옵션 B 향후 검토**: WebSocket / polling 기반 admin 화면 실시간 동기화. 현재 옵션 A(404 시 1회 refetch)로 처리. 운영 안정 후 사용자 트래픽 보고 도입 결정.
+
+**알림 진입 시 status별 자동 탭 전환 (계약 확정 2026-05-06)**
+
+[hospital_post_check.dart::_statusToTabIndex](lib/hospital/hospital_post_check.dart) — 알림 클릭으로 `initialPostIdx`가 전달되면 PostFrameCallback에서 단건 fetch 후 `post.status` 기반으로 적절한 탭을 `_tabController.animateTo()`로 활성화한 다음 시트 자동 오픈. 매핑:
+
+| status | 탭 인덱스 | 탭 이름 |
+|--------|----------|---------|
+| 0 (WAIT) / 5 (SUSPENDED) | 0 | 모집대기 |
+| 1 (APPROVED) | 1 | 헌혈모집 |
+| 3 (CLOSED) | 2 | 모집마감 |
+| 4 (COMPLETED) | 3 | 헌혈완료 |
+
+이전엔 `initialPostIdx`만 전달하고 default 탭(0=모집대기)에 머물렀음 — `donation_post_approved` 알림(status=1) 클릭 시 헌혈모집 탭으로 자동 이동되지 않던 버그(2026-05-06 #6) 수정. 알림 발송 시점과 사용자 진입 시점 사이에 status가 바뀌어도 진입 시점의 status로 판단하므로 정확.
+
+**알림 라우팅 fallback 로그 (계약 확정 2026-05-06)**
+
+[notification_service.dart::dispatchByType](lib/services/notification_service.dart)의 default case가 매핑 누락 type을 dashboard로 보내기 전 `debugPrint` 로그 출력. systemNotice류(`broadcast`/`general`/`admin_alert`/`hospital_alert`)는 의도된 fallback이지만 매핑 누락 신규 type 진단 시 `[NotificationService] dispatchByType fallback to dashboard (unmapped type="...", data=...)` 로그를 보고 dual-sync 누락 단계(CLAUDE.md "알림 타입 추가 시 dual-sync contract")를 추적.
+
+**알림 진입 시 게시글 fetch 실패 사용자 안내 (계약 확정 2026-05-07)**
+
+알림 클릭 → 단건 fetch → 시트 자동 오픈 흐름의 양 측 진단 강화:
+
+| 영역 | 위치 | 처리 |
+|------|------|------|
+| USER 새 게시글 알림 (`new_donation_post`) | [user_donation_posts_list.dart::_showPostDetailById](lib/user/user_donation_posts_list.dart) | `getDonationPostDetail` null → "찾을 수 없거나 더 이상 공개되지 않습니다" SnackBar / catch → "게시글 불러오기 실패. 새로고침해주세요" + debugPrint |
+| HOSPITAL 게시글 알림 (`donation_post_approved` 등) | [hospital_post_check.dart](lib/hospital/hospital_post_check.dart) initState | `getPostByIdx` null → "이미 처리되었거나 권한이 없습니다" SnackBar / catch → "게시글 불러오기 실패" + debugPrint |
+| 알림 핸들러 자체 | [notification_service.dart::_navigateToNewDonationPost](lib/services/notification_service.dart) | post_idx 추출 실패 시 `[NotificationService] new_donation_post post_idx 추출 실패. data=...` debugPrint (FCM 키 컨벤션 미스매치 감지) |
+
+이전엔 fetch 실패 시 silent — 사용자가 화면 진입은 했는데 시트가 안 떠서 "안 열림"으로 인식되던 경합. 이제 모든 실패 경로에서 사용자에게 명시적 SnackBar + 개발자 콘솔에 debugPrint.
+
+**ADMIN 게시글 알림 라우팅 (계약 확정 2026-05-07)**
+
+`new_post_approval` (모집대기 게시글 승인 요청, status=WAIT) 알림 처리:
+
+- **변경 전**: [notification_service.dart::_navigateToPostManagement](lib/services/notification_service.dart)가 named route `/admin/post-management` 사용 → [AdminPostManagementPage](lib/admin/admin_post_management_page.dart)로 이동. 그러나 admin_dashboard는 [AdminPostCheck](lib/admin/admin_post_check.dart)를 entry로 사용 → 두 화면이 분리되어 알림 클릭 시 자동 시트 오픈 미작동
+- **변경 후**: named route 폐기. `Navigator.push(MaterialPageRoute(builder: AdminPostCheck(initialPostIdx, initialTabIndex: 0)))`로 직접 push. admin_dashboard 진입과 동일한 화면
+
+**AdminPostCheck initialPostIdx 자동 시트 오픈 — tab 0/1 둘 다 지원**
+
+[admin_post_check.dart::_autoOpenInitialPostSheet](lib/admin/admin_post_check.dart) — 백엔드에 admin 단건 fetch endpoint 없어서 각 탭의 fetched 리스트에서 post_idx 매칭. tab별 매핑:
+
+| initialTabIndex | 탭 | 사용 key | 알림 type |
+|-----------------|-----|---------|----------|
+| 0 | 모집대기 | `_pendingTabKey.currentState.posts` | `new_post_approval` (WAIT/SUSPENDED) |
+| 1 | 헌혈모집 | `_activeTabKey.currentState.allPosts` | `new_donation_application` (APPROVED/CLOSED) |
+| 2~3 | 모집마감/헌혈완료 | 미지원 | (필요 시 추후 확장) |
+
+매칭 실패 시 "게시글을 찾을 수 없습니다 (이미 처리되었거나 다른 탭으로 이동)" SnackBar.
+
+**refresh await 누락 패턴 주의 (2026-05-07 #1 수정)**
+
+```dart
+// ❌ 단축형 — Future<Future<void>?>를 반환해 외부 Future만 await됨.
+//    refresh의 fetch는 await 안 되어 빈 list로 매칭 시도.
+refresh = () async => _pendingTabKey.currentState?.refresh();
+
+// ✅ 명시 await 블록.
+refresh = () async {
+  await _pendingTabKey.currentState?.refresh();
+};
+```
+
+자식 mount 직후엔 `currentState == null` race condition 가능. PostFrameCallback이 자식 initState보다 먼저 실행되는 경우 50ms 대기 후 재시도하는 방어 로직 추가됨. 알림 진입은 1회성이라 이 비용 무시 가능.
+
+**알림 클릭 읽음 처리 — 낙관적 업데이트 (계약 확정 2026-05-07)**
+
+[notification_provider.dart::markAsRead](lib/providers/notification_provider.dart) — 사용자가 알림 탭 시 navigation으로 화면을 떠나도 read 상태가 보장되도록 낙관적 업데이트 패턴:
+
+```dart
+// 1. 로컬 상태 즉시 업데이트 (notifyListeners)
+// 2. 서버 반영 (실패해도 로컬은 read 유지)
+```
+
+이전엔 `await NotificationApiService.markAsRead` 응답 후에 로컬 업데이트 → API 늦거나 실패 시 알림 페이지에 read 표시 안 됨. 사용자가 알림 일부만 파란 배경 사라지는 일관성 문제 보고 (2026-05-07). 또한 `notification_id <= 0` 케이스(broadcast 류 server PK 없음)는 로컬 read 처리 후 API 호출 스킵.
 
 ### 공지사항(Notice) 정책 (계약 확정 2026-04-28)
 
