@@ -82,7 +82,7 @@ class _ApplicationTimelineSceneState extends State<ApplicationTimelineScene> {
                       label: '대기 중',
                       actor: '관리자가 신청자 검토 중',
                       userAction: '취소만 가능',
-                      color: AppTheme.textSecondary,
+                      color: AppTheme.primaryBlue,
                       icon: Icons.hourglass_top_outlined,
                     ),
                     _stage(
@@ -91,7 +91,7 @@ class _ApplicationTimelineSceneState extends State<ApplicationTimelineScene> {
                       actor: '관리자가 선정 완료',
                       userAction: '📋 사전 설문 작성 (D-2 23:55까지 필수!)',
                       userActionHighlight: true,
-                      color: AppTheme.primaryBlue,
+                      color: AppTheme.success,
                       icon: Icons.check_circle_outline,
                     ),
                     _stage(
@@ -108,7 +108,7 @@ class _ApplicationTimelineSceneState extends State<ApplicationTimelineScene> {
                       actor: '관리자 최종 승인',
                       userAction: '결과 확인',
                       isLast: true,
-                      color: AppTheme.success,
+                      color: AppTheme.error,
                       icon: Icons.celebration_outlined,
                     ),
                   ],
