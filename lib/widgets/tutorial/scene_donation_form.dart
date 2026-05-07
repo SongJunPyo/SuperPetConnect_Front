@@ -57,7 +57,7 @@ class _DonationFormSceneState extends State<DonationFormScene> {
   String get _helperText {
     switch (_step) {
       case 0:
-        return '[탭] 헌혈할 반려동물을 선택합니다';
+        return '[탭] 반려동물 카드를 누르면 상세 정보가 펼쳐져요';
       case 1:
         return '[탭] 안내사항 정독 동의 (필수)';
       case 2:
@@ -112,19 +112,29 @@ class _DonationFormSceneState extends State<DonationFormScene> {
                 onTap: _onPetTap,
                 child: _PetCard(
                   name: '초코',
-                  summary: '골든리트리버 · 4세 · 28kg',
-                  details: 'DEA 1.1+ · 수컷 · 최근 헌혈 2025-11-08',
-                  statusFlags: const ['접종', '예방약', '중성화'],
+                  bloodType: 'DEA 1.1+',
+                  weight: '28kg',
                   selected: _petSelected,
                 ),
               ),
               const SizedBox(height: 6),
               const _PetCard(
                 name: '멍멍이',
-                summary: '푸들 · 2세 · 8kg',
-                details: 'DEA 1.1− · 암컷 · 첫 헌혈',
-                statusFlags: ['접종', '예방약'],
+                bloodType: 'DEA 1.1−',
+                weight: '8kg',
                 selected: false,
+              ),
+
+              // 펫 선택 시에만 펼쳐지는 상세 정보 (실제 앱과 정합)
+              AnimatedSize(
+                duration: const Duration(milliseconds: 250),
+                curve: Curves.easeOut,
+                child: _petSelected
+                    ? Padding(
+                        padding: const EdgeInsets.only(top: 12),
+                        child: const _SelectedPetInfo(),
+                      )
+                    : const SizedBox.shrink(),
               ),
               const SizedBox(height: 14),
 
@@ -296,109 +306,249 @@ class _DonationFormSceneState extends State<DonationFormScene> {
   }
 }
 
+/// 펫 선택 카드 — 실제 donation_application_page.dart와 정합.
+/// 프로필 아이콘 + 이름 + 상태 뱃지 + 혈액형/체중 한 줄.
+/// 접종/예방약/중성화 칩은 표시하지 않음 (그건 선택 후 상세 섹션에서 노출).
 class _PetCard extends StatelessWidget {
   final String name;
-  final String summary; // "골든리트리버 · 4세 · 28kg"
-  final String details; // "DEA 1.1+ · 수컷 · 최근 헌혈 2025-11-08"
-  final List<String> statusFlags; // "접종", "예방약", "중성화" 등
+  final String bloodType;
+  final String weight;
   final bool selected;
 
   const _PetCard({
     required this.name,
-    required this.summary,
-    required this.details,
-    required this.statusFlags,
+    required this.bloodType,
+    required this.weight,
     required this.selected,
   });
 
   @override
   Widget build(BuildContext context) {
+    final accent = selected ? AppTheme.success : AppTheme.textSecondary;
     return Container(
-      padding: const EdgeInsets.all(10),
+      padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: selected
-            ? AppTheme.primaryBlue.withValues(alpha: 0.06)
-            : Colors.white,
-        borderRadius: BorderRadius.circular(10),
+            ? AppTheme.success.withValues(alpha: 0.06)
+            : Colors.grey.shade100,
+        borderRadius: BorderRadius.circular(12),
         border: Border.all(
-          color: selected
-              ? AppTheme.primaryBlue
-              : AppTheme.lightGray.withValues(alpha: 0.6),
-          width: selected ? 1.5 : 1,
+          color: selected ? AppTheme.success : Colors.grey.shade400,
+          width: selected ? 2 : 1,
         ),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      child: Row(
         children: [
-          Row(
-            children: [
-              const Text('🐾', style: TextStyle(fontSize: 20)),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  name,
-                  style: AppTheme.bodySmallStyle.copyWith(
-                    fontWeight: FontWeight.bold,
-                    color: AppTheme.textPrimary,
-                    fontSize: 13,
-                  ),
-                ),
-              ),
-              if (selected)
-                Icon(Icons.check_circle, size: 18, color: AppTheme.primaryBlue),
-            ],
+          // 프로필 아바타
+          Container(
+            width: 36,
+            height: 36,
+            decoration: BoxDecoration(
+              color: AppTheme.veryLightGray,
+              shape: BoxShape.circle,
+            ),
+            alignment: Alignment.center,
+            child: const Text('🐾', style: TextStyle(fontSize: 18)),
           ),
-          const SizedBox(height: 4),
-          Padding(
-            padding: const EdgeInsets.only(left: 28),
+          const SizedBox(width: 10),
+          Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  summary,
-                  style: AppTheme.bodySmallStyle.copyWith(
-                    color: AppTheme.textPrimary,
-                    fontSize: 10,
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  details,
-                  style: AppTheme.bodySmallStyle.copyWith(
-                    color: AppTheme.textSecondary,
-                    fontSize: 10,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Wrap(
-                  spacing: 4,
-                  runSpacing: 3,
+                Row(
                   children: [
-                    for (final flag in statusFlags)
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 5,
-                          vertical: 1,
-                        ),
-                        decoration: BoxDecoration(
-                          color: AppTheme.success.withValues(alpha: 0.1),
-                          borderRadius: BorderRadius.circular(3),
-                          border: Border.all(
-                            color: AppTheme.success.withValues(alpha: 0.4),
-                          ),
-                        ),
-                        child: Text(
-                          '✓ $flag',
-                          style: TextStyle(
-                            color: AppTheme.success,
-                            fontSize: 9,
-                            fontWeight: FontWeight.w600,
-                          ),
+                    Flexible(
+                      child: Text(
+                        name,
+                        style: AppTheme.bodySmallStyle.copyWith(
+                          fontWeight: FontWeight.bold,
+                          color: selected
+                              ? AppTheme.success
+                              : AppTheme.textPrimary,
+                          fontSize: 13,
                         ),
                       ),
+                    ),
+                    const SizedBox(width: 6),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 5,
+                        vertical: 1,
+                      ),
+                      decoration: BoxDecoration(
+                        color: AppTheme.success.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(3),
+                      ),
+                      child: Text(
+                        '헌혈 가능',
+                        style: TextStyle(
+                          color: AppTheme.success,
+                          fontSize: 9,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 4),
+                Row(
+                  children: [
+                    Icon(
+                      Icons.bloodtype_outlined,
+                      size: 12,
+                      color: accent,
+                    ),
+                    const SizedBox(width: 3),
+                    Text(
+                      bloodType,
+                      style: AppTheme.bodySmallStyle.copyWith(
+                        color: AppTheme.textSecondary,
+                        fontSize: 10,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Icon(
+                      Icons.monitor_weight_outlined,
+                      size: 12,
+                      color: accent,
+                    ),
+                    const SizedBox(width: 3),
+                    Text(
+                      weight,
+                      style: AppTheme.bodySmallStyle.copyWith(
+                        color: AppTheme.textSecondary,
+                        fontSize: 10,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
                   ],
                 ),
               ],
+            ),
+          ),
+          if (selected)
+            Icon(Icons.check_circle, size: 18, color: AppTheme.success),
+        ],
+      ),
+    );
+  }
+}
+
+/// 선택된 반려동물 상세 정보 섹션.
+/// 실제 _buildSelectedPetInfo와 정합 — 종류/품종/성별/혈액형/체중/생년월일/
+/// 최근 헌혈/접종/예방약/중성화/질병/임신·출산.
+class _SelectedPetInfo extends StatelessWidget {
+  const _SelectedPetInfo();
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          '선택된 반려동물 정보',
+          style: AppTheme.bodySmallStyle.copyWith(
+            fontWeight: FontWeight.bold,
+            color: AppTheme.textPrimary,
+            fontSize: 12,
+          ),
+        ),
+        const SizedBox(height: 6),
+        Container(
+          padding: const EdgeInsets.all(10),
+          decoration: BoxDecoration(
+            color: Colors.grey.shade50,
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: Colors.grey.shade200),
+          ),
+          child: Column(
+            children: [
+              _row(Icons.pets, '종류', '강아지'),
+              _row(Icons.category_outlined, '품종', '골든리트리버'),
+              _row(Icons.male, '성별', '수컷'),
+              _row(Icons.bloodtype_outlined, '혈액형', 'DEA 1.1+'),
+              _row(Icons.monitor_weight_outlined, '체중', '28kg'),
+              _row(Icons.cake_outlined, '생년월일', '2022-03-15'),
+              _row(Icons.history_outlined, '최근 헌혈일', '2025-11-08'),
+              _statusRow(Icons.vaccines_outlined, '접종', positive: true),
+              _statusRow(Icons.medication_outlined, '예방약', positive: true),
+              _statusRow(Icons.verified_user_outlined, '중성화', positive: true),
+              _statusRow(Icons.local_hospital_outlined, '질병', positive: false),
+              _statusRow(Icons.favorite_outline, '임신/출산', positive: false),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _row(IconData icon, String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 3),
+      child: Row(
+        children: [
+          Icon(icon, size: 12, color: AppTheme.textSecondary),
+          const SizedBox(width: 5),
+          SizedBox(
+            width: 60,
+            child: Text(
+              label,
+              style: AppTheme.bodySmallStyle.copyWith(
+                color: AppTheme.textSecondary,
+                fontSize: 10,
+              ),
+            ),
+          ),
+          Expanded(
+            child: Text(
+              value,
+              style: AppTheme.bodySmallStyle.copyWith(
+                color: AppTheme.textPrimary,
+                fontSize: 10,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// 4단계 status (positive=초록 ✓, neutral=회색 —).
+  /// 질병·임신/출산은 false=회색(없음), 나머지는 true=초록(완료).
+  Widget _statusRow(IconData icon, String label, {required bool positive}) {
+    final color = positive ? AppTheme.success : AppTheme.textTertiary;
+    final statusIcon = positive
+        ? Icons.check_circle_outline
+        : Icons.remove_circle_outline;
+    final statusText = positive
+        ? (label == '질병' || label == '임신/출산' ? '있음' : '완료')
+        : (label == '질병' || label == '임신/출산' ? '없음' : '미완');
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 3),
+      child: Row(
+        children: [
+          Icon(icon, size: 12, color: AppTheme.textSecondary),
+          const SizedBox(width: 5),
+          SizedBox(
+            width: 60,
+            child: Text(
+              label,
+              style: AppTheme.bodySmallStyle.copyWith(
+                color: AppTheme.textSecondary,
+                fontSize: 10,
+              ),
+            ),
+          ),
+          Icon(statusIcon, size: 12, color: color),
+          const SizedBox(width: 4),
+          Text(
+            statusText,
+            style: AppTheme.bodySmallStyle.copyWith(
+              color: color,
+              fontSize: 10,
+              fontWeight: FontWeight.w600,
             ),
           ),
         ],

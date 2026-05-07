@@ -532,18 +532,75 @@ class _BottomSheetMock extends StatelessWidget {
                 ],
               ),
               const SizedBox(height: 8),
-              // 자세한 정보
+              // 병원/주소
               _infoLine(Icons.local_hospital_outlined, '행복동물병원'),
               const SizedBox(height: 3),
               _infoLine(Icons.location_on_outlined, '서울 강남구 테헤란로 123'),
-              const SizedBox(height: 3),
-              _infoLine(Icons.pets, '환자: 7세 보더콜리 · 12kg'),
-              const SizedBox(height: 3),
-              _infoLine(Icons.medical_information_outlined,
-                  '필요 혈액형: DEA 1.1+'),
               const SizedBox(height: 10),
-              Container(height: 1, color: AppTheme.lightGray),
+
+              // 수혈 환자 정보 — 카드 안에 별도 행
+              Text(
+                '수혈 환자 정보',
+                style: AppTheme.bodySmallStyle.copyWith(
+                  fontWeight: FontWeight.bold,
+                  color: AppTheme.textPrimary,
+                  fontSize: 11,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: AppTheme.textPrimary, width: 0.8),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _patientRow('환자 이름', '멍멍이'),
+                    const SizedBox(height: 4),
+                    _patientRow('품종', '보더콜리'),
+                    const SizedBox(height: 4),
+                    _patientRow('나이', '7'),
+                    const SizedBox(height: 4),
+                    _patientRow('병명·증상', '빈혈로 인한 수혈 필요'),
+                  ],
+                ),
+              ),
               const SizedBox(height: 10),
+
+              // 필요 혈액형 — 별도 컬러 박스
+              Text(
+                '필요 혈액형',
+                style: AppTheme.bodySmallStyle.copyWith(
+                  fontWeight: FontWeight.bold,
+                  color: AppTheme.textPrimary,
+                  fontSize: 11,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(vertical: 8),
+                decoration: BoxDecoration(
+                  color: Colors.red.shade50,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.red.shade200),
+                ),
+                child: Text(
+                  'DEA 1.1+',
+                  textAlign: TextAlign.center,
+                  style: AppTheme.bodyMediumStyle.copyWith(
+                    color: Colors.red.shade700,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 14,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 10),
+
+              // 헌혈 예정일 + 시간대
               Row(
                 children: [
                   Icon(Icons.event, size: 13, color: AppTheme.primaryBlue),
@@ -558,8 +615,7 @@ class _BottomSheetMock extends StatelessWidget {
                   ),
                 ],
               ),
-              const SizedBox(height: 8),
-              // 시간대 list (신청자 수 표시 X)
+              const SizedBox(height: 6),
               HighlightTarget(
                 isActive: isFirstSlotActive,
                 onTap: onFirstSlotTap,
@@ -584,6 +640,34 @@ class _BottomSheetMock extends StatelessWidget {
         Expanded(
           child: Text(
             text,
+            style: AppTheme.bodySmallStyle.copyWith(
+              color: AppTheme.textPrimary,
+              fontSize: 11,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _patientRow(String label, String value) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        SizedBox(
+          width: 70,
+          child: Text(
+            '$label:',
+            style: AppTheme.bodySmallStyle.copyWith(
+              color: AppTheme.textSecondary,
+              fontSize: 10,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        ),
+        Expanded(
+          child: Text(
+            value,
             style: AppTheme.bodySmallStyle.copyWith(
               color: AppTheme.textPrimary,
               fontSize: 11,
