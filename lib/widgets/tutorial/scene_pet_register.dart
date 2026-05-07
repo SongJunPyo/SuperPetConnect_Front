@@ -121,7 +121,7 @@ class _DashboardWithPetButton extends StatelessWidget {
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(Icons.pets, size: 14, color: AppTheme.textPrimary),
+                  Icon(Icons.pets_outlined, size: 14, color: AppTheme.textPrimary),
                   const SizedBox(width: 3),
                   Text(
                     '반려동물 관리',

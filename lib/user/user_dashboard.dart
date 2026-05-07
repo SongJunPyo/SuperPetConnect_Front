@@ -323,7 +323,7 @@ class _UserDashboardState extends State<UserDashboard>
             mainAxisSize: MainAxisSize.min,
             children: [
               IconButton(
-                icon: const Icon(Icons.pets, color: Colors.black87, size: 24),
+                icon: const Icon(Icons.pets_outlined, color: Colors.black87, size: 24),
                 onPressed: () {
                   Navigator.push(
                     context,

@@ -422,7 +422,7 @@ class _WelcomeScreenState extends State<WelcomeScreen>
         showBackButton: false,
         actions: [
           TextButton.icon(
-            icon: const Icon(Icons.key, color: Colors.black87, size: 24),
+            icon: const Icon(Icons.key_outlined, color: Colors.black87, size: 24),
             label: const Text('로그인', style: TextStyle(color: Colors.black87, fontSize: 14)),
             onPressed: () {
               Navigator.push(
