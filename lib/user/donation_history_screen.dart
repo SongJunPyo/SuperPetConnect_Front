@@ -11,6 +11,7 @@ import '../widgets/app_app_bar.dart';
 import '../widgets/app_search_bar.dart';
 import '../services/auth_http_client.dart';
 import 'package:http/http.dart' as http;
+import 'donation_survey_form_page.dart';
 
 class DonationHistoryScreen extends StatefulWidget {
   /// 알림 탭 등 외부 진입 시 강조할 신청 application_id (= applied_donation_idx).
@@ -549,6 +550,21 @@ class _DonationHistoryScreenState extends State<DonationHistoryScreen>
     );
   }
 
+  /// 헌혈 사전 정보 설문 작성/수정 화면 진입.
+  /// APPROVED 신청 카드의 버튼에서 호출. 작성 화면이 신규/수정/잠금을 자동 분기.
+  /// 제출 성공(true) 반환 시 목록을 다시 불러와 상태 변동 가능성 반영.
+  Future<void> _openSurveyForm(int applicationId) async {
+    final result = await Navigator.push<bool>(
+      context,
+      MaterialPageRoute(
+        builder: (_) => DonationSurveyFormPage(applicationId: applicationId),
+      ),
+    );
+    if (result == true && mounted) {
+      _loadDonationHistory();
+    }
+  }
+
   Widget _buildApplicationsList(List<DonationApplication> applications, {bool isCompleted = false}) {
     if (isLoading) {
       return const Center(
@@ -724,6 +740,24 @@ class _DonationHistoryScreenState extends State<DonationHistoryScreen>
                 ),
               ],
             ),
+            // APPROVED(선정) 상태에서만 사전 설문 작성 진입점 노출.
+            // 알림(D-2 09:00) 도착 전에도 사용자가 직접 미리 작성 가능하도록.
+            if (application.statusCode == 1) ...[
+              const SizedBox(height: 12),
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton.icon(
+                  onPressed: () => _openSurveyForm(application.applicationId),
+                  icon: const Icon(Icons.edit_note, size: 18),
+                  label: const Text('헌혈 사전 정보 설문'),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: AppTheme.primaryBlue,
+                    side: const BorderSide(color: AppTheme.primaryBlue),
+                    padding: const EdgeInsets.symmetric(vertical: 10),
+                  ),
+                ),
+              ),
+            ],
             // 액션 버튼들(자료 요청 / 만족도 / 후원선물)은 카드에서 제외하고
             // 상세 시트로 이동 — 카드는 한 줄 요약, 시트는 전체 정보 + 액션.
           ],

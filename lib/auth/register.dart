@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import 'package:kpostal/kpostal.dart';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
+import '../constants/dialog_messages.dart';
 import '../services/registration_pet_uploader.dart';
 import '../utils/app_theme.dart';
 import '../utils/config.dart';
@@ -69,6 +70,33 @@ class _RegisterScreenState extends State<RegisterScreen> {
         backgroundColor:
             isSuccess ? Colors.green : Theme.of(context).colorScheme.error,
       ),
+    );
+  }
+
+  void _showAlertDialog(
+    BuildContext context,
+    String title,
+    String content, [
+    VoidCallback? onOkPressed,
+  ]) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext dialogContext) {
+        return AlertDialog(
+          title: Text(title),
+          content: Text(content),
+          actions: <Widget>[
+            TextButton(
+              onPressed: () {
+                Navigator.of(dialogContext).pop();
+                onOkPressed?.call();
+              },
+              child: const Text('확인'),
+            ),
+          ],
+        );
+      },
     );
   }
 
@@ -190,11 +218,17 @@ class _RegisterScreenState extends State<RegisterScreen> {
         await _uploadPetPhotosAfterRegister(response);
         if (!mounted) return;
 
-        _showSnackBar('회원가입이 완료되었습니다. 관리자 승인까지 기다려주세요.',
-            isSuccess: true);
-        Navigator.pushReplacement(
+        _showAlertDialog(
           context,
-          MaterialPageRoute(builder: (context) => const WelcomeScreen()),
+          DialogMsg.signupCompleteTitle,
+          DialogMsg.signupCompleteBody,
+          () {
+            if (!mounted) return;
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(builder: (context) => const WelcomeScreen()),
+            );
+          },
         );
       } else if (response.statusCode == 409) {
         _showSnackBar('이미 가입된 이메일 또는 전화번호입니다.');

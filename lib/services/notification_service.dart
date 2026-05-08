@@ -139,6 +139,11 @@ class NotificationService {
       case 'post_resumed':
         _navigateToHospitalPosts(parsedData);
         break;
+      case 'post_deleted':
+        // 게시글이 이미 삭제됐으므로 detail 진입 불가 — 게시글 목록으로 이동.
+        // data 안의 post_idx는 진단/로그 용도로만 활용.
+        _navigateToHospitalPosts(parsedData);
+        break;
       case 'donation_post_rejected':
       case 'document_request':
         _navigateToHospitalPostCheck(parsedData);
@@ -180,13 +185,20 @@ class NotificationService {
         _navigateForAccountStatus(parsedData);
         break;
       case 'timeslot_filled':
-        // 의도된 dead-end — 정보 알림이라 화면 이동 불필요.
-        // CLAUDE.md "알림 다중 수신 라우팅" 정책.
+        // 운영 피드백 반영 — 마감된 시간대를 즉시 확인할 수 있도록 게시글 상세 진입.
+        // BE payload(`post_idx` / `timeslot_id` / `timeslot_time`) 중 post_idx만 사용.
+        // timeslot_id 강조는 시트 구조 변경 필요 — 별도 라운드.
+        _navigateToHospitalPosts(parsedData);
         break;
       default:
         // 매핑 없는 type(systemNotice 류 broadcast/general/admin_alert/hospital_alert,
         // 또는 알 수 없는 신규 type)은 본인 역할 dashboard로 fallback.
         // 알림 목록 클릭 진입에서 systemNotice는 dashboard로 보내던 기존 동작 보존.
+        // 진단 로그 — fallback 발생 시 어떤 type이 처리 안 됐는지 추적.
+        debugPrint(
+          '[NotificationService] dispatchByType fallback to dashboard '
+          '(unmapped type="$type", data=$parsedData)',
+        );
         _navigateToOwnDashboard();
         break;
     }
@@ -255,10 +267,10 @@ class NotificationService {
 
   /// 관리자 게시글 관리(`new_post_approval` 알림) 진입.
   ///
-  /// 백엔드 4c1de27 commit 이후 `navigation` 객체 emit 중단됨.
-  /// CLAUDE.md "Frontend routing branches solely on data.type" 원칙에 따라
-  /// type별 default tab을 프론트가 직접 결정. `new_post_approval` 알림은
-  /// 모집대기 탭(`pending_approval`) 단일 진입.
+  /// `new_post_approval`은 status==WAIT(0) 게시글에 대한 알림 — 모집대기 탭(0).
+  /// 2026-05-07 변경: named route(`/admin/post-management` → AdminPostManagementPage)
+  /// 대신 admin_dashboard와 동일한 AdminPostCheck로 직접 push. 두 화면이 분리되어
+  /// 알림 클릭 시 다른 화면(자동 시트 미지원)으로 가던 버그 수정.
   ///
   /// post_idx 키 정책: top-level `post_idx` 우선, `post_id`는 구버전 fallback.
   static void _navigateToPostManagement(Map<String, dynamic> data) {
@@ -267,19 +279,19 @@ class NotificationService {
 
     try {
       final raw = data['post_idx'] ?? data['post_id'];
-      final postId = raw is int ? raw : int.tryParse(raw?.toString() ?? '');
+      final postIdx = raw is int ? raw : int.tryParse(raw?.toString() ?? '');
 
-      Navigator.pushNamed(
+      Navigator.push(
         context,
-        '/admin/post-management',
-        arguments: {
-          'postId': postId,
-          'initialTab': 'pending_approval',
-          'highlightPost': postId,
-        },
+        MaterialPageRoute(
+          builder: (_) => AdminPostCheck(
+            initialPostIdx: postIdx,
+            initialTabIndex: 0, // 모집대기 탭 (status=WAIT)
+          ),
+        ),
       );
     } catch (e) {
-      Navigator.pushNamed(context, '/admin/post-management');
+      debugPrint('[NotificationService] new_post_approval 네비게이션 실패: $e');
     }
   }
 
@@ -294,8 +306,8 @@ class NotificationService {
     }
   }
 
-  // donation_post_approved / all_timeslots_filled / post_suspended /
-  // post_resumed 등 병원 게시글 알림을 HospitalPostCheck로 라우팅.
+  // donation_post_approved / timeslot_filled / all_timeslots_filled /
+  // post_suspended / post_resumed 등 병원 게시글 알림을 HospitalPostCheck로 라우팅.
   // _navigateToHospitalPostCheck와 동일 동작 — 같은 함수에 위임.
   static void _navigateToHospitalPosts(Map<String, dynamic> data) {
     _navigateToHospitalPostCheck(data);
@@ -486,6 +498,13 @@ class NotificationService {
     try {
       final raw = data['post_idx'] ?? data['post_id'];
       final postIdx = raw is int ? raw : int.tryParse(raw?.toString() ?? '');
+      // post_idx 누락 진단 — FCM 페이로드에서 키가 빠지거나 다른 이름으로 들어온 경우.
+      // CLAUDE.md "FCM data 키 컨벤션" 미스매치를 빠르게 감지.
+      if (postIdx == null) {
+        debugPrint(
+          '[NotificationService] new_donation_post post_idx 추출 실패. data=$data',
+        );
+      }
       Navigator.push(
         context,
         MaterialPageRoute(

@@ -3,21 +3,22 @@ import '../../utils/app_theme.dart';
 import '../../utils/config.dart';
 import '../../utils/pet_field_icons.dart';
 
-/// 게시판 상세(공지/칼럼)의 작성자 영역 좌측 아바타.
-///
-/// 8+ 화면(welcome / 3 dashboards / notice_list 2종 / column_list 2종 /
-/// hospital_column_management_list / admin_column_management 등)에서 공통.
-/// 이전에는 '공지'/'알림'/'칼럼' 텍스트 뱃지였으나 작성자 식별을 위해
-/// 프로필 이미지 + 폴백 hospital 아이콘 형태로 통일.
+/// 게시판 상세(공지/칼럼)의 작성자 영역 좌측 아바타 + 대시보드 인사말 영역
+/// 본인 프로필 아바타로 공통 사용. 폴백 아이콘은 호출자가 지정 (게시판은
+/// hospital, 대시보드 본인은 person).
 class AuthorAvatar extends StatelessWidget {
   const AuthorAvatar({
     super.key,
     required this.profileImage,
     this.radius = 12,
+    this.fallbackIcon,
   });
 
   final String? profileImage;
   final double radius;
+
+  /// 이미지가 없을 때 표시할 폴백 아이콘. null이면 [PetFieldIcons.hospital].
+  final IconData? fallbackIcon;
 
   @override
   Widget build(BuildContext context) {
@@ -34,7 +35,7 @@ class AuthorAvatar extends StatelessWidget {
           : null,
       onForegroundImageError: hasImage ? (_, __) {} : null,
       child: Icon(
-        PetFieldIcons.hospital,
+        fallbackIcon ?? PetFieldIcons.hospital,
         size: radius * 1.1,
         color: AppTheme.textTertiary,
       ),

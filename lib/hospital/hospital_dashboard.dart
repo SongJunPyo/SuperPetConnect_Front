@@ -48,6 +48,7 @@ class _HospitalDashboardState extends State<HospitalDashboard>
   late TabController _tabController;
   String hospitalName = "S동물메디컬센터";
   String hospitalNickname = "S동물메디컬센터";
+  String? hospitalProfileImage;
   String currentDateTime = "";
   Timer? _timer;
 
@@ -172,6 +173,7 @@ class _HospitalDashboardState extends State<HospitalDashboard>
         setState(() {
           hospitalName = userName;
           hospitalNickname = userNickname;
+          hospitalProfileImage = data['profile_image'] as String?;
         });
 
         // 로컬 저장소에도 업데이트
@@ -329,20 +331,50 @@ class _HospitalDashboardState extends State<HospitalDashboard>
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        '안녕하세요,',
-                        style: AppTheme.h2Style,
-                      ),
-                      Text(
-                        '$hospitalNickname 님!',
-                        style: AppTheme.h2Style,
-                      ),
-                      const SizedBox(height: AppTheme.spacing8),
-                      Text(
-                        currentDateTime,
-                        style: AppTheme.bodyLargeStyle.copyWith(
-                          color: AppTheme.textSecondary,
-                        ),
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.center,
+                        children: [
+                          GestureDetector(
+                            onTap: () async {
+                              await Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder:
+                                      (context) => const ProfileManagement(),
+                                ),
+                              );
+                              _loadHospitalName();
+                            },
+                            child: AuthorAvatar(
+                              profileImage: hospitalProfileImage,
+                              radius: 40,
+                              fallbackIcon: Icons.local_hospital_outlined,
+                            ),
+                          ),
+                          const SizedBox(width: AppTheme.spacing16),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  '안녕하세요,',
+                                  style: AppTheme.h2Style,
+                                ),
+                                Text(
+                                  '$hospitalNickname 님!',
+                                  style: AppTheme.h2Style,
+                                ),
+                                const SizedBox(height: AppTheme.spacing8),
+                                Text(
+                                  currentDateTime,
+                                  style: AppTheme.bodyLargeStyle.copyWith(
+                                    color: AppTheme.textSecondary,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
                       ),
                       const SizedBox(height: AppTheme.spacing20),
                       if (!isLoadingApplications &&

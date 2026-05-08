@@ -3,9 +3,9 @@ import 'package:provider/provider.dart';
 import 'package:connect/admin/admin_dashboard.dart';
 import 'package:connect/hospital/hospital_dashboard.dart';
 import 'package:connect/user/user_dashboard.dart';
+import '../constants/dialog_messages.dart';
 import '../services/notification_service.dart';
 import '../providers/notification_provider.dart';
-import '../utils/app_theme.dart';
 import '../utils/app_constants.dart';
 import '../utils/preferences_manager.dart';
 import '../utils/web_redirect_stub.dart'
@@ -26,7 +26,6 @@ class NaverCallbackScreen extends StatefulWidget {
 
 class _NaverCallbackScreenState extends State<NaverCallbackScreen> {
   bool _isProcessing = true;
-  String? _errorMessage;
 
   @override
   void initState() {
@@ -38,25 +37,65 @@ class _NaverCallbackScreenState extends State<NaverCallbackScreen> {
     });
   }
 
+  /// 이메일 로그인의 _showAlertDialog와 동일한 패턴.
+  /// 확인 버튼 누르면 onOkPressed 콜백 실행 (보통 /login으로 이동).
+  void _showAlertDialog(
+    BuildContext context,
+    String title,
+    String content, [
+    VoidCallback? onOkPressed,
+  ]) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext dialogContext) {
+        return AlertDialog(
+          title: Text(title),
+          content: Text(content),
+          actions: <Widget>[
+            TextButton(
+              onPressed: () {
+                Navigator.of(dialogContext).pop();
+                onOkPressed?.call();
+              },
+              child: const Text('확인'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  /// 콜백 페이지에서 발생한 에러/대기 상태를 다이얼로그로 표시 후 로그인 화면으로 복귀.
+  /// 풀스크린 모래시계 UI 대신 이메일 로그인과 동일한 AlertDialog 패턴 (2026-05-07 통일).
+  void _showAlertAndReturnToLogin(String title, String content) {
+    if (!mounted) return;
+    setState(() => _isProcessing = false);
+    _showAlertDialog(context, title, content, () {
+      if (!mounted) return;
+      Navigator.pushNamedAndRemoveUntil(context, '/login', (route) => false);
+    });
+  }
+
   Future<void> _processCallback() async {
     final params = widget.queryParams;
 
     // 에러 파라미터가 있으면 에러 표시
     if (params.containsKey('error')) {
-      setState(() {
-        _isProcessing = false;
-        _errorMessage = params['message'] ?? '네이버 로그인에 실패했습니다.';
-      });
+      _showAlertAndReturnToLogin(
+        '로그인 실패',
+        params['message'] ?? '네이버 로그인에 실패했습니다.',
+      );
       return;
     }
 
     // access_token이 있으면 로그인 성공 처리
     final accessToken = params['access_token'];
     if (accessToken == null || accessToken.isEmpty) {
-      setState(() {
-        _isProcessing = false;
-        _errorMessage = '인증 정보를 받지 못했습니다. 다시 시도해주세요.';
-      });
+      _showAlertAndReturnToLogin(
+        '로그인 실패',
+        '인증 정보를 받지 못했습니다. 다시 시도해주세요.',
+      );
       return;
     }
 
@@ -123,10 +162,10 @@ class _NaverCallbackScreenState extends State<NaverCallbackScreen> {
       // 승인 여부 확인
       final approved = params['approved'] == 'true';
       if (!approved) {
-        setState(() {
-          _isProcessing = false;
-          _errorMessage = '관리자의 승인을 기다리고 있습니다.\n승인 후 로그인이 가능합니다.';
-        });
+        _showAlertAndReturnToLogin(
+          DialogMsg.pendingApprovalTitle,
+          DialogMsg.pendingApprovalBody,
+        );
         return;
       }
 
@@ -144,10 +183,7 @@ class _NaverCallbackScreenState extends State<NaverCallbackScreen> {
             dashboard = const UserDashboard();
             break;
           default:
-            setState(() {
-              _isProcessing = false;
-              _errorMessage = '알 수 없는 사용자 유형입니다.';
-            });
+            _showAlertAndReturnToLogin('오류', '알 수 없는 사용자 유형입니다.');
             return;
         }
 
@@ -158,77 +194,19 @@ class _NaverCallbackScreenState extends State<NaverCallbackScreen> {
         );
       }
     } catch (e) {
-      setState(() {
-        _isProcessing = false;
-        _errorMessage = '로그인 처리 중 오류가 발생했습니다.\n$e';
-      });
+      _showAlertAndReturnToLogin('연결 오류', '로그인 처리 중 오류가 발생했습니다.\n$e');
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    if (_isProcessing) {
-      return const Scaffold(body: Center(child: CircularProgressIndicator()));
-    }
-
-    // 에러 또는 승인 대기 화면
+    // 처리 중에는 로딩 인디케이터, 에러/승인 대기는 _showAlertDialog가 띄우는 다이얼로그가 화면 위에 표시됨.
+    // 다이얼로그 닫으면 /login으로 이동하므로 build 본체는 항상 빈 Scaffold + 처리 중 스피너로 충분.
     return Scaffold(
       body: Center(
-        child: Padding(
-          padding: const EdgeInsets.all(32.0),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(
-                _errorMessage != null && _errorMessage!.contains('승인')
-                    ? Icons.hourglass_empty
-                    : Icons.error_outline,
-                size: 64,
-                color:
-                    _errorMessage != null && _errorMessage!.contains('승인')
-                        ? AppTheme.warning
-                        : AppTheme.error,
-              ),
-              const SizedBox(height: 24),
-              Text(
-                _errorMessage != null && _errorMessage!.contains('승인')
-                    ? '승인 대기 중'
-                    : '로그인 실패',
-                style: AppTheme.h2Style,
-              ),
-              const SizedBox(height: 16),
-              Text(
-                _errorMessage ?? '',
-                textAlign: TextAlign.center,
-                style: AppTheme.bodyLargeStyle.copyWith(
-                  color: AppTheme.textSecondary,
-                ),
-              ),
-              const SizedBox(height: 32),
-              ElevatedButton(
-                onPressed: () {
-                  Navigator.pushNamedAndRemoveUntil(
-                    context,
-                    '/login',
-                    (route) => false,
-                  );
-                },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppTheme.textPrimary,
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 32,
-                    vertical: 16,
-                  ),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                ),
-                child: const Text('로그인 페이지로 돌아가기'),
-              ),
-            ],
-          ),
-        ),
+        child: _isProcessing
+            ? const CircularProgressIndicator()
+            : const SizedBox.shrink(),
       ),
     );
   }

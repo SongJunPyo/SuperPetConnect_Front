@@ -9,6 +9,7 @@ import 'package:flutter_naver_login/flutter_naver_login.dart';
 import 'package:flutter_naver_login/interface/types/naver_login_status.dart';
 import 'package:flutter_naver_login/interface/types/naver_login_result.dart';
 import 'package:flutter_naver_login/interface/types/naver_token.dart';
+import '../constants/dialog_messages.dart';
 import '../utils/config.dart';
 import '../utils/app_theme.dart';
 import '../utils/app_constants.dart';
@@ -98,8 +99,8 @@ class _LoginScreenState extends State<LoginScreen> {
       if (mounted) {
         _showAlertDialog(
           context,
-          '승인 대기 중',
-          '관리자의 승인을 기다리고 있습니다. \n승인 후 로그인이 가능합니다.',
+          DialogMsg.pendingApprovalTitle,
+          DialogMsg.pendingApprovalBody,
         );
       }
       return;
@@ -178,8 +179,8 @@ class _LoginScreenState extends State<LoginScreen> {
           if (mounted) {
             _showAlertDialog(
               context,
-              '승인 대기 중',
-              '관리자의 승인을 기다리고 있습니다. \n승인 후 로그인이 가능합니다.',
+              DialogMsg.pendingApprovalTitle,
+              DialogMsg.pendingApprovalBody,
             );
           }
         } else if (response.statusCode == 429) {

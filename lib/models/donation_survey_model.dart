@@ -3,7 +3,17 @@
 // 헌혈 사전 정보 설문 모델 (2026-05 PR-2).
 // 백엔드 GET .../survey/template + POST/PATCH/GET .../survey 응답/요청 페이로드.
 
+import 'applicant_model.dart' show ApplicantPetInfo;
 import 'donation_consent_model.dart';
+
+/// 백엔드가 Decimal 컬럼을 `"40.00"` 같은 String으로 직렬화하는 경우가 있어
+/// num과 String 양쪽을 모두 수용. 잘못된 형식은 null로 반환.
+double? _parseNullableDouble(dynamic value) {
+  if (value == null) return null;
+  if (value is num) return value.toDouble();
+  if (value is String) return double.tryParse(value);
+  return null;
+}
 
 /// `GET /api/applied-donations/{id}/survey/template` 응답.
 ///
@@ -90,7 +100,7 @@ class DonationSurveyTemplate {
       petSex: json['pet_sex'] as int,
       petBirthDate: json['pet_birth_date'] as String?,
       petBloodType: json['pet_blood_type'] as String?,
-      petWeightKg: (json['pet_weight_kg'] as num?)?.toDouble(),
+      petWeightKg: _parseNullableDouble(json['pet_weight_kg']),
       petIsNeutered: json['pet_is_neutered'] as bool?,
       petNeuteredDate: json['pet_neutered_date'] as String?,
       petPregnancyBirthStatus: json['pet_pregnancy_birth_status'] as int,
@@ -107,7 +117,7 @@ class DonationSurveyTemplate {
       effectiveLastDonationDate:
           json['effective_last_donation_date'] as String?,
       prevDonationHospitalName: json['prev_donation_hospital_name'] as String?,
-      prevBloodVolumeMl: (json['prev_blood_volume_ml'] as num?)?.toDouble(),
+      prevBloodVolumeMl: _parseNullableDouble(json['prev_blood_volume_ml']),
     );
   }
 }
@@ -238,6 +248,11 @@ class DonationSurveyResponse {
   final String submittedAt;
   final String updatedAt;
 
+  /// 펫 메타데이터 — 백엔드 `GET /api/hospital/donation-surveys/{idx}` 옵션 A로 추가
+  /// (2026-05-08 round 4). admin endpoint 응답에는 없을 수 있음 (nullable).
+  /// 의료진이 설문 답변과 펫 의료 정보를 한 화면에서 교차 검증할 때 사용.
+  final ApplicantPetInfo? petInfo;
+
   const DonationSurveyResponse({
     required this.surveyIdx,
     required this.appliedDonationIdx,
@@ -262,13 +277,14 @@ class DonationSurveyResponse {
     this.lockedAt,
     required this.submittedAt,
     required this.updatedAt,
+    this.petInfo,
   });
 
   factory DonationSurveyResponse.fromJson(Map<String, dynamic> json) {
     return DonationSurveyResponse(
       surveyIdx: json['survey_idx'] as int,
       appliedDonationIdx: json['applied_donation_idx'] as int,
-      weightKgSnapshot: (json['weight_kg_snapshot'] as num?)?.toDouble(),
+      weightKgSnapshot: _parseNullableDouble(json['weight_kg_snapshot']),
       hospitalChoiceReason: json['hospital_choice_reason'] as String,
       medicalHistory: json['medical_history'] as String,
       preventiveMedicationDetail: json['preventive_medication_detail'] as String,
@@ -279,7 +295,7 @@ class DonationSurveyResponse {
       companionPetCount: json['companion_pet_count'] as int,
       lastMenstruationDate: json['last_menstruation_date'] as String?,
       prevDonationHospitalName: json['prev_donation_hospital_name'] as String?,
-      prevBloodVolumeMl: (json['prev_blood_volume_ml'] as num?)?.toDouble(),
+      prevBloodVolumeMl: _parseNullableDouble(json['prev_blood_volume_ml']),
       prevSedationUsed: json['prev_sedation_used'] as bool?,
       prevOwnerObserved: json['prev_owner_observed'] as bool?,
       prevBloodCollectionSite: json['prev_blood_collection_site'] as int?,
@@ -290,6 +306,9 @@ class DonationSurveyResponse {
       lockedAt: json['locked_at'] as String?,
       submittedAt: json['submitted_at'] as String,
       updatedAt: json['updated_at'] as String,
+      petInfo: json['pet_info'] is Map<String, dynamic>
+          ? ApplicantPetInfo.fromJson(json['pet_info'] as Map<String, dynamic>)
+          : null,
     );
   }
 

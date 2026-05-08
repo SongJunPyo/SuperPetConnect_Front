@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'dart:convert';
+import '../constants/dialog_messages.dart';
 import '../utils/app_theme.dart';
 import '../utils/debouncer.dart';
 import '../utils/config.dart';
@@ -247,6 +248,34 @@ class _AdminSignupManagementState extends State<AdminSignupManagement> {
     }
   }
 
+  /// 거절 버튼 → 확인 다이얼로그 → 사용자가 "거절" 누르면 [rejectUser] 호출.
+  /// 거절은 가입 신청 행 자체가 영구 제거되는 비가역 동작이라 한 번 더 확인.
+  void _confirmAndRejectUser(SignupUser user) {
+    showDialog(
+      context: context,
+      builder: (BuildContext dialogContext) {
+        return AlertDialog(
+          title: const Text(DialogMsg.signupRejectConfirmTitle),
+          content: Text(DialogMsg.signupRejectConfirmBody(user.name)),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(),
+              child: const Text(DialogMsg.signupRejectConfirmButtonCancel),
+            ),
+            TextButton(
+              onPressed: () {
+                Navigator.of(dialogContext).pop();
+                rejectUser(user);
+              },
+              style: TextButton.styleFrom(foregroundColor: AppTheme.error),
+              child: const Text(DialogMsg.signupRejectConfirmButtonConfirm),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
   Future<void> rejectUser(SignupUser user) async {
     try {
       final response = await AuthHttpClient.post(
@@ -256,14 +285,10 @@ class _AdminSignupManagementState extends State<AdminSignupManagement> {
       );
 
       if (response.statusCode == 200) {
+        // 카드가 목록에서 사라지는 것으로 시각 피드백 충분 — SnackBar 별도 표시 안 함.
         setState(() {
           pendingUsers.removeWhere((u) => u.id == user.id);
         });
-        if (mounted) {
-          ScaffoldMessenger.of(
-            context,
-          ).showSnackBar(SnackBar(content: Text("${user.name} 회원 가입 거절 완료")));
-        }
       } else {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -869,22 +894,32 @@ class _AdminSignupManagementState extends State<AdminSignupManagement> {
                 label: '최근 헌혈일',
                 status: PetStatusType.neutral,
               ),
-            // 접종: 완료 → 초록 ✓ / 미접종 → 빨강 ! (의료 행위 미수행 = critical)
-            PetStatusRow(
-              icon: PetFieldIcons.vaccinated,
-              label: '접종',
-              status: pet.vaccinated == true
-                  ? PetStatusType.positive
-                  : PetStatusType.critical,
-            ),
-            // 종합백신 + 항체검사 (카페 정책 — 2026-05 PR-1)
+            // 외부 헌혈 횟수 (사용자 자기신고 prior_donation_count): 0회면 행 자체 미노출.
+            // 가입 신청 단계는 system 기록 0이므로 사실상 외부 헌혈 횟수 == 전체 헌혈 횟수.
+            if (pet.priorDonationCount > 0)
+              _buildDetailRow(
+                context,
+                PetFieldIcons.prevDonationDate,
+                '외부 헌혈 횟수',
+                '${pet.priorDonationCount}회',
+              ),
+            // 종합백신 — 일자 있으면 일자만 표시(곧 "접종 완료" 의미),
+            // 일자 없으면 critical (미접종/미입력). user/pet_management 통일 패턴.
+            // 카페 정책 (2026-05 PR-1): 24개월 이내 + 항체검사 12개월 이내.
             if (pet.vaccinated == true && pet.lastVaccinationDate != null)
               _buildDetailRow(
                 context,
-                PetFieldIcons.vaccinationDate,
+                PetFieldIcons.vaccinated,
                 '종합백신',
                 '${pet.lastVaccinationDate!.year}.${pet.lastVaccinationDate!.month.toString().padLeft(2, '0')}.${pet.lastVaccinationDate!.day.toString().padLeft(2, '0')}',
+              )
+            else
+              PetStatusRow(
+                icon: PetFieldIcons.vaccinated,
+                label: '종합백신',
+                status: PetStatusType.critical,
               ),
+            // 항체검사 — 일자 있을 때만 별도 행. (백신 24개월 초과 시 필수)
             if (pet.vaccinated == true && pet.lastAntibodyTestDate != null)
               _buildDetailRow(
                 context,
@@ -892,31 +927,37 @@ class _AdminSignupManagementState extends State<AdminSignupManagement> {
                 '항체검사',
                 '${pet.lastAntibodyTestDate!.year}.${pet.lastAntibodyTestDate!.month.toString().padLeft(2, '0')}.${pet.lastAntibodyTestDate!.day.toString().padLeft(2, '0')}',
               ),
-            // 예방약 복용: 복용중 → 초록 ✓ / 미복용 → 빨강 !
-            PetStatusRow(
-              icon: PetFieldIcons.medication,
-              label: '예방약',
-              status: pet.hasPreventiveMedication == true
-                  ? PetStatusType.positive
-                  : PetStatusType.critical,
-            ),
-            // 예방약 복용일 (카페 정책 — 2026-05 PR-1)
+            // 예방약 — 일자 있으면 일자, 없으면 critical. 카페 정책: 헌혈 3개월 전부터 복용 필수.
             if (pet.hasPreventiveMedication == true &&
                 pet.lastPreventiveMedicationDate != null)
               _buildDetailRow(
                 context,
-                PetFieldIcons.preventiveMedicationDate,
-                '예방약 복용',
+                PetFieldIcons.medication,
+                '예방약',
                 '${pet.lastPreventiveMedicationDate!.year}.${pet.lastPreventiveMedicationDate!.month.toString().padLeft(2, '0')}.${pet.lastPreventiveMedicationDate!.day.toString().padLeft(2, '0')}',
+              )
+            else
+              PetStatusRow(
+                icon: PetFieldIcons.medication,
+                label: '예방약',
+                status: PetStatusType.critical,
               ),
-            // 중성화: 완료 → 초록 ✓ / 미시행 → 회색 — (자연스러운 부재)
-            PetStatusRow(
-              icon: PetFieldIcons.isNeutered,
-              label: '중성화',
-              status: pet.isNeutered == true
-                  ? PetStatusType.positive
-                  : PetStatusType.neutral,
-            ),
+            // 중성화 — 일자 있으면 일자, 일자 없으면 warning(체크됨/일자없음)/neutral(미시행).
+            if (pet.isNeutered == true && pet.neuteredDate != null)
+              _buildDetailRow(
+                context,
+                PetFieldIcons.isNeutered,
+                '중성화',
+                '${pet.neuteredDate!.year}.${pet.neuteredDate!.month.toString().padLeft(2, '0')}.${pet.neuteredDate!.day.toString().padLeft(2, '0')}',
+              )
+            else
+              PetStatusRow(
+                icon: PetFieldIcons.isNeutered,
+                label: '중성화',
+                status: pet.isNeutered == true
+                    ? PetStatusType.warning
+                    : PetStatusType.neutral,
+              ),
             // 질병: 없음 → 회색 — / 있음 → 빨강 ! (적극적 위험)
             PetStatusRow(
               icon: PetFieldIcons.hasDisease,
@@ -1206,7 +1247,7 @@ class _AdminSignupManagementState extends State<AdminSignupManagement> {
                                     child: OutlinedButton(
                                       onPressed:
                                           user.status == '대기'
-                                              ? () => rejectUser(user)
+                                              ? () => _confirmAndRejectUser(user)
                                               : null,
                                       style: OutlinedButton.styleFrom(
                                         foregroundColor: AppTheme.error,

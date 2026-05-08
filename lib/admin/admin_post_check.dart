@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'dart:convert';
+import '../constants/dialog_messages.dart';
+import '../utils/app_constants.dart';
 
 import '../utils/config.dart';
 import '../services/auth_http_client.dart';
@@ -84,36 +86,122 @@ class _AdminPostCheckState extends State<AdminPostCheck>
     // 부모의 별도 호출 없음.
 
     // 알림 탭 진입 시 자동으로 해당 게시글 상세 시트 오픈 (2-5b).
-    // 백엔드에 admin 단건 fetch endpoint가 없어서, 헌혈모집 탭(1)의 fetched
-    // 리스트에서 post_idx 매칭으로 해결. new_donation_application 알림은
-    // status=APPROVED(1)/CLOSED(3) 게시글에만 들어오므로 모집중 탭의
-    // status IN (1, 3) 응답으로 커버됨.
-    if (widget.initialPostIdx != null && initialIndex == 1) {
+    // 백엔드에 admin 단건 fetch endpoint가 없어서, 각 탭의 fetched 리스트에서
+    // post_idx 매칭으로 해결. 알림 type별 default 탭이 다름:
+    // - new_post_approval → 모집대기(0): status=WAIT(0) / SUSPENDED(5)
+    // - new_donation_application → 헌혈모집(1): status=APPROVED(1)/CLOSED(3)
+    // 두 탭 모두 자동 시트 오픈 지원. 다른 탭은 미지원 (필요 시 추후 확장).
+    if (widget.initialPostIdx != null &&
+        (initialIndex == 0 || initialIndex == 1)) {
       WidgetsBinding.instance.addPostFrameCallback((_) async {
         if (!mounted) return;
-        final tabState = _activeTabKey.currentState;
-        if (tabState == null) return;
-        // 자식 initState의 첫 fetch를 기다릴 수단이 없어 한 번 더 트리거 후 await.
-        // 알림 진입은 1회성이라 중복 fetch 비용 무시 가능.
-        await tabState.refresh();
-        if (!mounted) return;
-
-        Map<String, dynamic>? matched;
-        for (final p in tabState.allPosts) {
-          if (p is Map && p['post_idx'] == widget.initialPostIdx) {
-            matched = Map<String, dynamic>.from(p);
-            break;
-          }
-        }
-        if (matched != null) {
-          _openPostDetailSheet(
-            matched,
-            _getPostStatus(matched['status']),
-            _getPostType(matched),
-          );
-        }
+        await _autoOpenInitialPostSheet(initialIndex);
       });
     }
+  }
+
+  /// initialPostIdx 매칭 게시글의 시트 자동 오픈. initState PostFrameCallback
+  /// 에서만 호출되며, 알림 진입은 1회성이라 중복 fetch 비용 무시 가능.
+  ///
+  /// 자식 위젯 mount race 방어 (2026-05-07 #2 수정):
+  /// - PostFrameCallback이 자식 initState보다 먼저 실행되면 currentState == null
+  /// - 단발 50ms 대기로는 부족한 케이스 발견 → 폴링 루프(최대 1초)로 확장
+  /// - currentState 확보 실패 시 silent noop 되던 버그(refresh가 null이라 fetch 안 일어남) 수정
+  Future<void> _autoOpenInitialPostSheet(int tabIndex) async {
+    Future<void> Function()? refresh;
+    List<dynamic> Function()? getPosts;
+    bool Function() hasState;
+
+    // 주의: `() async => currentState?.refresh()` 단축형은 Future<Future<void>?>를
+    // 반환해서 외부 Future만 await되고 내부 refresh의 fetch는 await 안 됨.
+    // 명시 await 블록으로 작성해야 자식의 fetch 완료까지 기다림 (2026-05-07 #1 수정).
+    if (tabIndex == 0) {
+      refresh = () async {
+        await _pendingTabKey.currentState?.refresh();
+      };
+      getPosts = () => _pendingTabKey.currentState?.posts ?? const [];
+      hasState = () => _pendingTabKey.currentState != null;
+    } else if (tabIndex == 1) {
+      refresh = () async {
+        await _activeTabKey.currentState?.refresh();
+      };
+      getPosts = () => _activeTabKey.currentState?.allPosts ?? const [];
+      hasState = () => _activeTabKey.currentState != null;
+    } else {
+      return;
+    }
+
+    // 자식 currentState 폴링 (최대 1초, 50ms 간격). 단발 50ms로는 부족한 환경 발견.
+    for (int i = 0; i < 20; i++) {
+      if (hasState()) break;
+      await Future.delayed(const Duration(milliseconds: 50));
+      if (!mounted) return;
+    }
+    if (!hasState()) {
+      debugPrint(
+        '[AdminPostCheck] _autoOpenInitialPostSheet: 자식 currentState 1초 폴링 후에도 null. '
+        'tabIndex=$tabIndex, postIdx=${widget.initialPostIdx}',
+      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('게시글 자동 열기에 실패했습니다. 목록에서 직접 선택해주세요.'),
+          ),
+        );
+      }
+      return;
+    }
+
+    await refresh();
+    if (!mounted) return;
+
+    Map<String, dynamic>? matched;
+    final posts = getPosts();
+    for (final p in posts) {
+      if (p is! Map) continue;
+      // 응답 키 변형 방어: admin posts 응답은 `id`를 정식 키로 사용
+      // (admin_post_check.dart:689의 _buildPostDetailMenuItems도 post['id'] 읽음).
+      // FCM data의 `post_idx` ↔ REST `id` 차이는 CLAUDE.md "FCM data vs REST 응답 body
+      // 키 이름 차이 (의도된 보존)" 패턴. camelCase 변형(`postIdx`)도 함께 fallback.
+      final postIdx = _extractPostIdxFromMap(p);
+      if (postIdx != null && postIdx == widget.initialPostIdx) {
+        matched = Map<String, dynamic>.from(p);
+        break;
+      }
+    }
+    if (matched != null) {
+      _openPostDetailSheet(
+        matched,
+        _getPostStatus(matched['status']),
+        _getPostType(matched),
+      );
+    } else {
+      // 매칭 실패 진단: 모든 후보 키 + 추출 결과 로그.
+      // 페이지네이션(다른 페이지에 있음) / 상태 변경(다른 탭으로 이동) / 키 미스매치
+      // 케이스 구분 가능하게.
+      debugPrint(
+        '[AdminPostCheck] post_idx=${widget.initialPostIdx} 매칭 실패. '
+        'tabIndex=$tabIndex, posts.length=${posts.length}, '
+        'extracted=${posts.map((p) => p is Map ? _extractPostIdxFromMap(p) : null).toList()}, '
+        'sample keys=${posts.isNotEmpty && posts.first is Map ? (posts.first as Map).keys.toList() : null}',
+      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('게시글을 찾을 수 없습니다 (다른 페이지에 있거나 이미 처리되었을 수 있습니다).'),
+          ),
+        );
+      }
+    }
+  }
+
+  /// 응답 객체에서 post_idx 추출. 키 변형(`id` / `post_idx` / `postIdx`) 모두 대응.
+  /// admin REST 응답은 `id`, FCM data는 `post_idx` — CLAUDE.md "FCM ↔ REST 키 차이" 패턴.
+  int? _extractPostIdxFromMap(Map p) {
+    final raw = p['id'] ?? p['post_idx'] ?? p['postIdx'];
+    if (raw is int) return raw;
+    if (raw is String) return int.tryParse(raw);
+    return null;
   }
 
   void _handleTabChange() {
@@ -406,12 +494,21 @@ class _AdminPostCheckState extends State<AdminPostCheck>
 
       if (response.statusCode == 200) {
         _fetchDataForCurrentTab();
+      } else if (response.statusCode == 404) {
+        // 게시글이 이미 삭제됨 (병원이 WAIT 상태에서 삭제한 케이스).
+        // 사용자 친화적 안내 + 목록 자동 갱신으로 stale 항목 제거.
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('이미 삭제된 게시글입니다. 목록을 갱신합니다.'),
+            ),
+          );
+          _fetchDataForCurrentTab();
+        }
       } else if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(
-              '처리 실패: ${response.statusCode}\n${utf8.decode(response.bodyBytes)}',
-            ),
+            content: Text('처리 실패 (코드 ${response.statusCode})'),
           ),
         );
       }
@@ -2268,10 +2365,25 @@ class _AdminPostCheckState extends State<AdminPostCheck>
         if (mounted) {
           await _activeTabKey.currentState?.refresh();
           if (!mounted) return;
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('헌혈 마감'),
-              backgroundColor: Colors.green,
+
+          // SnackBar 대신 AlertDialog로 결과 안내 + 어느 탭에서 볼 수 있는지 명시.
+          // newStatus == 4: 신청자 0명 → COMPLETED 직행 (헌혈완료 탭)
+          // newStatus == 3: 신청자 ≥1명 → CLOSED (헌혈마감 탭)
+          // 자동 탭 이동은 하지 않음 (관리자 흐름 방해 우려, 운영 결정).
+          final body = newStatus == AppConstants.postStatusCompleted
+              ? DialogMsg.postCloseNoApplicantBody
+              : DialogMsg.postCloseWithApplicantBody;
+          await showDialog<void>(
+            context: context,
+            builder: (dialogContext) => AlertDialog(
+              title: const Text(DialogMsg.postCloseCompleteTitle),
+              content: Text(body),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(dialogContext).pop(),
+                  child: const Text(DialogMsg.postCloseButton),
+                ),
+              ],
             ),
           );
         }

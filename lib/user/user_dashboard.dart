@@ -46,6 +46,7 @@ class _UserDashboardState extends State<UserDashboard>
   late TabController _tabController;
   String userName = "사용자"; // 실제 사용자 이름
   String userNickname = "사용자"; // 사용자 닉네임
+  String? userProfileImage; // 사용자 프로필 이미지 (대표 펫 사진)
   String currentDateTime = "";
   Timer? _timer;
 
@@ -138,6 +139,7 @@ class _UserDashboardState extends State<UserDashboard>
         setState(() {
           userName = userRealName;
           userNickname = userRealNickname;
+          userProfileImage = data['profile_image'] as String?;
         });
 
         // 로컬 저장소에도 업데이트
@@ -323,7 +325,7 @@ class _UserDashboardState extends State<UserDashboard>
             mainAxisSize: MainAxisSize.min,
             children: [
               IconButton(
-                icon: const Icon(Icons.pets_outlined, color: Colors.black87, size: 24),
+                icon: const Icon(Icons.pets, color: Colors.black87, size: 24),
                 onPressed: () {
                   Navigator.push(
                     context,
@@ -376,14 +378,43 @@ class _UserDashboardState extends State<UserDashboard>
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('안녕하세요,', style: AppTheme.h2Style),
-              Text('$userNickname 님!', style: AppTheme.h2Style),
-              const SizedBox(height: AppTheme.spacing8),
-              Text(
-                currentDateTime,
-                style: AppTheme.bodyLargeStyle.copyWith(
-                  color: AppTheme.textSecondary,
-                ),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  GestureDetector(
+                    onTap: () async {
+                      await Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const ProfileManagement(),
+                        ),
+                      );
+                      _loadUserProfile();
+                    },
+                    child: AuthorAvatar(
+                      profileImage: userProfileImage,
+                      radius: 40,
+                      fallbackIcon: Icons.person_outline,
+                    ),
+                  ),
+                  const SizedBox(width: AppTheme.spacing16),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('안녕하세요,', style: AppTheme.h2Style),
+                        Text('$userNickname 님!', style: AppTheme.h2Style),
+                        const SizedBox(height: AppTheme.spacing8),
+                        Text(
+                          currentDateTime,
+                          style: AppTheme.bodyLargeStyle.copyWith(
+                            color: AppTheme.textSecondary,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
               ),
               const SizedBox(height: AppTheme.spacing20),
 

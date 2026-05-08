@@ -75,14 +75,29 @@ class _UserDonationPostsListScreenState
   /// post_idx만으로 상세 시트를 여는 진입점 (알림 탭 등 외부 진입용).
   /// 게시글이 폐기/비공개라 fetch 실패 시 스낵바로 사용자에게 안내.
   Future<void> _showPostDetailById(int postIdx) async {
-    final detailPost = await DashboardService.getDonationPostDetail(postIdx);
-    if (!mounted) return;
-    if (detailPost == null) {
+    try {
+      final detailPost = await DashboardService.getDonationPostDetail(postIdx);
+      if (!mounted) return;
+      if (detailPost == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('해당 게시글을 찾을 수 없거나 더 이상 공개되지 않습니다.'),
+          ),
+        );
+        return;
+      }
+      _openDetailSheet(detailPost);
+    } catch (e) {
+      if (!mounted) return;
+      debugPrint('[UserDonationPostsList] initialPostIdx=$postIdx fetch 실패: $e');
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('해당 게시글을 찾을 수 없거나 더 이상 공개되지 않습니다.')),
+        const SnackBar(content: Text('게시글 불러오기 실패. 새로고침해주세요.')),
       );
-      return;
     }
+  }
+
+  /// 위 fetch 분기에서 정상 결과를 받은 경우 시트를 띄우는 헬퍼.
+  void _openDetailSheet(UnifiedPostModel detailPost) {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -1128,7 +1143,7 @@ class _UserDonationPostsListScreenState
                 const Text('신청 완료'),
               ],
             ),
-            content: const Text('헌혈 신청이 완료되었습니다.\n병원에서 승인 후 알림을 보내드립니다.'),
+            content: const Text('헌혈 신청이 완료되었습니다.\n관리자 승인 후 알림을 보내드립니다.'),
             actions: [
               TextButton(
                 onPressed: () => Navigator.pop(context),

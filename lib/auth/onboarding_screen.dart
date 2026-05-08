@@ -9,6 +9,7 @@ import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:kpostal/kpostal.dart';
+import '../constants/dialog_messages.dart';
 import '../utils/app_theme.dart';
 import '../utils/config.dart';
 import '../utils/debouncer.dart';
@@ -255,10 +256,8 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
               context: context,
               barrierDismissible: false,
               builder: (dialogContext) => AlertDialog(
-                title: const Text('가입 완료'),
-                content: const Text(
-                  '프로필 등록이 완료되었습니다.\n관리자 승인 후 이용 가능합니다.',
-                ),
+                title: const Text(DialogMsg.signupCompleteTitle),
+                content: const Text(DialogMsg.signupCompleteBody),
                 actions: [
                   TextButton(
                     onPressed: () {
@@ -480,7 +479,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
           Text('프로필을 완성해주세요', style: AppTheme.h2Style),
           const SizedBox(height: AppTheme.spacing8),
           Text(
-            '헌혈견 협회에서 사용할 별명과 주소를 입력해주세요.',
+            '사용할 별명과 주소를 입력해주세요.',
             style: AppTheme.bodyMediumStyle.copyWith(
               color: AppTheme.textSecondary,
             ),
@@ -504,7 +503,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
             controller: _nicknameController,
             maxLength: 30,
             decoration: InputDecoration(
-              hintText: '협회에서 사용할 별명을 입력해주세요',
+              hintText: '사용할 별명을 입력해주세요',
               hintStyle: AppTheme.bodyLargeStyle.copyWith(
                 color: AppTheme.textTertiary,
               ),
