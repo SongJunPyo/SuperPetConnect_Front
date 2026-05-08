@@ -68,6 +68,12 @@ class UnifiedPostModel {
   final String location; // 병원 주소
   final String? hospitalProfileImage; // 병원 프로필 사진
 
+  // ===== 작성자 정보 (Q3 옵션 A' 2026-05-08) =====
+  // BE: hospital_code 그룹 단위 게시글 소유 + 작성자는 author_account_idx로 별도 박제.
+  // staff 이탈 시 author_account_idx = NULL, author_nickname = "전 직원 ({snapshot})".
+  final int? authorAccountIdx; // 작성자 account_idx (떠난 직원이면 null)
+  final String? authorNickname; // 작성자 표시 nickname (BE에서 fallback 처리됨)
+
   UnifiedPostModel({
     required this.id,
     required this.title,
@@ -98,6 +104,8 @@ class UnifiedPostModel {
     this.hospitalCode,
     required this.location,
     this.hospitalProfileImage,
+    this.authorAccountIdx,
+    this.authorNickname,
   });
 
   /// JSON에서 UnifiedPostModel 생성
@@ -276,6 +284,11 @@ class UnifiedPostModel {
         hospitalCode: hospitalCode,
         location: location,
         hospitalProfileImage: hospitalProfileImage,
+        // Q3 옵션 A' (2026-05-08) — BE가 항상 응답에 박제, staff 이탈 시 nullable.
+        authorAccountIdx: _parseIntSafely(
+            json['author_account_idx'] ?? json['authorAccountIdx']),
+        authorNickname: (json['author_nickname'] ?? json['authorNickname'])
+            ?.toString(),
       );
     } catch (e) {
       debugPrint('UnifiedPostModel.fromJson error: $e');

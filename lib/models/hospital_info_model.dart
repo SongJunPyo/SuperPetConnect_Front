@@ -130,15 +130,13 @@ class HospitalListResponse {
 }
 
 class HospitalUpdateRequest {
-  final String? hospitalCode;
   final bool? isActive;
   final bool? columnActive;
 
-  HospitalUpdateRequest({this.hospitalCode, this.isActive, this.columnActive});
+  HospitalUpdateRequest({this.isActive, this.columnActive});
 
   Map<String, dynamic> toJson() {
     final Map<String, dynamic> data = {};
-    if (hospitalCode != null) data['hospital_code'] = hospitalCode;
     if (isActive != null) data['is_active'] = isActive;
     if (columnActive != null) data['column_active'] = columnActive;
     return data;

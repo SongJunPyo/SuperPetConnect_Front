@@ -20,68 +20,15 @@ class AdminHospitalDetailScreen extends StatefulWidget {
 class _AdminHospitalDetailScreenState extends State<AdminHospitalDetailScreen> {
   late HospitalInfo hospitalInfo;
   bool isLoading = false;
-  final TextEditingController hospitalCodeController = TextEditingController();
+
+  // hospital_code 수정 UI는 2026-05-08 Q3 라운드에 폐기.
+  // 운영 정책: 이직/퇴사 시 admin이 계정 삭제 → 새 병원에서 신규 가입 흐름.
+  // 비상 시 hospital_code 변경은 admin DB 직접 수정만 허용 (audit log 없음).
 
   @override
   void initState() {
     super.initState();
     hospitalInfo = widget.hospital;
-    hospitalCodeController.text = hospitalInfo.hospitalCode ?? '';
-  }
-
-  @override
-  void dispose() {
-    hospitalCodeController.dispose();
-    super.dispose();
-  }
-
-
-  Future<void> _updateHospital() async {
-    if (isLoading) return;
-
-    setState(() {
-      isLoading = true;
-    });
-
-    try {
-      final updateRequest = HospitalUpdateRequest(
-        hospitalCode:
-            hospitalCodeController.text.trim().isNotEmpty
-                ? hospitalCodeController.text.trim()
-                : null,
-        isActive: hospitalInfo.isActive,
-      );
-
-      final updatedHospital = await AdminHospitalService.updateHospital(
-        hospitalInfo.accountIdx,
-        updateRequest,
-      );
-
-      setState(() {
-        hospitalInfo = updatedHospital;
-        hospitalCodeController.text = hospitalInfo.hospitalCode ?? '';
-        isLoading = false;
-      });
-
-      if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text('병원 정보가 업데이트되었습니다.')));
-      }
-    } catch (e) {
-      setState(() {
-        isLoading = false;
-      });
-
-      if (mounted) {
-        showErrorToast(
-          context,
-          e,
-          prefix: '업데이트 실패',
-          backgroundColor: Colors.red,
-        );
-      }
-    }
   }
 
   Future<void> _toggleColumnActive() async {
@@ -103,7 +50,6 @@ class _AdminHospitalDetailScreenState extends State<AdminHospitalDetailScreen> {
 
       setState(() {
         hospitalInfo = updatedHospital;
-        hospitalCodeController.text = hospitalInfo.hospitalCode ?? '';
         isLoading = false;
       });
 
@@ -215,7 +161,6 @@ class _AdminHospitalDetailScreenState extends State<AdminHospitalDetailScreen> {
   @override
   Widget build(BuildContext context) {
     final TextTheme textTheme = Theme.of(context).textTheme;
-    final ColorScheme colorScheme = Theme.of(context).colorScheme;
 
     return Scaffold(
       appBar: AppBar(
@@ -322,74 +267,6 @@ class _AdminHospitalDetailScreenState extends State<AdminHospitalDetailScreen> {
                       ),
                     ),
 
-                    // 병원 코드 수정 카드
-                    Card(
-                      margin: const EdgeInsets.symmetric(
-                        horizontal: 20.0,
-                        vertical: 10.0,
-                      ),
-                      elevation: 2,
-                      color: Colors.white,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(16),
-                        side: BorderSide(color: Colors.grey.shade100, width: 1),
-                      ),
-                      child: Padding(
-                        padding: const EdgeInsets.all(20.0),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              '병원 코드 수정',
-                              style: textTheme.titleMedium?.copyWith(
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                            const SizedBox(height: 12),
-                            TextField(
-                              controller: hospitalCodeController,
-                              decoration: InputDecoration(
-                                labelText: '병원 코드',
-                                hintText: '예: H0001',
-                                border: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                                focusedBorder: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(12),
-                                  borderSide: BorderSide(
-                                    color: colorScheme.primary,
-                                    width: 2,
-                                  ),
-                                ),
-                              ),
-                            ),
-                            const SizedBox(height: 12),
-                            SizedBox(
-                              width: double.infinity,
-                              child: ElevatedButton(
-                                onPressed: isLoading ? null : _updateHospital,
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: Colors.black,
-                                  foregroundColor: Colors.white,
-                                  padding: const EdgeInsets.symmetric(
-                                    vertical: 12,
-                                  ),
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(12),
-                                  ),
-                                ),
-                                child: Text(
-                                  isLoading ? '수정 중...' : '수정',
-                                  style: textTheme.titleMedium?.copyWith(
-                                    color: Colors.white,
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
                     // 칼럼 작성 권한 카드
                     Card(
                       margin: const EdgeInsets.symmetric(

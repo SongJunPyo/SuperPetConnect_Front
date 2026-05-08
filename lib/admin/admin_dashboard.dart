@@ -8,6 +8,7 @@ import 'package:connect/admin/admin_signup_management.dart';
 import 'package:connect/admin/admin_pet_management.dart';
 import 'package:connect/admin/admin_notice_list.dart';
 import 'package:connect/admin/admin_column_management.dart';
+import 'package:connect/admin/admin_donation_survey_list.dart';
 import '../utils/app_theme.dart';
 import '../widgets/app_card.dart';
 import '../widgets/app_app_bar.dart';
@@ -49,6 +50,7 @@ class _AdminDashboardState extends State<AdminDashboard>
   late TabController _tabController;
   String adminName = "관리자";
   String adminNickname = "관리자";
+  String? adminProfileImage;
   String currentDateTime = "";
   Timer? _timer;
   int pendingPostsCount = 0;
@@ -121,6 +123,7 @@ class _AdminDashboardState extends State<AdminDashboard>
         setState(() {
           adminName = serverName;
           adminNickname = serverNickname;
+          adminProfileImage = data['profile_image'] as String?;
         });
 
         // 로컬 저장소에도 업데이트
@@ -363,14 +366,47 @@ class _AdminDashboardState extends State<AdminDashboard>
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text('안녕하세요,', style: AppTheme.h2Style),
-                      Text('$adminNickname 님!', style: AppTheme.h2Style),
-                      const SizedBox(height: AppTheme.spacing8),
-                      Text(
-                        currentDateTime,
-                        style: AppTheme.bodyLargeStyle.copyWith(
-                          color: AppTheme.textSecondary,
-                        ),
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.center,
+                        children: [
+                          GestureDetector(
+                            onTap: () async {
+                              await Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder:
+                                      (context) => const ProfileManagement(),
+                                ),
+                              );
+                              _loadAdminName();
+                            },
+                            child: AuthorAvatar(
+                              profileImage: adminProfileImage,
+                              radius: 40,
+                              fallbackIcon: Icons.admin_panel_settings_outlined,
+                            ),
+                          ),
+                          const SizedBox(width: AppTheme.spacing16),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text('안녕하세요,', style: AppTheme.h2Style),
+                                Text(
+                                  '$adminNickname 님!',
+                                  style: AppTheme.h2Style,
+                                ),
+                                const SizedBox(height: AppTheme.spacing8),
+                                Text(
+                                  currentDateTime,
+                                  style: AppTheme.bodyLargeStyle.copyWith(
+                                    color: AppTheme.textSecondary,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
                       ),
                       const SizedBox(height: AppTheme.spacing20),
                       // 동적 알림 카드들
@@ -398,6 +434,27 @@ class _AdminDashboardState extends State<AdminDashboard>
                                 context,
                                 MaterialPageRoute(
                                   builder: (context) => const AdminPostCheck(),
+                                ),
+                              );
+                            },
+                          ),
+
+                          const SizedBox(height: AppTheme.spacing16),
+                          _buildPremiumFeatureCard(
+                            icon: Icons.fact_check_outlined,
+                            title: "헌혈 사전 설문 검토",
+                            subtitle: "설문 검토 / PDF·Excel 다운로드",
+                            iconColor: Colors.teal,
+                            backgroundColor: Colors.teal.withValues(
+                              alpha: 0.1,
+                            ),
+                            onTap: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder:
+                                      (context) =>
+                                          const AdminDonationSurveyList(),
                                 ),
                               );
                             },
