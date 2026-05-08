@@ -12,10 +12,13 @@ import '../widgets/state_view.dart';
 
 /// 병원 게시글 현황의 Tab 2(모집마감) 전용 위젯.
 ///
-/// 시간대(PostTimeItem) 단위로 표시하며 `applicantStatus`가 1(APPROVED, 선정) 또는
-/// 2(PENDING_COMPLETION, 1차 완료 입력 대기)인 항목을 합쳐서 보여줌. 두 endpoint
-/// 호출 결과를 `[..approved, ..pendingCompletion]` 순으로 concat.
+/// 시간대(PostTimeItem) 단위로 다음 세 그룹을 합쳐서 표시:
+/// 1. `applicantStatus == 1` (APPROVED, 선정) 신청자 행
+/// 2. `applicantStatus == 2` (PENDING_COMPLETION, 1차 완료 입력 대기) 신청자 행
+/// 3. `postStatus == 3` (CLOSED) 게시글의 zero-applicant 시간대 — 신청자 0명
+///    (admin이 신청자 ≥1명 게시글을 close → 신청자 모두 PENDING이었던 케이스 등)
 ///
+/// 그룹(1)·(2)는 신청자 단위 N행. 그룹(3)은 신청자 정보 null인 시간대 1행만.
 /// 행 탭은 시간대 단위 시트로 위임 — 부모가 `_showPostTimeBottomSheet`를 보유.
 class HospitalClosedRecruitmentTab extends StatefulWidget {
   final String searchQuery;
@@ -80,13 +83,18 @@ class HospitalClosedRecruitmentTabState
     }
 
     try {
+      // 신청자 status=1/2 시간대 + 게시글 status=3 zero-applicant 시간대 합산.
+      // applicantIdx == null 필터로 (1)·(2)와 중복 없이 신청자 0명 시간대만 추가.
       final approved =
           await HospitalPostService.getPostTimes(applicantStatus: 1);
       final pendingCompletion =
           await HospitalPostService.getPostTimes(applicantStatus: 2);
+      final byPost = await HospitalPostService.getPostTimes(postStatus: 3);
+      final zeroApplicantTimes =
+          byPost.where((item) => item.applicantIdx == null).toList();
       if (!mounted) return;
       setState(() {
-        _allItems = [...approved, ...pendingCompletion];
+        _allItems = [...approved, ...pendingCompletion, ...zeroApplicantTimes];
         _isLoading = false;
         _currentPage = 1;
       });
