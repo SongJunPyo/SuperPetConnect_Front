@@ -19,20 +19,15 @@ firebase.initializeApp({
   appId: "1:74105196603:web:0f7d19c56f42229d4e0c1e"
 });
 
-const messaging = firebase.messaging();
-
-// 백그라운드 메시지 수신 (탭이 비활성/닫힘 상태)
-// 포그라운드 메시지는 firebase_messaging 패키지의 onMessage 리스너가 처리.
-messaging.onBackgroundMessage(function(payload) {
-  const notificationTitle = (payload.notification && payload.notification.title) || '슈퍼펫커넥트';
-  const notificationOptions = {
-    body: (payload.notification && payload.notification.body) || '',
-    icon: '/icons/Icon-192.png',
-    // payload.data를 알림에 첨부 — notificationclick에서 라우팅에 사용
-    data: payload.data || {},
-  };
-  return self.registration.showNotification(notificationTitle, notificationOptions);
-});
+// firebase.messaging()을 호출하면 SW가 push 이벤트 리스너를 등록하고
+// notification 페이로드의 자동 표시를 활성화한다. onBackgroundMessage 핸들러를
+// 등록하지 않음으로써 브라우저/FCM SDK가 notification 페이로드만으로 자동
+// 1회 표시 처리 — onBackgroundMessage에서 showNotification을 호출하면 자동
+// 표시와 합쳐 2번 발화하는 이중 알림 버그가 발생 (2026-05 픽스).
+//
+// data 페이로드는 자동 표시된 notification의 event.notification.data로 보존되어
+// 아래 notificationclick 핸들러에서 라우팅에 그대로 사용 가능.
+firebase.messaging();
 
 // 사용자가 OS 알림 클릭 시 처리 — 앱 탭으로 포커스 이동 + URL 핸드오프
 // 같은 origin 탭이 이미 열려있으면 그 탭으로 focus, 없으면 새 탭.
