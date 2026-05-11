@@ -3,6 +3,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../utils/app_theme.dart';
+import '../utils/time_format_util.dart';
 
 class AppliedDonation {
   final int? appliedDonationIdx;
@@ -108,10 +109,12 @@ class AppliedDonation {
     return AppliedDonationStatus.shouldShowAppliedBorder(status);
   }
 
-  // 포맷된 날짜/시간
+  // 포맷된 날짜/시간 — 시간 부분은 TimeFormatUtils 단일 진실 (오전/오후 + 24시간).
   String get formattedDateTime {
     if (donationTime != null) {
-      return DateFormat('MM월 dd일 (E) HH:mm', 'ko_KR').format(donationTime!);
+      final dateStr =
+          DateFormat('MM월 dd일 (E)', 'ko_KR').format(donationTime!);
+      return '$dateStr ${TimeFormatUtils.formatTimeOfDate(donationTime!)}';
     } else if (donationDate != null) {
       return DateFormat('MM월 dd일 (E)', 'ko_KR').format(donationDate!);
     }
@@ -120,7 +123,7 @@ class AppliedDonation {
 
   String get formattedTime {
     if (donationTime != null) {
-      return DateFormat('HH:mm').format(donationTime!);
+      return TimeFormatUtils.formatTimeOfDate(donationTime!);
     }
     return '';
   }
@@ -303,7 +306,11 @@ class AppliedDonationStatus {
   }
 }
 
-// Pet 모델 (applied_donation에서 사용하는 간소화된 버전)
+// Pet 모델 (applied_donation에서 사용)
+//
+// 13필드 통일 set 적용 (CLAUDE.md "admin 펫 응답 필드 contract" 2026-05-08).
+// 자격 정보 8필드 + 외부 헌혈 2필드 + 의료 정보 3필드 모두 nullable로 받음.
+// 백엔드 응답에 없으면 null이라 화면에서 자연스럽게 hidden 또는 critical 표시.
 class Pet {
   final int? petIdx;
   final String name;
@@ -315,6 +322,28 @@ class Pet {
   final String? breed;
   final String? profileImage;
 
+  // === 자격 정보 8필드 (CLAUDE.md PetSex / PregnancyBirthStatus 미러) ===
+  final int? sex; // 0=암컷, 1=수컷
+  final bool? vaccinated;
+  final bool? hasDisease;
+  final bool? isNeutered;
+  final DateTime? neuteredDate;
+  final bool? hasPreventiveMedication;
+  final int? pregnancyBirthStatus; // 0=NONE, 1=PREGNANT, 2=POST_BIRTH
+  final DateTime? lastPregnancyEndDate;
+
+  // === 의료 정보 3필드 (카페 정책 PR-1) ===
+  final DateTime? lastVaccinationDate;
+  final DateTime? lastAntibodyTestDate;
+  final DateTime? lastPreventiveMedicationDate;
+
+  // === 외부 헌혈 자기신고 2필드 ===
+  final int priorDonationCount;
+  final DateTime? priorLastDonationDate;
+
+  // === 시스템 헌혈 이력 (자격 검증용) ===
+  final DateTime? prevDonationDateSystem;
+
   Pet({
     this.petIdx,
     required this.name,
@@ -325,22 +354,68 @@ class Pet {
     this.species,
     this.breed,
     this.profileImage,
+    this.sex,
+    this.vaccinated,
+    this.hasDisease,
+    this.isNeutered,
+    this.neuteredDate,
+    this.hasPreventiveMedication,
+    this.pregnancyBirthStatus,
+    this.lastPregnancyEndDate,
+    this.lastVaccinationDate,
+    this.lastAntibodyTestDate,
+    this.lastPreventiveMedicationDate,
+    this.priorDonationCount = 0,
+    this.priorLastDonationDate,
+    this.prevDonationDateSystem,
   });
 
   factory Pet.fromJson(Map<String, dynamic> json) {
+    DateTime? parseDate(dynamic v) {
+      if (v == null) return null;
+      if (v is String) return DateTime.tryParse(v);
+      return null;
+    }
+
     return Pet(
       petIdx: json['pet_idx'],
       name: json['name'] ?? '',
       bloodType: json['blood_type'],
-      weightKg: json['weight_kg']?.toDouble(),
-      animalType: json['animal_type'],
-      birthDate: json['birth_date'] != null
-          ? DateTime.tryParse(json['birth_date'])
-          : null,
+      weightKg: (json['weight_kg'] as num?)?.toDouble(),
+      animalType: json['animal_type'] is int
+          ? json['animal_type'].toString()
+          : json['animal_type'] as String?,
+      birthDate: parseDate(json['birth_date']),
       species: json['species'],
       breed: json['breed'],
       profileImage: json['profile_image'],
+      sex: json['sex'] as int?,
+      vaccinated: json['vaccinated'] as bool?,
+      hasDisease: json['has_disease'] as bool?,
+      isNeutered: json['is_neutered'] as bool?,
+      neuteredDate: parseDate(json['neutered_date']),
+      hasPreventiveMedication: json['has_preventive_medication'] as bool?,
+      pregnancyBirthStatus: json['pregnancy_birth_status'] as int?,
+      lastPregnancyEndDate: parseDate(json['last_pregnancy_end_date']),
+      lastVaccinationDate: parseDate(json['last_vaccination_date']),
+      lastAntibodyTestDate: parseDate(json['last_antibody_test_date']),
+      lastPreventiveMedicationDate:
+          parseDate(json['last_preventive_medication_date']),
+      priorDonationCount: (json['prior_donation_count'] as int?) ?? 0,
+      priorLastDonationDate: parseDate(json['prior_last_donation_date']),
+      prevDonationDateSystem: parseDate(json['prev_donation_date_system']),
     );
+  }
+
+  /// 자격 검증용 effective 날짜 = max(system, prior).
+  /// CLAUDE.md "Pet 컬럼 분리 정책" — 우회 차단을 위해 둘 중 더 최근.
+  DateTime? get effectiveLastDonationDate {
+    if (prevDonationDateSystem != null && priorLastDonationDate != null) {
+      return prevDonationDateSystem!.isAfter(priorLastDonationDate!)
+          ? prevDonationDateSystem
+          : priorLastDonationDate;
+    }
+    return prevDonationDateSystem ?? priorLastDonationDate;
   }
 
   Map<String, dynamic> toJson() {
@@ -596,11 +671,12 @@ class TimeSlotApplications {
   }
 
   String get formattedTime {
-    return DateFormat('HH:mm').format(donationTime);
+    return TimeFormatUtils.formatTimeOfDate(donationTime);
   }
 
   String get formattedDateTime {
-    return DateFormat('MM월 dd일 HH:mm', 'ko_KR').format(donationTime);
+    final dateStr = DateFormat('MM월 dd일', 'ko_KR').format(donationTime);
+    return '$dateStr ${TimeFormatUtils.formatTimeOfDate(donationTime)}';
   }
 
   // 시간대가 꽉 찼는지 확인 (승인된 신청 기준)

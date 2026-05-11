@@ -293,104 +293,120 @@ class PostDetailBottomSheet extends StatelessWidget {
                         // 새로운 드롭다운 형태의 날짜/시간 선택 UI
                         _buildDateTimeDropdown(displayPost),
                       ] else if (displayPost.donationDate != null) ...[
-                        // 단일 날짜인 경우에도 클릭 가능하게 만들기
-                        Container(
-                          width: double.infinity,
-                          margin: const EdgeInsets.only(bottom: 8),
-                          child: Material(
-                            color: Colors.transparent,
-                            child: InkWell(
-                              onTap: () {
-                                // 단일 날짜의 경우 바로 일반 신청 다이얼로그 표시
-                                onGeneralApply(displayPost);
-                              },
-                              borderRadius: BorderRadius.circular(8),
-                              child: Container(
-                                padding: const EdgeInsets.all(16),
-                                decoration: BoxDecoration(
-                                  color: Colors.grey.shade50,
-                                  borderRadius: BorderRadius.circular(8),
-                                  border: Border.all(
-                                    color: Colors.grey.shade200,
-                                  ),
-                                ),
-                                child: Row(
-                                  children: [
-                                    Icon(
-                                      Icons.calendar_today_outlined,
-                                      size: 20,
-                                      color: Colors.black,
+                        // 단일 날짜인 경우에도 클릭 가능하게 만들기.
+                        // 단, 헌혈일이 지났으면 disabled 상태로 표시 (당일 신청 허용).
+                        Builder(builder: (context) {
+                          final isPast = isDonationDateTimePast(
+                            displayPost.donationDate,
+                          );
+                          return Container(
+                            width: double.infinity,
+                            margin: const EdgeInsets.only(bottom: 8),
+                            child: Material(
+                              color: Colors.transparent,
+                              child: InkWell(
+                                onTap: isPast
+                                    ? null
+                                    : () {
+                                        // 단일 날짜의 경우 바로 일반 신청 다이얼로그 표시
+                                        onGeneralApply(displayPost);
+                                      },
+                                borderRadius: BorderRadius.circular(8),
+                                child: Container(
+                                  padding: const EdgeInsets.all(16),
+                                  decoration: BoxDecoration(
+                                    color: isPast
+                                        ? Colors.grey.shade100
+                                        : Colors.grey.shade50,
+                                    borderRadius: BorderRadius.circular(8),
+                                    border: Border.all(
+                                      color: Colors.grey.shade200,
                                     ),
-                                    const SizedBox(width: 12),
-                                    Expanded(
-                                      child: Column(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.start,
-                                        children: [
-                                          Text(
-                                            DateFormat(
-                                              'yyyy년 MM월 dd일 EEEE',
-                                              'ko',
-                                            ).format(
-                                              displayPost.donationDate!,
+                                  ),
+                                  child: Row(
+                                    children: [
+                                      Icon(
+                                        Icons.calendar_today_outlined,
+                                        size: 20,
+                                        color: isPast
+                                            ? AppTheme.textTertiary
+                                            : Colors.black,
+                                      ),
+                                      const SizedBox(width: 12),
+                                      Expanded(
+                                        child: Column(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          children: [
+                                            Text(
+                                              DateFormat(
+                                                'yyyy년 MM월 dd일 EEEE',
+                                                'ko',
+                                              ).format(
+                                                displayPost.donationDate!,
+                                              ),
+                                              style: AppTheme.bodyLargeStyle
+                                                  .copyWith(
+                                                    fontWeight:
+                                                        FontWeight.w600,
+                                                    color: isPast
+                                                        ? AppTheme
+                                                              .textTertiary
+                                                        : null,
+                                                  ),
                                             ),
-                                            style: AppTheme.bodyLargeStyle
-                                                .copyWith(
-                                                  fontWeight:
-                                                      FontWeight.w600,
-                                                ),
-                                          ),
-                                          if (displayPost.donationDate !=
-                                              null) ...[
                                             const SizedBox(height: 4),
                                             Text(
-                                              '예정 시간: ${DateFormat('HH:mm').format(displayPost.donationDate!)}',
-                                              style: AppTheme
-                                                  .bodyMediumStyle
+                                              '예정 시간: ${TimeFormatUtils.formatTimeOfDate(displayPost.donationDate!)}',
+                                              style: AppTheme.bodyMediumStyle
                                                   .copyWith(
-                                                    color:
-                                                        AppTheme
-                                                            .textSecondary,
+                                                    color: AppTheme
+                                                        .textSecondary,
                                                   ),
                                             ),
                                           ],
-                                        ],
-                                      ),
-                                    ),
-                                    Container(
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: 8,
-                                        vertical: 4,
-                                      ),
-                                      decoration: BoxDecoration(
-                                        color: AppTheme.success.withValues(
-                                          alpha: 0.1,
-                                        ),
-                                        borderRadius: BorderRadius.circular(
-                                          12,
                                         ),
                                       ),
-                                      child: Text(
-                                        '신청 가능',
-                                        style: AppTheme.bodySmallStyle
-                                            .copyWith(
-                                              color: AppTheme.success,
-                                              fontSize: 11,
-                                              fontWeight: FontWeight.w600,
-                                            ),
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 8,
+                                          vertical: 4,
+                                        ),
+                                        decoration: BoxDecoration(
+                                          color: isPast
+                                              ? Colors.grey.shade300
+                                              : AppTheme.success.withValues(
+                                                  alpha: 0.1,
+                                                ),
+                                          borderRadius:
+                                              BorderRadius.circular(12),
+                                        ),
+                                        child: Text(
+                                          isPast ? '마감된 일정' : '신청 가능',
+                                          style: AppTheme.bodySmallStyle
+                                              .copyWith(
+                                                color: isPast
+                                                    ? AppTheme.textSecondary
+                                                    : AppTheme.success,
+                                                fontSize: 11,
+                                                fontWeight: FontWeight.w600,
+                                              ),
+                                        ),
                                       ),
-                                    ),
-                                    const SizedBox(width: 8),
-                                    Icon(
-                                      Icons.keyboard_arrow_right,
-                                      color: AppTheme.textSecondary,
-                                    ),
-                                  ],
+                                      if (!isPast) ...[
+                                        const SizedBox(width: 8),
+                                        Icon(
+                                          Icons.keyboard_arrow_right,
+                                          color: AppTheme.textSecondary,
+                                        ),
+                                      ],
+                                    ],
+                                  ),
                                 ),
                               ),
                             ),
-                          ),
-                        ),
+                          );
+                        }),
                       ] else ...[
                         Container(
                           width: double.infinity,
@@ -431,13 +447,15 @@ class PostDetailBottomSheet extends StatelessWidget {
       return const SizedBox.shrink();
     }
 
-    // 중복 제거를 위한 처리
+    // 중복 제거 + 과거 일자 필터링 처리 (당일 신청 허용 — donation_date >= today).
     final Map<String, List<Map<String, dynamic>>> uniqueDates = {};
     final Set<String> seenTimeSlots = {}; // 중복 체크용
 
     for (final entry in post.availableDates!.entries) {
       final dateStr = entry.key;
       final timeSlots = entry.value;
+
+      if (isDonationDatePast(dateStr)) continue;
 
       uniqueDates[dateStr] = [];
 
@@ -453,6 +471,26 @@ class PostDetailBottomSheet extends StatelessWidget {
           uniqueDates[dateStr]!.add(timeSlot);
         }
       }
+    }
+
+    if (uniqueDates.isEmpty) {
+      return Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.grey.shade100,
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: Colors.grey.shade300),
+        ),
+        child: Text(
+          '신청 가능한 일정이 없습니다 (모든 일정이 지났습니다)',
+          style: AppTheme.bodyMediumStyle.copyWith(
+            color: AppTheme.textSecondary,
+            fontWeight: FontWeight.w500,
+          ),
+          textAlign: TextAlign.center,
+        ),
+      );
     }
 
     return Column(

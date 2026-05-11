@@ -7,6 +7,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../utils/app_theme.dart';
 import '../utils/config.dart';
 import '../utils/api_endpoints.dart';
+import '../utils/time_format_util.dart';
 import '../widgets/app_app_bar.dart';
 import '../widgets/app_search_bar.dart';
 import '../services/auth_http_client.dart';
@@ -1007,15 +1008,13 @@ class _DonationApplicationDetailSheetContent extends StatelessWidget {
                   children: [
                     _kv(
                       '헌혈 예정',
-                      DateFormat('yyyy-MM-dd (E) HH:mm', 'ko_KR')
-                          .format(application.donationTime),
+                      '${DateFormat('yyyy-MM-dd (E)', 'ko_KR').format(application.donationTime)} ${TimeFormatUtils.formatTimeOfDate(application.donationTime)}',
                     ),
                     if (application.donationCompletedAt != null) ...[
                       const SizedBox(height: 4),
                       _kv(
                         '완료 처리',
-                        DateFormat('yyyy-MM-dd (E) HH:mm', 'ko_KR')
-                            .format(application.donationCompletedAt!),
+                        '${DateFormat('yyyy-MM-dd (E)', 'ko_KR').format(application.donationCompletedAt!)} ${TimeFormatUtils.formatTimeOfDate(application.donationCompletedAt!)}',
                       ),
                     ],
                   ],

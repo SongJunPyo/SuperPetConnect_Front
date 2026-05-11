@@ -655,6 +655,12 @@ class _UserDonationPostsListScreenState
   // 일반 헌혈 신청 제출 (단일 날짜/시간 버전)
   Future<void> _submitGeneralDonationApplication(UnifiedPostModel post) async {
     try {
+      // 과거 일자 신청 차단 (FE 우회 방지 — 당일 신청 허용).
+      // donationDate 단일 날짜 게시글 진입점도 동일하게 가드.
+      if (isDonationDateTimePast(post.donationDate)) {
+        throw Exception('이미 지난 일정에는 신청할 수 없습니다.');
+      }
+
       // 사용자 반려동물 목록 가져오기
       final userPets = await _fetchUserPets();
       if (userPets.isEmpty) {
@@ -690,18 +696,23 @@ class _UserDonationPostsListScreenState
       // 첫 번째 매칭되는 반려동물로 신청 (추후 선택 UI로 개선 가능)
       final petIdx = availablePets.first['pet_idx'];
 
-      // post.availableDates에서 첫 번째 사용 가능한 post_times_idx 추출
+      // post.availableDates에서 첫 번째 사용 가능한 post_times_idx 추출.
+      // 과거 일자는 스킵 (당일 신청 허용).
       int? postTimesIdx;
       if (post.availableDates != null && post.availableDates!.isNotEmpty) {
         final sortedDates = post.availableDates!.keys.toList()..sort();
-        final firstDateSlots = post.availableDates![sortedDates.first];
-        if (firstDateSlots != null && firstDateSlots.isNotEmpty) {
-          postTimesIdx = firstDateSlots.first['post_times_idx'];
+        for (final dateStr in sortedDates) {
+          if (isDonationDatePast(dateStr)) continue;
+          final slots = post.availableDates![dateStr];
+          if (slots != null && slots.isNotEmpty) {
+            postTimesIdx = slots.first['post_times_idx'];
+            break;
+          }
         }
       }
 
       if (postTimesIdx == null || postTimesIdx == 0) {
-        throw Exception('신청 가능한 시간대 정보를 찾을 수 없습니다.');
+        throw Exception('신청 가능한 일정이 없습니다 (모든 일정이 지났습니다).');
       }
 
       final response = await AuthHttpClient.post(
@@ -823,7 +834,7 @@ class _UserDonationPostsListScreenState
                       if (post.donationDate != null) ...[
                         const SizedBox(height: 4),
                         Text(
-                          '예정 시간: ${DateFormat('HH:mm').format(post.donationDate!)}',
+                          '예정 시간: ${TimeFormatUtils.formatTimeOfDate(post.donationDate!)}',
                           style: AppTheme.bodyMediumStyle.copyWith(
                             color: AppTheme.textSecondary,
                           ),

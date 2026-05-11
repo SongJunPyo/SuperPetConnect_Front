@@ -1,6 +1,8 @@
 import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 
+import 'app_theme.dart';
 import 'pet_image_downloader_io.dart'
     if (dart.library.html) 'pet_image_downloader_web.dart' as platform;
 
@@ -60,4 +62,67 @@ class PetImagePermissionException implements Exception {
 
   @override
   String toString() => 'PetImagePermissionException: $message';
+}
+
+/// SnackBar 피드백 포함된 다운로드 호출 — hospital / admin 시트 공통 사용.
+///
+/// imageUrl은 절대 URL (호출 측에서 `getFullImageUrl` 처리).
+/// filename은 확장자 포함 (예: `2026-05-10_14-00_초코.jpg`).
+Future<void> downloadPetImageWithFeedback({
+  required BuildContext context,
+  required String imageUrl,
+  required String filename,
+}) async {
+  final messenger = ScaffoldMessenger.of(context);
+  messenger.showSnackBar(
+    const SnackBar(
+      content: Text('사진을 받는 중...'),
+      duration: Duration(seconds: 2),
+    ),
+  );
+
+  final result = await PetImageDownloader.downloadFromUrl(
+    imageUrl: imageUrl,
+    filename: filename,
+  );
+
+  // ignore: use_build_context_synchronously
+  if (!context.mounted) return;
+  messenger.hideCurrentSnackBar();
+
+  switch (result) {
+    case DownloadResult.success:
+      messenger.showSnackBar(
+        const SnackBar(
+          content: Text('사진을 저장했습니다.'),
+          backgroundColor: AppTheme.success,
+        ),
+      );
+      break;
+    case DownloadResult.networkFailed:
+      messenger.showSnackBar(
+        const SnackBar(
+          content: Text('사진을 받지 못했습니다. 네트워크를 확인해주세요.'),
+          backgroundColor: AppTheme.error,
+        ),
+      );
+      break;
+    case DownloadResult.permissionDenied:
+      messenger.showSnackBar(
+        const SnackBar(
+          content: Text('갤러리 접근 권한이 거부되었습니다. 설정에서 권한을 허용해주세요.'),
+          backgroundColor: AppTheme.error,
+          duration: Duration(seconds: 4),
+        ),
+      );
+      break;
+    case DownloadResult.saveFailed:
+      messenger.showSnackBar(
+        const SnackBar(
+          content: Text('사진 저장에 실패했습니다.'),
+          backgroundColor: AppTheme.error,
+        ),
+      );
+      break;
+  }
 }

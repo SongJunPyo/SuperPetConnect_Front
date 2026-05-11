@@ -1,6 +1,7 @@
 // models/completed_donation_model.dart
 
 import 'package:intl/intl.dart';
+import '../utils/time_format_util.dart';
 import 'applied_donation_model.dart';
 
 class CompletedDonation {
@@ -85,9 +86,10 @@ class CompletedDonation {
     return '${bloodVolume.toStringAsFixed(1)}mL';
   }
 
-  // 포맷된 완료 시간
+  // 포맷된 완료 시간 — 시간 부분 TimeFormatUtils 단일 진실.
   String get formattedCompletedTime {
-    return DateFormat('MM월 dd일 HH:mm', 'ko_KR').format(completedAt);
+    final dateStr = DateFormat('MM월 dd일', 'ko_KR').format(completedAt);
+    return '$dateStr ${TimeFormatUtils.formatTimeOfDate(completedAt)}';
   }
 
   String get formattedCompletedDate {
@@ -95,13 +97,16 @@ class CompletedDonation {
   }
 
   String get formattedCompletedDateTime {
-    return DateFormat('MM월 dd일 (E) HH:mm', 'ko_KR').format(completedAt);
+    final dateStr = DateFormat('MM월 dd일 (E)', 'ko_KR').format(completedAt);
+    return '$dateStr ${TimeFormatUtils.formatTimeOfDate(completedAt)}';
   }
 
   // 포맷된 헌혈 예정 시간 (원래 신청한 시간)
   String get formattedDonationTime {
     if (donationTime != null) {
-      return DateFormat('MM월 dd일 (E) HH:mm', 'ko_KR').format(donationTime!);
+      final dateStr =
+          DateFormat('MM월 dd일 (E)', 'ko_KR').format(donationTime!);
+      return '$dateStr ${TimeFormatUtils.formatTimeOfDate(donationTime!)}';
     }
     return '';
   }

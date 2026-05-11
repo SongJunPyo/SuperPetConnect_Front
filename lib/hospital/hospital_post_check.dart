@@ -3,11 +3,12 @@ import 'package:intl/intl.dart';
 
 import '../models/applied_donation_model.dart';
 import '../models/donation_application_model.dart';
+import '../models/donation_survey_model.dart';
 import '../models/post_time_item_model.dart';
 import '../models/unified_post_model.dart';
 import '../services/donation_post_image_service.dart';
+import '../services/donation_survey_service.dart';
 import '../services/hospital_post_service.dart';
-import 'hospital_donation_survey_list.dart';
 import '../utils/app_theme.dart';
 import '../utils/error_display.dart';
 import '../utils/pet_field_icons.dart';
@@ -16,6 +17,7 @@ import '../utils/time_format_util.dart';
 import '../widgets/app_dialog.dart';
 import '../widgets/app_search_bar.dart';
 import '../widgets/info_row.dart';
+import '../widgets/pet/profile_vertical_card.dart';
 import '../widgets/pet_profile_image.dart';
 import '../widgets/pet_status_row.dart';
 import '../widgets/post_detail/post_detail_blood_type.dart';
@@ -28,6 +30,7 @@ import 'donation_completion_sheet.dart';
 import 'hospital_active_posts_tab.dart';
 import 'hospital_closed_recruitment_tab.dart';
 import 'hospital_completed_donations_tab.dart';
+import 'hospital_donation_survey_detail.dart';
 import 'hospital_pending_posts_tab.dart';
 
 class HospitalPostCheck extends StatefulWidget {
@@ -75,18 +78,55 @@ class _HospitalPostCheckState extends State<HospitalPostCheck>
     });
     _searchController.addListener(_onSearchTextChanged);
 
-    // 알림 탭 진입 시 자동으로 해당 게시글 바텀시트 오픈.
+    // 알림 탭 진입 시 자동으로 해당 게시글 바텀시트 오픈 + status에 맞는 탭 활성화.
     // 백엔드 단건 fetch API가 status 0~5 모두 지원하므로 어느 탭이든 무관.
     if (widget.initialPostIdx != null) {
       WidgetsBinding.instance.addPostFrameCallback((_) async {
-        final post = await HospitalPostService.getPostByIdx(
-          widget.initialPostIdx!,
-        );
-        if (!mounted) return;
-        if (post != null) {
-          _showPostBottomSheet(post);
+        try {
+          final post = await HospitalPostService.getPostByIdx(
+            widget.initialPostIdx!,
+          );
+          if (!mounted) return;
+          if (post != null) {
+            // status별 탭 자동 전환 — 알림 진입 시 사용자가 게시글이 위치한 탭에서
+            // 시트를 열도록. PostStatus 미러: 0=WAIT, 1=APPROVED, 3=CLOSED, 4=COMPLETED, 5=SUSPENDED.
+            final targetTab = _statusToTabIndex(post.status);
+            if (_tabController != null && _tabController!.index != targetTab) {
+              _tabController!.animateTo(targetTab);
+            }
+            _showPostBottomSheet(post);
+          } else {
+            // 게시글이 삭제됐거나 권한이 없는 케이스 — 사용자가 알림 탭만으로
+            // 해석 못 하므로 명시 안내. 알림 자체는 백엔드 데이터 시점 기준.
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('해당 게시글을 찾을 수 없습니다 (이미 처리되었거나 권한이 없습니다).'),
+              ),
+            );
+          }
+        } catch (e) {
+          if (!mounted) return;
+          debugPrint('[HospitalPostCheck] initialPostIdx fetch 실패: $e');
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('게시글 불러오기 실패. 새로고침해주세요.')),
+          );
         }
       });
+    }
+  }
+
+  /// PostStatus → 탭 인덱스 매핑. 모집대기 탭(0)이 0/5 둘 다 수용,
+  /// 헌혈모집(1)=APPROVED, 모집마감(2)=CLOSED, 헌혈완료(3)=COMPLETED.
+  int _statusToTabIndex(int status) {
+    switch (status) {
+      case 1: // APPROVED
+        return 1;
+      case 3: // CLOSED
+        return 2;
+      case 4: // COMPLETED
+        return 3;
+      default: // WAIT(0), SUSPENDED(5), 그 외
+        return 0;
     }
   }
 
@@ -644,25 +684,14 @@ class _HospitalPostCheckState extends State<HospitalPostCheck>
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    // 신청자 정보 + 프로필 사진
+                                    // 보호자 닉네임 헤더 (가운데 사진 + 닉네임 텍스트)
                                     if (item.applicantNickname != null && item.applicantNickname!.isNotEmpty) ...[
-                                      Row(
-                                        children: [
-                                          PetProfileImage(
-                                            profileImage: item.applicantProfileImage,
-                                            radius: 16,
-                                          ),
-                                          const SizedBox(width: 8),
-                                          Icon(PetFieldIcons.nickname, size: 16, color: AppTheme.textSecondary),
-                                          const SizedBox(width: 8),
-                                          Expanded(
-                                            child: Text(
-                                              item.applicantNickname!,
-                                              style: AppTheme.bodyMediumStyle,
-                                              overflow: TextOverflow.ellipsis,
-                                            ),
-                                          ),
-                                        ],
+                                      Center(
+                                        child: ProfileVerticalCard(
+                                          profileImage: item.applicantProfileImage,
+                                          name: item.applicantNickname!,
+                                          avatarRadius: 28,
+                                        ),
                                       ),
                                     ],
                                     if (item.applicantName != null && item.applicantName!.isNotEmpty) ...[
@@ -682,55 +711,41 @@ class _HospitalPostCheckState extends State<HospitalPostCheck>
                                       ),
                                     ],
                                     const Divider(height: 24),
-                                    // 반려동물 정보 + 프로필 사진
+                                    // 반려동물 헤더 (가운데 큰 사진 + 이름)
+                                    // 종/품종은 별도 InfoRow로 표시 (시각 일관성).
+                                    // 사진 다운로드 버튼은 사진 오른쪽에 imageTrailing으로 배치.
                                     if (item.petName != null) ...[
-                                      Row(
-                                        children: [
-                                          PetProfileImage(
-                                            profileImage: item.petProfileImage,
-                                            species: item.animalTypeText,
-                                            radius: 16,
-                                          ),
-                                          const SizedBox(width: 8),
-                                          Icon(Icons.pets, size: 16, color: AppTheme.textSecondary),
-                                          const SizedBox(width: 8),
-                                          Expanded(
-                                            child: Text(
-                                              '${item.petName} (${item.animalTypeText ?? "정보없음"})',
-                                              style: AppTheme.bodyMediumStyle,
-                                              overflow: TextOverflow.ellipsis,
-                                            ),
-                                          ),
-                                          // 모집마감 탭 + 펫 프로필 사진 있는 경우만 다운로드 버튼 노출
-                                          if (_currentTabIndex == 2 &&
-                                              item.petProfileImage != null &&
-                                              item.petProfileImage!.isNotEmpty)
-                                            TextButton.icon(
-                                              onPressed: () => _downloadPetImage(item),
-                                              icon: const Icon(
-                                                Icons.download_outlined,
-                                                size: 16,
-                                              ),
-                                              label: const Text(
-                                                '사진 다운로드',
-                                                style: TextStyle(fontSize: 12),
-                                              ),
-                                              style: TextButton.styleFrom(
-                                                foregroundColor: AppTheme.primaryBlue,
-                                                padding: const EdgeInsets.symmetric(
-                                                  horizontal: 8,
-                                                  vertical: 4,
-                                                ),
-                                                minimumSize: Size.zero,
-                                                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                                              ),
-                                            ),
-                                        ],
+                                      Center(
+                                        child: ProfileVerticalCard(
+                                          profileImage: item.petProfileImage,
+                                          species: item.animalTypeText,
+                                          name: item.petName!,
+                                          imageTrailing: (_currentTabIndex == 2 &&
+                                                  item.petProfileImage != null &&
+                                                  item.petProfileImage!.isNotEmpty)
+                                              ? IconButton(
+                                                  onPressed: () => _downloadPetImage(item),
+                                                  icon: const Icon(Icons.download_outlined),
+                                                  tooltip: '사진 다운로드',
+                                                  color: AppTheme.primaryBlue,
+                                                  visualDensity: VisualDensity.compact,
+                                                )
+                                              : null,
+                                        ),
                                       ),
                                     ],
                                     // 펫 정보 표시 순서 (회원가입 관리 / 관리자 펫 관리와 정합):
-                                    // (헤더에 펫 이름+종류 표시) 품종 → 성별 → 혈액형 → 체중 →
+                                    // (헤더에 펫 이름만 표시) 종 → 품종 → 성별 → 혈액형 → 체중 →
                                     // 생년월일 → 최근 헌혈일 → 접종 → 예방약 → 중성화 → 질병 → 임신/출산
+                                    if (item.animalTypeText != null &&
+                                        item.animalTypeText!.isNotEmpty) ...[
+                                      const SizedBox(height: 12),
+                                      InfoRow(
+                                        icon: PetFieldIcons.species,
+                                        label: '종',
+                                        value: item.animalTypeText!,
+                                      ),
+                                    ],
                                     if (item.petBreed != null && item.petBreed!.isNotEmpty) ...[
                                       const SizedBox(height: 12),
                                       InfoRow(
@@ -792,29 +807,28 @@ class _HospitalPostCheckState extends State<HospitalPostCheck>
                                         status: PetStatusType.neutral,
                                       ),
                                     ],
-                                    // 접종: 완료 → 초록 ✓ / 미접종 → 빨강 ! (의료 행위 critical)
-                                    if (item.petVaccinated != null) ...[
-                                      const SizedBox(height: 12),
-                                      PetStatusRow(
-                                        icon: PetFieldIcons.vaccinated,
-                                        label: '접종',
-                                        status: item.petVaccinated == true
-                                            ? PetStatusType.positive
-                                            : PetStatusType.critical,
-                                      ),
-                                    ],
-                                    // 종합백신 + 항체검사 (카페 정책 — 2026-05 PR-1)
+                                    // 접종 — user/pet_management 패턴 통일 (2026-05-07):
+                                    // 일자 있으면 InfoRow로 일자만 표시(곧 "접종 완료" 의미),
+                                    // 일자 없으면 PetStatusRow critical로 미접종/미입력 안내.
                                     if (item.petVaccinated == true &&
                                         item.petLastVaccinationDate != null &&
                                         item.petLastVaccinationDate!.isNotEmpty) ...[
                                       const SizedBox(height: 12),
                                       InfoRow(
-                                        icon: PetFieldIcons.vaccinationDate,
+                                        icon: PetFieldIcons.vaccinated,
                                         label: '종합백신',
                                         value: item.petLastVaccinationDate!
                                             .replaceAll('-', '.'),
                                       ),
+                                    ] else if (item.petVaccinated != null) ...[
+                                      const SizedBox(height: 12),
+                                      const PetStatusRow(
+                                        icon: PetFieldIcons.vaccinated,
+                                        label: '종합백신',
+                                        status: PetStatusType.critical,
+                                      ),
                                     ],
+                                    // 항체검사 (카페 정책 — 2년 초과 시 필수)
                                     if (item.petVaccinated == true &&
                                         item.petLastAntibodyTestDate != null &&
                                         item.petLastAntibodyTestDate!.isNotEmpty) ...[
@@ -826,37 +840,43 @@ class _HospitalPostCheckState extends State<HospitalPostCheck>
                                             .replaceAll('-', '.'),
                                       ),
                                     ],
-                                    // 예방약: 복용 → 초록 ✓ / 미복용 → 빨강 !
-                                    if (item.petHasPreventiveMedication != null) ...[
-                                      const SizedBox(height: 12),
-                                      PetStatusRow(
-                                        icon: PetFieldIcons.medication,
-                                        label: '예방약',
-                                        status: item.petHasPreventiveMedication == true
-                                            ? PetStatusType.positive
-                                            : PetStatusType.critical,
-                                      ),
-                                    ],
-                                    // 예방약 복용일 (카페 정책 — 2026-05 PR-1)
+                                    // 예방약 — 동일 패턴.
                                     if (item.petHasPreventiveMedication == true &&
                                         item.petLastPreventiveMedicationDate != null &&
                                         item.petLastPreventiveMedicationDate!.isNotEmpty) ...[
                                       const SizedBox(height: 12),
                                       InfoRow(
-                                        icon: PetFieldIcons.preventiveMedicationDate,
-                                        label: '예방약 복용',
+                                        icon: PetFieldIcons.medication,
+                                        label: '예방약',
                                         value: item.petLastPreventiveMedicationDate!
                                             .replaceAll('-', '.'),
                                       ),
+                                    ] else if (item.petHasPreventiveMedication != null) ...[
+                                      const SizedBox(height: 12),
+                                      const PetStatusRow(
+                                        icon: PetFieldIcons.medication,
+                                        label: '예방약',
+                                        status: PetStatusType.critical,
+                                      ),
                                     ],
-                                    // 중성화: 완료 → 초록 ✓ / 미시행 → 회색 — (자연스러운 부재)
-                                    if (item.petIsNeutered != null) ...[
+                                    // 중성화 — 동일 패턴. 일자 없으면 status 토글.
+                                    if (item.petIsNeutered == true &&
+                                        item.petNeuteredDate != null &&
+                                        item.petNeuteredDate!.isNotEmpty) ...[
+                                      const SizedBox(height: 12),
+                                      InfoRow(
+                                        icon: PetFieldIcons.isNeutered,
+                                        label: '중성화',
+                                        value: item.petNeuteredDate!
+                                            .replaceAll('-', '.'),
+                                      ),
+                                    ] else if (item.petIsNeutered != null) ...[
                                       const SizedBox(height: 12),
                                       PetStatusRow(
                                         icon: PetFieldIcons.isNeutered,
                                         label: '중성화',
                                         status: item.petIsNeutered == true
-                                            ? PetStatusType.positive
+                                            ? PetStatusType.warning  // 체크는 됐으나 일자 미입력
                                             : PetStatusType.neutral,
                                       ),
                                     ],
@@ -1240,25 +1260,6 @@ class _PostDetailBottomSheetState extends State<PostDetailBottomSheet> {
                         overflow: TextOverflow.ellipsis,
                       ),
                     ),
-                    // 사전 설문 일괄 조회 (2026-05 PR-3 — F-D-4 진입점)
-                    IconButton(
-                      icon: const Icon(
-                        Icons.fact_check_outlined,
-                        color: AppTheme.primaryBlue,
-                      ),
-                      onPressed: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => HospitalDonationSurveyList(
-                              postIdx: widget.post.id,
-                              postTitle: widget.post.title,
-                            ),
-                          ),
-                        );
-                      },
-                      tooltip: '신청자 사전 설문',
-                    ),
                     IconButton(
                       icon: const Icon(Icons.close, color: Colors.black),
                       onPressed: () => Navigator.pop(context),
@@ -1293,35 +1294,6 @@ class _PostDetailBottomSheetState extends State<PostDetailBottomSheet> {
                         animalType: widget.post.animalType,
                         applicantCount: applicants.length,
                         createdAt: widget.post.createdDate,
-                      ),
-
-                      const SizedBox(height: 8),
-
-                      // 담당자 이름 (병원 전용 - 공통 위젯에 없음)
-                      Row(
-                        children: [
-                          Icon(
-                            Icons.person_outline,
-                            size: 16,
-                            color: AppTheme.textSecondary,
-                          ),
-                          const SizedBox(width: 8),
-                          Text(
-                            '담당자: ',
-                            style: AppTheme.bodyMediumStyle.copyWith(
-                              fontWeight: FontWeight.w500,
-                              color: Colors.grey[700],
-                            ),
-                          ),
-                          Expanded(
-                            child: Text(
-                              widget.post.hospitalNickname ?? widget.post.hospitalName,
-                              style: AppTheme.bodyMediumStyle.copyWith(
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                          ),
-                        ],
                       ),
 
                       // 설명글
@@ -1495,9 +1467,71 @@ class _PostDetailBottomSheetState extends State<PostDetailBottomSheet> {
               ),
             ),
           ],
+
+          // 사전 설문 보기 — 모집마감(3) / 헌혈완료(4)에서만 노출.
+          // 신청자별로 backend lookup (post 단위 list → application_id 매칭).
+          if (widget.post.status == 3 || widget.post.status == 4) ...[
+            const SizedBox(height: 12),
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                onPressed: () =>
+                    _openSurveyForApplicant(applicant.appliedDonationIdx),
+                icon: const Icon(Icons.fact_check_outlined, size: 18),
+                label: const Text('사전 설문 보기'),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: AppTheme.primaryBlue,
+                  side: const BorderSide(color: AppTheme.primaryBlue),
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                ),
+              ),
+            ),
+          ],
         ],
       ),
     );
+  }
+
+  /// 신청자별 사전 설문 조회 — `getByPost` 결과에서 application_id 매칭 후
+  /// 단건 detail 화면으로 push. 없으면 SnackBar.
+  Future<void> _openSurveyForApplicant(int applicationId) async {
+    final messenger = ScaffoldMessenger.of(context);
+    final navigator = Navigator.of(context);
+    try {
+      final list = await HospitalSurveyService.getByPost(widget.post.id);
+      if (!mounted) return;
+      DonationSurveyListItem? matched;
+      for (final e in list.items) {
+        if (e.appliedDonationIdx == applicationId) {
+          matched = e;
+          break;
+        }
+      }
+      if (matched == null) {
+        messenger.showSnackBar(
+          const SnackBar(content: Text('제출된 사전 설문이 없습니다')),
+        );
+        return;
+      }
+      navigator.push(
+        MaterialPageRoute(
+          builder: (_) =>
+              HospitalDonationSurveyDetail(surveyIdx: matched!.surveyIdx),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text(
+            '설문 조회 실패: ${e.toString().replaceFirst('Exception: ', '')}',
+          ),
+        ),
+      );
+    }
   }
 
   Widget _buildStatusChip(int status) {

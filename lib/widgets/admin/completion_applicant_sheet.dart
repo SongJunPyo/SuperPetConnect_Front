@@ -1,11 +1,16 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
+import '../../services/donation_post_image_service.dart';
 import '../../utils/app_theme.dart';
 import '../../utils/pet_field_icons.dart';
+import '../../utils/pet_image_downloader.dart';
 import '../../utils/time_format_util.dart';
 import '../donation_history_sheet.dart';
 import '../info_row.dart';
+import '../pet/profile_vertical_card.dart';
 import '../pet_profile_image.dart';
+import '../pet_status_row.dart';
 import '../post_detail/post_detail_description.dart';
 
 /// 헌혈마감 / 헌혈완료 탭에서 확정 신청자 1명의 정보를 표시할 때
@@ -304,8 +309,37 @@ class _ApplicantInfoCard extends StatelessWidget {
 
   const _ApplicantInfoCard({required this.post});
 
+  /// 평면 키(`pet_sex`)와 nested 키(`pet.sex`) 양쪽에서 펫 필드를 읽음.
+  /// admin/posts 응답이 어느 형태로 보내는지 확정 안 돼 양쪽 fallback.
+  /// 둘 다 null이면 화면에서 hidden 또는 critical 처리.
+  T? _petField<T>(String key) {
+    final flat = post['pet_$key'];
+    if (flat is T) return flat;
+    final nested = post['pet'];
+    if (nested is Map) {
+      final v = nested[key];
+      if (v is T) return v;
+    }
+    return null;
+  }
+
   @override
   Widget build(BuildContext context) {
+    // 진단 로그 — admin/posts 응답에 어떤 펫 필드들이 들어오는지 1회 확인용.
+    // 사용자 검증 후 평면/nested 확정되면 제거.
+    if (kDebugMode) {
+      final keysWithPet =
+          post.keys.where((k) => k.toString().startsWith('pet')).toList();
+      debugPrint(
+        '[CompletionApplicantSheet] post keys with "pet": $keysWithPet',
+      );
+      if (post['pet'] is Map) {
+        debugPrint(
+          '[CompletionApplicantSheet] nested pet keys: ${(post['pet'] as Map).keys.toList()}',
+        );
+      }
+    }
+
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -315,60 +349,276 @@ class _ApplicantInfoCard extends StatelessWidget {
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // 아이콘은 PetFieldIcons 단일 진실에서 가져옴.
-          if (post['user_name'] != null &&
-              post['user_name'].toString().isNotEmpty)
-            InfoRow(
-              icon: PetFieldIcons.userName,
-              label: '이름',
-              value: post['user_name'].toString(),
-            ),
-          if (post['user_nickname'] != null &&
-              post['user_nickname'].toString().isNotEmpty) ...[
-            const SizedBox(height: 12),
-            InfoRow(
-              icon: PetFieldIcons.nickname,
-              label: '닉네임',
-              value: post['user_nickname'].toString(),
-            ),
-          ],
-          if (post['pet_name'] != null &&
-              post['pet_name'].toString().isNotEmpty) ...[
-            const SizedBox(height: 12),
-            InfoRow(
-              icon: PetFieldIcons.species,
-              label: '반려동물',
-              value: post['pet_breed'] != null &&
-                      post['pet_breed'].toString().isNotEmpty
-                  ? '${post['pet_name']} (${post['pet_breed']})'
-                  : post['pet_name'],
-            ),
-          ],
-          if (post['pet_birth_date'] != null &&
-              post['pet_birth_date'].toString().isNotEmpty) ...[
-            const SizedBox(height: 12),
-            _buildBirthDateRow(post['pet_birth_date'].toString()),
-          ],
-          if (post['pet_blood_type'] != null) ...[
-            const SizedBox(height: 12),
-            InfoRow(
-              icon: PetFieldIcons.bloodType,
-              label: '혈액형',
-              value: post['pet_blood_type'].toString(),
-            ),
-          ],
-          if (post['blood_volume'] != null) ...[
-            const SizedBox(height: 12),
-            InfoRow(
-              icon: Icons.water_drop_outlined,
-              label: '헌혈량',
-              value: '${post['blood_volume']} mL',
-            ),
-          ],
-        ],
+        children: _buildRows(context),
       ),
     );
+  }
+
+  List<Widget> _buildRows(BuildContext context) {
+    final rows = <Widget>[];
+
+    // === 보호자 닉네임 헤더 (가운데 사진 + 닉네임) ===
+    // BE 응답 키 통일: applicant_profile_image (병원/admin 두 시트 동일).
+    // PendingApplicationItem 응답에 추가됨 — GET /api/admin/pending-donations 류.
+    final userNickname = post['user_nickname']?.toString();
+    final userProfileImage = post['applicant_profile_image']?.toString();
+    if (userNickname != null && userNickname.isNotEmpty) {
+      rows.add(Center(
+        child: ProfileVerticalCard(
+          profileImage: userProfileImage,
+          name: userNickname,
+          avatarRadius: 28,
+        ),
+      ));
+      rows.add(const SizedBox(height: 12));
+    }
+
+    // === 사용자 이름 ===
+    if (post['user_name'] != null &&
+        post['user_name'].toString().isNotEmpty) {
+      rows.add(InfoRow(
+        icon: PetFieldIcons.userName,
+        label: '이름',
+        value: post['user_name'].toString(),
+      ));
+    }
+
+    // === 펫 헤더 (가운데 큰 사진 + 이름) ===
+    // 종/품종은 별도 InfoRow로 표시. 사진 다운로드는 사진 오른쪽에 imageTrailing.
+    final petName = _petField<String>('name') ?? post['pet_name']?.toString();
+    final petProfileImage = _petField<String>('profile_image') ??
+        post['pet_profile_image']?.toString();
+    final petSpecies = _petField<String>('species') ??
+        post['pet_species']?.toString();
+    if (petName != null && petName.isNotEmpty) {
+      rows.add(const SizedBox(height: 16));
+      rows.add(Center(
+        child: ProfileVerticalCard(
+          profileImage: petProfileImage,
+          species: petSpecies,
+          name: petName,
+          imageTrailing: (petProfileImage != null && petProfileImage.isNotEmpty)
+              ? IconButton(
+                  onPressed: () => _onDownloadPet(context, petProfileImage, petName),
+                  icon: const Icon(Icons.download_outlined),
+                  tooltip: '사진 다운로드',
+                  color: AppTheme.primaryBlue,
+                  visualDensity: VisualDensity.compact,
+                )
+              : null,
+        ),
+      ));
+    }
+
+    // === 펫 정보 (13필드 통일 set — date row OR critical status row) ===
+    // 이름은 ProfileVerticalCard 헤더, 종/품종은 InfoRow 첫 항목.
+
+    // 종 (animalType / species)
+    if (petSpecies != null && petSpecies.isNotEmpty) {
+      rows.add(const SizedBox(height: 12));
+      rows.add(InfoRow(
+        icon: PetFieldIcons.species,
+        label: '종',
+        value: petSpecies,
+      ));
+    }
+
+    // 품종 (breed)
+    final petBreed =
+        _petField<String>('breed') ?? post['pet_breed']?.toString();
+    if (petBreed != null && petBreed.isNotEmpty) {
+      rows.add(const SizedBox(height: 12));
+      rows.add(InfoRow(
+        icon: PetFieldIcons.breed,
+        label: '품종',
+        value: petBreed,
+      ));
+    }
+
+    // 성별
+    final sex = _petField<int>('sex');
+    if (sex != null) {
+      rows.add(const SizedBox(height: 12));
+      rows.add(InfoRow(
+        icon: PetFieldIcons.sex(sex),
+        label: '성별',
+        value: sex == 0 ? '암컷' : '수컷',
+      ));
+    }
+
+    // 혈액형
+    final bloodType = _petField<String>('blood_type') ??
+        post['pet_blood_type']?.toString();
+    if (bloodType != null && bloodType.isNotEmpty) {
+      rows.add(const SizedBox(height: 12));
+      rows.add(InfoRow(
+        icon: PetFieldIcons.bloodType,
+        label: '혈액형',
+        value: bloodType,
+      ));
+    }
+
+    // 체중
+    final weightKg = _petField<num>('weight_kg');
+    if (weightKg != null) {
+      rows.add(const SizedBox(height: 12));
+      rows.add(InfoRow(
+        icon: PetFieldIcons.weight,
+        label: '체중',
+        value: '${weightKg}kg',
+      ));
+    }
+
+    // 생년월일
+    final birthDateRaw = _petField<String>('birth_date') ??
+        post['pet_birth_date']?.toString();
+    if (birthDateRaw != null && birthDateRaw.isNotEmpty) {
+      rows.add(const SizedBox(height: 12));
+      rows.add(_buildBirthDateRow(birthDateRaw));
+    }
+
+    // 최근 헌혈일
+    final lastDonation = _petField<String>('prev_donation_date') ??
+        _petField<String>('last_donation_date');
+    if (lastDonation != null && lastDonation.isNotEmpty) {
+      rows.add(const SizedBox(height: 12));
+      rows.add(InfoRow(
+        icon: PetFieldIcons.prevDonationDate,
+        label: '최근 헌혈일',
+        value: lastDonation.replaceAll('-', '.'),
+      ));
+    } else {
+      rows.add(const SizedBox(height: 12));
+      rows.add(_status(
+          PetFieldIcons.prevDonationDate, '최근 헌혈일', PetStatusType.neutral));
+    }
+
+    // 종합백신
+    final vaccinated = _petField<bool>('vaccinated');
+    final lastVaccDate = _petField<String>('last_vaccination_date');
+    if (vaccinated == true &&
+        lastVaccDate != null &&
+        lastVaccDate.isNotEmpty) {
+      rows.add(const SizedBox(height: 12));
+      rows.add(InfoRow(
+        icon: PetFieldIcons.vaccinated,
+        label: '종합백신',
+        value: lastVaccDate.replaceAll('-', '.'),
+      ));
+    } else if (vaccinated != null) {
+      rows.add(const SizedBox(height: 12));
+      rows.add(_status(
+          PetFieldIcons.vaccinated, '종합백신', PetStatusType.critical));
+    }
+
+    // 항체검사 (값 있을 때만)
+    final antibodyDate = _petField<String>('last_antibody_test_date');
+    if (vaccinated == true &&
+        antibodyDate != null &&
+        antibodyDate.isNotEmpty) {
+      rows.add(const SizedBox(height: 12));
+      rows.add(InfoRow(
+        icon: PetFieldIcons.antibodyTestDate,
+        label: '항체검사',
+        value: antibodyDate.replaceAll('-', '.'),
+      ));
+    }
+
+    // 예방약
+    final hasMed = _petField<bool>('has_preventive_medication');
+    final lastMedDate =
+        _petField<String>('last_preventive_medication_date');
+    if (hasMed == true && lastMedDate != null && lastMedDate.isNotEmpty) {
+      rows.add(const SizedBox(height: 12));
+      rows.add(InfoRow(
+        icon: PetFieldIcons.medication,
+        label: '예방약',
+        value: lastMedDate.replaceAll('-', '.'),
+      ));
+    } else if (hasMed != null) {
+      rows.add(const SizedBox(height: 12));
+      rows.add(
+          _status(PetFieldIcons.medication, '예방약', PetStatusType.critical));
+    }
+
+    // 중성화
+    final isNeutered = _petField<bool>('is_neutered');
+    final neuteredDate = _petField<String>('neutered_date');
+    if (isNeutered == true &&
+        neuteredDate != null &&
+        neuteredDate.isNotEmpty) {
+      rows.add(const SizedBox(height: 12));
+      rows.add(InfoRow(
+        icon: PetFieldIcons.isNeutered,
+        label: '중성화',
+        value: neuteredDate.replaceAll('-', '.'),
+      ));
+    } else if (isNeutered != null) {
+      rows.add(const SizedBox(height: 12));
+      rows.add(_status(
+        PetFieldIcons.isNeutered,
+        '중성화',
+        isNeutered == true ? PetStatusType.warning : PetStatusType.neutral,
+      ));
+    }
+
+    // 질병
+    final hasDisease = _petField<bool>('has_disease');
+    if (hasDisease != null) {
+      rows.add(const SizedBox(height: 12));
+      rows.add(_status(
+        PetFieldIcons.hasDisease,
+        '질병',
+        hasDisease == true ? PetStatusType.critical : PetStatusType.neutral,
+      ));
+    }
+
+    // 임신/출산 (수컷이면 hidden)
+    if (sex == 0) {
+      final pregnancyStatus = _petField<int>('pregnancy_birth_status');
+      final lastPregEnd = _petField<String>('last_pregnancy_end_date');
+      rows.add(const SizedBox(height: 12));
+      if (pregnancyStatus == 2 &&
+          lastPregEnd != null &&
+          lastPregEnd.isNotEmpty) {
+        rows.add(InfoRow(
+          icon: PetFieldIcons.pregnancyBirth,
+          label: '임신/출산',
+          value: '출산 ${lastPregEnd.replaceAll('-', '.')}',
+        ));
+      } else {
+        rows.add(_status(
+          PetFieldIcons.pregnancyBirth,
+          '임신/출산',
+          pregnancyStatus == 1
+              ? PetStatusType.warning
+              : PetStatusType.neutral,
+        ));
+      }
+    }
+
+    // 외부 헌혈 횟수
+    final priorCount = _petField<int>('prior_donation_count');
+    if (priorCount != null && priorCount > 0) {
+      rows.add(const SizedBox(height: 12));
+      rows.add(InfoRow(
+        icon: PetFieldIcons.prevDonationDate,
+        label: '외부 헌혈',
+        value: '$priorCount회',
+      ));
+    }
+
+    // 헌혈량 (헌혈완료 status 시)
+    if (post['blood_volume'] != null) {
+      rows.add(const SizedBox(height: 12));
+      rows.add(InfoRow(
+        icon: Icons.water_drop_outlined,
+        label: '헌혈량',
+        value: '${post['blood_volume']} mL',
+      ));
+    }
+
+    return rows;
   }
 
   Widget _buildBirthDateRow(String birthDateRaw) {
@@ -380,7 +630,29 @@ class _ApplicantInfoCard extends StatelessWidget {
       final ageText = months < 12 ? '$months개월' : '${months ~/ 12}살';
       birthText = '$birthText ($ageText)';
     }
-    return InfoRow(icon: PetFieldIcons.birthDate, label: '생년월일', value: birthText);
+    return InfoRow(
+        icon: PetFieldIcons.birthDate, label: '생년월일', value: birthText);
+  }
+
+  Widget _status(IconData icon, String label, PetStatusType status) {
+    return PetStatusRow(icon: icon, label: label, status: status);
+  }
+
+  /// 펫 프로필 사진 다운로드 — SnackBar UX 포함 헬퍼 위임.
+  Future<void> _onDownloadPet(
+    BuildContext context,
+    String profileImage,
+    String petName,
+  ) async {
+    if (profileImage.isEmpty) return;
+    final imageUrl = DonationPostImageService.getFullImageUrl(profileImage);
+    final filename =
+        '${petName.replaceAll(RegExp(r'[\\/:*?"<>|]'), '_')}.jpg';
+    await downloadPetImageWithFeedback(
+      context: context,
+      imageUrl: imageUrl,
+      filename: filename,
+    );
   }
 }
 

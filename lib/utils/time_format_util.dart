@@ -1,5 +1,36 @@
 import 'package:intl/intl.dart';
 
+/// 헌혈 일자가 "오늘 이전"인지 검사 (당일 신청 허용 — donation_date >= today).
+///
+/// 입력은 "YYYY-MM-DD" 또는 ISO 8601 문자열. 파싱 실패 시 false (보수적으로 통과).
+/// 비교는 캘린더 day 단위 — 시각은 무시 (당일 자정 이후라도 today로 간주).
+///
+/// 사용처:
+/// - [PostDetailBottomSheet] 시간대 dropdown 필터링
+/// - [DonationApplicationPage] submit 직전 safety check
+/// - [UserDonationPostsListScreen] auto-apply 시간대 선택 시 past 스킵
+bool isDonationDatePast(String? dateStr) {
+  if (dateStr == null || dateStr.isEmpty) return false;
+  try {
+    final parsed = DateTime.parse(dateStr);
+    final donationDay = DateTime(parsed.year, parsed.month, parsed.day);
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    return donationDay.isBefore(today);
+  } catch (_) {
+    return false;
+  }
+}
+
+/// DateTime 버전 — [isDonationDatePast]의 String 오버로드와 동작 동일.
+bool isDonationDateTimePast(DateTime? date) {
+  if (date == null) return false;
+  final donationDay = DateTime(date.year, date.month, date.day);
+  final now = DateTime.now();
+  final today = DateTime(now.year, now.month, now.day);
+  return donationDay.isBefore(today);
+}
+
 /// 날짜 및 시간 포맷팅 유틸리티
 /// 게시글 상세, 리스트 등에서 일관된 날짜/시간 포맷을 제공
 class TimeFormatUtils {
@@ -8,7 +39,15 @@ class TimeFormatUtils {
 
   // ===== 기존 시간 문자열 포맷팅 =====
 
-  /// "14:10" -> "오후 02:10" 형태로 변환 ("14:10:00" 같은 초 포함도 허용)
+  /// "16:00" → "오후 16:00" — 오전/오후 라벨 + 24시간 숫자 그대로.
+  /// 12시간제 변환 안 함 (운영 결정 2026-05).
+  /// 예시:
+  /// - 00:00 → 오전 00:00 (자정)
+  /// - 09:00 → 오전 09:00
+  /// - 12:00 → 오후 12:00 (정오)
+  /// - 16:00 → 오후 16:00
+  /// - 23:00 → 오후 23:00
+  /// "14:10:00" 같은 초 포함도 허용.
   static String formatTime(String time24) {
     if (time24.isEmpty) return '시간 미정';
 
@@ -17,21 +56,22 @@ class TimeFormatUtils {
       if (parts.length >= 2) {
         final hour = int.parse(parts[0]);
         final minute = parts[1];
-        if (hour == 0) {
-          return '오전 12:$minute';
-        } else if (hour < 12) {
-          return '오전 ${hour.toString().padLeft(2, '0')}:$minute';
-        } else if (hour == 12) {
-          return '오후 12:$minute';
-        } else {
-          return '오후 ${(hour - 12).toString().padLeft(2, '0')}:$minute';
-        }
+        final period = hour < 12 ? '오전' : '오후';
+        return '$period ${hour.toString().padLeft(2, '0')}:$minute';
       }
     } catch (e) {
       // 파싱 실패 시 원본 값 반환
       return time24;
     }
     return '시간 미정';
+  }
+
+  /// DateTime의 시간 부분을 [formatTime] 새 포맷으로 변환.
+  /// 헌혈 시간 표시(donation_time)가 DateTime 객체일 때 사용.
+  static String formatTimeOfDate(DateTime date) {
+    return formatTime(
+      '${date.hour.toString().padLeft(2, '0')}:${date.minute.toString().padLeft(2, '0')}',
+    );
   }
 
   /// "14:10" 그대로 반환
@@ -151,27 +191,31 @@ class TimeFormatUtils {
     return formatShortDate(parsed);
   }
 
-  /// 한국어 풀 포맷 (요일 포함): yyyy년 MM월 dd일 (E) HH:mm
-  /// 예: 2024년 12월 25일 (수) 14:30
+  /// 한국어 풀 포맷 (요일 포함): yyyy년 MM월 dd일 (E) 오후 HH:mm
+  /// 예: 2024년 12월 25일 (수) 오후 14:30
   /// 헌혈 마감 일정 등 시간대 맥락 표시에 사용.
+  /// 시간 부분은 [formatTime] 새 포맷 (오전/오후 + 24시간) 적용.
   static String formatKoreanDateTimeWithWeekday(
     dynamic dateValue, {
     String defaultValue = '일정 정보 없음',
   }) {
     final parsed = parseFlexibleDate(dateValue);
     if (parsed == null) return defaultValue;
-    return DateFormat('yyyy년 MM월 dd일 (E) HH:mm', 'ko_KR').format(parsed);
+    final dateStr = DateFormat('yyyy년 MM월 dd일 (E)', 'ko_KR').format(parsed);
+    return '$dateStr ${formatTimeOfDate(parsed)}';
   }
 
-  /// 한국어 날짜+시간 포맷 (요일 없음): yyyy년 MM월 dd일 HH:mm
-  /// 예: 2024년 12월 25일 14:30
+  /// 한국어 날짜+시간 포맷 (요일 없음): yyyy년 MM월 dd일 오후 HH:mm
+  /// 예: 2024년 12월 25일 오후 14:30
   /// 처리 시각 등 단순 타임스탬프 표시에 사용.
+  /// 시간 부분은 [formatTime] 새 포맷 (오전/오후 + 24시간) 적용.
   static String formatKoreanDateTime(
     dynamic dateValue, {
     String defaultValue = '',
   }) {
     final parsed = parseFlexibleDate(dateValue);
     if (parsed == null) return defaultValue;
-    return DateFormat('yyyy년 MM월 dd일 HH:mm', 'ko_KR').format(parsed);
+    final dateStr = DateFormat('yyyy년 MM월 dd일', 'ko_KR').format(parsed);
+    return '$dateStr ${formatTimeOfDate(parsed)}';
   }
 }

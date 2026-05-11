@@ -1,6 +1,7 @@
 // models/donation_post_time_model.dart
 
 import '../utils/app_constants.dart';
+import '../utils/time_format_util.dart';
 
 class DonationPostTime {
   final int? postTimesId; // PK
@@ -61,13 +62,10 @@ class DonationPostTime {
     return '${donationTime.year}-${donationTime.month.toString().padLeft(2, '0')}-${donationTime.day.toString().padLeft(2, '0')}';
   }
 
-  // 12시간 형식으로 시간 표시
+  /// 헌혈 시간 표시 (오전/오후 + 24시간 — TimeFormatUtils.formatTime 단일 진실).
+  /// getter 이름은 호환성 유지를 위해 그대로 두되, 내부는 24시간 포맷.
   String get formatted12Hour {
-    final hour = donationTime.hour;
-    final minute = donationTime.minute;
-    final period = hour >= 12 ? '오후' : '오전';
-    final displayHour = hour > 12 ? hour - 12 : (hour == 0 ? 12 : hour);
-    return '$period ${displayHour.toString().padLeft(2, '0')}:${minute.toString().padLeft(2, '0')}';
+    return TimeFormatUtils.formatTimeOfDate(donationTime);
   }
 }
 
